@@ -1,0 +1,367 @@
+# Retriever Configuration
+# This file externalizes all domain-specific logic from the retrieval engine.
+# To adapt the system for a different domain, modify this file only.
+
+domain:
+  name: "HVAC Air Filtration"
+  company: "Mann+Hummel"
+  description: "Sales Engineering Assistant for air filtration products"
+
+# =============================================================================
+# PROMPTS
+# =============================================================================
+prompts:
+  system: |
+    You are a Sales Engineering Assistant for an air filtration company.
+    You have access to a Knowledge Graph containing HISTORICAL case studies from past projects.
+
+    ## CRITICAL: Case Study Framework
+
+    The Knowledge Graph contains **historical examples**, NOT universal rules or SOPs.
+    Every solution in the graph was specific to a particular project's unique constraints.
+
+    ### Response Structure (MANDATORY):
+
+    1. **Standard Approach First**
+       - For generic questions ("How to handle X?"), ALWAYS start with the logical/standard approach
+       - Example: "The standard first step for CAD issues is to request the complete geometry from the customer."
+
+    2. **Historical Context Second**
+       - Present graph data as **reference cases**, not instructions
+       - ALWAYS use this framing: "**Historical Example:** In Project [Name], we [Action] because [specific Constraint]."
+       - NEVER say "You should do [Action]" based solely on one project's solution
+
+    3. **Applicability Warning**
+       - If a retrieved solution is highly specific (e.g., Flange Adapter, custom workaround), explicitly state:
+         "This solution was specific to [Project]'s constraints ([explain why]). It may not apply to other situations."
+       - Highlight when constraints differ: machinery vs. cleanroom, retrofit vs. new installation, etc.
+
+    ### Language Rules:
+
+    DO say:
+    - "In Project X, the team used [Solution] because [Constraint]."
+    - "For similar machinery applications, consider [Solution] — as demonstrated in Project X."
+    - "The standard approach is [X]. However, in Project Y, constraints required [Workaround]."
+
+    DO NOT say:
+    - "You should use [Solution]." (without project context)
+    - "The solution is [X]." (implying universal applicability)
+    - "Always do [X]." (based on a single case)
+
+    ### When No Relevant Context:
+    If the retrieved cases don't match the user's situation well, say so clearly and provide general engineering guidance instead of forcing a match.
+
+    IMPORTANT: Base your answer on the provided Graph Context. Do not make up information.
+
+  synthesis: |
+    ## HISTORICAL CASE DATA (From Knowledge Graph)
+
+    {context}
+
+    ## PRODUCT INFORMATION
+
+    {products}
+
+    ## USER QUESTION
+
+    {query}
+
+    ## RESPONSE INSTRUCTIONS
+
+    Structure your response following the Case Study Framework:
+
+    1. **Start with Standard Approach**: What is the logical/textbook solution to this type of problem?
+
+    2. **Then Cite Historical Examples**: Present relevant cases from the graph as reference points.
+       - Format: "**Historical Example — [Project Name]:** [What happened] because [specific constraints]."
+       - Explain WHY that solution was chosen for THAT project.
+
+    3. **Assess Applicability**:
+       - If the user's question is generic but the retrieved solution is specific, warn them.
+       - Highlight any constraints that made the historical solution necessary (e.g., "welded grid", "cleanroom requirements", "retrofit limitation").
+
+    4. **Product Recommendations**: If relevant products exist, mention them with context.
+
+    Remember: Graph data = historical examples, NOT universal instructions. A Flange Adapter solved one project's problem; it's not "the solution" for all similar-sounding issues.
+
+# =============================================================================
+# PRODUCT CODE EXTRACTION
+# =============================================================================
+product_codes:
+  # Regex patterns to extract product codes from user queries
+  # Each pattern should capture the product code in group 1
+  patterns:
+    - pattern: '\b(GD[CPRF][-\s]?\d+x\d+(?:[-x]\d+)?)\b'
+      description: "GDC-600x600, GDP-900x600-1200"
+      flags: "IGNORECASE"
+
+    - pattern: '\b(GD[CPRF][-\s]?[A-Za-z]+[-\s]?\d+[/x]\d+)\b'
+      description: "GDR-Nano-1/1"
+      flags: "IGNORECASE"
+
+    - pattern: '\b(GD[CPRF][-\s]?FLEX[-\s]?\d+x\d+)\b'
+      description: "GDC-FLEX-600x600"
+      flags: "IGNORECASE"
+
+    - pattern: '\b(GDMI[-\s]?(?:FLEX[-\s]?)?\d+x\d+)\b'
+      description: "GDMI-600x600, GDMI-FLEX-600x600"
+      flags: "IGNORECASE"
+
+    - pattern: '\b(PFF[-\s]?\d+x\d+)\b'
+      description: "PFF-600x600"
+      flags: "IGNORECASE"
+
+    - pattern: '\b(BFF[-\s]?\d+x\d+)\b'
+      description: "BFF-610x610"
+      flags: "IGNORECASE"
+
+    - pattern: '\b(ECO-[CF][-\s]?\d+)\b'
+      description: "ECO-C 2600, ECO-F 3200"
+      flags: "IGNORECASE"
+
+  # Product family names that trigger search even without full dimensions
+  families:
+    - "GDC"
+    - "GDP"
+    - "GDR"
+    - "GDF"
+    - "GDMI"
+    - "GDB"
+    - "PFF"
+    - "BFF"
+
+  # Normalization rules for extracted codes
+  normalization:
+    replace_space_with: "-"
+
+# =============================================================================
+# PRODUCT VARIANT DISPLAY CONFIGURATION
+# =============================================================================
+product_display:
+  # Section header for product variants
+  header: "### PRODUCT CONFIGURATION DATA"
+  icon: "📦"
+
+  # Fields to display for each product variant
+  # Order matters - fields are displayed in this sequence
+  fields:
+    # Basic identification
+    - key: "id"
+      label: "Product"
+      format: "**Product: {value}**"
+      required: true
+
+    - key: "family"
+      label: "Family"
+      format: "  Family: {value}"
+
+    # Dimensions - special handling for composite display
+    - key: "_dimensions"
+      label: "Dimensions"
+      format: "  Dimensions: {value}"
+      composite: true
+      components:
+        - key: "width_mm"
+          suffix: "x"
+        - key: "height_mm"
+          suffix: "mm"
+        - key: "depth_mm"
+          prefix: " x "
+          suffix: "mm depth"
+          optional: true
+
+    # Numeric properties
+    - key: "cartridge_count"
+      label: "Cartridge Capacity"
+      format: "  Cartridge Capacity: {value} cartridges"
+
+    - key: "airflow_m3h"
+      label: "Reference Airflow"
+      format: "  Reference Airflow: {value} m³/h"
+      fallback_keys: ["reference_airflow_m3h"]
+
+    - key: "standard_length_mm"
+      label: "Standard Length"
+      format: "  Standard Length: {value}mm"
+
+    # Boolean flags with custom display
+    - key: "is_insulated"
+      label: "Special"
+      format: "  Special: Thermally insulated (anti-condensation)"
+      display_if_true: true
+
+    # Range fields (min/max pairs)
+    - key: "_length_range"
+      label: "Adjustable Length Range"
+      format: "  Adjustable Length Range: {min}-{max}mm"
+      range: true
+      min_key: "length_min_mm"
+      max_key: "length_max_mm"
+
+    # Array fields
+    - key: "special_features"
+      label: "Special Features"
+      format: "  Special Features: {value}"
+      array: true
+      join_with: ", "
+
+    - key: "available_depths_mm"
+      label: "Available Frame Depths"
+      format: "  Available Frame Depths: {value} mm"
+      array: true
+
+    - key: "available_materials"
+      label: "Available Materials"
+      format: "  Available Materials: {value}"
+      array: true
+      join_with: ", "
+
+  # Configuration options display
+  options:
+    header: "  **Configuration Options:**"
+    format: "    • Code **\"{code}\"**: {description}{category}"
+    category_format: " [{category}]"
+    json_key: "options_json"
+    fallback_key: "available_options"
+    fallback_format: "    • {value}"
+
+# =============================================================================
+# ENTITY TYPE CONFIGURATIONS
+# =============================================================================
+entity_types:
+  option_matches:
+    header: "### PRODUCTS WITH MATCHING OPTIONS"
+    icon: "🔧"
+    condition: ""  # Always show when there are option matches
+    fields:
+      - key: "variant_id"
+        format: "**{value}**"
+      - key: "family"
+        format: " ({value})"
+    options:
+      enabled: true
+
+  cartridges:
+    header: "### FILTER CARTRIDGES"
+    icon: "🔵"
+    fields:
+      - key: "model_name"
+        format: "**{value}**"
+        fallback_keys: ["id"]
+      - key: "weight_kg"
+        format: " - {value}kg"
+      - key: "media_type"
+        format: " ({value})"
+    item_prefix: "  • "
+
+  filters:
+    header: "### CONSUMABLE FILTERS"
+    icon: "📋"
+    fields:
+      - key: "part_number"
+        format: "Part# **{value}**"
+        default: "N/A"
+      - key: "model_name"
+        format: " - {value}"
+      - key: "filter_type"
+        format: " ({value})"
+    item_prefix: "  • "
+
+  materials:
+    header: "### MATERIAL SPECIFICATIONS"
+    icon: "🔧"
+    fields:
+      - key: "code"
+        format: "**{value}**"
+        default: "N/A"
+      - key: "full_name"
+        format: " ({value})"
+      - key: "corrosion_class"
+        format: " - Corrosion Class: **{value}**"
+      - key: "description"
+        format: " - {value}"
+    item_prefix: "  • "
+
+# =============================================================================
+# PROJECT SEARCH CONFIGURATION
+# =============================================================================
+project_search:
+  # Patterns to extract project references from queries
+  patterns:
+    - '(\w+)\s+project'
+    - 'project\s+(\w+)'
+    - '(\w+)\s+hospital'
+    - '(\w+)\s+case'
+
+  # Known project keywords (domain-specific)
+  known_keywords:
+    - "huddinge"
+    - "knittel"
+    - "hospital"
+    - "building"
+
+  # Words to exclude from project name extraction
+  stopwords:
+    - "a"
+    - "an"
+    - "the"
+    - "my"
+    - "your"
+    - "our"
+    - "their"
+    - "this"
+    - "that"
+    - "these"
+    - "those"
+    - "is"
+    - "are"
+    - "was"
+    - "were"
+    - "be"
+    - "been"
+    - "being"
+    - "have"
+    - "has"
+    - "had"
+    - "do"
+    - "does"
+    - "did"
+    - "will"
+    - "would"
+    - "could"
+    - "should"
+    - "may"
+    - "might"
+    - "where"
+    - "when"
+    - "what"
+    - "which"
+    - "who"
+    - "how"
+    - "why"
+    - "and"
+    - "or"
+    - "but"
+    - "if"
+    - "then"
+    - "else"
+    - "for"
+    - "with"
+    - "about"
+    - "new"
+    - "old"
+    - "same"
+    - "different"
+    - "other"
+    - "another"
+    - "some"
+    - "any"
+    - "all"
+    - "can"
+    - "need"
+    - "want"
+    - "like"
+    - "similar"
+    - "related"
+    - "specific"
+    - "particular"

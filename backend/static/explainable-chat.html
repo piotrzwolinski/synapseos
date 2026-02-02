@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Engineering Assistant - Explainable AI</title>
+    <style>
+        /* ============================================
+           CSS VARIABLES - Enterprise SaaS Theme
+           ============================================ */
+        :root {
+            --white: #FFFFFF;
+            --slate-50: #F8FAFC;
+            --slate-100: #F1F5F9;
+            --slate-200: #E2E8F0;
+            --slate-300: #CBD5E1;
+            --slate-400: #94A3B8;
+            --slate-500: #64748B;
+            --slate-600: #475569;
+            --slate-700: #334155;
+            --slate-800: #1E293B;
+            --slate-900: #0F172A;
+
+            --emerald-50: #ECFDF5;
+            --emerald-100: #D1FAE5;
+            --emerald-200: #A7F3D0;
+            --emerald-400: #34D399;
+            --emerald-500: #10B981;
+            --emerald-600: #059669;
+            --emerald-700: #047857;
+
+            --amber-100: #FEF3C7;
+            --amber-500: #F59E0B;
+            --amber-600: #D97706;
+
+            --red-100: #FEE2E2;
+            --red-500: #EF4444;
+
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+        }
+
+        /* ============================================
+           RESET & BASE
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--slate-100);
+            color: var(--slate-800);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ============================================
+           LAYOUT
+           ============================================ */
+        .app-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 24px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            padding: 24px 0;
+            border-bottom: 1px solid var(--slate-200);
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--slate-800);
+        }
+
+        .header .subtitle {
+            font-size: 0.875rem;
+            color: var(--slate-500);
+            margin-top: 4px;
+        }
+
+        /* ============================================
+           CHAT CONTAINER
+           ============================================ */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-bottom: 100px;
+        }
+
+        /* ============================================
+           MESSAGE BUBBLE
+           ============================================ */
+        .message {
+            display: flex;
+            gap: 12px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: var(--slate-700);
+            color: var(--white);
+        }
+
+        .message.assistant .message-avatar {
+            background: var(--emerald-500);
+            color: var(--white);
+        }
+
+        .message-content {
+            max-width: 75%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .message.user .message-content {
+            align-items: flex-end;
+        }
+
+        .message-bubble {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border: 1px solid var(--slate-200);
+        }
+
+        .message.user .message-bubble {
+            background: var(--slate-800);
+            color: var(--white);
+            border: none;
+        }
+
+        /* ============================================
+           BRAIN PANEL (Reasoning Steps)
+           ============================================ */
+        .brain-panel {
+            background: var(--slate-50);
+            border: 1px solid var(--slate-200);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .brain-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: var(--slate-100);
+            cursor: pointer;
+            user-select: none;
+            font-size: 0.8125rem;
+            color: var(--slate-600);
+            font-weight: 500;
+        }
+
+        .brain-header:hover {
+            background: var(--slate-200);
+        }
+
+        .brain-header .icon {
+            font-size: 14px;
+        }
+
+        .brain-header .chevron {
+            margin-left: auto;
+            transition: transform 0.2s;
+        }
+
+        .brain-header .source-stats {
+            display: flex;
+            gap: 12px;
+            margin-left: 12px;
+            font-size: 0.6875rem;
+            font-weight: 400;
+        }
+
+        .brain-header .stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .brain-header .stat.graph { color: var(--emerald-600); }
+        .brain-header .stat.llm { color: var(--slate-500); }
+
+        .brain-panel.collapsed .chevron {
+            transform: rotate(-90deg);
+        }
+
+        .brain-panel.collapsed .brain-content {
+            display: none;
+        }
+
+        .brain-content {
+            padding: 12px 14px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            line-height: 1.8;
+            color: var(--slate-600);
+        }
+
+        .brain-step {
+            display: flex;
+            gap: 8px;
+            padding: 6px 8px;
+            margin: 2px 0;
+            border-radius: 4px;
+            align-items: flex-start;
+        }
+
+        .brain-step .step-icon {
+            flex-shrink: 0;
+            width: 20px;
+            text-align: center;
+        }
+
+        .brain-step .step-text {
+            flex: 1;
+        }
+
+        .brain-step .step-source {
+            font-size: 0.625rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 500;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        /* Source-specific styling */
+        .brain-step.source-graph {
+            background: var(--emerald-50);
+            border-left: 3px solid var(--emerald-500);
+        }
+        .brain-step.source-graph .step-icon { color: var(--emerald-600); }
+        .brain-step.source-graph .step-source {
+            background: var(--emerald-100);
+            color: var(--emerald-700);
+        }
+
+        .brain-step.source-llm {
+            background: var(--slate-100);
+            border-left: 3px solid var(--slate-400);
+        }
+        .brain-step.source-llm .step-icon { color: var(--slate-500); }
+        .brain-step.source-llm .step-source {
+            background: var(--slate-200);
+            color: var(--slate-600);
+        }
+
+        .brain-step.source-policy {
+            background: var(--amber-100);
+            border-left: 3px solid var(--amber-500);
+        }
+        .brain-step.source-policy .step-icon { color: var(--amber-600); }
+        .brain-step.source-policy .step-source {
+            background: var(--amber-100);
+            color: var(--amber-700);
+        }
+
+        .brain-step.source-filter {
+            background: #EEF2FF;
+            border-left: 3px solid #6366F1;
+        }
+        .brain-step.source-filter .step-icon { color: #6366F1; }
+        .brain-step.source-filter .step-source {
+            background: #E0E7FF;
+            color: #4338CA;
+        }
+
+        .brain-step.warning {
+            background: var(--amber-100);
+            border-left: 3px solid var(--amber-500);
+        }
+        .brain-step.warning .step-icon { color: var(--amber-600); }
+
+        .brain-step.error {
+            background: var(--red-100);
+            border-left: 3px solid var(--red-500);
+        }
+        .brain-step.error .step-icon { color: var(--red-500); }
+
+        /* ============================================
+           VERIFIED TEXT HIGHLIGHTING
+           ============================================ */
+        .verified-fact {
+            position: relative;
+            display: inline;
+            background: linear-gradient(to bottom, transparent 60%, var(--emerald-100) 60%);
+            border-bottom: 2px solid var(--emerald-400);
+            cursor: pointer;
+            padding: 0 2px;
+            margin: 0 1px;
+        }
+
+        .verified-fact:hover {
+            background: var(--emerald-100);
+        }
+
+        .verified-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            background: var(--emerald-500);
+            color: var(--white);
+            border-radius: 50%;
+            font-size: 10px;
+            margin-left: 2px;
+            vertical-align: middle;
+            cursor: pointer;
+        }
+
+        /* Reference Tooltip */
+        .ref-tooltip {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--slate-800);
+            color: var(--white);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+
+        .ref-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: var(--slate-800);
+        }
+
+        .verified-fact:hover .ref-tooltip,
+        .verified-badge:hover .ref-tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .ref-tooltip .ref-name {
+            font-weight: 600;
+            color: var(--emerald-400);
+        }
+
+        .ref-tooltip .ref-type {
+            color: var(--slate-400);
+            margin-left: 8px;
+        }
+
+        .ref-tooltip .ref-source {
+            display: block;
+            margin-top: 4px;
+            color: var(--slate-400);
+            font-size: 0.6875rem;
+        }
+
+        /* ============================================
+           POLICY WARNINGS
+           ============================================ */
+        .policy-warning {
+            display: flex;
+            gap: 10px;
+            padding: 12px;
+            background: var(--amber-100);
+            border-left: 3px solid var(--amber-500);
+            border-radius: 0 8px 8px 0;
+            margin-top: 12px;
+            font-size: 0.8125rem;
+        }
+
+        .policy-warning .warning-icon {
+            color: var(--amber-600);
+            flex-shrink: 0;
+        }
+
+        /* ============================================
+           CONFIDENCE INDICATOR
+           ============================================ */
+        .confidence-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            color: var(--slate-500);
+            margin-top: 8px;
+        }
+
+        .confidence-level {
+            display: flex;
+            gap: 2px;
+        }
+
+        .confidence-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--slate-300);
+        }
+
+        .confidence-dot.active {
+            background: var(--emerald-500);
+        }
+
+        .confidence-bar.high .confidence-dot:nth-child(-n+3) { background: var(--emerald-500); }
+        .confidence-bar.medium .confidence-dot:nth-child(-n+2) { background: var(--amber-500); }
+        .confidence-bar.low .confidence-dot:nth-child(1) { background: var(--red-500); }
+
+        /* ============================================
+           INPUT AREA
+           ============================================ */
+        .input-area {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--white);
+            border-top: 1px solid var(--slate-200);
+            padding: 16px 24px;
+        }
+
+        .input-wrapper {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            gap: 12px;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--slate-300);
+            border-radius: 8px;
+            font-size: 0.9375rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-field:focus {
+            border-color: var(--emerald-500);
+            box-shadow: 0 0 0 3px var(--emerald-100);
+        }
+
+        .send-button {
+            padding: 12px 24px;
+            background: var(--emerald-500);
+            color: var(--white);
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .send-button:hover {
+            background: var(--emerald-600);
+        }
+
+        .send-button:disabled {
+            background: var(--slate-300);
+            cursor: not-allowed;
+        }
+
+        /* ============================================
+           LOADING STATE
+           ============================================ */
+        .loading-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 16px;
+        }
+
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--slate-400);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .loading-dot:nth-child(1) { animation-delay: 0s; }
+        .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* ============================================
+           LEGEND
+           ============================================ */
+        .legend {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            padding: 12px;
+            background: var(--white);
+            border-radius: 8px;
+            font-size: 0.75rem;
+            color: var(--slate-600);
+            margin-bottom: 16px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-verified {
+            background: linear-gradient(to bottom, transparent 60%, var(--emerald-100) 60%);
+            border-bottom: 2px solid var(--emerald-400);
+            padding: 0 4px;
+        }
+
+        .legend-general {
+            color: var(--slate-600);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <h1>Sales Engineering Assistant</h1>
+            <p class="subtitle">Explainable AI with Knowledge Graph Verification</p>
+        </header>
+
+        <div class="legend">
+            <div class="legend-item">
+                <span class="legend-verified">Verified Fact</span>
+                <span>= Knowledge Graph</span>
+            </div>
+            <div class="legend-item">
+                <span style="color: var(--emerald-600);">🗃️ GRAPH</span>
+            </div>
+            <div class="legend-item">
+                <span style="color: var(--slate-500);">🧠 LLM</span>
+            </div>
+            <div class="legend-item">
+                <span style="color: var(--amber-600);">📋 POLICY</span>
+            </div>
+            <div class="legend-item">
+                <span style="color: #6366F1;">🔍 FILTER</span>
+            </div>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <!-- Messages will be inserted here -->
+        </div>
+
+        <div class="input-area">
+            <div class="input-wrapper">
+                <input
+                    type="text"
+                    class="input-field"
+                    id="messageInput"
+                    placeholder="Ask about products, specifications, or past cases..."
+                    autocomplete="off"
+                >
+                <button class="send-button" id="sendButton">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CONFIGURATION
+        // ============================================
+        const API_URL = 'http://localhost:8000/consult/explainable';
+
+        // ============================================
+        // MOCK DATA (for offline testing)
+        // ============================================
+        const MOCK_RESPONSE = {
+            reasoning_chain: [
+                { step: "Detected language: Polish. Extracted airflow requirement: 3000 m³/h", source: "LLM", confidence: "high" },
+                { step: "Searching Configuration Graph for GDC family products", source: "GRAPH", node_id: "ProductSearch", confidence: "high" },
+                { step: "Found 2 GDC variants: GDC-600x600 (2000 m³/h), GDC-900x600 (3000 m³/h)", source: "GRAPH", node_id: "GDC-family", confidence: "high" },
+                { step: "POL-003 Airflow Capacity Sizing triggered - verifying capacity >= 3000 m³/h", source: "POLICY", confidence: "high" },
+                { step: "Filtering products: GDC-600x600 REJECTED (2000 < 3000), GDC-900x600 PASSED (3000 >= 3000)", source: "FILTER", confidence: "high" },
+                { step: "Retrieved GDC-900x600 specs: 24 cartridges, 900x600mm dimensions", source: "GRAPH", node_id: "GDC-900x600", confidence: "high" },
+                { step: "Retrieved ZM material properties: ZinkMagnesium, corrosion class C4", source: "GRAPH", node_id: "ZM-material", confidence: "high" },
+                { step: "Recommending periodic cartridge replacement every 6-12 months based on general industry practice", source: "LLM", confidence: "medium" }
+            ],
+            reasoning_steps: [
+                "Step 1: Identified intent - user needs carbon filter for kitchen exhaust at 3000 m³/h",
+                "Step 2: Searched Configuration Graph for GDC family products",
+                "Step 3: Checked POL-003 Airflow Capacity Sizing - CRITICAL policy triggered",
+                "Step 4: GDC-600x600 has 2000 m³/h capacity - INSUFFICIENT",
+                "Step 5: GDC-900x600 has 3000 m³/h capacity - MATCHES requirement",
+                "Step 6: Verified ZM material for kitchen environment (grease resistance)"
+            ],
+            final_answer_markdown: `Dla kuchni przemysłowej z przepływem 3000 m³/h rekomenduję obudowę **GDC-900x600** [[REF:GDC-900x600]] z 24 patronami węglowymi.
+
+Ta obudowa zapewnia wydajność dokładnie 3000 m³/h [[REF:airflow-spec]], co jest krytyczne dla prawidłowej filtracji zapachów.
+
+**Specyfikacja techniczna:**
+- Wymiary: 900x600mm [[REF:GDC-900x600]]
+- Pojemność: 24 patrony ECO-C [[REF:cartridge-spec]]
+- Materiał: ZM (ZinkMagnesium) [[REF:ZM-material]] - odporny na środowisko kuchenne
+
+Dla porównania, model GDC-600x600 ma tylko 2000 m³/h i byłby niedowymiarowany.
+
+Zalecam również okresową wymianę patronów co 6-12 miesięcy w zależności od intensywności użytkowania.`,
+            references: {
+                "GDC-900x600": { name: "GDC-900x600 Housing", type: "Product", source_doc: "PDF p.14" },
+                "airflow-spec": { name: "Airflow Specification", type: "Spec", source_doc: "PDF p.16" },
+                "cartridge-spec": { name: "ECO-C Cartridge Capacity", type: "Spec", source_doc: "PDF p.7" },
+                "ZM-material": { name: "ZinkMagnesium (ZM)", type: "Material", source_doc: "PDF p.4" }
+            },
+            query_language: "pl",
+            confidence_level: "high",
+            policy_warnings: [],
+            graph_facts_count: 5,
+            llm_inferences_count: 2
+        };
+
+        // ============================================
+        // STATE
+        // ============================================
+        let isLoading = false;
+
+        // ============================================
+        // DOM ELEMENTS
+        // ============================================
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+
+        // ============================================
+        // MARKDOWN PARSER WITH CITATIONS
+        // ============================================
+        function parseMarkdownWithCitations(text, references) {
+            // First, handle [[REF:ID]] markers
+            let html = text.replace(/\[\[REF:([^\]]+)\]\]/g, (match, refId) => {
+                const ref = references[refId];
+                if (ref) {
+                    return `<span class="verified-badge" data-ref="${refId}">✓<span class="ref-tooltip"><span class="ref-name">${ref.name}</span><span class="ref-type">${ref.type}</span><span class="ref-source">Source: ${ref.source_doc}</span></span></span>`;
+                }
+                return match;
+            });
+
+            // Now wrap text before badges in verified-fact spans
+            // This regex finds text followed by a verified-badge
+            html = html.replace(/([^<>\n]+?)(<span class="verified-badge")/g, (match, text, badge) => {
+                // Don't wrap if it's just whitespace or already in a tag
+                if (text.trim() === '' || text.includes('</')) {
+                    return match;
+                }
+                return `<span class="verified-fact">${text}${badge}`;
+            });
+
+            // Close the verified-fact spans after the badge
+            html = html.replace(/(<\/span><\/span>)(?![<\s]*<\/span>)/g, '$1</span>');
+
+            // Basic markdown parsing
+            html = html
+                // Bold
+                .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                // Headers
+                .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+                .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+                // Lists
+                .replace(/^- (.+)$/gm, '<li>$1</li>')
+                // Paragraphs (double newlines)
+                .replace(/\n\n/g, '</p><p>')
+                // Single newlines in lists context
+                .replace(/\n(?=<li>)/g, '')
+                // Wrap lists
+                .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+                // Clean up multiple ul tags
+                .replace(/<\/ul>\s*<ul>/g, '');
+
+            return `<p>${html}</p>`;
+        }
+
+        // ============================================
+        // RENDER MESSAGE
+        // ============================================
+
+        // Source icons and labels
+        const SOURCE_CONFIG = {
+            'GRAPH': { icon: '🗃️', label: 'GRAPH', class: 'source-graph' },
+            'LLM': { icon: '🧠', label: 'LLM', class: 'source-llm' },
+            'POLICY': { icon: '📋', label: 'POLICY', class: 'source-policy' },
+            'FILTER': { icon: '🔍', label: 'FILTER', class: 'source-filter' }
+        };
+
+        function renderReasoningChain(reasoningChain) {
+            return reasoningChain.map(item => {
+                const sourceConfig = SOURCE_CONFIG[item.source] || SOURCE_CONFIG['LLM'];
+                const nodeInfo = item.node_id ? ` [${item.node_id}]` : '';
+
+                let extraClass = '';
+                const stepLower = item.step.toLowerCase();
+                if (stepLower.includes('rejected') || stepLower.includes('insufficient') || stepLower.includes('warning')) {
+                    extraClass = ' warning';
+                } else if (stepLower.includes('error') || stepLower.includes('fail')) {
+                    extraClass = ' error';
+                }
+
+                return `
+                    <div class="brain-step ${sourceConfig.class}${extraClass}">
+                        <span class="step-icon">${sourceConfig.icon}</span>
+                        <span class="step-text">${escapeHtml(item.step)}${nodeInfo}</span>
+                        <span class="step-source">${sourceConfig.label}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderLegacySteps(reasoningSteps) {
+            return reasoningSteps.map(step => {
+                let stepClass = 'source-llm';
+                let icon = '🧠';
+                const stepLower = step.toLowerCase();
+
+                if (stepLower.includes('graph') || stepLower.includes('searched') || stepLower.includes('found')) {
+                    stepClass = 'source-graph';
+                    icon = '🗃️';
+                } else if (stepLower.includes('policy') || stepLower.includes('pol-')) {
+                    stepClass = 'source-policy';
+                    icon = '📋';
+                } else if (stepLower.includes('filter') || stepLower.includes('capacity')) {
+                    stepClass = 'source-filter';
+                    icon = '🔍';
+                }
+
+                if (stepLower.includes('warning') || stepLower.includes('insufficient')) {
+                    stepClass += ' warning';
+                }
+
+                return `<div class="brain-step ${stepClass}"><span class="step-icon">${icon}</span><span class="step-text">${escapeHtml(step)}</span></div>`;
+            }).join('');
+        }
+
+        function renderMessage(type, content) {
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+
+            if (type === 'user') {
+                message.innerHTML = `
+                    <div class="message-avatar">U</div>
+                    <div class="message-content">
+                        <div class="message-bubble">${escapeHtml(content)}</div>
+                    </div>
+                `;
+            } else if (type === 'assistant') {
+                const { reasoning_chain, reasoning_steps, final_answer_markdown, references, confidence_level, policy_warnings, graph_facts_count, llm_inferences_count } = content;
+
+                // Use reasoning_chain if available, otherwise fall back to reasoning_steps
+                const hasReasoningChain = reasoning_chain && reasoning_chain.length > 0;
+                const brainSteps = hasReasoningChain
+                    ? renderReasoningChain(reasoning_chain)
+                    : renderLegacySteps(reasoning_steps || []);
+
+                const stepCount = hasReasoningChain ? reasoning_chain.length : (reasoning_steps || []).length;
+
+                // Calculate stats
+                const graphCount = graph_facts_count || (hasReasoningChain ? reasoning_chain.filter(s => s.source === 'GRAPH').length : 0);
+                const llmCount = llm_inferences_count || (hasReasoningChain ? reasoning_chain.filter(s => s.source === 'LLM').length : 0);
+
+                const statsHtml = `
+                    <span class="source-stats">
+                        <span class="stat graph">🗃️ ${graphCount} verified</span>
+                        <span class="stat llm">🧠 ${llmCount} inferred</span>
+                    </span>
+                `;
+
+                // Build policy warnings
+                const warningsHtml = (policy_warnings || []).length > 0
+                    ? policy_warnings.map(w => `
+                        <div class="policy-warning">
+                            <span class="warning-icon">⚠️</span>
+                            <span>${escapeHtml(w)}</span>
+                        </div>
+                    `).join('')
+                    : '';
+
+                // Build confidence bar
+                const confidenceHtml = `
+                    <div class="confidence-bar ${confidence_level || 'medium'}">
+                        <span>Confidence:</span>
+                        <div class="confidence-level">
+                            <div class="confidence-dot"></div>
+                            <div class="confidence-dot"></div>
+                            <div class="confidence-dot"></div>
+                        </div>
+                        <span>${confidence_level || 'medium'}</span>
+                    </div>
+                `;
+
+                message.innerHTML = `
+                    <div class="message-avatar">AI</div>
+                    <div class="message-content">
+                        <div class="brain-panel">
+                            <div class="brain-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                                <span class="icon">🧠</span>
+                                <span>Reasoning Process (${stepCount} steps)</span>
+                                ${statsHtml}
+                                <span class="chevron">▼</span>
+                            </div>
+                            <div class="brain-content">
+                                ${brainSteps}
+                            </div>
+                        </div>
+                        <div class="message-bubble">
+                            ${parseMarkdownWithCitations(final_answer_markdown, references || {})}
+                            ${warningsHtml}
+                            ${confidenceHtml}
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'loading') {
+                message.innerHTML = `
+                    <div class="message-avatar">AI</div>
+                    <div class="message-content">
+                        <div class="message-bubble">
+                            <div class="loading-indicator">
+                                <div class="loading-dot"></div>
+                                <div class="loading-dot"></div>
+                                <div class="loading-dot"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                message.id = 'loadingMessage';
+            }
+
+            chatContainer.appendChild(message);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return message;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function removeLoadingMessage() {
+            const loading = document.getElementById('loadingMessage');
+            if (loading) loading.remove();
+        }
+
+        // ============================================
+        // API CALL
+        // ============================================
+        async function sendMessage(text) {
+            if (isLoading || !text.trim()) return;
+
+            isLoading = true;
+            sendButton.disabled = true;
+            messageInput.value = '';
+
+            // Render user message
+            renderMessage('user', text);
+            renderMessage('loading');
+
+            try {
+                // Try real API first
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: text })
+                });
+
+                removeLoadingMessage();
+
+                if (response.ok) {
+                    const data = await response.json();
+                    renderMessage('assistant', data);
+                } else {
+                    throw new Error('API request failed');
+                }
+            } catch (error) {
+                console.log('Using mock data (API not available):', error.message);
+                removeLoadingMessage();
+
+                // Use mock data for demonstration
+                setTimeout(() => {
+                    renderMessage('assistant', MOCK_RESPONSE);
+                }, 500);
+            }
+
+            isLoading = false;
+            sendButton.disabled = false;
+            messageInput.focus();
+        }
+
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+        sendButton.addEventListener('click', () => sendMessage(messageInput.value));
+
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage(messageInput.value);
+            }
+        });
+
+        // ============================================
+        // INITIAL DEMO MESSAGE
+        // ============================================
+        window.addEventListener('load', () => {
+            // Show a demo message on load
+            setTimeout(() => {
+                renderMessage('assistant', MOCK_RESPONSE);
+            }, 500);
+        });
+    </script>
+</body>
+</html>

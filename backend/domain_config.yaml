@@ -1,0 +1,674 @@
+# =============================================================================
+# DOMAIN CONFIGURATION - HVAC Air Filtration
+# =============================================================================
+# This file contains ALL domain-specific logic. The Python code is generic.
+# To switch domains, replace this file (e.g., with car_insurance_config.yaml).
+# =============================================================================
+
+domain:
+  id: "hvac_filtration"
+  name: "Air Filtration Systems"
+  company: "Mann+Hummel"
+  description: "Sales Engineering Assistant for industrial air filtration products"
+  version: "2.0"
+
+# =============================================================================
+# ENTITY PATTERNS
+# =============================================================================
+# Regex patterns to extract domain entities from user queries.
+# Each pattern has a type, regex, and optional normalization rules.
+
+entity_patterns:
+  # Product codes - main identifiable items
+  product_codes:
+    - pattern: '\b([A-Z]{2,4}[-\s]?\d+x\d+(?:[-x]\d+)?)\b'
+      description: "Standard product code with dimensions"
+      flags: "IGNORECASE"
+      examples: ["GDC-600x600", "GDP-900x600-1200"]
+
+    - pattern: '\b([A-Z]{2,4}[-\s]?FLEX[-\s]?\d+x\d+)\b'
+      description: "Flexible variant products"
+      flags: "IGNORECASE"
+      examples: ["GDC-FLEX-600x600", "GDMI-FLEX-600x600"]
+
+    - pattern: '\b([A-Z]{2,4}[-\s]?[A-Za-z]+[-\s]?\d+[/x]\d+)\b'
+      description: "Named variant products"
+      flags: "IGNORECASE"
+      examples: ["GDR-Nano-1/1"]
+
+    - pattern: '\b(ECO-[A-Z][-\s]?\d+)\b'
+      description: "ECO series components"
+      flags: "IGNORECASE"
+      examples: ["ECO-C 2600", "ECO-F 3200"]
+
+  # Product families - broader categories
+  product_families:
+    values: ["GDC", "GDP", "GDR", "GDF", "GDMI", "GDB", "PFF", "BFF"]
+    description: "Product family prefixes that trigger catalog search"
+
+  # Material codes
+  material_codes:
+    values: ["FZ", "ZM", "RF", "SS", "ALU", "AZ"]
+    description: "Material specification codes"
+
+  # Option codes
+  option_codes:
+    values: ["EXL", "L", "F", "Polis"]
+    description: "Configuration option codes"
+
+  normalization:
+    replace_space_with: "-"
+    uppercase: true
+
+# =============================================================================
+# DISPLAY SCHEMA
+# =============================================================================
+# Maps database fields to display labels. The renderer iterates over this.
+# No field names are hardcoded in Python.
+
+display_schema:
+  # Primary entity display (products/variants)
+  primary_entity:
+    header_template: "### {icon} {title}"
+    icon: "📦"
+    title: "PRODUCT CONFIGURATION DATA"
+
+    fields:
+      - key: "id"
+        label: "Product ID"
+        format: "**Product: {value}**"
+        required: true
+
+      - key: "family"
+        label: "Product Family"
+        format: "  Family: {value}"
+
+      - key: "width_mm"
+        label: "Width"
+        format: "  Width: {value}mm"
+        combine_with: "height_mm"
+        combined_format: "  Dimensions: {width_mm}x{height_mm}mm"
+
+      - key: "height_mm"
+        label: "Height"
+        hidden_if_combined: true
+
+      - key: "depth_mm"
+        label: "Depth"
+        format: "  Depth: {value}mm"
+        append_to_combined: true
+        append_format: " x {value}mm depth"
+
+      - key: "cartridge_count"
+        label: "Cartridge Capacity"
+        format: "  Cartridge Capacity: {value} units"
+
+      - key: "airflow_m3h"
+        label: "Reference Airflow"
+        format: "  Reference Airflow: {value} m³/h"
+        fallback_keys: ["reference_airflow_m3h"]
+
+      - key: "weight_kg"
+        label: "Weight"
+        format: "  Weight: {value} kg"
+
+      - key: "is_insulated"
+        label: "Thermal Insulation"
+        format: "  Special: Thermally insulated (anti-condensation)"
+        display_only_if_true: true
+
+      - key: "length_min_mm"
+        label: "Minimum Length"
+        combine_with: "length_max_mm"
+        combined_format: "  Adjustable Length: {length_min_mm}-{length_max_mm}mm"
+
+      - key: "length_max_mm"
+        label: "Maximum Length"
+        hidden_if_combined: true
+
+      - key: "special_features"
+        label: "Special Features"
+        format: "  Features: {value}"
+        is_array: true
+        array_join: ", "
+
+      - key: "available_depths_mm"
+        label: "Available Depths"
+        format: "  Available Depths: {value}mm"
+        is_array: true
+        array_join: ", "
+
+      - key: "available_materials"
+        label: "Available Materials"
+        format: "  Materials: {value}"
+        is_array: true
+        array_join: ", "
+
+    options_display:
+      header: "  **Configuration Options:**"
+      json_key: "options_json"
+      fallback_key: "available_options"
+      format: "    • Code **\"{code}\"**: {description}"
+      category_format: " [{category}]"
+
+  # Secondary entity types
+  secondary_entities:
+    cartridges:
+      header: "### 🔵 FILTER CARTRIDGES"
+      fields:
+        - key: "model_name"
+          format: "**{value}**"
+          fallback_keys: ["id"]
+        - key: "weight_kg"
+          format: " - {value}kg"
+        - key: "media_type"
+          format: " ({value})"
+      item_prefix: "  • "
+
+    filters:
+      header: "### 📋 CONSUMABLE FILTERS"
+      fields:
+        - key: "part_number"
+          format: "Part# **{value}**"
+          default: "N/A"
+        - key: "model_name"
+          format: " - {value}"
+        - key: "filter_type"
+          format: " ({value})"
+      item_prefix: "  • "
+
+    materials:
+      header: "### 🔧 MATERIAL SPECIFICATIONS"
+      fields:
+        - key: "code"
+          format: "**{value}**"
+        - key: "full_name"
+          format: " ({value})"
+        - key: "corrosion_class"
+          format: " - Corrosion Class: **{value}**"
+        - key: "description"
+          format: " - {value}"
+      item_prefix: "  • "
+
+    option_matches:
+      header: "### 🔧 PRODUCTS WITH MATCHING OPTIONS"
+      show_options: true
+      fields:
+        - key: "variant_id"
+          format: "**{value}**"
+        - key: "family"
+          format: " ({value})"
+
+# =============================================================================
+# AUTONOMOUS REASONING (No Hardcoded Policies)
+# =============================================================================
+# The LLM uses its pre-trained engineering knowledge to detect risks.
+# We only keep the SIZING constraint as programmatic (critical for safety).
+
+programmatic_constraints:
+  # Sizing is kept as programmatic because it's a hard mathematical constraint
+  sizing:
+    enabled: true
+    description: "Airflow capacity must meet or exceed user requirement"
+    keywords: ["airflow", "cfm", "m³/h", "capacity", "przepływ", "wydatek"]
+
+# =============================================================================
+# SEARCH KEYWORDS
+# =============================================================================
+# Keywords that trigger configuration graph searches
+
+search_triggers:
+  option_keywords:
+    - "option"
+    - "opcj"
+    - "kod"
+    - "code"
+    - "hinging"
+    - "flange"
+    - "frame"
+    - "left"
+    - "right"
+    - "material"
+    - "depth"
+    - "dimension"
+    - "filter"
+    - "rail"
+    - "locking"
+    - "eccentric"
+
+  material_keywords:
+    - "corrosion"
+    - "koroz"
+    - "steel"
+    - "stal"
+    - "galvanized"
+    - "stainless"
+
+  technical_keywords:
+    - "capacity"
+    - "airflow"
+    - "temperature"
+    - "pressure"
+    - "efficiency"
+
+# =============================================================================
+# PROMPTS
+# =============================================================================
+
+prompts:
+  system: |
+    You are a Sales Engineering Assistant. Help customers select the right products.
+
+    ## CORE RULES
+
+    1. **Listen to DESCRIPTION, not just product name**: If customer asks for Product X but describes needing something different (e.g., "just the frame", "without housing"), they probably need a different product. PIVOT.
+
+    2. **Match product to application**: Each product family handles specific things. Wrong type = PIVOT to correct family.
+
+    3. **Match material to environment**: Check environment requirements in domain rules. Wrong material = WARN STRONGLY.
+
+    4. **Respect physical constraints**: If domain rules say option X requires minimum Y mm, and housing is smaller, the configuration is IMPOSSIBLE. BLOCK it.
+
+    5. **Flag tight fits**: Zero installation margin = WARN about risk.
+
+    6. **Get complete data**: No airflow specified = ASK before sizing.
+
+    ## ACTIONS
+    - **BLOCK**: Physically impossible. Do not proceed. Explain why. Suggest valid config.
+    - **PIVOT**: Customer needs different product than requested. Recommend correct one.
+    - **WARN**: Risk detected. Recommend better option.
+    - **ASK**: Missing critical info.
+
+    ## TENANT-SPECIFIC RULES
+    {active_policies}
+
+  synthesis: |
+    ## PRODUCT DATA
+    {context}
+
+    ## AVAILABLE PRODUCTS
+    {products}
+
+    ## QUERY
+    {query}
+
+    ## DOMAIN-SPECIFIC RULES (MUST FOLLOW)
+    {policies}
+
+    ## INSTRUCTIONS
+
+    Respond in the same language as the query.
+
+    **VALIDATION CHECKS:**
+
+    1. **Product vs Component**: Does customer's DESCRIPTION match what they're ASKING for?
+       - If they ask for a complete product but describe needing only a part/frame → PIVOT to the component product
+       - Check "Triggers" in DOMAIN RULES for phrases that indicate mismatch
+
+    2. **Application Match**: Does product filter the right thing?
+       - If product doesn't filter what customer needs → PIVOT to correct product family
+
+    3. **Material Match**: Does material suit environment?
+       - Check DOMAIN RULES for environment requirements
+       - If mismatch → WARN STRONGLY and recommend required material grade
+
+    4. **Geometric Fit**: Do options fit housing dimensions?
+       - Check DOMAIN RULES for minimum length requirements
+       - If option requires MORE length than housing has → BLOCK (physically impossible)
+       - Do NOT suggest workarounds - the configuration CANNOT work
+
+    5. **Installation Clearance**: Is there margin?
+       - If total length = available space exactly → WARN about zero-tolerance risk
+
+    6. **Missing Data**: Is airflow/size specified?
+       - If missing → ASK before recommending
+
+    **ACTIONS:**
+    - BLOCK = refuse, explain physical impossibility, suggest valid alternative
+    - PIVOT = recommend different product that matches actual need
+    - WARN = alert to risk, recommend better option
+    - ASK = request missing information
+
+  no_context: |
+    I don't have specific product data for this query in the Knowledge Graph.
+
+    Please contact technical support or consult official product documentation.
+    I can still help with general questions based on engineering principles.
+
+# =============================================================================
+# STRUCTURED OUTPUT SCHEMA
+# =============================================================================
+
+output_schema:
+  type: "object"
+  properties:
+    intent_analysis:
+      type: "string"
+      description: "Analysis of what the user is trying to accomplish"
+
+    policy_analysis:
+      type: "string"
+      description: "Guardian reasoning - which policies triggered and validation results"
+
+    graph_evidence:
+      type: "array"
+      items:
+        type: "object"
+        properties:
+          fact: { type: "string" }
+          source_id: { type: "string" }
+          confidence: { type: "string", enum: ["verified", "inferred"] }
+      description: "Facts extracted from graph with citations"
+
+    general_knowledge:
+      type: "string"
+      description: "Additional context from model training, clearly marked as unverified"
+
+    final_answer:
+      type: "string"
+      description: "The complete response to show the user"
+
+    confidence_level:
+      type: "string"
+      enum: ["high", "medium", "low"]
+      description: "Overall confidence based on graph data availability"
+
+    sources:
+      type: "array"
+      items: { type: "string" }
+      description: "List of node IDs used in the response"
+
+    warnings:
+      type: "array"
+      items: { type: "string" }
+      description: "Any policy warnings or validation failures"
+
+# =============================================================================
+# PROJECT SEARCH CONFIGURATION
+# =============================================================================
+
+project_search:
+  patterns:
+    - '(\w+)\s+project'
+    - 'project\s+(\w+)'
+    - '(\w+)\s+case'
+    - 'case\s+(\w+)'
+
+  known_identifiers:
+    - "huddinge"
+    - "knittel"
+
+  stopwords:
+    - "a"
+    - "an"
+    - "the"
+    - "my"
+    - "your"
+    - "this"
+    - "that"
+    - "is"
+    - "are"
+    - "what"
+    - "which"
+    - "how"
+    - "new"
+    - "similar"
+
+# =============================================================================
+# MATERIAL-ENVIRONMENT RULES (Guardian Logic)
+# =============================================================================
+# These rules define material corrosion classes and environment requirements.
+# The LLM uses these to detect mismatches and generate warnings.
+
+material_environment_rules:
+  # Material corrosion class hierarchy (lower number = less resistant)
+  material_hierarchy:
+    - code: "FZ"
+      full_name: "Galvanized Steel (Zinc)"
+      corrosion_class: "C3"
+      description: "Standard indoor, mild environments"
+      suitable_for: ["office", "warehouse", "light industrial", "retail", "residential"]
+
+    - code: "ZM"
+      full_name: "Zinc-Magnesium Coated"
+      corrosion_class: "C4"
+      description: "Moderate humidity, occasional condensation"
+      suitable_for: ["commercial kitchen", "laundry", "parking garage", "light industrial wet"]
+
+    - code: "RF"
+      full_name: "Stainless Steel (1.4301/304)"
+      corrosion_class: "C5"
+      description: "Demanding: healthcare, food, wet, chemical, marine"
+      suitable_for: ["hospital", "medical", "food processing", "pharma", "laboratory", "clean room", "pool", "marine", "chemical"]
+
+    - code: "SF"
+      full_name: "Stainless Steel (1.4404/316L)"
+      corrosion_class: "C5-M"
+      description: "Extreme: marine, high chloride, aggressive chemicals"
+      suitable_for: ["marine", "coastal", "offshore", "chemical plant", "chlorine exposure"]
+
+  # Demanding environments that require upgraded materials
+  demanding_environments:
+    - name: "hospital"
+      aliases: ["medical", "healthcare", "clinic", "surgery", "ICU", "szpital"]
+      min_corrosion_class: "C5"
+      required_materials: ["RF", "SF"]
+      concern: "hygiene requirements, chemical disinfection, VDI 6022 compliance"
+
+    - name: "food_processing"
+      aliases: ["food", "pharma", "dairy", "beverage", "bakery", "meat", "spożywczy"]
+      min_corrosion_class: "C5"
+      required_materials: ["RF", "SF"]
+      concern: "contamination risk, aggressive cleaning chemicals, FDA/HACCP compliance"
+
+    - name: "pool"
+      aliases: ["swimming", "aquatic", "spa", "wellness", "basen"]
+      min_corrosion_class: "C5"
+      required_materials: ["RF", "SF"]
+      concern: "chlorine exposure, high humidity, accelerated corrosion"
+
+    - name: "marine"
+      aliases: ["coastal", "offshore", "ship", "port", "morski"]
+      min_corrosion_class: "C5-M"
+      required_materials: ["SF"]
+      concern: "salt spray, extreme corrosion conditions"
+
+    - name: "laboratory"
+      aliases: ["lab", "research", "cleanroom", "laboratorium"]
+      min_corrosion_class: "C5"
+      required_materials: ["RF", "SF"]
+      concern: "chemical exposure, contamination control"
+
+    - name: "commercial_kitchen"
+      aliases: ["kitchen", "restaurant", "catering", "fryer", "kuchnia", "smażalnia"]
+      min_corrosion_class: "C4"
+      required_materials: ["ZM", "RF"]
+      concern: "grease, steam, cleaning chemicals"
+
+# =============================================================================
+# PRODUCT-APPLICATION RULES (Guardian Logic)
+# =============================================================================
+# These rules define which products are suitable for which applications.
+# The LLM uses these to detect mismatches and suggest alternatives.
+
+product_application_rules:
+  # Product capabilities and limitations
+  product_capabilities:
+    - family: "GDB"
+      full_name: "Bag Filter Housing"
+      filters: ["dust", "particulate", "solid aerosols"]
+      does_NOT_filter: ["gas", "odor", "fumes", "VOC", "smoke"]
+      warning_applications:
+        - trigger: ["exhaust fumes", "odor", "smell", "gas", "VOC", "spaliny", "smród", "zapach"]
+          message: "GDB bag filters capture PARTICLES only, not gases or odors. For gas/odor removal, use GDC (carbon) series."
+          alternative: "GDC"
+
+    - family: "GDC"
+      full_name: "Carbon Filter Housing"
+      filters: ["gas", "odor", "VOC", "organic compounds"]
+      does_NOT_filter: ["grease", "oil mist", "heavy particulate"]
+      warning_applications:
+        - trigger: ["grease", "oil", "fryer", "kitchen exhaust", "tłuszcz", "olej", "smażalnia"]
+          message: "Carbon filters (GDC) will clog rapidly with grease/oil. Requires grease pre-filtration (separators) upstream."
+          alternative: "Grease separator + GDC"
+
+    - family: "GDP"
+      full_name: "Panel Filter Housing"
+      type: "complete housing"
+      warning_applications:
+        - trigger: ["frame only", "no sheet", "bez blachy", "same ramki", "mounting frame"]
+          message: "GDP is a complete housing. For mounting frames only, use PFF (Panel Filter Frame) series."
+          alternative: "PFF"
+
+    - family: "GDMI"
+      full_name: "Insulated Filter Housing"
+      special_feature: "thermal insulation"
+      recommended_for: ["outdoor", "rooftop", "cold climate", "condensation risk"]
+
+  # Installation environment warnings
+  installation_warnings:
+    - trigger: ["rooftop", "outdoor", "dach", "zewnętrzny", "bez izolacji", "no insulation", "without insulation"]
+      condition: "outdoor or rooftop"
+      products_affected: ["GDB", "GDC", "GDP"]
+      message: "⚠️ CRITICAL: Non-insulated housing on rooftop/outdoor WILL cause condensation. Water will form inside, damage filters, cause corrosion, and lead to system failure. Insulated housing (GDMI) is MANDATORY for outdoor installations."
+      alternative: "GDMI"
+
+# =============================================================================
+# GEOMETRIC CONSTRAINTS (Guardian Logic)
+# =============================================================================
+# Physical dimension constraints that cannot be violated.
+
+geometric_constraints:
+  options_requiring_length:
+    - option: "polisfiltr"
+      aliases: ["polis", "polysfilter", "afterfilter", "szyna na polisfiltr", "rail"]
+      min_length_mm: 900
+      message: "Polysfilter rail option requires minimum housing length of 900mm."
+
+    - option: "prefilter_frame"
+      aliases: ["prefilter", "wstępny", "ramka na filtr wstępny"]
+      additional_length_mm: 50
+      message: "Pre-filter frame adds 50mm to total installation length."
+
+  installation_tolerance:
+    minimum_margin_mm: 10
+    warning_message: "Zero tolerance fit (exact dimensions). Recommend 10mm+ margin for installation tolerances."
+
+# =============================================================================
+# ACCESSORY COMPATIBILITY (Guardian Logic)
+# =============================================================================
+# Which accessories work with which product families.
+
+accessory_compatibility:
+  - accessory: "EXL"
+    full_name: "Eccentric Locking Mechanism"
+    compatible_with: ["GDB", "GDMI", "GDP"]
+    NOT_compatible_with: ["GDC"]
+    reason: "GDC uses bayonet mounting system, not compatible with EXL eccentric locks."
+
+  - accessory: "L"
+    full_name: "Left Hinge Option"
+    compatible_with: ["GDB", "GDC", "GDMI", "GDP"]
+
+  - accessory: "F"
+    full_name: "Flange Connection"
+    compatible_with: ["GDB", "GDC", "GDMI", "GDP"]
+
+# =============================================================================
+# SAFETY DETECTION (Guardian Logic)
+# =============================================================================
+# Keywords that trigger safety-critical reviews.
+
+safety_detection:
+  hazard_domains:
+    atex:
+      keywords: ["ATEX", "explosion", "explosive", "Ex zone", "dust explosion", "wybuch"]
+      materials: ["milk powder", "sugar", "flour", "grain", "wood dust", "coal", "aluminum"]
+      severity: "critical"
+      action: "block_with_safety_guard"
+
+    chemical:
+      keywords: ["chemical", "acid", "alkali", "solvent", "corrosive", "chemiczny", "kwas"]
+      severity: "warning"
+      action: "recommend_material_upgrade"
+
+    hygiene:
+      keywords: ["hospital", "medical", "pharma", "food", "cleanroom", "sterile", "szpital", "medyczny"]
+      severity: "warning"
+      action: "verify_material_compliance"
+
+# =============================================================================
+# CLARIFICATION RULES
+# =============================================================================
+# What parameters are required before making product recommendations.
+
+clarification_rules:
+  required_parameters:
+    - name: "airflow"
+      aliases: ["capacity", "flow rate", "volume", "przepływ", "wydatek", "wydajność"]
+      units: ["m³/h", "cfm", "l/s"]
+      applies_to: ["GDB", "GDC", "GDMI", "GDP", "GDF"]
+      prompt: "What is the required airflow capacity?"
+
+    - name: "dimensions"
+      aliases: ["size", "duct size", "wymiary", "rozmiar"]
+      units: ["mm", "inches"]
+      applies_to: ["all"]
+      prompt: "What are the duct connection dimensions (W×H)?"
+
+  # When to skip clarification
+  skip_clarification_when:
+    - "specific product code mentioned (e.g., GDB-600x600)"
+    - "competitor mapping exists in context"
+    - "safety issue detected (handle safety first)"
+
+# =============================================================================
+# SAMPLE QUESTIONS (for UI)
+# =============================================================================
+
+sample_questions:
+  product_selection:
+    label: "Product Selection"
+    icon: "📦"
+    questions:
+      - "I need a GDB housing for hospital ventilation, 3400 m³/h"
+      - "Select carbon filter housing for 2000 m³/h kitchen exhaust"
+      - "What's the difference between GDB and GDMI?"
+
+  guardian_tests:
+    label: "Guardian Tests"
+    icon: "🛡️"
+    questions:
+      - "I need GDB housing in galvanized steel (FZ) for a swimming pool ventilation system"
+      - "We have exhaust fume smell in the parking garage. Select GDB bag filter to remove the odor"
+      - "GDB housing for rooftop installation, no insulation needed (tight budget)"
+      - "I need GDC carbon filters for a deep fryer hood exhaust"
+      - "Can I use EXL locking mechanism with GDC carbon housing?"
+      - "Hospital project - client wants cheap galvanized (FZ) housings to save budget"
+
+  competitor_mapping:
+    label: "Competitor Mapping"
+    icon: "🔄"
+    questions:
+      - "What's the equivalent for AAF VariCel filter?"
+      - "We need to replace Camfil Hi-Flo units"
+
+# =============================================================================
+# PROMPT TEMPLATES (Externalized)
+# =============================================================================
+
+prompt_templates:
+  material_environment_warning: |
+    ⚠️ Material Warning: {material} ({class}) is not suitable for {environment}. {concern}. Consider {recommended}.
+
+  product_application_warning: |
+    ⚠️ Application Warning: {message}. Consider {alternative}.
+
+  geometric_constraint_warning: |
+    ⚠️ Configuration Error: {message}
+
+  zero_tolerance_warning: |
+    ⚠️ Installation Warning: Exact fit ({calculated}mm = {available}mm) leaves no margin. Recommend {margin}mm clearance.
+
+  accessory_incompatibility: |
+    ⚠️ Compatibility Issue: {accessory} not compatible with {product}. {reason}

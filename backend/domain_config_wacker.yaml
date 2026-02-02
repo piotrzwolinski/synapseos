@@ -1,0 +1,474 @@
+# =============================================================================
+# DOMAIN CONFIGURATION - Wacker Chemie AG - Silicone Products
+# =============================================================================
+# This file contains ALL domain-specific logic for Wacker chemical products.
+# The Python code is generic - switching domains = replacing this file.
+# =============================================================================
+
+domain:
+  id: "wacker_silicones"
+  name: "Silicone Chemical Products"
+  company: "Wacker Chemie AG"
+  description: "Technical Product Advisor for silicone emulsions, fluids, and specialty chemicals"
+  version: "1.0"
+  logo_url: "/static/wacker-logo.png"
+  primary_color: "#003366"
+
+# =============================================================================
+# ENTITY PATTERNS
+# =============================================================================
+
+entity_patterns:
+  product_codes:
+    - pattern: 'SILRES[®]?\s+[A-Z]+\s+\d+'
+      description: "SILRES product codes"
+      flags: "IGNORECASE"
+      examples: ["SILRES BS 1042", "SILRES BS 1001", "SILRES MP 50 E"]
+
+    - pattern: 'ELASTOSIL[®]?\s+[A-Z]+\s+\d+'
+      description: "ELASTOSIL product codes"
+      flags: "IGNORECASE"
+      examples: ["ELASTOSIL E43", "ELASTOSIL RT 601"]
+
+    - pattern: 'WACKER[®]?\s+[A-Z]+\s+\d+'
+      description: "Generic WACKER product codes"
+      flags: "IGNORECASE"
+      examples: ["WACKER AK 100", "WACKER SWS"]
+
+  product_families:
+    values: ["SILRES", "ELASTOSIL", "SEMICOSIL", "POWERSIL", "LUMISIL", "WACKER"]
+    description: "Product family prefixes"
+
+  substrate_keywords:
+    values: ["glass wool", "rock wool", "perlite", "vermiculite", "mineral wool", "concrete", "brick", "stone", "plaster"]
+    description: "Substrate materials that can be treated"
+
+  application_keywords:
+    values: ["water-repellent", "hydrophobic", "waterproofing", "impregnation", "coating", "sealing"]
+    description: "Application types"
+
+  normalization:
+    replace_space_with: " "
+    uppercase: false
+
+# =============================================================================
+# DISPLAY SCHEMA
+# =============================================================================
+
+display_schema:
+  primary_entity:
+    header_template: "### {icon} {title}"
+    icon: "🧪"
+    title: "PRODUCT TECHNICAL DATA"
+
+    fields:
+      - key: "product_name"
+        label: "Product"
+        format: "**Product: {value}**"
+        required: true
+
+      - key: "product_type"
+        label: "Type"
+        format: "  Type: {value}"
+
+      - key: "appearance"
+        label: "Appearance"
+        format: "  Appearance: {value}"
+
+      - key: "solid_content"
+        label: "Solid Content"
+        format: "  Solid Content: {value}"
+
+      - key: "ph_value"
+        label: "pH"
+        format: "  pH: {value}"
+
+      - key: "density"
+        label: "Density"
+        format: "  Density: {value}"
+
+      - key: "ignition_temperature"
+        label: "Ignition Temperature"
+        format: "  Ignition Temp: {value}"
+
+      - key: "application_rate"
+        label: "Application Rate"
+        format: "  Typical Application: {value}"
+
+      - key: "shelf_life"
+        label: "Shelf Life"
+        format: "  Shelf Life: {value}"
+
+  secondary_entities:
+    substrates:
+      header: "### 🏗️ COMPATIBLE SUBSTRATES"
+      fields:
+        - key: "name"
+          format: "**{value}**"
+        - key: "compatibility"
+          format: " - {value}"
+      item_prefix: "  • "
+
+    applications:
+      header: "### 🎯 APPLICATIONS"
+      fields:
+        - key: "industry"
+          format: "**{value}**"
+        - key: "use_case"
+          format: ": {value}"
+      item_prefix: "  • "
+
+# =============================================================================
+# MATERIAL-SUBSTRATE COMPATIBILITY RULES (Guardian Logic)
+# =============================================================================
+
+material_environment_rules:
+  # Product type hierarchy
+  material_hierarchy:
+    - code: "BS"
+      full_name: "Building Silicones (Water-based Emulsions)"
+      corrosion_class: "Aqueous"
+      description: "Water-based emulsions for construction materials"
+      suitable_for: ["mineral wool", "perlite", "vermiculite", "concrete", "brick"]
+
+    - code: "MP"
+      full_name: "Masonry Protection"
+      corrosion_class: "Solvent-based"
+      description: "Solvent-based for deep penetration"
+      suitable_for: ["concrete", "natural stone", "brick", "plaster"]
+
+    - code: "IE"
+      full_name: "Industrial Emulsions"
+      corrosion_class: "Aqueous"
+      description: "Industrial grade water-based"
+      suitable_for: ["textiles", "paper", "nonwovens"]
+
+  # Substrate compatibility warnings
+  demanding_environments:
+    - name: "phenolic_resin_bound"
+      aliases: ["phenolic resin", "phenolic binder", "resin bound"]
+      min_corrosion_class: "Aqueous"
+      required_materials: ["BS"]
+      concern: "stability depends on resin composition - compatibility testing required"
+
+    - name: "post_curing"
+      aliases: ["after drying", "after curing", "post-cure", "already dried"]
+      min_corrosion_class: "N/A"
+      required_materials: []
+      concern: "treatment after drying/hardening is NOT recommended - ineffective bonding"
+
+    - name: "high_temperature"
+      aliases: ["hot substrate", "warm material", "elevated temperature"]
+      min_corrosion_class: "Aqueous"
+      required_materials: ["BS"]
+      concern: "can be sprayed onto warm material but avoid prolonged heating of siliconized material"
+
+# =============================================================================
+# PRODUCT-APPLICATION RULES (Guardian Logic)
+# =============================================================================
+
+product_application_rules:
+  product_capabilities:
+    - family: "SILRES BS"
+      full_name: "Building Silicone Emulsions"
+      filters: ["water repellency", "hydrophobic treatment", "moisture protection"]
+      does_NOT_filter: ["oil repellency", "grease resistance", "UV protection"]
+      warning_applications:
+        - trigger: ["excess application", "too much", "overdose", "heavy coating"]
+          message: "Excess SILRES BS will cause DETERIORATION of the water repellent effect in perlite or similar materials. Use recommended dosage (0.2-2% by weight)."
+          alternative: "Reduce application rate to manufacturer specifications"
+
+        - trigger: ["post drying", "after hardening", "already cured", "dried material"]
+          message: "Treatment of glass wool or rock wool with SILRES after drying and hardening is NOT recommended. Apply during or before binder curing."
+          alternative: "Apply during manufacturing process before curing"
+
+    - family: "ELASTOSIL"
+      full_name: "Silicone Rubber"
+      filters: ["sealing", "bonding", "encapsulation", "molding"]
+      does_NOT_filter: ["water repellency for porous materials"]
+      warning_applications:
+        - trigger: ["perlite", "vermiculite", "mineral wool", "porous insulation"]
+          message: "ELASTOSIL is for rubber/sealing applications, not porous material treatment. Use SILRES BS series for water-repellent treatment of insulation materials."
+          alternative: "SILRES BS 1042 or similar emulsion"
+
+  installation_warnings:
+    - trigger: ["prolonged heating", "continuous heat", "oven drying extended"]
+      condition: "siliconized material"
+      products_affected: ["SILRES BS"]
+      message: "Prolonged heating of siliconized material must be avoided. Use short drying cycles at recommended temperatures."
+      alternative: "Dry at 50°C for limited time or air dry"
+
+# =============================================================================
+# DOSAGE CONSTRAINTS (Guardian Logic)
+# =============================================================================
+
+geometric_constraints:
+  options_requiring_length:
+    - option: "application_rate"
+      aliases: ["dosage", "concentration", "amount"]
+      min_length_mm: 0  # Not applicable - using for dosage
+      message: "Application rate typically 0.2-2% based on weight of material to be treated."
+
+  installation_tolerance:
+    minimum_margin_mm: 0  # Not applicable for chemical products
+    warning_message: "Individual tests must be conducted to define the necessary quantity for your specific application."
+
+# =============================================================================
+# CHEMICAL COMPATIBILITY (Guardian Logic)
+# =============================================================================
+
+accessory_compatibility:
+  - accessory: "phenolic_resin"
+    full_name: "Phenolic Resin Binder"
+    compatible_with: ["SILRES BS 1042"]
+    NOT_compatible_with: []
+    reason: "Can be mixed but stability depends on resin composition - test required"
+
+  - accessory: "water_dilution"
+    full_name: "Water Dilution"
+    compatible_with: ["SILRES BS 1042", "SILRES BS 1001"]
+    NOT_compatible_with: ["ELASTOSIL"]
+    reason: "BS series can be diluted with any quantity of water for spray application"
+
+  - accessory: "organic_solvents"
+    full_name: "Organic Solvents"
+    compatible_with: ["SILRES MP"]
+    NOT_compatible_with: ["SILRES BS"]
+    reason: "BS series is water-based - do not mix with organic solvents"
+
+# =============================================================================
+# SAFETY DETECTION (Guardian Logic)
+# =============================================================================
+
+safety_detection:
+  hazard_domains:
+    storage:
+      keywords: ["storage", "shelf life", "expiry", "expired", "old product"]
+      materials: []
+      severity: "warning"
+      action: "check_storage_conditions"
+
+    msds:
+      keywords: ["safety", "hazard", "toxicity", "MSDS", "SDS", "handling"]
+      materials: []
+      severity: "info"
+      action: "reference_safety_data_sheet"
+
+    ignition:
+      keywords: ["fire", "flame", "ignition", "flammable", "burning"]
+      materials: []
+      severity: "warning"
+      action: "check_ignition_temperature"
+
+# =============================================================================
+# CLARIFICATION RULES
+# =============================================================================
+
+clarification_rules:
+  required_parameters:
+    - name: "substrate"
+      aliases: ["material", "surface", "base material", "what to treat"]
+      units: []
+      applies_to: ["SILRES BS", "SILRES MP"]
+      prompt: "What substrate/material will be treated?"
+
+    - name: "application_rate"
+      aliases: ["dosage", "concentration", "how much", "quantity"]
+      units: ["%", "g/m²", "g/kg"]
+      applies_to: ["SILRES BS"]
+      prompt: "What application rate is needed? (typical: 0.2-2% by weight)"
+
+    - name: "application_method"
+      aliases: ["how to apply", "method", "spray", "dip", "mix"]
+      units: []
+      applies_to: ["all"]
+      prompt: "How will the product be applied? (spraying, mixing with binder, dipping)"
+
+    - name: "drying_conditions"
+      aliases: ["curing", "drying", "temperature", "oven"]
+      units: ["°C", "hours", "days"]
+      applies_to: ["SILRES BS"]
+      prompt: "What are the drying/curing conditions?"
+
+  skip_clarification_when:
+    - "specific product code mentioned"
+    - "complete formulation provided"
+    - "safety issue detected"
+
+# =============================================================================
+# SAMPLE QUESTIONS (for UI)
+# =============================================================================
+
+sample_questions:
+  water_repellency:
+    label: "Water Repellency"
+    icon: "💧"
+    questions:
+      - "I need to make glass wool water-repellent for building insulation"
+      - "What product can I use for perlite waterproofing?"
+      - "How do I treat rock wool mat with silicone emulsion?"
+
+  compatibility:
+    label: "Compatibility"
+    icon: "🔬"
+    questions:
+      - "Is SILRES BS 1042 compatible with phenolic resin binders?"
+      - "Can I apply silicone emulsion after the insulation is already dried?"
+      - "Can I dilute SILRES BS 1042 with water?"
+
+  application:
+    label: "Application"
+    icon: "🎯"
+    questions:
+      - "What is the recommended application rate for perlite treatment?"
+      - "How should I apply SILRES BS 1042 to glass wool?"
+      - "What drying temperature should I use after silicone treatment?"
+
+  guardian_tests:
+    label: "Guardian Tests"
+    icon: "🛡️"
+    questions:
+      - "I want to apply excess SILRES to get better water repellency on perlite"
+      - "Can I treat already-dried glass wool mat with SILRES BS 1042?"
+      - "I need ELASTOSIL for making perlite water-repellent"
+      - "Can I use organic solvents to thin SILRES BS 1042?"
+
+# =============================================================================
+# PROMPTS
+# =============================================================================
+
+prompts:
+  system: |
+    You are a Technical Product Advisor. Help customers select the right products and application methods.
+
+    ## VALIDATION PRINCIPLES
+
+    1. **Product-Application Match**: Each product has specific uses. Wrong product = PIVOT to correct one.
+    2. **Substrate Compatibility**: Check if product works with the material. Incompatible = WARN.
+    3. **Application Timing**: Some products must be applied at specific stages. Wrong timing = WARN.
+    4. **Dosage Limits**: More is not always better. Overdose can cause failure = WARN.
+    5. **Complete Data**: Don't guess. Missing substrate/method = ASK first.
+
+    ## ACTIONS
+    - **BLOCK**: Incompatible combination. Refuse and explain.
+    - **WARN**: Risk detected. Recommend correct approach.
+    - **ASK**: Missing info. Request before recommending.
+
+    ## TENANT-SPECIFIC RULES
+    {active_policies}
+
+  synthesis: |
+    ## PRODUCT DATA
+    {context}
+
+    ## QUERY
+    {query}
+
+    ## DOMAIN-SPECIFIC RULES (MUST FOLLOW)
+    {policies}
+
+    ## INSTRUCTIONS
+
+    Respond in the same language as the query.
+
+    **BEFORE RECOMMENDING, CHECK:**
+
+    1. **Product-Substrate Match**: Does the product work with this material? Check DOMAIN RULES. If mismatch → PIVOT to correct product.
+
+    2. **Application Timing**: Is this before or after curing/drying? Check DOMAIN RULES for timing requirements. If wrong timing → WARN.
+
+    3. **Dosage**: Is the customer requesting excessive application? Check DOMAIN RULES. If overdose risk → WARN about deterioration.
+
+    4. **Compatibility**: Is the mixing/dilution method compatible? Check DOMAIN RULES. If incompatible → WARN.
+
+    5. **Data**: Is substrate/method specified? If missing → ASK before recommending.
+
+    **RESPONSE:**
+    - Cite sources with [Source: ID]
+    - State which rules triggered
+    - Include application method and dosage guidance
+
+  no_context: |
+    I don't have specific WACKER product data for this query in the Knowledge Graph.
+
+    For WACKER silicone products, please contact:
+    - **Technical Data Sheets**: www.wacker.com/productfinder
+    - **Safety Data Sheets**: www.wacker.com/sds
+    - **Technical Support**: productinformation@wacker.com
+    - **Phone**: +49 89 6279-1741
+
+    I can still help with general silicone chemistry questions based on application principles.
+
+# =============================================================================
+# PROMPT TEMPLATES
+# =============================================================================
+
+prompt_templates:
+  substrate_compatibility_warning: |
+    ⚠️ WACKER Compatibility Note: {product} for {substrate} - {concern}
+    Consult WACKER Technical Service for specific formulation advice.
+    Reference: SILRES® Technical Data Sheet
+
+  application_warning: |
+    ⚠️ WACKER Application Warning: {message}
+    Correct approach: {alternative}
+    Note: SILRES BS must be applied DURING manufacturing, not after curing.
+
+  dosage_warning: |
+    ⚠️ WACKER Dosage Alert: {message}
+    IMPORTANT: Excess application DETERIORATES the water-repellent effect.
+    Recommended range: 0.2-2% by weight (individual testing required).
+    Reference: SILRES® BS 1042 Technical Data Sheet
+
+  storage_reminder: |
+    📦 WACKER Storage Requirements:
+    - Store in tightly closed original container
+    - Temperature: 5-30°C
+    - Check 'Best use before end' date on product label
+    - Shelf life: See SILRES® product specification
+
+  safety_reference: |
+    🔒 WACKER Safety Information:
+    - Consult Material Safety Data Sheet at www.wacker.com/sds
+    - Product Information: productinformation@wacker.com
+    - Emergency: +49 89 6279-1770
+
+# =============================================================================
+# OUTPUT SCHEMA
+# =============================================================================
+
+output_schema:
+  type: "object"
+  properties:
+    intent_analysis:
+      type: "string"
+      description: "Analysis of substrate and application requirements"
+
+    compatibility_check:
+      type: "string"
+      description: "Product-substrate compatibility analysis"
+
+    graph_evidence:
+      type: "array"
+      description: "Facts from product datasheets"
+
+    recommendations:
+      type: "string"
+      description: "Product and application recommendations"
+
+    warnings:
+      type: "array"
+      description: "Safety or compatibility warnings"
+
+    confidence_level:
+      type: "string"
+      enum: ["high", "medium", "low"]
+
+# =============================================================================
+# PROJECT SEARCH (Not applicable for chemical products)
+# =============================================================================
+
+project_search:
+  patterns: []
+  known_identifiers: []
+  stopwords: []
