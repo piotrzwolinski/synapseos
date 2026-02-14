@@ -110,7 +110,7 @@ export function DiagnosticCard({ data }: DiagnosticCardProps) {
           )}
         >
           <Mail className="w-4 h-4 mr-2" />
-          {allChecked ? "All Items Verified" : data.email_button_label}
+          {allChecked ? "All Items Verified" : (data.email_button_label || "Send Verification Email")}
         </Button>
       </CardFooter>
     </Card>

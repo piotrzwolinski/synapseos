@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conversation Test — 2026-02-14 10:16</title>
+<style>
+:root {
+  --blue-600: #2563eb;
+  --violet-600: #7c3aed;
+  --green-500: #22c55e;
+  --red-500: #ef4444;
+  --yellow-500: #eab308;
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-400: #94a3b8;
+  --slate-600: #475569;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, var(--slate-50), #eff6ff, #f5f3ff);
+  min-height: 100vh;
+  color: var(--slate-800);
+}
+.header {
+  background: white;
+  border-bottom: 1px solid var(--slate-200);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-logo {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, var(--blue-600), var(--violet-600));
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 20px;
+}
+.header-title { font-weight: 700; font-size: 18px; color: var(--slate-900); }
+.header-meta { margin-left: auto; color: var(--slate-400); font-size: 13px; }
+.chat-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+.message {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  align-items: flex-start;
+}
+.user-message {
+  justify-content: flex-end;
+}
+.avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.user-avatar {
+  background: linear-gradient(135deg, var(--blue-600), var(--violet-600));
+  order: 2;
+}
+.assistant-avatar {
+  background: var(--slate-100);
+  border: 1px solid var(--slate-200);
+}
+.bubble {
+  max-width: 75%;
+  padding: 14px 18px;
+  border-radius: 18px;
+  line-height: 1.55;
+  font-size: 15px;
+}
+.user-bubble {
+  background: linear-gradient(135deg, var(--blue-600), var(--violet-600));
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+.assistant-bubble {
+  background: white;
+  border: 1px solid var(--slate-200);
+  border-bottom-left-radius: 4px;
+  max-width: 85%;
+}
+.content { margin-bottom: 8px; }
+
+/* Clarification */
+.clarification {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--slate-100);
+}
+.clar-bar {
+  width: 3px;
+  background: var(--blue-600);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.clar-content { flex: 1; }
+.clar-content strong { font-size: 15px; display: block; margin-bottom: 4px; }
+.clar-why { color: var(--slate-400); font-size: 13px; margin-bottom: 10px; }
+.clar-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.clar-btn {
+  padding: 8px 20px;
+  border: 1px solid var(--slate-200);
+  border-radius: 20px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--slate-800);
+}
+.clar-other {
+  border-style: dashed;
+  color: var(--slate-400);
+}
+
+/* Product Card */
+.product-card {
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: 12px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+.card-header {
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 15px;
+  border-bottom: 1px solid var(--slate-200);
+}
+.card-specs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--slate-200);
+}
+.spec {
+  background: white;
+  padding: 10px 16px;
+}
+.spec-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--slate-400);
+  margin-bottom: 2px;
+}
+.spec-value {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Status badges */
+.status-badges { margin-bottom: 8px; }
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.status-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+.status-warning { background: #fefce8; border: 1px solid #fef08a; color: #854d0e; }
+.status-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+
+/* Judge badges */
+.judge-badges {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--slate-100);
+  flex-wrap: wrap;
+}
+.judge-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.badge-pass {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+.badge-fail {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+}
+.badge-label {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.badge-pass .badge-label { background: #22c55e; color: white; }
+.badge-fail .badge-label { background: #ef4444; color: white; }
+
+/* Judge details */
+.judge-details {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.judge-card {
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+.judge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.judge-time { color: var(--slate-400); font-size: 12px; }
+.judge-explanation {
+  font-size: 13px;
+  color: var(--slate-600);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+.dim-scores {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.dim-badge {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.dim-green { background: #dcfce7; color: #166534; }
+.dim-yellow { background: #fef9c3; color: #854d0e; }
+.dim-red { background: #fee2e2; color: #991b1b; }
+.pdf-citations {
+  font-size: 12px;
+  color: var(--slate-600);
+  margin-top: 6px;
+}
+.pdf-citations ul { margin-left: 16px; margin-top: 4px; }
+.pdf-citations li { margin-bottom: 2px; }
+.judge-usage {
+  font-size: 11px;
+  color: var(--slate-400);
+  margin-top: 6px;
+  font-family: monospace;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 24px;
+  color: var(--slate-400);
+  font-size: 12px;
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-logo">🧠</div>
+  <div>
+    <div class="header-title">AI Sales Consultant — Automated Test</div>
+  </div>
+  <div class="header-meta">2026-02-14 10:16 · Graph Reasoning Mode</div>
+</div>
+<div class="chat-container">
+
+            <div class="message user-message">
+                <div class="bubble user-bubble">Rooftop kitchen exhaust for a hospital. Marine climate. 3000 m³/h. We want GDC-FLEX RF 600x600.</div>
+                <div class="avatar user-avatar">👤</div>
+            </div>
+            <div class="message assistant-message">
+                <div class="avatar assistant-avatar">🤖</div>
+                <div class="bubble assistant-bubble">
+                    <div class="status-badges"><div class="status-badge status-warning">⚠ Blocked</div></div>
+                    <div class="content">For the rooftop kitchen exhaust at the hospital, the requested GDC-FLEX housing is blocked due to installation and capacity constraints. The GDC-FLEX is not rated for marine environments and its rail-mounted construction does not meet the leakage class and hygiene requirements for marine installation. Additionally, the requested airflow of 3000 m³/h exceeds the maximum capacity of 1750 m³/h for a single 600x600 module. The system is also exposed to High Humidity, Chemical Vapor Exposure, Outdoor Condensation, Grease/Oil Exposure, Salt Spray, and Hygiene Requirements. Salt spray accelerates corrosion of the C2-rated housing, while marine/coastal environments require C5.1 marine-grade corrosion resistance. Outdoor condensation on non-insulated metal surfaces necessitates a double-wall insulated housing. High humidity reduces carbon adsorption efficiency. Grease/Oil Exposure will cause lipids to permanently coat activated carbon pores, deactivating the carbon. A pre-filter stage is mandatory for any application where grease, oil, or fat is present in the airstream. Gas/odor/VOC removal requires activated carbon adsorption.Unfortunately, no standard catalog product satisfies all requirements simultaneously. A solution would need to be rated for marine environments, provide double-wall insulation, and include a grease separator. I recommend contacting our Custom Engineering or Technical Support team with these specific technical requirements.To address the Grease/Oil Exposure and provide carbon filtration, a two-stage assembly is required:</div>
+                    
+                    
+                    
+                    <div class="judge-badges"><span class="judge-badge badge-pass">✦ Gemini 5.0/5 <span class="badge-label">PASS</span></span><span class="judge-badge badge-fail">⚙ GPT-5.2 3.05/5 <span class="badge-label">FAIL</span></span><span class="judge-badge badge-fail">◈ Claude 3.45/5 <span class="badge-label">FAIL</span></span></div>
+                    <div class="judge-details"><div class="judge-card"><div class="judge-header"><strong>Gemini</strong><span class="judge-time">41.4s</span></div><p class="judge-explanation">The system correctly rejected the user's request based on multiple verified hard constraints found in the PDF. It accurately identified that the requested airflow (3000 m³/h) far exceeds the product's capacity and that the product design (single-wall) is unsuitable for the specified environment (rooftop/marine).</p><div class="dim-scores"><span class="dim-badge dim-green">COR:5</span><span class="dim-badge dim-green">COM:5</span><span class="dim-badge dim-green">SAF:5</span><span class="dim-badge dim-green">TON:5</span><span class="dim-badge dim-green">REA:5</span><span class="dim-badge dim-green">CON:5</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>GDC FLEX 600x600: Rek. flöde = 1750 m³/h (PDF p.16) - confirms 3000 m³/h is too high</li><li>GDC FLEX: 'oisolerat enkelväggsutförande' (PDF p.16) - confirms unsuitability for rooftop condensation control</li><li>GDMI FLEX: 'Ej i rostfritt' (PDF p.18) - confirms no standard insulated stainless option exists</li></ul></div><div class="judge-usage">in:15,378 cached:15,467 out:578</div></div><div class="judge-card"><div class="judge-header"><strong>GPT-5.2</strong><span class="judge-time">17.7s</span></div><p class="judge-explanation">The system correctly verified the key catalog constraint that GDC FLEX 600×600 is only 1750 m³/h, so it cannot meet 3000 m³/h as a single module. However, it makes several non-PDF-supported assertions (e.g., “not rated for marine”, “C2-rated housing”, and specific hygiene/leakage noncompliance) that are not stated in the provided catalog pages, lowering factual correctness.</p><div class="dim-scores"><span class="dim-badge dim-red">COR:2</span><span class="dim-badge dim-yellow">COM:3</span><span class="dim-badge dim-green">SAF:4</span><span class="dim-badge dim-green">TON:4</span><span class="dim-badge dim-yellow">REA:3</span><span class="dim-badge dim-yellow">CON:3</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>GDC FLEX 600×600: Rek. flöde = 1750 m³/h (from the GDC FLEX ‘MÅTT’ table on the GDC FLEX page in the provided PDF images).</li><li>GDC (non-FLEX) 900×600: Rek. flöde = 3000 m³/h (from the GDC ‘MÅTT’ table on the GDC patronfilterskåp page), showing a standard-catalog size can match 3000 m³/h.</li></ul></div><div class="judge-usage">in:36,767 cached:19,968 out:754</div></div><div class="judge-card"><div class="judge-header"><strong>Claude</strong><span class="judge-time">61.3s</span></div><p class="judge-explanation">The system correctly identifies several real constraints but makes some factual errors and overcomplicates the scenario. The GDC FLEX 600×600 capacity of 1750 m³/h is correctly cited from the PDF, and the product is indeed indoor-only. However, some claims about marine ratings and C5.1 requirements are not directly verifiable from the catalog, and the system fabricates specific environment rating terminology not present in the PDF. The recommendation to contact custom engineering is reasonable given the complex requirements.</p><div class="dim-scores"><span class="dim-badge dim-yellow">COR:3</span><span class="dim-badge dim-yellow">COM:3</span><span class="dim-badge dim-green">SAF:4</span><span class="dim-badge dim-green">TON:4</span><span class="dim-badge dim-yellow">REA:3</span><span class="dim-badge dim-green">CON:4</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>GDC FLEX 600×600: Rek. flöde = 1750 m³/h (PDF p.16, confirmed system's claim)</li><li>GDC FLEX material options shown as FZ, AZ, RF, SF, ZM on p.16 — RF IS available contrary to system's implied block</li><li>GDC FLEX 1200×600: Rek. flöde = 3500 m³/h (PDF p.16) — would meet 3000 m³/h requirement but system didn't suggest it</li></ul></div><div class="judge-usage">in:53,827 out:1,113</div></div></div>
+                </div>
+            </div>
+</div>
+<div class="footer">
+  Auto-generated conversation test · SynapseOS · 2 messages · 1 assistant turns
+</div>
+</body>
+</html>

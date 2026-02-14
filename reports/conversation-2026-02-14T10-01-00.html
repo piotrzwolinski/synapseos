@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conversation Test — 2026-02-14 10:01</title>
+<style>
+:root {
+  --blue-600: #2563eb;
+  --violet-600: #7c3aed;
+  --green-500: #22c55e;
+  --red-500: #ef4444;
+  --yellow-500: #eab308;
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-400: #94a3b8;
+  --slate-600: #475569;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, var(--slate-50), #eff6ff, #f5f3ff);
+  min-height: 100vh;
+  color: var(--slate-800);
+}
+.header {
+  background: white;
+  border-bottom: 1px solid var(--slate-200);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-logo {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, var(--blue-600), var(--violet-600));
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 20px;
+}
+.header-title { font-weight: 700; font-size: 18px; color: var(--slate-900); }
+.header-meta { margin-left: auto; color: var(--slate-400); font-size: 13px; }
+.chat-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+.message {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  align-items: flex-start;
+}
+.user-message {
+  justify-content: flex-end;
+}
+.avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.user-avatar {
+  background: linear-gradient(135deg, var(--blue-600), var(--violet-600));
+  order: 2;
+}
+.assistant-avatar {
+  background: var(--slate-100);
+  border: 1px solid var(--slate-200);
+}
+.bubble {
+  max-width: 75%;
+  padding: 14px 18px;
+  border-radius: 18px;
+  line-height: 1.55;
+  font-size: 15px;
+}
+.user-bubble {
+  background: linear-gradient(135deg, var(--blue-600), var(--violet-600));
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+.assistant-bubble {
+  background: white;
+  border: 1px solid var(--slate-200);
+  border-bottom-left-radius: 4px;
+  max-width: 85%;
+}
+.content { margin-bottom: 8px; }
+
+/* Clarification */
+.clarification {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--slate-100);
+}
+.clar-bar {
+  width: 3px;
+  background: var(--blue-600);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.clar-content { flex: 1; }
+.clar-content strong { font-size: 15px; display: block; margin-bottom: 4px; }
+.clar-why { color: var(--slate-400); font-size: 13px; margin-bottom: 10px; }
+.clar-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.clar-btn {
+  padding: 8px 20px;
+  border: 1px solid var(--slate-200);
+  border-radius: 20px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--slate-800);
+}
+.clar-other {
+  border-style: dashed;
+  color: var(--slate-400);
+}
+
+/* Product Card */
+.product-card {
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: 12px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+.card-header {
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 15px;
+  border-bottom: 1px solid var(--slate-200);
+}
+.card-specs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--slate-200);
+}
+.spec {
+  background: white;
+  padding: 10px 16px;
+}
+.spec-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--slate-400);
+  margin-bottom: 2px;
+}
+.spec-value {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Status badges */
+.status-badges { margin-bottom: 8px; }
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.status-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+.status-warning { background: #fefce8; border: 1px solid #fef08a; color: #854d0e; }
+.status-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+
+/* Judge badges */
+.judge-badges {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--slate-100);
+  flex-wrap: wrap;
+}
+.judge-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.badge-pass {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+.badge-fail {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+}
+.badge-label {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.badge-pass .badge-label { background: #22c55e; color: white; }
+.badge-fail .badge-label { background: #ef4444; color: white; }
+
+/* Judge details */
+.judge-details {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.judge-card {
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+.judge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.judge-time { color: var(--slate-400); font-size: 12px; }
+.judge-explanation {
+  font-size: 13px;
+  color: var(--slate-600);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+.dim-scores {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.dim-badge {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.dim-green { background: #dcfce7; color: #166534; }
+.dim-yellow { background: #fef9c3; color: #854d0e; }
+.dim-red { background: #fee2e2; color: #991b1b; }
+.pdf-citations {
+  font-size: 12px;
+  color: var(--slate-600);
+  margin-top: 6px;
+}
+.pdf-citations ul { margin-left: 16px; margin-top: 4px; }
+.pdf-citations li { margin-bottom: 2px; }
+.judge-usage {
+  font-size: 11px;
+  color: var(--slate-400);
+  margin-top: 6px;
+  font-family: monospace;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 24px;
+  color: var(--slate-400);
+  font-size: 12px;
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-logo">🧠</div>
+  <div>
+    <div class="header-title">AI Sales Consultant — Automated Test</div>
+  </div>
+  <div class="header-meta">2026-02-14 10:01 · Graph Reasoning Mode</div>
+</div>
+<div class="chat-container">
+
+            <div class="message user-message">
+                <div class="bubble user-bubble">I need a GDB housing, size 600×600, Galvanized FZ, airflow 2500 m³/h.</div>
+                <div class="avatar user-avatar">👤</div>
+            </div>
+            <div class="message assistant-message">
+                <div class="avatar assistant-avatar">🤖</div>
+                <div class="bubble assistant-bubble">
+                    
+                    <div class="content">We have a GDB housing sized to 600x600mm with a required airflow of 2500 m³/h and FZ (Galvanized) material.To finalize the configuration, I need to know the housing length.</div>
+                    <div class="clarification"><div class="clar-bar"></div><div class="clar-content"><strong>Which housing length is required?</strong><p class="clar-why">The housing length depends on the filter depth used in your application.</p><div class="clar-options"><button class="clar-btn">550mm</button><button class="clar-btn">750mm</button><button class="clar-btn clar-other">Other...</button></div></div></div>
+                    
+                    
+                    <div class="judge-badges"><span class="judge-badge badge-pass">✦ Gemini 5.0/5 <span class="badge-label">PASS</span></span><span class="judge-badge badge-pass">⚙ GPT-5.2 4.75/5 <span class="badge-label">PASS</span></span><span class="judge-badge badge-fail">◈ Claude 0.0/5 <span class="badge-label">FAIL</span></span></div>
+                    <div class="judge-details"><div class="judge-card"><div class="judge-header"><strong>Gemini</strong><span class="judge-time">25.5s</span></div><p class="judge-explanation">The system correctly identified the product (GDB) and recognized that a critical parameter (housing length) was missing to generate a specific part number. It validated the user's constraints implicitly and asked the appropriate clarifying question, as GDB housings are available in specific lengths (550mm or 750mm) per the catalog.</p><div class="dim-scores"><span class="dim-badge dim-green">COR:5</span><span class="dim-badge dim-green">COM:5</span><span class="dim-badge dim-green">SAF:5</span><span class="dim-badge dim-green">TON:5</span><span class="dim-badge dim-green">REA:5</span><span class="dim-badge dim-green">CON:5</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>PDF p.8 confirms GDB is available in two standard lengths: 550mm and 750mm</li><li>PDF p.9 confirms GDB 600x600 has a max airflow capacity of 3400 m³/h, covering the user's 2500 m³/h request</li></ul></div><div class="judge-usage">in:15,116 cached:15,467 out:535</div></div><div class="judge-card"><div class="judge-header"><strong>GPT-5.2</strong><span class="judge-time">13.7s</span></div><p class="judge-explanation">The system correctly recognized the requested product family (GDB), size (600×600, interpreted as W×H), and material (FZ), and appropriately asked for the missing critical parameter (housing length) before issuing a final product card. No incorrect specs or unsafe guidance were given, but it didn’t proactively confirm that the requested 2500 m³/h is within the catalog flow rating for that size.</p><div class="dim-scores"><span class="dim-badge dim-green">COR:5</span><span class="dim-badge dim-green">COM:4</span><span class="dim-badge dim-green">SAF:5</span><span class="dim-badge dim-green">TON:5</span><span class="dim-badge dim-green">REA:4</span><span class="dim-badge dim-green">CON:5</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>GDB 600×600 exists with Flöde=3400 m³/h and standard lengths 550/600 and 750/800 (GDB MÅTT table, page showing 'KANALFILTERSKÅP GDB' with dimensions/flow).</li><li>Catalog example order lines show GDB-600x600-550-R-PG-FZ and GDB-600x600-750-R-PG-FZ confirming size/material/length variants (GDB product page with 'EXEMPEL BESKRIVNINGSTEXT').</li></ul></div><div class="judge-usage">in:36,510 out:633</div></div><div class="judge-card"><div class="judge-header"><strong>Claude</strong><span class="judge-time">0.0s</span></div><p class="judge-explanation">Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans &amp; Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CY7gqaAXPxVmwYsicWWwL'}</p><div class="dim-scores"><span class="dim-badge dim-red">COR:0</span><span class="dim-badge dim-red">COM:0</span><span class="dim-badge dim-red">SAF:0</span><span class="dim-badge dim-red">TON:0</span><span class="dim-badge dim-red">REA:0</span><span class="dim-badge dim-red">CON:0</span></div></div></div>
+                </div>
+            </div>
+            <div class="message user-message">
+                <div class="bubble user-bubble">750mm</div>
+                <div class="avatar user-avatar">👤</div>
+            </div>
+            <div class="message assistant-message">
+                <div class="avatar assistant-avatar">🤖</div>
+                <div class="bubble assistant-bubble">
+                    <div class="status-badges"><div class="status-badge status-success">✓ COMPLETE</div></div>
+                    <div class="content">Here is the specification for the GDB housing:</div>
+                    
+                    <div class="product-card"><div class="card-header">⊙ Tag item_1</div><div class="card-specs"><div class="spec"><span class="spec-label">PRODUCT CODE</span><span class="spec-value">GDB-600x600-750-R-PG-FZ</span></div><div class="spec"><span class="spec-label">HOUSING SIZE</span><span class="spec-value">600x600mm</span></div><div class="spec"><span class="spec-label">HOUSING LENGTH</span><span class="spec-value">750mm</span></div><div class="spec"><span class="spec-label">RATED AIRFLOW</span><span class="spec-value">3400 m³/h per module (requested: 2500 m³/h)</span></div><div class="spec"><span class="spec-label">WEIGHT</span><span class="spec-value">~34 kg</span></div><div class="spec"><span class="spec-label">HOUSING CORROSION CLASS</span><span class="spec-value">C2</span></div><div class="spec"><span class="spec-label">INDOOR ONLY</span><span class="spec-value">Yes</span></div></div></div>
+                    <div class="product-card"><div class="card-header">⊙ Tag item_1</div><div class="card-specs"><div class="spec"><span class="spec-label">PRODUCT CODE</span><span class="spec-value">GDB-600x600-750-R-PG-FZ</span></div><div class="spec"><span class="spec-label">HOUSING SIZE</span><span class="spec-value">600x600mm</span></div><div class="spec"><span class="spec-label">HOUSING LENGTH</span><span class="spec-value">750mm</span></div><div class="spec"><span class="spec-label">RATED AIRFLOW</span><span class="spec-value">3400 m³/h per module (requested: 2500 m³/h)</span></div><div class="spec"><span class="spec-label">WEIGHT</span><span class="spec-value">~34 kg</span></div><div class="spec"><span class="spec-label">HOUSING CORROSION CLASS</span><span class="spec-value">C2</span></div><div class="spec"><span class="spec-label">INDOOR ONLY</span><span class="spec-value">Yes</span></div></div></div>
+                    <div class="judge-badges"><span class="judge-badge badge-pass">✦ Gemini 5.0/5 <span class="badge-label">PASS</span></span><span class="judge-badge badge-pass">⚙ GPT-5.2 4.25/5 <span class="badge-label">PASS</span></span><span class="judge-badge badge-fail">◈ Claude 0.0/5 <span class="badge-label">FAIL</span></span></div>
+                    <div class="judge-details"><div class="judge-card"><div class="judge-header"><strong>Gemini</strong><span class="judge-time">17.1s</span></div><p class="judge-explanation">The system handled the conversation perfectly. It correctly identified a missing parameter (housing length), asked for it, and then generated a product card with specifications that exactly match the PDF catalog data.</p><div class="dim-scores"><span class="dim-badge dim-green">COR:5</span><span class="dim-badge dim-green">COM:5</span><span class="dim-badge dim-green">SAF:5</span><span class="dim-badge dim-green">TON:5</span><span class="dim-badge dim-green">REA:5</span><span class="dim-badge dim-green">CON:5</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>GDB 600x600 Flöde = 3400 m³/h (PDF p.9)</li><li>GDB 600x600 (750mm length) Vikt = 34 kg (PDF p.9)</li><li>GDB Corrosion Class C2 (PDF p.8)</li></ul></div><div class="judge-usage">in:15,630 cached:15,467 out:506</div></div><div class="judge-card"><div class="judge-header"><strong>GPT-5.2</strong><span class="judge-time">12.8s</span></div><p class="judge-explanation">The system correctly asked for the missing housing length before issuing a final product card, and the recommended GDB 600×600 in FZ with 750 mm length matches the catalog. The main issue is a small mismatch/ambiguity in the quoted weight (system says ~34 kg, while the PDF table for 750/800 length indicates 34 kg and the 550/600 length indicates 27 kg), plus duplicated product cards.</p><div class="dim-scores"><span class="dim-badge dim-green">COR:4</span><span class="dim-badge dim-green">COM:4</span><span class="dim-badge dim-green">SAF:4</span><span class="dim-badge dim-green">TON:5</span><span class="dim-badge dim-green">REA:4</span><span class="dim-badge dim-green">CON:5</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>GDB 600×600: Flöde = 3400 m³/h (GDB MÅTT table in the provided PDF images)</li><li>GDB 600×600: Vikt = 34 kg for 750/800 length and 27 kg for 550/600 length (GDB MÅTT table in the provided PDF images)</li></ul></div><div class="judge-usage">in:36,934 cached:14,848 out:632</div></div><div class="judge-card"><div class="judge-header"><strong>Claude</strong><span class="judge-time">0.0s</span></div><p class="judge-explanation">Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans &amp; Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CY7gtEZtgB1b8Y4z3UChN'}</p><div class="dim-scores"><span class="dim-badge dim-red">COR:0</span><span class="dim-badge dim-red">COM:0</span><span class="dim-badge dim-red">SAF:0</span><span class="dim-badge dim-red">TON:0</span><span class="dim-badge dim-red">REA:0</span><span class="dim-badge dim-red">CON:0</span></div></div></div>
+                </div>
+            </div>
+</div>
+<div class="footer">
+  Auto-generated conversation test · SynapseOS · 4 messages · 2 assistant turns
+</div>
+</body>
+</html>

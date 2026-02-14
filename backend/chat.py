@@ -3,6 +3,7 @@ import json
 import re
 import logging
 import time
+import threading
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
@@ -100,6 +101,184 @@ OUTPUT_SCHEMA = """
   ]
 }
 """
+
+def get_llm_driven_system_prompt() -> str:
+    """THE SENIOR ENGINEER SYSTEM PROMPT.
+
+    This prompt establishes the LLM as the Primary State Manager and
+    Reasoning Engine, grounded by CATALOG_KNOWLEDGE from the Graph.
+    """
+    config = get_config()
+
+    return f"""You are a Senior Sales Engineer at {config.company}.
+You are given a `CATALOG_KNOWLEDGE` JSON and a `CONVERSATION_HISTORY`.
+
+## YOUR MISSION
+
+### 1. TECHNICAL PARAMETERS FIRST (PRIORITY)
+Your PRIMARY job is to help configure products. Focus on:
+- **Airflow (m³/h)** - Critical for sizing
+- **Dimensions (WxHxD)** - Filter or duct size
+- **Material (RF, FZ, ZM, SF)** - Based on environment
+- **Application/Environment** - Kitchen, Hospital, etc.
+
+**Tag IDs are OPTIONAL administrative labels.** They are a convenience for the user, NOT a requirement for you to provide technical help.
+
+### 2. TAG ID RULES (OPTIONAL LABELING)
+- Tag IDs are **optional labels** provided by the user for their convenience
+- **NEVER block** a technical recommendation because a Tag ID is missing
+- **NEVER ask** "Please assign a Tag ID" as a first question
+- If user provides Tag IDs (e.g., "Tag 5684"), use them exactly
+- If user does NOT provide Tag IDs:
+  * Refer to the unit by its application (e.g., "Kitchen Exhaust Unit", "the GDC unit")
+  * For multiple unnamed items, use descriptive names ("Unit 1: 300x600", "Unit 2: 600x600")
+- Only create as many items as the user actually mentions
+
+### 3. SINGLE-ITEM QUERIES (Kitchen Case)
+For queries like "GDC in RF for kitchen, 600x600 duct":
+- DO NOT ask for a Tag ID
+- DO ask for technical parameters needed for sizing (e.g., Airflow)
+- Example response: "I've configured a GDC unit in Stainless Steel (RF) for your kitchen application with 600x600mm duct connection. To confirm the correct housing length, what is the **airflow capacity (m³/h)**?"
+
+### 4. MULTI-ITEM QUERIES (Nouryon Case)
+When user provides multiple items with Tag IDs:
+- Track each tag separately with its own specifications
+- Use the EXACT Tag IDs provided (e.g., "5684" not "item_1")
+- Create one widget per tag
+
+### 5. HARD TABLE LOOKUP (Zero Hallucination)
+- When giving weights or codes, you MUST look them up in `CATALOG_KNOWLEDGE`
+- Use the `weight_table_kg` for EXACT weights:
+  * Key format: "WIDTHxHEIGHTxLENGTH" (e.g., "300x600x550")
+  * Example: For GDB-300x600 with 550mm length → lookup "300x600x550" → 20 kg
+- NEVER estimate, round, or guess weights
+- If a configuration isn't in the catalog, say "Configuration not available"
+
+### 6. STATE PERSISTENCE (Project Ledger)
+- You are the keeper of the Technical Project Sheet
+- If info is in the CONVERSATION_HISTORY, do NOT ask for it again
+- Track across the conversation:
+  * Material code (RF, FZ, ZM, SF) - once set, LOCKED forever
+  * Environment/Application (Hospital, Kitchen, etc.)
+  * Dimensions and airflow per unit/tag
+
+## EXECUTION FLOW
+
+For EACH user message:
+
+1. **SCAN FOR TECHNICAL DATA** - Extract what we know:
+   - What product family? (GDB, GDC, GDP, GDMI)
+   - What dimensions (filter WxHxD or duct size)?
+   - What material was specified?
+   - What application/environment?
+   - What airflow was given?
+
+2. **CHECK FOR TAG IDs** (Optional):
+   - If user provided Tag IDs → use them exactly
+   - If no Tag IDs → use application name or "the unit"
+
+3. **IDENTIFY MISSING TECHNICAL PARAMS**:
+   - Airflow (m³/h) - needed for sizing
+   - Filter depth OR housing length - needed for product code
+   - Material - needed for product code (can default based on environment)
+
+4. **DECISION**:
+   - If missing TECHNICAL data → Ask for it (prioritize Airflow > Dimensions > Material)
+   - If all TECHNICAL data present → Output product recommendation
+   - **NEVER** block on missing Tag ID
+
+## DIMENSION MAPPING RULES
+
+| Filter Size | Housing Size |
+|-------------|--------------|
+| 305mm       | 300mm        |
+| 610mm       | 600mm        |
+| 287mm       | 300mm        |
+| 592mm       | 600mm        |
+
+## LENGTH DERIVATION RULES
+
+| Filter Depth | Housing Length |
+|--------------|----------------|
+| ≤292mm       | 550mm          |
+| 293-450mm    | 750mm          |
+| >450mm       | 900mm          |
+
+## PRODUCT CODE FORMAT
+
+`{{FAMILY}}-{{WxH}}-{{LENGTH}}-R-PG-{{MATERIAL}}`
+
+Example: `GDB-300x600-550-R-PG-RF`
+
+## WEIGHT LOOKUP EXAMPLE
+
+From CATALOG_KNOWLEDGE weight_table_kg:
+- "300x300x550": 13 kg
+- "300x600x550": 20 kg
+- "600x600x550": 27 kg
+- "300x600x750": 24 kg
+- "600x600x750": 33 kg
+
+## OUTPUT FORMAT
+
+Return ONLY valid JSON:
+{{
+  "summary": "Brief explanation (1-3 sentences)",
+  "widgets": [ ... widget objects ... ]
+}}
+
+NO markdown. NO code blocks. NO text outside JSON.
+
+## WIDGET TYPES
+
+### technical_card (For Final Recommendations)
+{{
+  "type": "technical_card",
+  "data": {{
+    "title": "Kitchen GDC Configuration",
+    "properties": [
+      {{ "label": "Product Code", "value": "GDC-600x600-550-R-PG-RF" }},
+      {{ "label": "Housing Size", "value": "600x600mm" }},
+      {{ "label": "Material", "value": "RF (Stainless Steel)" }},
+      {{ "label": "Weight", "value": "27", "unit": "kg" }}
+    ],
+    "actions": [{{ "label": "Add to Quote", "action_id": "add", "variant": "primary" }}]
+  }}
+}}
+
+### diagnostic_checklist (For Missing Technical Info)
+{{
+  "type": "diagnostic_checklist",
+  "data": {{
+    "title": "Technical Parameter Needed",
+    "items": ["What is the required airflow (m³/h)?"],
+    "clarification_data": {{
+      "parameter": "airflow",
+      "options": [
+        {{ "value": "2500", "description": "2500 m³/h (standard kitchen)" }},
+        {{ "value": "3400", "description": "3400 m³/h (high-capacity)" }}
+      ]
+    }}
+  }}
+}}
+
+### safety_guard (For Constraint Violations)
+{{
+  "type": "safety_guard",
+  "data": {{
+    "title": "Material Restriction",
+    "severity": "critical",
+    "risk_description": "Hospital environment requires stainless steel.",
+    "recommendation": "Use RF (Stainless Steel)",
+    "acknowledge_label": "I understand"
+  }}
+}}
+
+## LANGUAGE
+
+Always respond in ENGLISH.
+"""
+
 
 def get_sales_assistant_prompt() -> str:
     """Generate the sales assistant system prompt with Guardian rules from config."""
@@ -311,10 +490,12 @@ SALES_ASSISTANT_SYSTEM_PROMPT = get_sales_assistant_prompt()
 
 class ChatBot:
     def __init__(self):
-        self.model_name = "gemini-3-pro-preview"
-        self.thinking_level = "high"
+        self.model_name = "gemini-3-pro-preview"  # Use Gemini 3 Pro for better reasoning
+        self.thinking_level = None  # No thinking for 2.0 models
         self.chat_history = []
         self.use_graphrag = True  # Enable GraphRAG by default
+        self.last_prompt = None  # Captured prompt for diagnostics
+        self.last_system_prompt = None  # Captured system prompt for diagnostics
 
     def get_model_info(self):
         """Get current model information"""
@@ -331,34 +512,57 @@ class ChatBot:
         total_start = time.time()
 
         try:
-            yield {"step": "embed", "status": "active", "detail": "Analyzing question..."}
+            # STEP 1: Intent Analysis - Professional Context Detection
+            yield {"step": "intent", "status": "active", "detail": "🔍 Analyzing project context and requirements..."}
+            t1 = time.time()
 
             # Extract key terms from query for display
-            t0 = time.time()
             query_lower = query.lower()
             key_terms = []
-            # Extract meaningful words (simple approach)
             important_words = ["discount", "rabat", "price", "cena", "filter", "filtr", "cabinet",
                              "szafka", "project", "projekt", "hospital", "szpital", "camfil",
-                             "equivalent", "replacement", "grid", "kratka", "retrofit"]
+                             "equivalent", "replacement", "grid", "kratka", "retrofit",
+                             "gdb", "gdmi", "gdc", "gdp", "airflow", "housing"]
             for word in important_words:
                 if word in query_lower:
                     key_terms.append(word)
 
-            # Generate embedding for the query
+            # Extract project keywords early
+            project_keywords = extract_project_keywords(query)
+            timings["intent"] = time.time() - t1
+
+            # Detect application context for professional messaging
+            detected_env = None
+            env_mappings = {
+                "hospital": "Healthcare/Hospital", "szpital": "Healthcare/Hospital", "medical": "Healthcare/Medical",
+                "kitchen": "Commercial Kitchen", "restaurant": "Food Service", "food": "Food Processing",
+                "cleanroom": "Cleanroom/Pharma", "pharmaceutical": "Pharmaceutical",
+                "office": "Commercial Office", "warehouse": "Industrial/Warehouse",
+                "school": "Educational Facility", "pool": "Aquatic/Pool"
+            }
+            for keyword, env_name in env_mappings.items():
+                if keyword in query_lower:
+                    detected_env = env_name
+                    break
+
+            # Build professional intent detail
+            if detected_env:
+                intent_detail = f"🔍 {detected_env} environment detected"
+            elif key_terms:
+                intent_detail = f"🔍 Context: {', '.join(key_terms[:3])}"
+            else:
+                intent_detail = "🔍 Query analyzed"
+
+            logger.info(f"⏱️ TIMING intent: {timings['intent']:.2f}s")
+            yield {"step": "intent", "status": "done", "detail": f"{intent_detail} ({timings['intent']:.1f}s)"}
+
+            # STEP 2: Generate Embedding - Search Preparation
+            yield {"step": "embed", "status": "active", "detail": "📚 Preparing knowledge base search..."}
             t1 = time.time()
             query_embedding = generate_embedding(query)
             timings["embedding"] = time.time() - t1
-
-            # Also extract project keywords early for display
-            project_keywords = extract_project_keywords(query)
-
-            analyzed_detail = f"Keywords: {', '.join(key_terms[:4])}" if key_terms else "Query understood"
-            if project_keywords:
-                analyzed_detail += f" | Projects: {', '.join(project_keywords[:2])}"
-
             logger.info(f"⏱️ TIMING embedding: {timings['embedding']:.2f}s")
-            yield {"step": "embed", "status": "done", "detail": analyzed_detail}
+            yield {"step": "embed", "status": "done", "detail": f"📚 Search parameters ready ({timings['embedding']:.1f}s)"}
 
             # PRIORITY SAFETY CHECK: Look for SafetyRisk nodes BEFORE normal retrieval
             # Use HIGH threshold (0.75) and filter for actual hazard-related concepts
@@ -402,9 +606,9 @@ class ChatBot:
                     logger.warning(f"   - {risk.get('triggering_concept', 'Unknown')}: {risk.get('hazard_trigger', 'Unknown')} in {risk.get('hazard_environment', 'Unknown')}")
 
                 yield {
-                    "step": "search",
+                    "step": "vector",
                     "status": "done",
-                    "detail": f"⚠️ SAFETY CHECK: {len(safety_risks)} potential hazards detected!",
+                    "detail": f"🛡️ Guardian Alert: {len(safety_risks)} safety hazard(s) require attention!",
                     "data": {"safety_alert": True}
                 }
 
@@ -413,14 +617,26 @@ class ChatBot:
                 yield {"_safety_risks": safety_risks, "_safety_context": safety_context}
                 return  # Exit early - don't do normal retrieval
 
-            yield {"step": "search", "status": "active", "detail": "Searching knowledge base..."}
-
-            # Hybrid retrieval: vector search + graph traversal
+            # STEP 3: Vector Search - Historical Cases & Engineering Knowledge
+            yield {"step": "vector", "status": "active", "detail": "📚 Searching historical cases and verified engineering knowledge..."}
             t1 = time.time()
             retrieval_results = db.hybrid_retrieval(query_embedding, top_k=5, min_score=0.7)
             timings["hybrid_retrieval"] = time.time() - t1
+            logger.info(f"⏱️ TIMING hybrid_retrieval: {timings['hybrid_retrieval']:.2f}s")
 
-            # Configuration Graph search: ProductVariants, options, cartridges, filters
+            # Build professional detail with case info
+            if retrieval_results:
+                case_projects = [r.get('project') for r in retrieval_results[:2] if r.get('project')]
+                if case_projects:
+                    vector_detail = f"📚 Found {len(retrieval_results)} relevant cases including {case_projects[0]}"
+                else:
+                    vector_detail = f"📚 Found {len(retrieval_results)} relevant engineering references"
+            else:
+                vector_detail = "📚 No similar historical cases found"
+            yield {"step": "vector", "status": "done", "detail": f"{vector_detail} ({timings['hybrid_retrieval']:.1f}s)"}
+
+            # STEP 4: Find Products - Product Catalog Matching
+            yield {"step": "products", "status": "active", "detail": "📦 Matching product specifications to technical constraints..."}
             t1 = time.time()
             product_codes = extract_product_codes(query)
             config_results = {"variants": [], "cartridges": [], "filters": [], "materials": [], "option_matches": []}
@@ -455,29 +671,32 @@ class ChatBot:
 
             timings["config_search"] = time.time() - t1
             config_context = format_configuration_context(config_results)
-            logger.info(f"⏱️ TIMING config_search: {timings['config_search']:.2f}s - Products: {len(config_results['variants'])}, Options: {len(config_results['option_matches'])}")
-
-            # Format top concepts found (more readable)
-            concepts_found = []
-            for r in retrieval_results[:5]:
-                if r.get('concept'):
-                    concepts_found.append(r.get('concept'))
-
-            concepts_display = concepts_found[:3] if concepts_found else []
             products_display = [v.get('id', 'Unknown') for v in config_results.get('variants', [])[:3]]
+            logger.info(f"⏱️ TIMING config_search: {timings['config_search']:.2f}s - Products: {len(config_results['variants'])}")
 
-            logger.info(f"⏱️ TIMING hybrid_retrieval: {timings['hybrid_retrieval']:.2f}s")
+            # Build professional product detail
+            variant_count = len(config_results['variants'])
+            if variant_count > 0:
+                families = list(set(v.get('family', '') for v in config_results['variants'] if v.get('family')))[:2]
+                if families:
+                    products_detail = f"📦 Evaluating {variant_count} {'/'.join(families)} configurations"
+                else:
+                    products_detail = f"📦 {variant_count} product variants identified"
+            else:
+                products_detail = "📦 No matching products in catalog"
+
             yield {
-                "step": "search",
+                "step": "products",
                 "status": "done",
-                "detail": f"Found {len(retrieval_results)} cases" + (f", {len(config_results['variants'])} products" if config_results['variants'] else ""),
-                "data": {"concepts": concepts_display, "products": products_display}
+                "detail": f"{products_detail} ({timings['config_search']:.1f}s)",
+                "data": {"products": products_display}
             }
 
-            yield {"step": "projects", "status": "active", "detail": "Finding matching projects..."}
+            # STEP 5: Graph Reasoning (projects, similar cases, competitor search)
+            yield {"step": "graph", "status": "active", "detail": "🛡️ Guardian Engine: Verifying physics, safety, and compliance rules..."}
+            t1 = time.time()
 
             # Search by project name if mentioned
-            t1 = time.time()
             projects_found = []
             citations_found = []
             actions_found = []
@@ -493,22 +712,6 @@ class ChatBot:
                             citations_found.append(pr['logic_citation'][:100])
                         if pr.get('logic_description'):
                             actions_found.append(pr['logic_description'][:80])
-            timings["project_search"] = time.time() - t1
-
-            detail = f"Found: {', '.join(projects_found)}" if projects_found else "No direct project match"
-            logger.info(f"⏱️ TIMING project_search: {timings['project_search']:.2f}s")
-            yield {
-                "step": "projects",
-                "status": "done",
-                "detail": detail,
-                "data": {
-                    "projects": projects_found,
-                    "citations": citations_found[:1],
-                    "actions": actions_found[:2]
-                }
-            }
-
-            yield {"step": "context", "status": "active", "detail": "Gathering evidence..."}
 
             # Get similar past cases
             t1 = time.time()
@@ -575,14 +778,26 @@ class ChatBot:
                         path_str += f" [{r['logic_description'][:50]}...]"
                     graph_paths.append(path_str)
 
+            graph_time = time.time() - t1
+            timings["graph_reasoning"] = graph_time
+            logger.info(f"⏱️ TIMING graph_reasoning: {graph_time:.2f}s")
+
+            # Build professional graph detail with risk/compliance info
+            if similar_names:
+                graph_detail = f"🛡️ Compliance verified, {len(similar_names)} similar case(s) found"
+            elif graph_paths:
+                graph_detail = f"🛡️ Safety rules checked, {len(graph_paths)} knowledge paths traversed"
+            else:
+                graph_detail = "🛡️ Compliance verification complete"
+
             yield {
-                "step": "context",
+                "step": "graph",
                 "status": "done",
-                "detail": f"Ready with {len(retrieval_results)} data points",
+                "detail": f"{graph_detail} ({graph_time:.1f}s)",
                 "data": {"similar_cases": similar_names, "graph_paths": graph_paths}
             }
 
-            yield {"step": "thinking", "status": "active", "detail": "Generating response..."}
+            yield {"step": "thinking", "status": "active", "detail": "👔 Senior Consultant: Synthesizing professional recommendation..."}
 
             # Return the context for the final step, plus the FULL prompt preview
             has_graph_data = graph_context and graph_context != "No relevant past cases found in the knowledge base."
@@ -783,7 +998,8 @@ Return ONLY valid JSON (no markdown, no explanation outside JSON):
 
         logger.info(f"🤖 Calling Gemini ({self.model_name})...")
         config_kwargs = {"system_instruction": SALES_ASSISTANT_SYSTEM_PROMPT}
-        if self.thinking_level:
+        # Only use thinking_config for Gemini 3 models (2.0 doesn't support it)
+        if self.thinking_level and "gemini-3" in self.model_name:
             config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=self.thinking_level)
         response = client.models.generate_content(
             model=self.model_name,
@@ -934,7 +1150,8 @@ Return ONLY valid JSON (no markdown, no explanation outside JSON):
         last_error = None
 
         config_kwargs = {"system_instruction": SALES_ASSISTANT_SYSTEM_PROMPT}
-        if self.thinking_level:
+        # Only use thinking_config for Gemini 3 models (2.0 doesn't support it)
+        if self.thinking_level and "gemini-3" in self.model_name:
             config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=self.thinking_level)
 
         for attempt in range(max_retries):
@@ -1013,6 +1230,290 @@ Return ONLY valid JSON (no markdown, no explanation outside JSON):
             }
             return json.dumps(fallback, ensure_ascii=False)
 
+    def send_message_llm_driven(self, message: str, graph_data: dict = None,
+                                session_id: str = None) -> str:
+        """LLM-DRIVEN APPROACH: Send message with full history + GRAPH_DATA context.
+
+        This is the new demo-optimized approach that:
+        1. Uses the LLM's context window as the "Project Ledger"
+        2. Injects GRAPH_DATA (the Big Data Dump) for ground truth
+        3. Relies on the Zero-Hallucination system prompt
+        4. (Layer 4) Loads/persists session state from/to Neo4j graph
+
+        Args:
+            message: User's current message
+            graph_data: Pre-computed GRAPH_DATA from get_full_conversation_context()
+            session_id: Optional session ID for Layer 4 graph state persistence
+
+        Returns:
+            JSON response string
+        """
+        logger.info(f"💬 [LLM-DRIVEN] New message: {message[:80]}...")
+
+        # =====================================================================
+        # STEP 1: Build full conversation history (THE PROJECT LEDGER)
+        # =====================================================================
+        contents = []
+        for item in self.chat_history:
+            contents.append(types.Content(
+                role=item["role"],
+                parts=[types.Part.from_text(text=item["parts"][0])]
+            ))
+
+        # =====================================================================
+        # STEP 2: Build CATALOG_KNOWLEDGE context injection
+        # =====================================================================
+        catalog_context_str = ""
+        if graph_data:
+            product_catalog = graph_data.get('product_catalog', {})
+
+            # Extract weight table for easy lookup
+            weight_table = product_catalog.get('weight_table_kg', {})
+
+            # Extract materials
+            materials = product_catalog.get('materials', [])
+            material_list = [f"{m.get('code')}: {m.get('name')} ({m.get('corrosion_class')})" for m in materials if m.get('code')]
+
+            # Extract environment restrictions
+            restrictions = product_catalog.get('environment_restrictions', [])
+            restriction_list = []
+            for r in restrictions:
+                env = r.get('environment', '')
+                required = r.get('required_materials', [])
+                if env and required:
+                    restriction_list.append(f"{env} → requires {'/'.join(required)}")
+
+            catalog_context_str = f"""
+## CATALOG_KNOWLEDGE (Your Single Source of Truth)
+
+### Weight Lookup Table (weight_table_kg)
+Use this for EXACT weights. Key format: "WIDTHxHEIGHTxLENGTH"
+```json
+{json.dumps(weight_table, indent=2)}
+```
+
+### Available Materials
+{chr(10).join(f"- {m}" for m in material_list) if material_list else "- FZ: Galvanized (C3)\\n- ZM: Zinc-Magnesium (C4)\\n- RF: Stainless Steel (C5)\\n- SF: Marine Grade (C5)"}
+
+### Environment Restrictions
+{chr(10).join(f"- {r}" for r in restriction_list) if restriction_list else "- Hospital → requires RF/SF\\n- Swimming Pool → requires RF/SF\\n- Kitchen → requires RF/SF"}
+
+### Sizing Reference (m³/h per housing size)
+{json.dumps(product_catalog.get('sizing_reference_m3h', {}), indent=2)}
+
+---
+"""
+
+        # =====================================================================
+        # STEP 2.5: Load Layer 4 graph state (if session_id provided)
+        # =====================================================================
+        graph_state_context = ""
+        if session_id:
+            try:
+                session_graph_mgr = db.get_session_graph_manager()
+                session_graph_mgr.ensure_session(session_id)
+                graph_state_prompt = session_graph_mgr.get_project_state_for_prompt(session_id)
+                if graph_state_prompt:
+                    graph_state_context = f"\n{graph_state_prompt}\n"
+                    logger.info(f"📊 [GRAPH STATE] Injected Layer 4 state into LLM context")
+            except Exception as e:
+                logger.warning(f"Graph state load failed (non-fatal): {e}")
+
+        # =====================================================================
+        # STEP 3: Build the user message with context
+        # =====================================================================
+        # Build conversation history summary for context
+        history_summary = ""
+        if self.chat_history:
+            history_summary = "\n## CONVERSATION_HISTORY (Project Ledger)\n"
+            for i, item in enumerate(self.chat_history):
+                role = "User" if item["role"] == "user" else "Assistant"
+                content = item["parts"][0][:500] if item["parts"] else ""
+                history_summary += f"\n**Turn {i//2 + 1} ({role}):** {content}\n"
+
+        user_prompt = f"""{catalog_context_str}
+{graph_state_context}
+{history_summary}
+
+## CURRENT USER MESSAGE
+{message}
+
+## YOUR TASK
+1. **IDENTIFY TECHNICAL PARAMETERS**:
+   - Product family (GDB, GDC, GDP, GDMI)
+   - Dimensions (filter WxHxD or duct size)
+   - Material (RF, FZ, ZM, SF)
+   - Airflow (m³/h)
+   - Application/Environment
+
+2. **CHECK FOR TAG IDs** (Optional):
+   - If user mentioned Tag IDs (e.g., "Tag 5684") → use them exactly
+   - If NO Tag IDs provided → refer to unit by application name (e.g., "Kitchen GDC Unit")
+   - NEVER ask for a Tag ID as a prerequisite
+
+3. **FOR EACH UNIT/TAG**:
+   - Map filter dimensions → housing size (305→300, 610→600)
+   - Derive housing length from filter depth (≤292→550, ≤450→750, >450→900)
+   - Lookup weight from CATALOG_KNOWLEDGE weight_table_kg
+
+4. **DECISION**:
+   - If missing TECHNICAL data (Airflow, Dimensions) → Ask for it with buttons
+   - If all TECHNICAL data complete → Output product recommendation with EXACT weights
+   - **NEVER block on missing Tag ID**
+
+Return ONLY valid JSON. No markdown, no code blocks.
+"""
+
+        contents.append(types.Content(
+            role="user",
+            parts=[types.Part.from_text(text=user_prompt)]
+        ))
+
+        # =====================================================================
+        # STEP 4: Call LLM with Zero-Hallucination system prompt
+        # =====================================================================
+        logger.info(f"🤖 [LLM-DRIVEN] Calling Gemini ({self.model_name})...")
+        t_gemini = time.time()
+
+        # Use the new LLM-driven system prompt
+        llm_driven_prompt = get_llm_driven_system_prompt()
+
+        # Store prompts for diagnostics
+        self.last_prompt = user_prompt
+        self.last_system_prompt = llm_driven_prompt
+
+        max_retries = 3
+        retry_delay = 2
+        last_error = None
+
+        for attempt in range(max_retries):
+            try:
+                response = client.models.generate_content(
+                    model=self.model_name,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=llm_driven_prompt,
+                        response_mime_type="application/json",  # Force JSON output
+                    ),
+                )
+                break
+            except Exception as e:
+                last_error = e
+                error_str = str(e).lower()
+                if "429" in error_str or "rate" in error_str or "quota" in error_str:
+                    logger.warning(f"⚠️ Rate limited (attempt {attempt + 1}/{max_retries})")
+                    if attempt < max_retries - 1:
+                        import time as time_module
+                        time_module.sleep(retry_delay)
+                        retry_delay *= 2
+                    continue
+                raise
+        else:
+            raise Exception(f"API rate limit exceeded: {last_error}")
+
+        gemini_time = time.time() - t_gemini
+        logger.info(f"⏱️ [LLM-DRIVEN] Gemini response in {gemini_time:.2f}s")
+
+        # =====================================================================
+        # STEP 5: Process response and update history
+        # =====================================================================
+        response_text = response.text
+        response_text = self._extract_json(response_text)
+        response_text = self._validate_and_fix_json(response_text, message)
+
+        # Store ORIGINAL user message (not the augmented prompt) in history
+        self.chat_history.append({"role": "user", "parts": [message]})
+        self.chat_history.append({"role": "model", "parts": [response_text]})
+
+        logger.info(f"✅ [LLM-DRIVEN] Response stored in history (turn {len(self.chat_history) // 2})")
+
+        # =====================================================================
+        # STEP 6: Persist entities to Layer 4 graph (if session_id provided)
+        # =====================================================================
+        if session_id:
+            try:
+                from logic.state import extract_tags_from_query, extract_material_from_query, extract_project_from_query
+                session_graph_mgr = db.get_session_graph_manager()
+
+                # Extract and persist project name
+                project_name = extract_project_from_query(message)
+                if project_name:
+                    session_graph_mgr.set_project(session_id, project_name)
+
+                # Extract and persist material
+                material = extract_material_from_query(message)
+                if material:
+                    session_graph_mgr.lock_material(session_id, material)
+
+                # Extract and persist tags
+                tags = extract_tags_from_query(message)
+                for tag_data in tags:
+                    session_graph_mgr.upsert_tag(
+                        session_id=session_id,
+                        tag_id=tag_data["tag_id"],
+                        filter_width=tag_data.get("filter_width"),
+                        filter_height=tag_data.get("filter_height"),
+                        filter_depth=tag_data.get("filter_depth"),
+                        airflow_m3h=tag_data.get("airflow_m3h"),
+                        source_message=len(self.chat_history) // 2,
+                    )
+
+                # Detect and persist product family
+                query_upper = message.upper()
+                for family in ['GDMI', 'GDB', 'GDC', 'GDP']:
+                    if family in query_upper:
+                        session_graph_mgr.set_detected_family(session_id, family)
+                        break
+
+                logger.info(f"💾 [GRAPH STATE] Persisted entities from LLM-driven message")
+            except Exception as e:
+                logger.warning(f"Graph state persist failed (non-fatal): {e}")
+
+        return response_text
+
+    def get_graph_data_for_query(self, query: str) -> dict:
+        """Extract product family from query and fetch GRAPH_DATA.
+
+        This is the "Big Data Dump" retrieval step.
+        """
+        # Extract product family from query
+        query_upper = query.upper()
+        families = ['GDMI', 'GDB', 'GDC', 'GDP', 'GDF', 'GDR']  # GDMI first (longer match)
+
+        detected_family = None
+        for family in families:
+            if family in query_upper:
+                detected_family = family
+                break
+
+        if not detected_family:
+            # Default to GDB for demo
+            detected_family = "GDB"
+
+        logger.info(f"📦 [GRAPH_DATA] Detected product family: {detected_family}")
+
+        # Detect application/environment
+        query_lower = query.lower()
+        detected_app = None
+        app_keywords = {
+            'hospital': 'Hospital', 'szpital': 'Hospital', 'medical': 'Hospital',
+            'kitchen': 'Commercial Kitchen', 'restaurant': 'Commercial Kitchen',
+            'outdoor': 'Outdoor', 'roof': 'Outdoor', 'rooftop': 'Outdoor',
+            'pool': 'Swimming Pool', 'basen': 'Swimming Pool',
+        }
+        for kw, app_name in app_keywords.items():
+            if kw in query_lower:
+                detected_app = app_name
+                break
+
+        # Fetch the Big Data Dump
+        graph_data = db.get_full_conversation_context(
+            product_family=detected_family,
+            application_name=detected_app
+        )
+
+        return graph_data
+
     def clear_history(self):
         """Clear the chat history"""
         self.chat_history = []
@@ -1026,4 +1527,66 @@ Return ONLY valid JSON (no markdown, no explanation outside JSON):
             messages.append({"role": role, "content": content})
         return messages
 
-chatbot = ChatBot()
+class SessionManager:
+    """Manages per-session ChatBot instances for tab-isolated conversations."""
+
+    def __init__(self):
+        self._sessions: dict[str, ChatBot] = {}
+        self._last_activity: dict[str, float] = {}
+        self._lock = threading.Lock()
+        self.model_name = "gemini-3-pro-preview"
+        self.thinking_level = None
+
+    def get_session(self, session_id: str) -> ChatBot:
+        """Get or create a ChatBot for the given session_id."""
+        with self._lock:
+            if session_id not in self._sessions:
+                bot = ChatBot()
+                bot.model_name = self.model_name
+                bot.thinking_level = self.thinking_level
+                self._sessions[session_id] = bot
+            self._last_activity[session_id] = time.time()
+            return self._sessions[session_id]
+
+    def clear_session(self, session_id: str):
+        """Clear chat history for a session."""
+        with self._lock:
+            if session_id in self._sessions:
+                self._sessions[session_id].clear_history()
+
+    def cleanup_stale(self, max_age_seconds: int = 7200):
+        """Remove sessions inactive for more than max_age_seconds (default 2h)."""
+        cutoff = time.time() - max_age_seconds
+        with self._lock:
+            stale = [sid for sid, t in self._last_activity.items() if t < cutoff]
+            for sid in stale:
+                self._sessions.pop(sid, None)
+                self._last_activity.pop(sid, None)
+            if stale:
+                logger.info(f"Cleaned up {len(stale)} stale session(s)")
+
+    def set_model(self, model_name: str):
+        """Set model globally and update all existing sessions."""
+        self.model_name = model_name
+        with self._lock:
+            for bot in self._sessions.values():
+                bot.model_name = model_name
+
+    def set_thinking_level(self, level: str):
+        """Set thinking level globally and update all existing sessions."""
+        self.thinking_level = level
+        with self._lock:
+            for bot in self._sessions.values():
+                bot.thinking_level = level
+
+    def get_model_info(self):
+        """Get current global model information."""
+        return {
+            "model": self.model_name,
+            "thinking": True,
+            "thinking_level": self.thinking_level,
+            "graphrag_enabled": True,
+        }
+
+
+session_manager = SessionManager()

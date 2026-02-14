@@ -1,0 +1,383 @@
+{
+  "timestamp": "2026-02-12T07:27:35Z",
+  "target": "http://localhost:8000",
+  "summary": {
+    "total_tests": 2,
+    "passed": 1,
+    "failed": 1,
+    "errors": 0,
+    "total_assertions": 31,
+    "assertions_passed": 30,
+    "assertions_failed": 1,
+    "duration_s": 23.6
+  },
+  "tests": [
+    {
+      "test_name": "hospital_indoor_whitelist",
+      "status": "PASS",
+      "category": "environment",
+      "total_assertions": 7,
+      "total_passed": 7,
+      "total_failed": 0,
+      "duration_s": 11.31737494468689,
+      "steps": [
+        {
+          "step_index": 0,
+          "description": "GDB hospital env block \u2192 GDMI pivot",
+          "status": "PASS",
+          "assertions_total": 7,
+          "assertions_passed": 7,
+          "duration_s": 11.315304040908813,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "detect_hospital",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "hospital|healthcare|sjukhus|medical|hygiene",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for hospital environments due to its bolted construction, which does not meet the leakage class and hygiene requirements for such settings. for hospital supply air ventilation, we recommend the gdmi modulfiltersk\u00e5p. it is specifically designed for environments ",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "detect_gdb",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdb",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for hospital environments due to its bolted construction, which does not meet the leakage class and hygiene requirements for such settings. for hospital supply air ventilation, we recommend the gdmi modulfiltersk\u00e5p. it is specifically designed for environments ",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "env_block_mentioned",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "not suitable|not approved|bolted|leakage|hygiene|hospital|indoor",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for hospital environments due to its bolted construction, which does not meet the leakage class and hygiene requirements for such settings. for hospital supply air ventilation, we recommend the gdmi modulfiltersk\u00e5p. it is specifically designed for environments ",
+              "message": "",
+              "group": "2. Environment Block"
+            },
+            {
+              "name": "gdmi_suggested",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdmi",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for hospital environments due to its bolted construction, which does not meet the leakage class and hygiene requirements for such settings. for hospital supply air ventilation, we recommend the gdmi modulfiltersk\u00e5p. it is specifically designed for environments ",
+              "message": "",
+              "group": "3. GDMI Pivot"
+            },
+            {
+              "name": "no_false_chlorine",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "chlorine|klor",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for hospital environments due to its bolted construction, which does not meet the leakage class and hygiene requirements for such settings. for hospital supply air ventilation, we recommend the gdmi modulfiltersk\u00e5p. it is specifically designed for environments ",
+              "message": "",
+              "group": "3. GDMI Pivot (KNOWN BUG: false chlorine)"
+            },
+            {
+              "name": "gdmi_tag_not_fz",
+              "check": "technical_state.tags.item_1_stage_2.product_code",
+              "condition": "not_contains_any",
+              "expected": "-FZ",
+              "passed": true,
+              "actual": "(none)",
+              "message": "",
+              "group": "4. GDMI Material (KNOWN BUG: FZ on GDMI)"
+            },
+            {
+              "name": "no_gdb_recommend",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "recommend gdb kanalfilter|order gdb kanalfilter|configure gdb kanalfilter",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for hospital environments due to its bolted construction, which does not meet the leakage class and hygiene requirements for such settings. for hospital supply air ventilation, we recommend the gdmi modulfiltersk\u00e5p. it is specifically designed for environments ",
+              "message": "",
+              "group": "5. No Zombie"
+            }
+          ],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "test_name": "kitchen_rooftop_hospital_marine",
+      "status": "FAIL",
+      "category": "complex",
+      "total_assertions": 24,
+      "total_passed": 23,
+      "total_failed": 1,
+      "duration_s": 12.242125034332275,
+      "steps": [
+        {
+          "step_index": 0,
+          "description": "Single complex query \u2014 validate all 10 reasoning layers",
+          "status": "FAIL",
+          "assertions_total": 24,
+          "assertions_passed": 23,
+          "duration_s": 12.239258289337158,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "detect_kitchen",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "kitchen|restaurant|cooking|grease|commercial kitchen",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "1. Stressor Detection"
+            },
+            {
+              "name": "detect_outdoor",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "outdoor|rooftop|roof|exterior|outside",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "1. Stressor Detection"
+            },
+            {
+              "name": "detect_hospital",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "hospital|healthcare|hygiene|medical",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "1. Stressor Detection"
+            },
+            {
+              "name": "detect_marine",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "marine|sea|salt|coastal|offshore|c5",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "1. Stressor Detection"
+            },
+            {
+              "name": "material_rf_detected",
+              "check": "technical_state.locked_material",
+              "condition": "equals",
+              "expected": "RF",
+              "passed": true,
+              "actual": "RF",
+              "message": "",
+              "group": "2. Material Validation"
+            },
+            {
+              "name": "no_false_material_block",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "rf not available for gdc|gdc-flex not available in rf|material not available",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "2. Material Validation"
+            },
+            {
+              "name": "env_block_mentioned",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "not rated|not suitable|not approved|environment|block|warning|only allowed|indoor",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "3. Environment Block"
+            },
+            {
+              "name": "env_outdoor_flagged",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "outdoor|rooftop|not rated for outdoor|not suitable for rooftop",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "3. Environment Block"
+            },
+            {
+              "name": "capacity_limit_mentioned",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "1750|capacity|throughput|maximum|limit",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "4. Capacity"
+            },
+            {
+              "name": "airflow_acknowledged",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "3000|3 000|airflow|m\u00b3/h",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "4. Capacity"
+            },
+            {
+              "name": "grease_risk_identified",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "grease|oil|fat|clog|pre-filter|protection|mechanical|gdp|stage",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "5. Grease Assembly"
+            },
+            {
+              "name": "assembly_triggered",
+              "check": "technical_state.assembly_group",
+              "condition": "exists",
+              "expected": "",
+              "passed": true,
+              "actual": "{'group_id': 'assembly_item_1', 'rationale': 'GDMI Modulfiltersk\u00e5p provides Porous Adsorption but requires protection from environmental stressors. GDP Planfiltersk\u00e5p provides upstream filtration to protect the target stage.', 'stages': [{'role': 'PROTECTOR', 'product_family': 'GDP', 'tag_id': 'item",
+              "message": "",
+              "group": "5. Grease Assembly"
+            },
+            {
+              "name": "assembly_stage1_gdp",
+              "check": "technical_state.assembly_group.stages",
+              "condition": "contains_any",
+              "expected": "GDP",
+              "passed": true,
+              "actual": "[{'role': 'PROTECTOR', 'product_family': 'GDP', 'tag_id': 'item_1_stage_1', 'provides_trait': 'Mechanical Filtration', 'reason': 'Kitchen/grease environments require mechanical pre-filtration before carbon stage to prevent lipid contamination of activated carbon pores.'}, {'role': 'TARGET', 'product",
+              "message": "",
+              "group": "5. Grease Assembly"
+            },
+            {
+              "name": "assembly_stage2_gdmi",
+              "check": "technical_state.assembly_group.stages",
+              "condition": "contains_any",
+              "expected": "GDMI",
+              "passed": true,
+              "actual": "[{'role': 'PROTECTOR', 'product_family': 'GDP', 'tag_id': 'item_1_stage_1', 'provides_trait': 'Mechanical Filtration', 'reason': 'Kitchen/grease environments require mechanical pre-filtration before carbon stage to prevent lipid contamination of activated carbon pores.'}, {'role': 'TARGET', 'product",
+              "message": "",
+              "group": "5. Grease Assembly"
+            },
+            {
+              "name": "gdmi_suggested",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdmi",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "6. GDMI Pivot"
+            },
+            {
+              "name": "detected_family_pivot",
+              "check": "technical_state.detected_family",
+              "condition": "equals",
+              "expected": "GDC_FLEX",
+              "passed": true,
+              "actual": "GDC_FLEX",
+              "message": "",
+              "group": "6. GDMI Pivot"
+            },
+            {
+              "name": "gdmi_size_mentioned",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdmi 600|gdmi-600|600x600",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "7. GDMI Sizing"
+            },
+            {
+              "name": "zm_material_suggested",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "zm|zinkmagnesium|zinc-magnesium|zinc magnesium",
+              "passed": false,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "Expected any of [zm|zinkmagnesium|zinc-magnesium|zinc magnesium] in value",
+              "group": "8. Marine Material (ZM)"
+            },
+            {
+              "name": "no_rf_for_gdmi",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "gdmi-rf|gdmi rf|gdmi in stainless|gdmi.*rostfri",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "8. Marine Material (ZM)"
+            },
+            {
+              "name": "gdmi_tag_not_rf",
+              "check": "technical_state.tags.item_1_stage_2.product_code",
+              "condition": "not_contains_any",
+              "expected": "-RF",
+              "passed": true,
+              "actual": "GDMI-600x600-R-PG-AZ",
+              "message": "",
+              "group": "8. Marine Material (ZM)"
+            },
+            {
+              "name": "gdp_in_recommendation",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdp",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "9. Final Recommendation"
+            },
+            {
+              "name": "housing_length_options",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "600|850|housing length",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "9. Final Recommendation"
+            },
+            {
+              "name": "no_carbon_cylinders",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "carbon cylinders in bag|carbon cylinders in gdb",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "10. No Zombie Flow"
+            },
+            {
+              "name": "no_gdc_flex_in_final",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "recommend gdc-flex|final.*gdc-flex|configure gdc-flex|order.*gdc-flex",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "10. No Zombie Flow"
+            }
+          ],
+          "failures": [
+            {
+              "name": "zm_material_suggested",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "zm|zinkmagnesium|zinc-magnesium|zinc magnesium",
+              "passed": false,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "Expected any of [zm|zinkmagnesium|zinc-magnesium|zinc magnesium] in value",
+              "group": "8. Marine Material (ZM)"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

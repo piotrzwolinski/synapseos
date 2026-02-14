@@ -6,7 +6,11 @@ export type WidgetType = 'diagnostic_checklist' | 'reference_case' | 'action_pro
 export interface DiagnosticChecklistData {
   title: string;
   items: (string | { id?: string; text?: string })[];
-  email_button_label: string;
+  email_button_label?: string;  // Optional - LLM may provide clarification_data instead
+  clarification_data?: {
+    parameter?: string;
+    options?: Array<{ value: string; description: string }>;
+  };
 }
 
 export interface ReferenceCaseData {
@@ -66,8 +70,8 @@ export interface TechCardAction {
 export interface TechnicalCardData {
   title: string;
   properties: TechProperty[];
-  reasoning: TechReasoningContext;
-  actions: TechCardAction[];
+  reasoning?: TechReasoningContext;  // Optional - not always provided by LLM
+  actions?: TechCardAction[];  // Optional - not always provided by LLM
 }
 
 // Comparison Card types (Competitor-to-Product Mapping)
@@ -123,7 +127,7 @@ export function isSafetyGuard(data: Widget['data']): data is SafetyGuardData {
 }
 
 export function isTechnicalCard(data: Widget['data']): data is TechnicalCardData {
-  return 'properties' in data && 'reasoning' in data && 'actions' in data;
+  return 'properties' in data && 'title' in data;
 }
 
 export function isComparisonCard(data: Widget['data']): data is ComparisonCardData {

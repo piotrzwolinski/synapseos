@@ -37,6 +37,7 @@ import {
   buildInsightFromExtraction,
 } from "./ingestion-report";
 import { cn } from "@/lib/utils";
+import { apiUrl, authFetch } from "@/lib/api";
 
 interface TimelineEvent {
   step: number;
@@ -143,7 +144,7 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
   const fetchGraphData = async () => {
     setLoadingGraph(true);
     try {
-      const response = await fetch("http://localhost:8000/graph/data");
+      const response = await fetch(apiUrl("/graph/data"), authFetch());
       if (!response.ok) throw new Error("Failed to fetch graph");
       const data = await response.json();
       setGraphData(data);
@@ -220,9 +221,9 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
     if (!confirm("Are you sure you want to clear all graph data?")) return;
     setClearing(true);
     try {
-      const response = await fetch("http://localhost:8000/graph/clear", {
+      const response = await fetch(apiUrl("/graph/clear"), authFetch({
         method: "DELETE",
-      });
+      }));
       if (!response.ok) throw new Error("Failed to clear graph");
       alert("Graph cleared successfully");
     } catch (err) {
@@ -238,11 +239,11 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:8000/ingest/thread/text", {
+      const response = await fetch(apiUrl("/ingest/thread/text"), authFetch({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: threadText }),
-      });
+      }));
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -268,7 +269,7 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
   // Fetch verified sources for mapping dropdown
   const fetchVerifiedSources = async () => {
     try {
-      const response = await fetch("http://localhost:8000/knowledge/library");
+      const response = await fetch(apiUrl("/knowledge/library"), authFetch());
       if (response.ok) {
         const data = await response.json();
         setVerifiedSources(data.sources || []);
@@ -282,14 +283,14 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
   const rejectCandidate = async (candidateId: string) => {
     setProcessingCandidate(candidateId);
     try {
-      const response = await fetch("http://localhost:8000/knowledge/verify", {
+      const response = await fetch(apiUrl("/knowledge/verify"), authFetch({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           candidate_id: candidateId,
           action: "reject",
         }),
-      });
+      }));
       if (!response.ok) throw new Error("Failed to reject");
       // Update local state to remove the candidate
       if (result?.extracted.knowledge_candidates) {
@@ -332,11 +333,11 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
       } else {
         body.existing_source_id = selectedSourceId;
       }
-      const response = await fetch("http://localhost:8000/knowledge/verify", {
+      const response = await fetch(apiUrl("/knowledge/verify"), authFetch({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
+      }));
       if (!response.ok) throw new Error("Failed to verify");
       // Update local state
       if (result?.extracted.knowledge_candidates) {

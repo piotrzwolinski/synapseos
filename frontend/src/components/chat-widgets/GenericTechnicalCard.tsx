@@ -65,51 +65,63 @@ export function GenericTechnicalCard({ data, onProjectClick }: GenericTechnicalC
         <h3 className="text-sm font-semibold text-slate-900">{data.title}</h3>
       </div>
 
-      {/* Provenance Chain */}
-      <div className="px-4 py-2 bg-slate-50/80 border-b border-slate-100">
-        <div className="flex items-center gap-1 text-[10px] flex-wrap">
-          {/* Project Reference - Clickable for Deep Dive */}
-          <button
-            onClick={() => onProjectClick?.(data.reasoning.project_ref)}
-            className={cn(
-              "flex items-center gap-1 text-blue-700 transition-colors",
-              onProjectClick
-                ? "hover:text-blue-900 hover:underline cursor-pointer"
-                : "cursor-default"
+      {/* Provenance Chain - Only show if reasoning data exists */}
+      {data.reasoning && (
+        <div className="px-4 py-2 bg-slate-50/80 border-b border-slate-100">
+          <div className="flex items-center gap-1 text-[10px] flex-wrap">
+            {/* Project Reference - Clickable for Deep Dive */}
+            {data.reasoning?.project_ref && (
+              <>
+                <button
+                  onClick={() => onProjectClick?.(data.reasoning!.project_ref)}
+                  className={cn(
+                    "flex items-center gap-1 text-blue-700 transition-colors",
+                    onProjectClick
+                      ? "hover:text-blue-900 hover:underline cursor-pointer"
+                      : "cursor-default"
+                  )}
+                  disabled={!onProjectClick}
+                >
+                  <History className="w-3 h-3" />
+                  <span className="font-medium">{data.reasoning?.project_ref}</span>
+                </button>
+                <ChevronRight className="w-3 h-3 text-slate-300" />
+              </>
             )}
-            disabled={!onProjectClick}
-          >
-            <History className="w-3 h-3" />
-            <span className="font-medium">{data.reasoning.project_ref}</span>
-          </button>
 
-          <ChevronRight className="w-3 h-3 text-slate-300" />
-
-          {/* Constraint */}
-          <div className="flex items-center gap-1 text-amber-700">
-            <AlertTriangle className="w-3 h-3" />
-            <span>{data.reasoning.constraint}</span>
-          </div>
-
-          <ChevronRight className="w-3 h-3 text-slate-300" />
-
-          {/* Author */}
-          <div className="flex items-center gap-1 text-slate-600">
-            <User className="w-3 h-3" />
-            <span>{data.reasoning.author}</span>
-          </div>
-
-          {/* Confidence Badge */}
-          <span
-            className={cn(
-              "ml-auto px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider",
-              getConfidenceColor(data.reasoning.confidence_level)
+            {/* Constraint */}
+            {data.reasoning?.constraint && (
+              <>
+                <div className="flex items-center gap-1 text-amber-700">
+                  <AlertTriangle className="w-3 h-3" />
+                  <span>{data.reasoning?.constraint}</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-slate-300" />
+              </>
             )}
-          >
-            {data.reasoning.confidence_level}
-          </span>
+
+            {/* Author */}
+            {data.reasoning?.author && (
+              <div className="flex items-center gap-1 text-slate-600">
+                <User className="w-3 h-3" />
+                <span>{data.reasoning?.author}</span>
+              </div>
+            )}
+
+            {/* Confidence Badge */}
+            {data.reasoning?.confidence_level && (
+              <span
+                className={cn(
+                  "ml-auto px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider",
+                  getConfidenceColor(data.reasoning?.confidence_level)
+                )}
+              >
+                {data.reasoning?.confidence_level}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Properties Grid */}
       <div className="px-4 py-3">

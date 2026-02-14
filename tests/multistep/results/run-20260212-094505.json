@@ -1,0 +1,92 @@
+{
+  "timestamp": "2026-02-12T08:45:05Z",
+  "target": "http://localhost:8000",
+  "summary": {
+    "total_tests": 1,
+    "passed": 0,
+    "failed": 1,
+    "errors": 0,
+    "total_assertions": 4,
+    "assertions_passed": 3,
+    "assertions_failed": 1,
+    "duration_s": 11.4
+  },
+  "tests": [
+    {
+      "test_name": "bag_filter_depth_conflict",
+      "status": "FAIL",
+      "category": "dimension",
+      "total_assertions": 4,
+      "total_passed": 3,
+      "total_failed": 1,
+      "duration_s": 11.449991941452026,
+      "steps": [
+        {
+          "step_index": 0,
+          "description": "Bag depth 600mm > housing 550mm \u2192 dimension conflict \u2192 suggest 750mm",
+          "status": "FAIL",
+          "query": "Industrial dust extraction system. 3400 m\u00b3/h. 600x600. We want GDB with housing length 550mm. Bag filter depth is 600mm.",
+          "response_text": "here is the configuration for your industrial dust extraction system:",
+          "assertions_total": 4,
+          "assertions_passed": 3,
+          "duration_s": 11.4481840133667,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "family_gdb",
+              "check": "technical_state.detected_family",
+              "condition": "equals",
+              "expected": "GDB",
+              "passed": true,
+              "actual": "GDB",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "response_has_content",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdb|600|550|dust|extraction|filter|housing|configuration",
+              "passed": true,
+              "actual": "here is the configuration for your industrial dust extraction system:",
+              "message": "",
+              "group": "2. Dimension Awareness"
+            },
+            {
+              "name": "length_awareness",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "550|750|housing length|length|depth",
+              "passed": false,
+              "actual": "here is the configuration for your industrial dust extraction system:",
+              "message": "Expected any of [550|750|housing length|length|depth] in value",
+              "group": "3. Housing Length"
+            },
+            {
+              "name": "no_env_block",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "not rated for environment|not suitable for environment|environment block",
+              "passed": true,
+              "actual": "here is the configuration for your industrial dust extraction system:",
+              "message": "",
+              "group": "4. No False Blocks"
+            }
+          ],
+          "failures": [
+            {
+              "name": "length_awareness",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "550|750|housing length|length|depth",
+              "passed": false,
+              "actual": "here is the configuration for your industrial dust extraction system:",
+              "message": "Expected any of [550|750|housing length|length|depth] in value",
+              "group": "3. Housing Length"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

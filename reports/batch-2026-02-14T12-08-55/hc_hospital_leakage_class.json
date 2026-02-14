@@ -1,0 +1,339 @@
+{
+  "name": "hc_hospital_leakage_class",
+  "description": "[HC] Surgical ward + GDB-FZ → BLOCK (bolted, hygiene), pivot GDMI-ZM",
+  "query": "Surgical ward supply air. Airflow: 3400 m³/h. Duct 600x600 mm. Can we use GDB-FZ?",
+  "session_id": "2e8d9925-86c4-41ce-bd13-bea864ba3cfc",
+  "duration_s": 50.9,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "Surgical ward supply air. Airflow: 3400 m³/h. Duct 600x600 mm. Can we use GDB-FZ?",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T11:05:25.024199+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Unfortunately, the GDB-FZ is not suitable for the surgical ward supply air application due to hygiene requirements.The GDB family uses bolted construction and is only rated for ENV_INDOOR and ENV_ATEX environments. It does not meet the leakage class and hygiene requirements for a hospital environment.I recommend the GDMI Modulfilterskåp, which is approved for ENV_HOSPITAL environments.Based on the 600x600mm duct size and 3400 m³/h airflow, a single GDMI-600x600 module is sufficient.Medical/cleanroom applications follow VDI 6022 which recommends C5 corrosion resistance (stainless steel) for hygienic surfaces.The GDMI housing has a C2 corrosion class. To meet the C5 requirement, I recommend upgrading the housing material to stainless steel (RF or SF).What filter depth do you need?",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T11:05:41.506775+00:00",
+      "clarification": null,
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [
+        {
+          "type": "WARNING",
+          "text": "Blocked"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 1,
+            "completeness": 4,
+            "safety": 2,
+            "tone": 5,
+            "reasoning_quality": 1,
+            "constraint_adherence": 1
+          },
+          "overall_score": 2.1,
+          "explanation": "The system fails critically on factual accuracy and constraint adherence. It recommends a material configuration (Stainless Steel) for the GDMI product that the PDF explicitly states is unavailable, and it relies entirely on hallucinated environment labels and external standards not found in the source text.",
+          "dimension_explanations": {
+            "correctness": "The system claims GDMI can be upgraded to Stainless Steel (RF/SF), but PDF page 11 explicitly states 'Ej i Rostfritt' (Not in Stainless) and lacks the RF/SF icons present on other pages; it also cites non-existent labels like 'ENV_HOSPITAL' and 'ENV_ATEX' and the external standard 'VDI 6022'.",
+            "completeness": "The response is conversationally complete and asks a relevant follow-up question about filter depth, but the core product advice is impossible to execute.",
+            "safety": "While the system correctly identifies the high hygiene needs of a surgical ward, recommending a non-existent material configuration for a critical application creates a significant procurement and safety risk.",
+            "tone": "The tone is professional and consultative.",
+            "reasoning_quality": "The reasoning is based on hallucinated premises (internal graph labels and external standards) rather than the provided PDF data.",
+            "constraint_adherence": "The system violates the hard material constraint for the GDMI family shown on PDF page 11 (only AZ/ZM available, no RF/SF)."
+          },
+          "strengths": [
+            "Correctly identifies the user's airflow and sizing requirements (3400 m³/h fits a 600x600 module)",
+            "Professional tone"
+          ],
+          "weaknesses": [
+            "Hallucinates material availability (Stainless Steel for GDMI) which contradicts the PDF",
+            "Uses fabricated environment labels (ENV_HOSPITAL, ENV_ATEX) not in the catalog",
+            "Cites external standards (VDI 6022) not found in the provided text"
+          ],
+          "pdf_citations": [
+            "PDF p.11: 'GDMI tillverkas vanligen i ZM. Ej i Rostfritt.' (Contradicts system claim that GDMI is available in RF/SF)",
+            "PDF p.11: Header icons show only AZ and ZM for GDMI (RF and SF are missing, unlike p.5 and p.8)",
+            "PDF p.8: GDB description 'För inomhusbruk' (No mention of ENV_ATEX or ENV_INDOOR labels)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 34.36,
+            "prompt_tokens": 15822,
+            "cached_tokens": 16023,
+            "output_tokens": 659
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 1,
+            "completeness": 2,
+            "safety": 3,
+            "tone": 4,
+            "reasoning_quality": 1,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.25,
+          "explanation": "The system’s key rejection rationale relies on multiple fabricated/unsupported claims (hospital environment ratings, specific hygiene/leakage assertions, and construction-type claims) that are not present in the PDF, which triggers a correctness and reasoning failure. While it did correctly recognize that GDB and GDMI exist and that 600×600 corresponds to 3400 m³/h, it incorrectly states GDMI is available in stainless and misstates corrosion classes compared to the catalog.",
+          "dimension_explanations": {
+            "correctness": "PDF confirms GDB size 600×600 has Flöde 3400 m³/h, but the system invents ENV_HOSPITAL/ENV_ATEX ratings and incorrectly claims GDMI can be stainless and that GDMI housing is C2 (PDF shows GDMI is typically ZM/AZ and C4).",
+            "completeness": "It asks about filter depth but does not clarify other ordering-critical parameters shown in the PDF structure (e.g., GDB/GDMI length variant 550/750 vs 600/850 and connection PG vs fläns) before asserting a specific recommendation.",
+            "safety": "It flags a potential hygiene mismatch for surgical supply air, which is prudent, but the hard block is justified with non-catalog standards/ratings rather than verifiable catalog constraints.",
+            "tone": "Professional and clear, with an appropriate consultative style.",
+            "reasoning_quality": "Reasoning is largely based on hallucinated constructs (ENV_* labels, bolted construction claim, leakage/hygiene approvals) not evidenced in the PDF, making the logic chain unreliable.",
+            "constraint_adherence": "It violates catalog constraints by recommending GDMI in stainless (RF/SF) even though the PDF states GDMI is typically ZM/AZ and 'Ej i Rostfritt' for FLEX; also misapplies corrosion-class information."
+          },
+          "strengths": [
+            "Correctly matched the 600×600 size to an airflow capacity of 3400 m³/h from the catalog tables.",
+            "Appropriately requested a missing parameter (filter depth) before finalizing a configuration."
+          ],
+          "weaknesses": [
+            "Introduces non-PDF terminology/ratings (ENV_HOSPITAL, ENV_ATEX) and claims of approvals/leakage/hygiene requirements not verifiable in the catalog (hallucination).",
+            "Recommends material options that contradict the PDF (GDMI stainless RF/SF) and misstates corrosion class for GDMI."
+          ],
+          "pdf_citations": [
+            "GDB 600×600: Flöde = 3400 m³/h (GDB MÅTT table, page showing 'Storlek GDB' with Flöde column).",
+            "GDMI is 'vanligen i ZM' and corrosion class C4; example order line shows GDMI-600x600-600-R-PG-AZ (GDMI product page/MATERIAL text and example table)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 13.16,
+            "prompt_tokens": 37201,
+            "cached_tokens": 32256,
+            "output_tokens": 708
+          }
+        },
+        "anthropic": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 3,
+            "tone": 4,
+            "reasoning_quality": 2,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.55,
+          "explanation": "The system correctly identifies GDB 600×600 as having 3400 m³/h capacity and recommends GDMI as an alternative, but fabricates multiple technical claims: 'ENV_INDOOR', 'ENV_ATEX', 'ENV_HOSPITAL' environment classifications, 'bolted construction', and VDI 6022 references do not appear anywhere in the PDF catalog. The GDMI is explicitly stated as NOT available in stainless steel (RF) per the PDF, yet the system recommends upgrading to RF/SF. GDMI's corrosion class is C4 (not C2 as claimed).",
+          "dimension_explanations": {
+            "correctness": "PDF confirms GDB 600×600 Flöde=3400 m³/h (p.9) and GDMI 600×600 Flöde=3400 m³/h (p.12), but the system fabricates 'ENV_INDOOR', 'ENV_ATEX', 'ENV_HOSPITAL' classifications not found in the PDF, incorrectly states GDMI is C2 (it's C4 per p.11), and recommends RF/SF material for GDMI when the PDF explicitly states 'Ej i Rostfritt' (p.11).",
+            "completeness": "The system addresses product selection, airflow sizing, and material considerations, but the conversation ends without a product card and the system asks about filter depth without resolving the material contradiction.",
+            "safety": "The system correctly flags that a surgical ward may need higher standards than basic GDB, but the specific environment classification system (ENV_HOSPITAL etc.) is fabricated, and recommending stainless steel GDMI when the PDF explicitly blocks it is a safety-relevant material error.",
+            "tone": "Professional and consultative tone appropriate for a technical sales context.",
+            "reasoning_quality": "The reasoning chain uses fabricated terminology ('ENV_INDOOR', 'ENV_ATEX', 'ENV_HOSPITAL', 'bolted construction', VDI 6022) that does not appear in the PDF, making the logical chain unreliable despite reaching a partially reasonable conclusion.",
+            "constraint_adherence": "Violates a hard material constraint by recommending GDMI in RF/SF when the PDF explicitly states GDMI is 'Ej i Rostfritt' (not available in stainless steel), and misrepresents GDMI's corrosion class as C2 when it is C4."
+          },
+          "strengths": [
+            "Correctly identifies GDB 600×600 airflow capacity of 3400 m³/h matching the user's requirement",
+            "Appropriately cautious about using standard products in a surgical/hospital environment"
+          ],
+          "weaknesses": [
+            "Fabricates environment classification terminology (ENV_INDOOR, ENV_ATEX, ENV_HOSPITAL) and construction types ('bolted construction') not found anywhere in the PDF catalog",
+            "Recommends GDMI in stainless steel (RF/SF) when the PDF explicitly states 'Ej i Rostfritt' (not available in stainless steel) on page 11, and incorrectly claims GDMI has C2 corrosion class when it is C4"
+          ],
+          "pdf_citations": [
+            "GDB 600×600: Flöde=3400 m³/h (PDF p.9)",
+            "GDMI 600×600: Flöde=3400 m³/h (PDF p.12)",
+            "GDMI: 'tillverkas vanligen i ZM. Ej i Rostfritt. Korrosivitets klass C4' (PDF p.11)",
+            "GDMI available materials: AZ, ZM only (PDF p.11 header icons)",
+            "GDB available materials: FZ, AZ, RF, SF, ZM (PDF p.8 header icons)",
+            "No mention of ENV_INDOOR, ENV_ATEX, ENV_HOSPITAL, VDI 6022, or 'bolted construction' anywhere in the PDF"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 25.66,
+            "prompt_tokens": 512,
+            "cached_tokens": 53780,
+            "output_tokens": 1067
+          }
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB + Hospital",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Verified alternatives: GDMI Modulfilterskåp",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 8 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "FZ",
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": "FZ",
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "installation_environment": "ENV_HOSPITAL",
+          "detected_application": "APP_HOSPITAL",
+          "airflow_m3h": "3400",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": 3400,
+            "product_family": "GDB",
+            "product_code": "GDB-600x600-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": "Hospital",
+        "warnings_count": 1,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "2e8d9925-86c4-41ce-bd13-bea864ba3cfc",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDB",
+          "locked_material": "FZ",
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"installation_environment\": \"ENV_HOSPITAL\", \"detected_application\": \"APP_HOSPITAL\", \"airflow_m3h\": \"3400\", \"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "quantity": 1,
+            "airflow_m3h": 3400,
+            "session_id": "2e8d9925-86c4-41ce-bd13-bea864ba3cfc",
+            "filter_height": 600,
+            "product_code": "GDB-600x600-R-PG-FZ",
+            "housing_width": 600,
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_2e8d9925-86c4-41ce-bd13-bea864ba3cfc_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to FZ -> Filter 600x600mm -> Sized to 600x600 -> Code: GDB-600x600-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "Unfortunately, the GDB-FZ is not suitable for the surgical ward supply air application due to hygiene requirements.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The GDB family uses bolted construction and is only rated for ENV_INDOOR and ENV_ATEX environments. It does not meet the leakage class and hygiene requirements for a hospital environment.",
+          "type": "INFERENCE",
+          "inference_logic": "Product not rated for ENV_HOSPITAL installation (allowed: ENV_INDOOR, ENV_ATEX). This product uses BOLTED construction which does not meet the leakage class and hygiene requirements for this environment."
+        },
+        {
+          "text": "I recommend the GDMI Modulfilterskåp, which is approved for ENV_HOSPITAL environments.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Based on the 600x600mm duct size and 3400 m³/h airflow, a single GDMI-600x600 module is sufficient.",
+          "type": "INFERENCE",
+          "inference_logic": "From sizing arrangement (actual selected module)"
+        },
+        {
+          "text": "Medical/cleanroom applications follow VDI 6022 which recommends C5 corrosion resistance (stainless steel) for hygienic surfaces.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The GDMI housing has a C2 corrosion class. To meet the C5 requirement, I recommend upgrading the housing material to stainless steel (RF or SF).",
+          "type": "GENERAL"
+        },
+        {
+          "text": "What filter depth do you need?",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

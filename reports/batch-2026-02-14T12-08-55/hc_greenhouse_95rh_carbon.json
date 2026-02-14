@@ -1,0 +1,711 @@
+{
+  "name": "hc_greenhouse_95rh_carbon",
+  "description": "[HC] Greenhouse 95% RH + GDC → carbon humidity degradation warning",
+  "query": "We are installing a GDC-600x600 carbon housing in a greenhouse. Temperature: 30°C. Humidity: 95% RH. Airflow: 2000 m³/h. The goal is VOC removal.",
+  "session_id": "4bd77cfc-78a2-4867-ad91-8da247ec74ef",
+  "duration_s": 96.7,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "We are installing a GDC-600x600 carbon housing in a greenhouse. Temperature: 30°C. Humidity: 95% RH. Airflow: 2000 m³/h. The goal is VOC removal.",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T11:03:48.324568+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "For the greenhouse VOC removal project, the GDC-600x600 housing is suitable for the specified airflow and dimensions.However, the GDC family is designed for mechanical filtration, not gas adsorption. To effectively remove VOCs, you need a carbon-based adsorption system.Additionally, the greenhouse environment exposes the system to Chemical Vapor Exposure and High Humidity. High humidity reduces carbon adsorption efficiency and accelerates corrosion. The housing corrosion class is C2.To proceed with a suitable carbon-based solution, I need to know the required housing length.",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T11:04:01.761918+00:00",
+      "clarification": {
+        "missing_info": "housing_length",
+        "why_needed": "To finalize the configuration:",
+        "options": [
+          {
+            "value": "750mm",
+            "description": "750mm",
+            "display_label": null
+          },
+          {
+            "value": "900mm",
+            "description": "900mm",
+            "display_label": null
+          }
+        ],
+        "question": "Which housing length do you need?"
+      },
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 2,
+            "constraint_adherence": 3
+          },
+          "overall_score": 3.35,
+          "explanation": "The system correctly validates airflow and identifies environmental risks (humidity/corrosion), but it fails critically on product knowledge. It falsely claims the GDC family is not for gas adsorption, whereas the PDF explicitly defines GDC as a cabinet for carbon/chemical cartridge filters. This contradicts the user's correct request and the catalog facts.",
+          "dimension_explanations": {
+            "correctness": "The system claims GDC is for mechanical filtration only and not gas adsorption, but PDF page 14 states GDC is 'avsett för patronfilter med kol eller kemikaliemedia' (intended for carbon or chemical media cartridges).",
+            "completeness": "The response addresses airflow and environment and asks for length, but provides fundamentally incorrect information about the product's primary function.",
+            "safety": "Correctly identifies that C2 rated housing (PDF p.14) is risky in 95% RH and that humidity affects carbon efficiency.",
+            "tone": "Professional and helpful tone throughout.",
+            "reasoning_quality": "The reasoning is flawed because it rejects the product based on a false premise (that GDC isn't for carbon), despite the physics logic regarding humidity being sound.",
+            "constraint_adherence": "Fails to adhere to the product definitions in the knowledge graph/PDF, effectively hallucinating a constraint that GDC cannot do carbon."
+          },
+          "strengths": [
+            "Correctly verifies airflow capacity (2000 m³/h) for GDC 600x600 against PDF page 14",
+            "Appropriately warns about C2 corrosion class in a high humidity (95% RH) environment",
+            "Correctly identifies missing parameter (housing length) required for configuration"
+          ],
+          "weaknesses": [
+            "Hallucinates that GDC is not for gas adsorption, contradicting PDF page 14",
+            "Incorrectly corrects the user who properly identified GDC as a carbon housing"
+          ],
+          "pdf_citations": [
+            "GDC 600x600: Rek. flöde 2000 m³/h (PDF p.14)",
+            "GDC Application: 'Avsett användningsområde är för patronfilter med kol eller kemikaliemedia' (PDF p.14)",
+            "GDC Material: 'Korrosivitetsklass C2' (PDF p.14)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 35.89,
+            "prompt_tokens": 15753,
+            "cached_tokens": 16023,
+            "output_tokens": 624
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 4,
+            "tone": 4,
+            "reasoning_quality": 2,
+            "constraint_adherence": 3
+          },
+          "overall_score": 2.95,
+          "explanation": "The system correctly sought a missing parameter (housing length) and appropriately warned that high humidity can degrade carbon performance, but it made multiple PDF-inconsistent technical claims about GDC’s purpose and corrosion class. Because of these factual and reasoning errors, the response is not reliable enough for a technical recommendation.",
+          "dimension_explanations": {
+            "correctness": "Incorrect: the PDF states GDC is for patronfilter with “kol eller kemikaliemedia” (carbon/chemical media), and shows GDC 600×600 has Rek. flöde 2000 m³/h, contradicting the system’s claim that GDC is not for gas adsorption/mechanical-only.",
+            "completeness": "It asks for a critical missing parameter (length) but does not confirm any actionable next step (e.g., whether 750/800 vs 900/950 mm is needed for polisfilter) or propose a humidity-appropriate material option from the catalog.",
+            "safety": "Appropriately flags high humidity as a performance/corrosion risk for carbon systems and avoids final selection without missing inputs.",
+            "tone": "Professional and consultative, with clear next-question framing.",
+            "reasoning_quality": "Reasoning is undermined by contradictions with the catalog (mischaracterizing GDC’s intended use and corrosion class), making the logical chain unreliable.",
+            "constraint_adherence": "Partially adheres by requesting length before product cards, but it asserts a C2 corrosion class for the housing without PDF support and doesn’t align the product-family purpose with the catalog."
+          },
+          "strengths": [
+            "Correctly uses a clarification question (housing length) before issuing product cards/final selection",
+            "Highlights a real application risk: high humidity can reduce adsorption performance"
+          ],
+          "weaknesses": [
+            "Misstates GDC’s intended application (PDF explicitly includes carbon/chemical media use)",
+            "Claims a housing corrosion class (C2) for GDC without support; material/corrosion statements are inconsistent with the catalog’s material section"
+          ],
+          "pdf_citations": [
+            "GDC (Patronfilterskåp) application: “Avsett användningsområde är för patronfilter med kol eller kemikaliemedia.” (PDF, GDC section)",
+            "GDC size/airflow: 600×600 shows “Rek. flöde m3/h = 2000” (PDF, GDC MÅTT table)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 11.45,
+            "prompt_tokens": 37140,
+            "cached_tokens": 15872,
+            "output_tokens": 600
+          }
+        },
+        "anthropic": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 3,
+            "tone": 4,
+            "reasoning_quality": 2,
+            "constraint_adherence": 3
+          },
+          "overall_score": 2.65,
+          "explanation": "The system makes a factually incorrect claim that 'the GDC family is designed for mechanical filtration, not gas adsorption,' when the PDF explicitly states GDC is 'avsett för patronfilter med kol eller kemikaliemedia' (intended for cartridge filters with carbon or chemical media). The system also fabricates the concept of 'Chemical Vapor Exposure' as a named stressor category not found in the PDF. The clarification request for housing length is appropriate, but the core mischaracterization of the GDC product family undermines the response.",
+          "dimension_explanations": {
+            "correctness": "PDF p.14 explicitly states GDC is for 'patronfilter med kol eller kemikaliemedia' (carbon/chemical media cartridge filters), directly contradicting the system's claim that GDC is 'designed for mechanical filtration, not gas adsorption.' GDC 600x600 has 16 cartridges and recommended flow of 2000 m³/h (PDF p.14), matching the user's airflow requirement.",
+            "completeness": "The system asks for housing length (appropriate since GDC comes in 750/800 and 900/950 lengths), but fails to confirm that GDC is actually the correct product family for VOC removal, and doesn't mention material upgrade options for the humid environment.",
+            "safety": "The system correctly flags high humidity as a concern for carbon adsorption efficiency and notes the C2 corrosion class limitation, but the incorrect claim about GDC not being suitable for gas adsorption could mislead the user away from the correct product.",
+            "tone": "Professional and consultative tone appropriate for a technical sales context.",
+            "reasoning_quality": "The reasoning chain is undermined by the fabricated claim that GDC is for mechanical filtration only, and the term 'Chemical Vapor Exposure' appears to be an invented stressor category not found in the PDF catalog.",
+            "constraint_adherence": "The system correctly identifies C2 corrosion class for standard FZ material and notes humidity concerns, but incorrectly suggests the product family itself is unsuitable for the application when the PDF confirms it is designed exactly for this purpose."
+          },
+          "strengths": [
+            "Correctly asks for housing length as a clarifying parameter before making a final recommendation",
+            "Appropriately flags high humidity (95% RH) as a concern for carbon adsorption performance"
+          ],
+          "weaknesses": [
+            "Critically incorrect claim that GDC is 'designed for mechanical filtration, not gas adsorption' when PDF p.14 explicitly states it is for 'patronfilter med kol eller kemikaliemedia'",
+            "Uses fabricated terminology 'Chemical Vapor Exposure' as a named environmental stressor category not found anywhere in the PDF catalog"
+          ],
+          "pdf_citations": [
+            "GDC p.14: 'Avsett användningsområde är för patronfilter med kol eller kemikaliemedia' - contradicts system's claim that GDC is for mechanical filtration",
+            "GDC 600x600 p.14: 16 patroner, Rek. flöde 2000 m³/h - matches user's airflow requirement exactly",
+            "GDC p.14: 'GDC tillverkas vanligen i förzinkat. Korrosivitetsklass C2' - system correctly identified C2 corrosion class",
+            "GDC p.14: Available lengths 750/800 and 900/950 - system's request for housing length is appropriate"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 25.41,
+            "prompt_tokens": 439,
+            "cached_tokens": 53780,
+            "output_tokens": 941
+          }
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDC",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Consider alternative technology",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 9 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "♟️ Additional info needed",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDC",
+        "accessories": [],
+        "pending_clarification": "housing_length",
+        "resolved_params": {
+          "installation_environment": "ENV_INDOOR",
+          "airflow_m3h": "2000",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": 2000,
+            "product_family": "GDC",
+            "product_code": "GDC-600x600-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 2,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "4bd77cfc-78a2-4867-ad91-8da247ec74ef",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDC",
+          "locked_material": null,
+          "name": null,
+          "pending_clarification": "housing_length",
+          "resolved_params": "{\"installation_environment\": \"ENV_INDOOR\", \"airflow_m3h\": \"2000\", \"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDC",
+            "quantity": 1,
+            "airflow_m3h": 2000,
+            "session_id": "4bd77cfc-78a2-4867-ad91-8da247ec74ef",
+            "filter_height": 600,
+            "product_code": "GDC-600x600-R-PG-FZ",
+            "housing_width": 600,
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_4bd77cfc-78a2-4867-ad91-8da247ec74ef_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Filter 600x600mm -> Sized to 600x600 -> Code: GDC-600x600-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "For the greenhouse VOC removal project, the GDC-600x600 housing is suitable for the specified airflow and dimensions.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "However, the GDC family is designed for mechanical filtration, not gas adsorption. ",
+          "type": "INFERENCE",
+          "inference_logic": "[CRITICAL] Gas/odor/VOC removal requires activated carbon adsorption. Mechanical filters cannot capture gas-phase contaminants.\nStressor: Chemical Vapor Exposure | Required trait: Porous Adsorption"
+        },
+        {
+          "text": "To effectively remove VOCs, you need a carbon-based adsorption system.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Additionally, the greenhouse environment exposes the system to ",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Chemical Vapor Exposure",
+          "type": "INFERENCE"
+        },
+        {
+          "text": " and ",
+          "type": "GENERAL"
+        },
+        {
+          "text": "High Humidity",
+          "type": "INFERENCE"
+        },
+        {
+          "text": ". ",
+          "type": "GENERAL"
+        },
+        {
+          "text": "High humidity reduces carbon adsorption efficiency and accelerates corrosion. ",
+          "type": "INFERENCE",
+          "inference_logic": "[WARNING] High humidity reduces carbon adsorption efficiency. Keep relative humidity below 70% for optimal performance.\nStressor: High Humidity | Relevant trait: Porous Adsorption\n[WARNING] Persistent humidity accelerates zinc corrosion, reducing service life. Consider C4 or C5 materials.\nStressor: High Humidity | Relevant trait: Corrosion Resistance C3"
+        },
+        {
+          "text": "The housing corrosion class is C2.",
+          "type": "GRAPH_FACT",
+          "key_specs": {}
+        },
+        {
+          "text": "To proceed with a suitable carbon-based solution, I need to know the required housing length.",
+          "type": "GENERAL"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": "900mm",
+      "turn_number": 2,
+      "timestamp": "2026-02-14T11:04:38.444684+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "The GDC housing configuration is complete.",
+      "turn_number": 2,
+      "timestamp": "2026-02-14T11:04:45.715467+00:00",
+      "clarification": null,
+      "product_card": {
+        "title": "Tag item_1",
+        "specs": {
+          "Product Code": "GDC-600x600-900-R-PG-FZ",
+          "Housing Size": "600x600mm",
+          "Housing Length": "900mm",
+          "Rated Airflow": "2000 m³/h",
+          "Weight": "~40 kg",
+          "Housing corrosion class": "C2",
+          "Indoor only": "Yes"
+        },
+        "warning": null,
+        "confidence": "medium",
+        "actions": [
+          "Add to Quote"
+        ]
+      },
+      "product_cards": [
+        {
+          "title": "Tag item_1",
+          "specs": {
+            "Product Code": "GDC-600x600-900-R-PG-FZ",
+            "Housing Size": "600x600mm",
+            "Housing Length": "900mm",
+            "Rated Airflow": "2000 m³/h",
+            "Weight": "~40 kg",
+            "Housing corrosion class": "C2",
+            "Indoor only": "Yes"
+          },
+          "warning": null,
+          "confidence": "medium",
+          "actions": [
+            "Add to Quote"
+          ]
+        }
+      ],
+      "status_badges": [
+        {
+          "type": "SUCCESS",
+          "text": "COMPLETE"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 4,
+            "safety": 3,
+            "tone": 5,
+            "reasoning_quality": 2,
+            "constraint_adherence": 5
+          },
+          "overall_score": 3.15,
+          "explanation": "The system correctly retrieved numerical specifications from the PDF but failed critically in its product description and reasoning. It explicitly stated that the GDC family is 'not designed for gas adsorption,' which directly contradicts the PDF's stated intended use for carbon/chemical media. Additionally, while it correctly identified the corrosion risk in a 95% RH environment, it proceeded to recommend the standard C2-rated steel housing without offering available material upgrades (Stainless/Aluzink) mentioned in the catalog.",
+          "dimension_explanations": {
+            "correctness": "The system claims GDC is 'designed for mechanical filtration, not gas adsorption,' but PDF page 14 explicitly states it is for 'patronfilter med kol eller kemikaliemedia' (cartridge filters with carbon or chemical media).",
+            "completeness": "The response provides accurate specs and a product card but fails to offer alternative materials (RF, ZM) suitable for the high-humidity environment.",
+            "safety": "The system warns that high humidity accelerates corrosion but still recommends a C2-rated housing for 95% RH without suggesting a safer material upgrade.",
+            "tone": "Professional and appropriate.",
+            "reasoning_quality": "The reasoning is contradictory; it claims the product is unsuitable for gas adsorption and then immediately recommends it for a VOC removal application.",
+            "constraint_adherence": "The system correctly adhered to the user's dimension and airflow constraints."
+          },
+          "strengths": [
+            "Accurately retrieved weight (40 kg) and airflow (2000 m³/h) for the specific size from PDF page 14",
+            "Correctly identified the standard corrosion class (C2) for the GDC family"
+          ],
+          "weaknesses": [
+            "Hallucinated that the GDC product family is not for gas adsorption",
+            "Contradictory logic: stated product was unsuitable for the goal (VOCs) but recommended it anyway",
+            "Failed to suggest a material upgrade (e.g., Stainless Steel) for a 95% RH environment despite noting the corrosion risk"
+          ],
+          "pdf_citations": [
+            "GDC 600x600 (Length 900/950): Vikt=40 kg, Rek. flöde=2000 m³/h (PDF p.14)",
+            "GDC Intended Use: 'Avsett användningsområde är för patronfilter med kol eller kemikaliemedia' (PDF p.14) - contradicts system claim",
+            "GDC Standard Material: 'Korrosivitetsklass C2' (PDF p.14)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 39.27,
+            "prompt_tokens": 16208,
+            "cached_tokens": 16023,
+            "output_tokens": 678
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 3,
+            "tone": 5,
+            "reasoning_quality": 2,
+            "constraint_adherence": 3
+          },
+          "overall_score": 2.75,
+          "explanation": "The final product code and key sizing/airflow/weight claims for GDC 600×600 L=900 match the PDF, but the system makes a critical incorrect statement that \"GDC is designed for mechanical filtration, not gas adsorption\"—the PDF explicitly describes GDC as intended for carbon/chemical media. It also asserts a housing corrosion class (C2) and uses greenhouse environment/corrosion logic that is not clearly specified as an application constraint in the PDF, reducing reasoning reliability.",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDC is \"avsett för patronfilter med kol eller kemikaliemedia\" (carbon/chemical media), contradicting the system’s claim it’s for mechanical filtration; however PDF confirms GDC 600×600 has recommended flow 2000 m³/h and weight 40 kg at 900/950 length.",
+            "completeness": "It gathered the missing length and produced a concrete configuration, but did not address key VOC-removal performance factors (carbon media type, residence time, expected efficiency) beyond a generic humidity note.",
+            "safety": "It correctly warned that high humidity can reduce carbon adsorption performance and noted indoor-use context, but did not clearly resolve whether a greenhouse counts as acceptable \"inomhusbruk\" per the catalog.",
+            "tone": "Professional, concise, and appropriate for technical sales/support.",
+            "reasoning_quality": "Reasoning includes a major contradiction (says GDC isn’t for adsorption while recommending a carbon housing that the PDF states is for carbon/chemical media) and introduces non-catalog environmental stressor terminology without support.",
+            "constraint_adherence": "Clarification request for housing length aligns with catalog variants (GDC lengths 750/800 and 900/950), but it labels corrosion class as C2 as if it were a hard rating for this specific item while the PDF primarily frames corrosion class under materials and typical execution."
+          },
+          "strengths": [
+            "Appropriately requested missing critical parameter (housing length) before finalizing the configuration.",
+            "Final selected product code/size/length/flow align with the catalog table for GDC."
+          ],
+          "weaknesses": [
+            "Critical factual error about GDC purpose (mechanical filtration vs carbon/chemical media) directly contradicts the PDF.",
+            "Uses unverifiable/hallucinated reasoning constructs (e.g., greenhouse stressor taxonomy and corrosion conclusions) not stated as rules/ratings in the PDF."
+          ],
+          "pdf_citations": [
+            "GDC description: \"Avsett användningsområde är för patronfilter med kol eller kemikaliemedia\" (GDC section page showing application text).",
+            "GDC 600×600: weight 40 kg (900/950 column) and Rek. flöde 2000 m³/h (GDC MÅTT table).",
+            "Example configuration exists: \"GDC-600x600-900-R-PG-FZ\" shown in GDC example description table."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 14.74,
+            "prompt_tokens": 37520,
+            "cached_tokens": 32256,
+            "output_tokens": 715
+          }
+        },
+        "anthropic": {
+          "scores": {
+            "correctness": 3,
+            "completeness": 2,
+            "safety": 2,
+            "tone": 3,
+            "reasoning_quality": 2,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.4,
+          "explanation": "The system correctly identifies the GDC-600x600 product and its 900mm length option, and the airflow of 2000 m³/h matches the PDF. However, it contains contradictory reasoning (first says GDC is for mechanical filtration not gas adsorption, then recommends it anyway for VOC removal), fails to adequately warn about the critical environment mismatch (greenhouse is not indoor use, high humidity degrades carbon performance), and the product card has no warnings despite the system's own earlier concerns.",
+          "dimension_explanations": {
+            "correctness": "PDF confirms GDC 600x600 with 900/950 length has 16 patrons and Rek. flöde 2000 m³/h (p.14), and weight 40 kg for 900/950 variant matches. However, the system's initial claim that 'GDC family is designed for mechanical filtration, not gas adsorption' is incorrect — the PDF explicitly states GDC is for 'patronfilter med kol eller kemikaliemedia' (carbon/chemical media cartridge filters).",
+            "completeness": "The system fails to address the critical indoor-only constraint for a greenhouse application, does not discuss material upgrade options for the high-humidity environment, does not mention the 95% RH impact on carbon adsorption effectiveness, and duplicates the product card unnecessarily.",
+            "safety": "The system initially raises humidity and corrosion concerns but then delivers the final product card with NO warnings at all, despite the greenhouse being an outdoor/semi-outdoor environment while GDC is explicitly for indoor use only ('För inomhusbruk'), and despite 95% RH being extremely problematic for carbon adsorption.",
+            "tone": "Generally professional but the contradictory statements (first saying GDC isn't for gas adsorption, then recommending it for VOC removal) undermine the consultative credibility, and the duplicate product card is sloppy.",
+            "reasoning_quality": "The reasoning is contradictory — the system first states GDC is not suitable for gas adsorption, then recommends it anyway without explaining the reversal. The initial concern about humidity and corrosion is raised but then completely dropped in the final recommendation with no resolution.",
+            "constraint_adherence": "GDC is explicitly marked 'För inomhusbruk' (indoor use only) in the PDF, yet the system recommends it for a greenhouse without blocking or strongly warning. The C2 corrosion class is inadequate for a 95% RH greenhouse environment, and no material upgrade was suggested."
+          },
+          "strengths": [
+            "Correctly identified GDC-600x600-900 as matching the requested size and airflow of 2000 m³/h",
+            "Initially raised relevant concerns about humidity and corrosion in the first response"
+          ],
+          "weaknesses": [
+            "Contradictory reasoning: first claims GDC is not for gas adsorption (incorrect per PDF), then recommends it for VOC removal without explanation",
+            "Critical safety warnings about indoor-only use and high humidity impact on carbon performance were raised initially but completely absent from the final product card",
+            "No material upgrade suggestion despite 95% RH environment (C2 FZ is inadequate; RF or ZM should be considered)",
+            "Duplicate product card in the output"
+          ],
+          "pdf_citations": [
+            "GDC 600x600: Rek. flöde = 2000 m³/h, Vikt 900/950 = 40 kg (PDF p.14)",
+            "GDC is 'avsett för patronfilter med kol eller kemikaliemedia' — contradicts system's claim it's for mechanical filtration (PDF p.14)",
+            "GDC: 'För inomhusbruk' (indoor use only) — greenhouse application violates this constraint (PDF p.14)",
+            "FZ material: Korrosivitets klass C3 (PDF p.4); GDC standard is C2 (PDF p.14)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 28.58,
+            "prompt_tokens": 881,
+            "cached_tokens": 53780,
+            "output_tokens": 1050
+          }
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDC",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 0 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "✅ All parameters resolved",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDC",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "installation_environment": "ENV_INDOOR",
+          "airflow_m3h": "2000",
+          "connection_type": "PG",
+          "housing_length": "900"
+        },
+        "assembly_group": null,
+        "turn_count": 2,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": 900,
+            "airflow_m3h": 2000,
+            "product_family": "GDC",
+            "product_code": "GDC-600x600-900-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": 40,
+            "modules_needed": 1,
+            "total_weight_kg": 40,
+            "total_airflow_m3h": 2000,
+            "is_complete": true,
+            "missing_params": [],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 0,
+        "variable_features": 0,
+        "tags_complete": true,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "4bd77cfc-78a2-4867-ad91-8da247ec74ef",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDC",
+          "locked_material": null,
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"installation_environment\": \"ENV_INDOOR\", \"airflow_m3h\": \"2000\", \"connection_type\": \"PG\", \"housing_length\": \"900\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDC",
+            "quantity": 1,
+            "weight_kg": 40,
+            "airflow_m3h": 2000,
+            "session_id": "4bd77cfc-78a2-4867-ad91-8da247ec74ef",
+            "filter_height": 600,
+            "product_code": "GDC-600x600-900-R-PG-FZ",
+            "housing_width": 600,
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1",
+            "source_message": 2,
+            "id": "TAG_4bd77cfc-78a2-4867-ad91-8da247ec74ef_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Filter 600x600mm -> Sized to 600x600 -> Weight 40kg -> Code: GDC-600x600-900-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "The GDC housing configuration is complete.",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

@@ -16,9 +16,23 @@ import {
   ChevronDown,
   ChevronRight,
   Code,
+  Network,
+  Timer,
+  Cpu,
+  ArrowRight,
+  Database,
+  Lock,
+  Scale,
+  Download,
+  ThumbsUp,
+  ThumbsDown,
+  MessageSquare,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
+import { apiUrl, authFetch, getSessionId, resetSessionId, getSessionGraphState, clearSessionGraph, type SessionGraphState, evaluateResponse, type JudgeEvalResult, type JudgeSingleResult, submitExpertReview, saveJudgeResults } from "@/lib/api";
+import { getUserRole } from "@/lib/auth";
+import SessionGraphViewer from "./session-graph-viewer";
 import { Widget, BotResponse } from "./chat-widgets";
 import { WidgetList } from "./chat-widgets";
 import { ThreadInspectorSheet } from "./thread-inspector-sheet";
@@ -34,7 +48,6 @@ import {
   ExplainableChatBubble,
   ProductCardComponent,
   ExpertModeToggle,
-  ConfidenceIndicator,
   DeepExplainableResponseData,
   ReasoningSummaryStep,
   ContentSegment,
@@ -42,6 +55,7 @@ import {
   // Autonomous Guardian - Risk Detection
   RiskDetectedBanner,
   ComplianceBadge,
+  StatusBadges,
   // Clarification Mode
   ClarificationCard,
   // Detail Panel
@@ -49,13 +63,196 @@ import {
   SelectedDetail,
 } from "./reasoning-chain";
 
+interface DiagnosticsData {
+  model?: string;
+  llm_time_s?: number;
+  total_time_s?: number;
+  history_turns?: number;
+  variant_count?: number;
+  material_count?: number;
+  graph_paths_count?: number;
+}
+
+const JUDGE_DIM_LABELS: Record<string, string> = {
+  correctness: "COR", completeness: "COM", safety: "SAF",
+  tone: "TON", reasoning_quality: "REA", constraint_adherence: "CON",
+};
+
+const PROVIDER_LABELS: Record<string, string> = { gemini: "Gemini", openai: "GPT-5.2", anthropic: "Claude" };
+
+function recColor(rec: string) {
+  return rec === "PASS"       ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100" :
+         rec === "BORDERLINE" ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" :
+         rec === "FAIL"       ? "bg-red-50 border-red-200 text-red-700 hover:bg-red-100" :
+                                "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100";
+}
+
+function recBadgeColor(rec: string) {
+  return rec === "PASS" ? "bg-emerald-200 text-emerald-800" :
+         rec === "BORDERLINE" ? "bg-amber-200 text-amber-800" :
+         rec === "FAIL" ? "bg-red-200 text-red-800" :
+         "bg-slate-200 text-slate-800";
+}
+
+function JudgeBadge({
+  result,
+  loading,
+  judgeReviews,
+  onJudgeReview,
+}: {
+  result?: JudgeEvalResult;
+  loading?: boolean;
+  judgeReviews?: Record<string, "thumbs_up" | "thumbs_down">;
+  onJudgeReview?: (provider: string, score: "thumbs_up" | "thumbs_down") => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-50 border border-violet-100 text-[11px] text-violet-500">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        Judging...
+      </div>
+    );
+  }
+
+  if (!result) return null;
+
+  // Collect non-ERROR provider results
+  const providers = (["gemini", "openai", "anthropic"] as const).filter(
+    (k) => result[k] && result[k].recommendation !== "ERROR"
+  );
+
+  if (providers.length === 0) return null;
+
+  return (
+    <div className="mt-1">
+      <div className="inline-flex items-center gap-1.5 flex-wrap">
+        {providers.map((prov) => {
+          const r = result[prov];
+          const review = judgeReviews?.[prov];
+          return (
+            <button
+              key={prov}
+              onClick={() => setExpanded(!expanded)}
+              className={cn(
+                "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors border cursor-pointer",
+                recColor(r.recommendation)
+              )}
+            >
+              <Scale className="w-3 h-3" />
+              <span className="opacity-60">{PROVIDER_LABELS[prov]}</span>
+              {r.overall_score.toFixed(1)}/5
+              <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold", recBadgeColor(r.recommendation))}>
+                {r.recommendation}
+              </span>
+              {review && (
+                review === "thumbs_up"
+                  ? <ThumbsUp className="w-3 h-3 text-emerald-600 ml-0.5" />
+                  : <ThumbsDown className="w-3 h-3 text-red-600 ml-0.5" />
+              )}
+            </button>
+          );
+        })}
+        <button onClick={() => setExpanded(!expanded)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+          {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+      {expanded && (
+        <div className="mt-1.5 rounded-lg border border-slate-200 bg-white p-3 text-xs space-y-3 max-w-xl">
+          {providers.map((prov) => {
+            const r = result[prov];
+            const u = r.usage;
+            const review = judgeReviews?.[prov];
+            return (
+              <div key={prov}>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="font-semibold text-slate-700">{PROVIDER_LABELS[prov]}</p>
+                  <div className="flex items-center gap-1.5">
+                    {u && u.duration_s != null && (
+                      <span className="text-[10px] text-slate-400 font-mono">{u.duration_s}s</span>
+                    )}
+                    {/* Per-judge thumbs up/down */}
+                    {onJudgeReview && (
+                      <div className="flex items-center gap-0.5 ml-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onJudgeReview(prov, "thumbs_up"); }}
+                          className={cn(
+                            "p-1 rounded transition-colors",
+                            review === "thumbs_up"
+                              ? "bg-emerald-100 text-emerald-600"
+                              : "text-slate-300 hover:text-emerald-500 hover:bg-emerald-50"
+                          )}
+                        >
+                          <ThumbsUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onJudgeReview(prov, "thumbs_down"); }}
+                          className={cn(
+                            "p-1 rounded transition-colors",
+                            review === "thumbs_down"
+                              ? "bg-red-100 text-red-600"
+                              : "text-slate-300 hover:text-red-500 hover:bg-red-50"
+                          )}
+                        >
+                          <ThumbsDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <p className="text-slate-600 leading-relaxed mb-1.5">{r.explanation}</p>
+                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                  {Object.entries(r.scores).map(([dim, s]) => (
+                    <span
+                      key={dim}
+                      className={cn(
+                        "px-1.5 py-0.5 rounded text-[10px] font-medium",
+                        s >= 4 ? "bg-emerald-100 text-emerald-700"
+                          : s >= 3 ? "bg-amber-100 text-amber-700"
+                          : "bg-red-100 text-red-700"
+                      )}
+                    >
+                      {JUDGE_DIM_LABELS[dim] || dim}:{s}
+                    </span>
+                  ))}
+                </div>
+                {r.pdf_citations && r.pdf_citations.length > 0 && (
+                  <div className="mt-1.5 border-t border-slate-100 pt-1.5">
+                    <p className="text-[10px] font-semibold text-slate-500 mb-0.5">PDF Citations</p>
+                    <ul className="list-disc list-inside text-[10px] text-slate-500 space-y-0.5">
+                      {r.pdf_citations.map((c, i) => <li key={i}>{c}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {u && (u.prompt_tokens || u.output_tokens) && (
+                  <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono border-t border-slate-100 pt-1">
+                    <span>in:{(u.prompt_tokens || 0).toLocaleString()}</span>
+                    {u.cached_tokens ? (
+                      <span className="text-violet-400">cached:{u.cached_tokens.toLocaleString()} ({Math.round((u.cached_tokens / (u.prompt_tokens || 1)) * 100)}%)</span>
+                    ) : null}
+                    <span>out:{(u.output_tokens || 0).toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
   widgets?: Widget[];
+  // Mode tracking
+  chatMode?: "graphrag" | "llm-driven" | "graph-reasoning" | "neuro-symbolic";
   // Dev mode metadata
   graphPaths?: string[];
   promptPreview?: string;
+  diagnostics?: DiagnosticsData;
   // Deep Explainable mode metadata (new format)
   deepExplainableData?: DeepExplainableResponseData;
   // Legacy Explainable mode metadata
@@ -67,6 +264,12 @@ interface Message {
     graph_facts_count: number;
     llm_inferences_count: number;
   };
+  // LLM-as-a-Judge auto-evaluation
+  judgeResult?: JudgeEvalResult;
+  judgeLoading?: boolean;
+  judgeMsgId?: string;
+  // Per-judge expert reviews (keyed by provider)
+  judgeReviews?: Record<string, "thumbs_up" | "thumbs_down">;
 }
 
 export interface ChatHandle {
@@ -78,10 +281,12 @@ interface ChatProps {
   devMode?: boolean;
   sampleQuestions?: Record<string, string[]>;
   externalQuestion?: string;
+  autoSubmit?: boolean;
   onQuestionConsumed?: () => void;
   explainableMode?: boolean;
   expertMode?: boolean;
   onExpertModeChange?: (value: boolean) => void;
+  chatMode?: "graphrag" | "llm-driven" | "graph-reasoning" | "neuro-symbolic";
 }
 
 // Reasoning step types
@@ -102,13 +307,39 @@ interface ReasoningStep {
   };
 }
 
-const INITIAL_REASONING_STEPS: ReasoningStep[] = [
-  { id: "embed", label: "Generating embedding", icon: "🔍", status: "pending" },
-  { id: "search", label: "Searching knowledge graph", icon: "📊", status: "pending" },
-  { id: "projects", label: "Finding related projects", icon: "🏷️", status: "pending" },
-  { id: "context", label: "Building context", icon: "📄", status: "pending" },
-  { id: "thinking", label: "AI Reasoning", icon: "🤖", status: "pending" },
+const GRAPHRAG_REASONING_STEPS: ReasoningStep[] = [
+  { id: "intent", label: "Analyzing project context", icon: "🔍", status: "pending" },
+  { id: "embed", label: "Loading product catalog from Graph", icon: "📦", status: "pending" },
+  { id: "vector", label: "Reviewing Project Ledger", icon: "📋", status: "pending" },
+  { id: "products", label: "Matching product specs", icon: "📦", status: "pending" },
+  { id: "graph", label: "Guardian: Verifying compliance", icon: "🛡️", status: "pending" },
+  { id: "thinking", label: "Senior Engineer: Synthesizing", icon: "👔", status: "pending" },
 ];
+
+const LLM_REASONING_STEPS: ReasoningStep[] = [
+  { id: "intent", label: "Analyzing query intent", icon: "🔍", status: "pending" },
+  { id: "embed", label: "Loading catalog context", icon: "📦", status: "pending" },
+  { id: "vector", label: "Reviewing conversation history", icon: "📋", status: "pending" },
+  { id: "thinking", label: "LLM generating response", icon: "🤖", status: "pending" },
+];
+
+// Graph Reasoning and Neuro-Symbolic use dynamic steps from SSE - these are just placeholders
+const GRAPH_REASONING_PLACEHOLDER: ReasoningStep[] = [
+  { id: "init", label: "Initializing graph reasoning engine", icon: "🔗", status: "pending" },
+];
+
+const INITIAL_REASONING_STEPS = GRAPHRAG_REASONING_STEPS;
+
+function getStepsForMode(mode: string): ReasoningStep[] {
+  switch (mode) {
+    case "llm-driven": return LLM_REASONING_STEPS;
+    case "graphrag": return GRAPHRAG_REASONING_STEPS;
+    case "graph-reasoning":
+    case "neuro-symbolic":
+      return GRAPH_REASONING_PLACEHOLDER;
+    default: return GRAPHRAG_REASONING_STEPS;
+  }
+}
 
 // Category info for dev mode questions
 const QUESTION_CATEGORIES: Record<string, {
@@ -384,8 +615,246 @@ function DevModePanel({ graphPaths, promptPreview }: { graphPaths?: string[]; pr
   );
 }
 
+// LLM Mode: Prompt & Diagnostics Panel (always shown for llm-driven mode)
+function LlmDiagnosticsPanel({ promptPreview, diagnostics }: { promptPreview?: string; diagnostics?: DiagnosticsData }) {
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  if (!promptPreview && !diagnostics) return null;
+
+  const copyPrompt = async () => {
+    if (promptPreview) {
+      await navigator.clipboard.writeText(promptPreview);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="mt-3 rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-blue-50/30 overflow-hidden">
+      {/* Header with diagnostics summary */}
+      <div className="flex items-center justify-between px-3 py-2 bg-white/60 border-b border-slate-100">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-md bg-blue-100 flex items-center justify-center">
+            <Cpu className="w-3 h-3 text-blue-600" />
+          </div>
+          <span className="text-[11px] font-semibold text-slate-700">LLM Diagnostics</span>
+        </div>
+        {diagnostics && (
+          <div className="flex items-center gap-3 text-[10px] text-slate-500">
+            {diagnostics.model && (
+              <span className="px-1.5 py-0.5 rounded bg-slate-100 font-mono">{diagnostics.model}</span>
+            )}
+            {diagnostics.llm_time_s != null && (
+              <span className="flex items-center gap-1">
+                <Timer className="w-3 h-3" />
+                LLM: {diagnostics.llm_time_s}s
+              </span>
+            )}
+            {diagnostics.total_time_s != null && (
+              <span className="flex items-center gap-1">
+                Total: {diagnostics.total_time_s}s
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Diagnostics details */}
+      {diagnostics && (
+        <div className="px-3 py-2 flex flex-wrap gap-3 text-[10px] border-b border-slate-100/50">
+          {diagnostics.history_turns != null && (
+            <div className="flex items-center gap-1.5 text-slate-600">
+              <span className="font-medium text-slate-500">History:</span>
+              <span>{diagnostics.history_turns} turns</span>
+            </div>
+          )}
+          {diagnostics.variant_count != null && (
+            <div className="flex items-center gap-1.5 text-slate-600">
+              <span className="font-medium text-slate-500">Variants loaded:</span>
+              <span>{diagnostics.variant_count}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Prompt toggle */}
+      {promptPreview && (
+        <div>
+          <button
+            onClick={() => setShowPrompt(!showPrompt)}
+            className={cn(
+              "w-full flex items-center justify-between px-3 py-2 text-[11px] font-medium transition-colors",
+              showPrompt
+                ? "bg-slate-700 text-white"
+                : "text-slate-600 hover:bg-slate-100"
+            )}
+          >
+            <div className="flex items-center gap-1.5">
+              <Code className="w-3 h-3" />
+              Full Prompt to LLM
+            </div>
+            <div className="flex items-center gap-2">
+              {showPrompt && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); copyPrompt(); }}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-slate-600 hover:bg-slate-500 text-slate-200 transition-colors"
+                >
+                  {copied ? <><Check className="w-3 h-3 text-green-400" /> Copied!</> : <><Copy className="w-3 h-3" /> Copy</>}
+                </button>
+              )}
+              {showPrompt ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            </div>
+          </button>
+          {showPrompt && (
+            <div className="max-h-[400px] overflow-auto bg-slate-800">
+              <pre className="p-3 text-[10px] text-slate-300 whitespace-pre-wrap font-mono leading-relaxed">
+                {promptPreview}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// GraphRAG Mode: Graph Traversal Panel (always shown for graphrag mode)
+function GraphTraversalPanel({ graphPaths, diagnostics, promptPreview }: { graphPaths?: string[]; diagnostics?: DiagnosticsData; promptPreview?: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  if (!graphPaths || graphPaths.length === 0) return null;
+
+  return (
+    <div className="mt-3 rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50/50 to-blue-50/30 overflow-hidden">
+      {/* Header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-3 py-2 hover:bg-violet-50/50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-md bg-violet-100 flex items-center justify-center">
+            <Network className="w-3 h-3 text-violet-600" />
+          </div>
+          <span className="text-[11px] font-semibold text-slate-700">Graph Traversal</span>
+          <span className="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-medium">
+            {graphPaths.length} paths
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          {diagnostics && (
+            <div className="flex items-center gap-3 text-[10px] text-slate-500">
+              {diagnostics.model && (
+                <span className="px-1.5 py-0.5 rounded bg-slate-100 font-mono">{diagnostics.model}</span>
+              )}
+              {diagnostics.total_time_s != null && (
+                <span className="flex items-center gap-1">
+                  <Timer className="w-3 h-3" />
+                  {diagnostics.total_time_s}s
+                </span>
+              )}
+            </div>
+          )}
+          {expanded ? <ChevronDown className="w-3 h-3 text-slate-400" /> : <ChevronRight className="w-3 h-3 text-slate-400" />}
+        </div>
+      </button>
+
+      {/* Expanded paths */}
+      {expanded && (
+        <div className="px-3 pb-3 space-y-1.5 border-t border-violet-100">
+          <div className="pt-2" />
+          {graphPaths.map((path, i) => {
+            // Parse path like "ProductFamily(GDB) → ProductVariant[23 variants]"
+            const parts = path.split(" → ");
+            return (
+              <div key={i} className="flex items-start gap-2 group">
+                <div className="flex-shrink-0 mt-1 w-4 h-4 rounded-full bg-violet-100 flex items-center justify-center">
+                  <span className="text-[8px] text-violet-600 font-bold">{i + 1}</span>
+                </div>
+                <div className="flex-1 flex flex-wrap items-center gap-1 text-[10px] font-mono leading-relaxed">
+                  {parts.map((part, j) => {
+                    // Highlight node names in parentheses
+                    const isNode = part.includes("(") || part.includes("[");
+                    return (
+                      <span key={j} className="flex items-center gap-1">
+                        {j > 0 && <ArrowRight className="w-3 h-3 text-violet-400 flex-shrink-0" />}
+                        <span className={cn(
+                          "px-1.5 py-0.5 rounded",
+                          isNode
+                            ? "bg-violet-100 text-violet-800 border border-violet-200"
+                            : "text-slate-600"
+                        )}>
+                          {part}
+                        </span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Summary stats */}
+          {diagnostics && (
+            <div className="mt-2 pt-2 border-t border-violet-100 flex flex-wrap gap-3 text-[10px] text-slate-500">
+              {diagnostics.variant_count != null && (
+                <span><Database className="w-3 h-3 inline mr-1" />{diagnostics.variant_count} variants loaded</span>
+              )}
+              {diagnostics.material_count != null && (
+                <span>{diagnostics.material_count} materials</span>
+              )}
+              {diagnostics.graph_paths_count != null && (
+                <span>{diagnostics.graph_paths_count} graph paths traversed</span>
+              )}
+            </div>
+          )}
+
+          {/* Prompt preview (collapsible) */}
+          {promptPreview && (
+            <div className="mt-2 pt-2 border-t border-violet-100">
+              <button
+                onClick={() => setShowPrompt(!showPrompt)}
+                className={cn(
+                  "flex items-center gap-1.5 text-[10px] font-medium transition-colors",
+                  showPrompt ? "text-slate-700" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <Code className="w-3 h-3" />
+                {showPrompt ? "Hide" : "Show"} LLM Prompt
+                {showPrompt ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              </button>
+              {showPrompt && (
+                <div className="mt-1.5 rounded-lg overflow-hidden bg-slate-800">
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-slate-700 border-b border-slate-600">
+                    <span className="text-[10px] text-slate-400">Full Prompt</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(promptPreview);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-slate-600 hover:bg-slate-500 text-slate-200"
+                    >
+                      {copied ? <><Check className="w-3 h-3 text-green-400" /> Copied!</> : <><Copy className="w-3 h-3" /> Copy</>}
+                    </button>
+                  </div>
+                  <pre className="p-3 text-[10px] text-slate-300 whitespace-pre-wrap font-mono leading-relaxed max-h-[300px] overflow-auto">
+                    {promptPreview}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
-  { devMode, sampleQuestions, externalQuestion, onQuestionConsumed, explainableMode = false, expertMode = true, onExpertModeChange },
+  { devMode, sampleQuestions, externalQuestion, autoSubmit, onQuestionConsumed, explainableMode = false, expertMode = true, onExpertModeChange, chatMode = "graphrag" },
   ref
 ) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -404,6 +873,18 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     originalQuery: string;
     missingAttribute: string;
   } | null>(null);
+  // Track locked context for multi-turn persistence (material, project, filter depths)
+  const [lockedContext, setLockedContext] = useState<{
+    material?: string;
+    project?: string;
+    filter_depths?: number[];
+    dimension_mappings?: Array<{ width: number; height: number; depth?: number }>;
+  } | null>(null);
+  // Track full technical state for comprehensive multi-turn persistence
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [technicalState, setTechnicalState] = useState<Record<string, any> | null>(null);
+  const [sessionGraphState, setSessionGraphState] = useState<SessionGraphState | null>(null);
+  const [showSessionGraph, setShowSessionGraph] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -433,7 +914,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   useEffect(() => {
     const loadHistory = async () => {
       try {
-        const response = await fetch("http://localhost:8000/chat/history");
+        const response = await fetch(apiUrl(`/chat/history?session_id=${getSessionId()}`), authFetch());
         if (response.ok) {
           const data = await response.json();
           // Parse assistant messages that might contain JSON
@@ -457,30 +938,49 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     loadHistory();
   }, []);
 
-  // Handle external question injection (from dev mode)
+  // Handle external question injection (from dev mode or URL ?q= param)
+  const autoSubmitFiredRef = useRef(false);
   useEffect(() => {
     if (externalQuestion && externalQuestion.trim()) {
       setInput(externalQuestion);
       onQuestionConsumed?.();
-      // Focus the input
-      inputRef.current?.focus();
+      if (autoSubmit && !autoSubmitFiredRef.current) {
+        autoSubmitFiredRef.current = true;
+        // Delay to let state settle after history load
+        setTimeout(() => sendMessage(externalQuestion), 300);
+      } else {
+        inputRef.current?.focus();
+      }
     }
-  }, [externalQuestion, onQuestionConsumed]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalQuestion, onQuestionConsumed, autoSubmit]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    // Delay scroll to ensure DOM has updated with new content
+    const timer = setTimeout(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    }, 100);
+    return () => clearTimeout(timer);
   }, [messages]);
 
   // Animate reasoning steps during loading (deep-explainable is non-streaming)
   useEffect(() => {
+    const modeSteps = getStepsForMode(chatMode);
     if (!isLoading) {
-      setReasoningSteps(INITIAL_REASONING_STEPS);
+      setReasoningSteps(modeSteps);
       return;
     }
 
-    const stepIds = INITIAL_REASONING_STEPS.map(s => s.id);
+    // For graph-reasoning and neuro-symbolic, steps are dynamically pushed from SSE
+    if (chatMode === "graph-reasoning" || chatMode === "neuro-symbolic") {
+      setReasoningSteps(modeSteps);
+      return;
+    }
+
+    setReasoningSteps(modeSteps);
+    const stepIds = modeSteps.map(s => s.id);
     let current = 0;
 
     // Activate first step immediately
@@ -510,15 +1010,51 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     }, 800);
 
     return () => clearInterval(interval);
-  }, [isLoading]);
+  }, [isLoading, chatMode]);
 
   // Send a clarification response - displays short value in chat, sends full context to backend
   const sendClarificationResponse = async (displayValue: string, fullContext: string) => {
     if (isLoading) return;
 
+    // Build query with locked context for multi-turn persistence
+    let queryWithContext = fullContext;
+    if (lockedContext) {
+      const contextParts: string[] = [];
+      if (lockedContext.material) {
+        contextParts.push(`material=${lockedContext.material}`);
+      }
+      if (lockedContext.project) {
+        contextParts.push(`project=${lockedContext.project}`);
+      }
+      if (lockedContext.filter_depths && lockedContext.filter_depths.length > 0) {
+        contextParts.push(`filter_depths=${lockedContext.filter_depths.join(',')}`);
+      }
+      // BUGFIX: Include dimension_mappings in locked context
+      if (lockedContext.dimension_mappings && lockedContext.dimension_mappings.length > 0) {
+        const dimStr = lockedContext.dimension_mappings
+          .map(d => `${d.width}x${d.height}${d.depth ? 'x' + d.depth : ''}`)
+          .join(',');
+        contextParts.push(`dimensions=${dimStr}`);
+      }
+      if (contextParts.length > 0) {
+        queryWithContext = `${fullContext} [LOCKED: ${contextParts.join('; ')}]`;
+      }
+    }
+    // BUGFIX: Send full technical state for complete cumulative tracking
+    if (technicalState && Object.keys(technicalState).length > 0) {
+      queryWithContext = `${queryWithContext} [STATE: ${JSON.stringify(technicalState)}]`;
+    }
+
     // Display the short value in chat (what user sees)
     setMessages((prev) => [...prev, { role: "user", content: displayValue }]);
     setIsLoading(true);
+
+    // Scroll to bottom after adding message
+    setTimeout(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    }, 50);
     setReasoningSteps(INITIAL_REASONING_STEPS);
     setSelectedDetail(null);
     setSelectedDetailIdx(null);
@@ -526,11 +1062,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
 
     try {
       // Send the full context to backend (what LLM reads)
-      const response = await fetch("http://localhost:8000/consult/deep-explainable", {
+      const response = await fetch(apiUrl("/consult/deep-explainable"), authFetch({
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: fullContext }),
-      });
+        body: JSON.stringify({ query: queryWithContext }),
+      }));
 
       if (!response.ok) throw new Error("Failed to get response");
 
@@ -553,9 +1089,17 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         {
           role: "assistant",
           content: contentText,
+          chatMode,
           deepExplainableData: data,
         },
       ]);
+
+      // Scroll to bottom after assistant response
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      }, 100);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
       setMessages((prev) => [
@@ -570,14 +1114,47 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     }
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+  const sendMessage = async (overrideMessage?: string | React.MouseEvent) => {
+    // Guard: ignore MouseEvent from onClick={sendMessage} handlers
+    const override = typeof overrideMessage === "string" ? overrideMessage : undefined;
+    const userMessage = override || input.trim();
+    if (!userMessage || isLoading) return;
 
-    const userMessage = input.trim();
     // Store the original query for potential clarification follow-up
     const lastQueryForClarification = userMessage;
 
-    setInput("");
+    // Build query with locked context for multi-turn persistence
+    let queryWithContext = userMessage;
+    if (lockedContext) {
+      const contextParts: string[] = [];
+      if (lockedContext.material) {
+        contextParts.push(`material=${lockedContext.material}`);
+      }
+      if (lockedContext.project) {
+        contextParts.push(`project=${lockedContext.project}`);
+      }
+      if (lockedContext.filter_depths && lockedContext.filter_depths.length > 0) {
+        contextParts.push(`filter_depths=${lockedContext.filter_depths.join(',')}`);
+      }
+      // BUGFIX: Include dimension_mappings in locked context
+      if (lockedContext.dimension_mappings && lockedContext.dimension_mappings.length > 0) {
+        const dimStr = lockedContext.dimension_mappings
+          .map(d => `${d.width}x${d.height}${d.depth ? 'x' + d.depth : ''}`)
+          .join(',');
+        contextParts.push(`dimensions=${dimStr}`);
+      }
+      if (contextParts.length > 0) {
+        queryWithContext = `${userMessage} [LOCKED: ${contextParts.join('; ')}]`;
+      }
+    }
+    // BUGFIX: Send full technical state for complete cumulative tracking
+    if (technicalState && Object.keys(technicalState).length > 0) {
+      queryWithContext = `${queryWithContext} [STATE: ${JSON.stringify(technicalState)}]`;
+    }
+
+    if (!override) {
+      setInput("");
+    }
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
     setReasoningSteps(INITIAL_REASONING_STEPS);
@@ -589,22 +1166,114 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     setPendingClarificationContext(null);
 
     // Reset textarea height
-    if (inputRef.current) {
+    if (!override && inputRef.current) {
       inputRef.current.style.height = "auto";
     }
 
     try {
-      // Use Deep Explainable endpoint if enabled, otherwise use streaming
-      if (explainableMode) {
-        const response = await fetch("http://localhost:8000/consult/deep-explainable", {
+      // Graph Reasoning and Neuro-Symbolic use the consult endpoints with SSE inference chain
+      const useGraphEngine = chatMode === "graph-reasoning" || chatMode === "neuro-symbolic" || explainableMode;
+      console.log(`%c[MODE ROUTING] chatMode="${chatMode}" | explainableMode=${explainableMode} | useGraphEngine=${useGraphEngine}`, 'color: #ff6600; font-weight: bold; font-size: 14px');
+      if (useGraphEngine) {
+        // Use streaming endpoint for real-time inference chain
+        const token = localStorage.getItem("mh_auth_token");
+        const streamUrl = chatMode === "neuro-symbolic" ? "/consult/universal/stream" : "/consult/deep-explainable/stream";
+        console.log(`%c[MODE ROUTING] → Graph engine endpoint: ${streamUrl}`, 'color: #ff6600; font-weight: bold; font-size: 14px');
+        const response = await fetch(apiUrl(streamUrl), {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: userMessage }),
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ query: queryWithContext, session_id: getSessionId() }),
         });
 
         if (!response.ok) throw new Error("Failed to get response");
 
-        const data: DeepExplainableResponseData = await response.json();
+        // Process SSE stream
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let data: DeepExplainableResponseData | null = null;
+        const dynamicSteps: ReasoningStep[] = [];
+        let capturedGraphReport: Record<string, unknown> = {};
+
+        if (reader) {
+          let buffer = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                try {
+                  const event = JSON.parse(line.slice(6));
+
+                  if (event.type === "inference") {
+                    // Update reasoning steps dynamically with real discoveries
+                    const existingIdx = dynamicSteps.findIndex(s => s.id === event.step);
+                    const newStep: ReasoningStep = {
+                      id: event.step,
+                      label: event.detail,  // Human-readable message with emoji
+                      icon: event.detail?.charAt(0) || "🔍",
+                      status: event.status === "done" ? "done" : event.status === "warning" ? "done" : "active",
+                      data: event.data,  // Keep structured data for potential UI rendering
+                    };
+
+                    if (existingIdx >= 0) {
+                      dynamicSteps[existingIdx] = newStep;
+                    } else {
+                      dynamicSteps.push(newStep);
+                    }
+
+                    setReasoningSteps([...dynamicSteps]);
+                    console.log(`🔗 Inference: ${event.detail}`);
+
+                  } else if (event.type === "complete") {
+                    // Final response received
+                    data = event.response;
+                    capturedGraphReport = event.graph_report || {};
+                    console.log("✅ Stream complete", event.timings);
+
+                    // Extract and persist locked context for multi-turn persistence
+                    if (event.locked_context && Object.keys(event.locked_context).length > 0) {
+                      console.log("🔒 Locked context received:", event.locked_context);
+                      setLockedContext(prev => ({
+                        ...prev,
+                        ...event.locked_context
+                      }));
+                    }
+
+                    // Extract and persist full technical state if available
+                    if (event.technical_state && Object.keys(event.technical_state).length > 0) {
+                      console.log("📋 Technical state received:", event.technical_state);
+                      setTechnicalState(event.technical_state);
+                    }
+
+                    // Mark all steps as done
+                    setReasoningSteps(dynamicSteps.map(s => ({ ...s, status: "done" as const })));
+                  } else if (event.type === "session_state" && event.data) {
+                    // Layer 4: Update session graph state from graph-reasoning SSE
+                    setSessionGraphState(event.data);
+                    console.log("📊 [SESSION GRAPH] Updated from graph-reasoning SSE:", event.data.tag_count, "tags");
+                  } else if (event.type === "error") {
+                    console.error("Stream error:", event.detail);
+                  }
+                } catch (e) {
+                  console.warn("Failed to parse SSE event:", line, e);
+                }
+              }
+            }
+          }
+        }
+
+        // Fallback if no streaming data received
+        if (!data) {
+          data = { content_segments: [{ text: "No response received", type: "GENERAL" }] } as DeepExplainableResponseData;
+        }
 
         // Build content from segments for display (with safety check)
         const contentText = data.content_segments && Array.isArray(data.content_segments)
@@ -624,21 +1293,89 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           });
         }
 
+        // Generate a unique ID for this message so the judge callback can find it
+        const judgeMsgId = `judge-${Date.now()}`;
+        const isExpertRole = true;
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
             content: contentText,
+            chatMode,
             deepExplainableData: data,
+            judgeLoading: isExpertRole,
+            judgeMsgId,
           },
         ]);
+
+        // Fire LLM judge in background (non-blocking) — expert role only
+        if (isExpertRole) {
+          // Build conversation history: all prior messages + current response
+          const conversationHistory = messages
+            .filter((m) => m.chatMode === "graph-reasoning" || m.role === "user")
+            .map((m) => ({
+              role: m.role as string,
+              content: m.content,
+              product_card: m.deepExplainableData?.product_card || null,
+              product_cards: m.deepExplainableData?.product_cards || null,
+              clarification_needed: m.deepExplainableData?.clarification_needed || false,
+              status_badges: m.deepExplainableData?.status_badges || null,
+            }));
+          // Append the current user message + this assistant response
+          conversationHistory.push({ role: "user", content: userMessage, product_card: null, product_cards: null, clarification_needed: false, status_badges: null });
+          conversationHistory.push({
+            role: "assistant",
+            content: contentText,
+            product_card: data?.product_card || null,
+            product_cards: data?.product_cards || null,
+            clarification_needed: data?.clarification_needed || false,
+            status_badges: data?.status_badges || null,
+          });
+
+          const judgeResponseData = {
+            conversation_history: conversationHistory,
+            content_text: contentText,
+            product_card: data?.product_card || null,
+            product_cards: data?.product_cards || null,
+            clarification_needed: data?.clarification_needed || false,
+            graph_report: capturedGraphReport,
+            inference_steps: dynamicSteps.map(s => ({
+              step: s.id,
+              detail: s.label,
+              status: s.status,
+            })),
+          };
+          // Calculate turn number for this assistant response
+          const currentTurnNumber = messages.filter(m => m.role === "assistant").length + 1;
+          evaluateResponse(userMessage, judgeResponseData)
+            .then((judgeResult) => {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.judgeMsgId === judgeMsgId ? { ...m, judgeResult, judgeLoading: false } : m
+                )
+              );
+              // Persist judge results to Neo4j (non-blocking)
+              saveJudgeResults(getSessionId(), currentTurnNumber, judgeResult as unknown as Record<string, unknown>)
+                .catch((err) => console.warn("Failed to persist judge results:", err));
+            })
+            .catch((err) => {
+              console.warn("Judge evaluation failed:", err);
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.judgeMsgId === judgeMsgId ? { ...m, judgeLoading: false } : m
+                )
+              );
+            });
+        }
       } else {
-        // Use streaming endpoint
-        const response = await fetch("http://localhost:8000/chat/stream", {
+        // Use streaming endpoint based on chat mode
+        const streamEndpoint = chatMode === "llm-driven" ? "/chat/llm-driven/stream" : "/chat/stream";
+        console.log(`%c[MODE ROUTING] → Chat endpoint: ${streamEndpoint}`, 'color: #0088ff; font-weight: bold; font-size: 14px');
+        const response = await fetch(apiUrl(streamEndpoint), authFetch({
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: userMessage }),
-        });
+          body: JSON.stringify({ message: userMessage, session_id: getSessionId() }),
+        }));
 
         if (!response.ok) throw new Error("Failed to get response");
 
@@ -650,6 +1387,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         let finalResponse = "";
         let capturedPrompt = "";
         let capturedPaths: string[] = [];
+        let capturedDiagnostics: DiagnosticsData = {};
 
         while (true) {
           const { done, value } = await reader.read();
@@ -665,17 +1403,30 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
 
                 if (data.step === "complete" && data.response) {
                   finalResponse = data.response;
+                  console.log("✅ Response complete - timing summary above ^");
+                  console.log("📦 Raw response:", finalResponse);
+                  console.log("📦 Response type:", typeof finalResponse);
+                  console.log("📦 Starts with {:", finalResponse.trim().startsWith("{"));
+                } else if (data.step === "session_state" && data.data) {
+                  // Layer 4: Update session graph state from SSE
+                  setSessionGraphState(data.data);
+                  console.log("📊 [SESSION GRAPH] Updated from SSE:", data.data.tag_count, "tags");
                 } else if (data.step === "error") {
                   // Handle API errors (rate limits, etc.)
                   throw new Error(data.detail || "An error occurred while generating response");
                 } else if (data.step === "prompt" && data.prompt_preview) {
                   // Capture the prompt preview for the message
                   capturedPrompt = data.prompt_preview;
+                } else if (data.step === "diagnostics" && data.data) {
+                  // Capture diagnostics data
+                  capturedDiagnostics = data.data;
                 } else if (data.step && data.status) {
-                  // Capture graph paths from context step
-                  if (data.step === "context" && data.data?.graph_paths) {
+                  // Capture graph paths from graph step
+                  if (data.step === "graph" && data.data?.graph_paths) {
                     capturedPaths = data.data.graph_paths;
                   }
+                  // Log timing to console - ALWAYS log step updates
+                  console.log(`[SSE] ${data.step}: ${data.status} - ${data.detail || 'no detail'}`);
                   // Update reasoning steps with real data
                   setReasoningSteps((prev) =>
                     prev.map((step) =>
@@ -703,13 +1454,23 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
 
         try {
           const trimmed = finalResponse.trim();
+          console.log("🔍 Parsing response, starts with {:", trimmed.startsWith("{"));
           if (trimmed.startsWith("{")) {
             const parsed = JSON.parse(trimmed);
+            console.log("✅ JSON parsed successfully");
+            console.log("📋 Summary:", parsed.summary || parsed.text_summary || "(none)");
+            console.log("🧩 Widgets:", parsed.widgets?.length || 0, "widgets");
+            console.log("🧩 Widget types:", parsed.widgets?.map((w: Widget) => w.type));
             textContent = parsed.summary || parsed.text_summary || finalResponse;
             widgets = parsed.widgets;
+          } else {
+            console.log("⚠️ Response is NOT JSON, using as plain text");
+            console.log("📄 First 200 chars:", trimmed.substring(0, 200));
           }
-        } catch {
+        } catch (parseError) {
           // Not JSON, use as plain text
+          console.error("❌ JSON parse failed:", parseError);
+          console.log("📄 Raw response (first 500 chars):", finalResponse.substring(0, 500));
         }
 
         setMessages((prev) => [
@@ -718,8 +1479,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             role: "assistant",
             content: textContent,
             widgets,
+            chatMode,
             graphPaths: capturedPaths.length > 0 ? capturedPaths : undefined,
             promptPreview: capturedPrompt || undefined,
+            diagnostics: Object.keys(capturedDiagnostics).length > 0 ? capturedDiagnostics : undefined,
           },
         ]);
       }
@@ -739,8 +1502,19 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
 
   const clearChat = async () => {
     try {
-      await fetch("http://localhost:8000/chat/clear", { method: "POST" });
+      await fetch(apiUrl("/chat/clear"), authFetch({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: getSessionId() }),
+      }));
       setMessages([]);
+      // Clear locked context, technical state, and session graph
+      setLockedContext(null);
+      setTechnicalState(null);
+      setSessionGraphState(null);
+      // Generate a fresh session ID so no stale Layer 4 state can leak
+      resetSessionId();
+      console.log("🔓 Session fully reset (state + ID)");
     } catch (error) {
       console.error("Failed to clear chat:", error);
     }
@@ -750,6 +1524,86 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     await navigator.clipboard.writeText(content);
     setCopiedIndex(index);
     setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
+  const exportConversation = () => {
+    if (messages.length === 0) return;
+
+    const exported = {
+      session_id: getSessionId(),
+      exported_at: new Date().toISOString(),
+      chat_mode: chatMode,
+      session_graph: sessionGraphState || null,
+      locked_context: lockedContext || null,
+      technical_state: technicalState || null,
+      turns: messages.map((msg, idx) => {
+        const turn: Record<string, unknown> = {
+          turn: idx + 1,
+          role: msg.role,
+          content: msg.content,
+          chat_mode: msg.chatMode || null,
+        };
+
+        // Assistant-specific data
+        if (msg.role === "assistant") {
+          // Deep Explainable data (reasoning steps, product cards, etc.)
+          if (msg.deepExplainableData) {
+            const d = msg.deepExplainableData;
+            turn.reasoning_steps = d.reasoning_summary?.map(s => ({
+              step: s.step, icon: s.icon, description: s.description,
+            })) || [];
+            turn.status_badges = d.status_badges || [];
+            turn.product_card = d.product_card || null;
+            turn.product_cards = d.product_cards || [];
+            turn.clarification = d.clarification || null;
+            turn.clarification_needed = d.clarification_needed || false;
+            turn.risk_detected = d.risk_detected || false;
+            turn.risk_severity = d.risk_severity || null;
+            turn.confidence_level = d.confidence_level;
+            turn.graph_facts_count = d.graph_facts_count;
+            turn.inference_count = d.inference_count;
+            turn.timings = d.timings || null;
+          }
+
+          // Judge evaluations (all 3 models)
+          if (msg.judgeResult) {
+            const jr = msg.judgeResult;
+            turn.judge = {} as Record<string, unknown>;
+            for (const prov of ["gemini", "openai", "anthropic"] as const) {
+              const r = jr[prov];
+              if (r && r.recommendation !== "ERROR") {
+                (turn.judge as Record<string, unknown>)[prov] = {
+                  overall_score: r.overall_score,
+                  recommendation: r.recommendation,
+                  scores: r.scores,
+                  explanation: r.explanation,
+                  dimension_explanations: r.dimension_explanations,
+                  strengths: r.strengths,
+                  weaknesses: r.weaknesses,
+                  pdf_citations: r.pdf_citations || [],
+                  usage: r.usage || null,
+                };
+              }
+            }
+          }
+
+          // Widgets (action proposals, safety guards, etc.)
+          if (msg.widgets && msg.widgets.length > 0) {
+            turn.widgets = msg.widgets;
+          }
+        }
+
+        return turn;
+      }),
+    };
+
+    const blob = new Blob([JSON.stringify(exported, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `conversation-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Test function to inject mock widget response
@@ -830,9 +1684,9 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
-    // Auto-resize textarea
+    // Auto-resize textarea to fit content (max 300px)
     e.target.style.height = "auto";
-    e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+    e.target.style.height = Math.min(e.target.scrollHeight, 300) + "px";
   };
 
   // Handler for Deep Dive / Source Inspection
@@ -902,7 +1756,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   // Handler for confirming an inference as a learned rule (Active Learning)
   const handleConfirmInference = async (inferenceLogic: string, contextText: string) => {
     try {
-      const response = await fetch("http://localhost:8000/api/learn_rule", {
+      const response = await fetch(apiUrl("/api/learn_rule"), authFetch({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -911,7 +1765,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           context: `Confirmed from chat conversation`,
           confirmed_by: "expert"
         }),
-      });
+      }));
 
       if (!response.ok) {
         throw new Error("Failed to save rule");
@@ -938,6 +1792,40 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     }
   };
 
+  // Per-judge expert review submission
+  const handleJudgeReview = async (msgIndex: number, provider: string, score: "thumbs_up" | "thumbs_down") => {
+    // Optimistically update UI
+    setMessages((prev) =>
+      prev.map((m, i) => {
+        if (i !== msgIndex) return m;
+        const reviews = { ...(m.judgeReviews || {}) };
+        reviews[provider] = score;
+        return { ...m, judgeReviews: reviews };
+      })
+    );
+    // Calculate turn number from message index (count assistant messages up to and including this one)
+    const turnNumber = messages.slice(0, msgIndex + 1).filter(m => m.role === "assistant").length;
+    try {
+      await submitExpertReview(getSessionId(), {
+        comment: "",
+        overall_score: score,
+        provider,
+        turn_number: turnNumber,
+      });
+    } catch (err) {
+      console.error("Failed to submit judge review:", err);
+      // Revert on failure
+      setMessages((prev) =>
+        prev.map((m, i) => {
+          if (i !== msgIndex) return m;
+          const reviews = { ...(m.judgeReviews || {}) };
+          delete reviews[provider];
+          return { ...m, judgeReviews: reviews };
+        })
+      );
+    }
+  };
+
   return (
     <div className="flex gap-4">
       {/* Main Chat Panel */}
@@ -956,10 +1844,17 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
               <h3 className="font-semibold text-slate-900 mb-2">
                 How can I help you today?
               </h3>
-              <p className="text-sm text-slate-500 max-w-md mx-auto">
+              <p className="text-sm text-slate-500 max-w-md mx-auto mb-4">
                 Ask me about past engineering cases, product recommendations, or
                 technical decisions from our knowledge base.
               </p>
+              <button
+                onClick={() => { setInput("I need a GDB housing, size 600x600, Galvanized FZ, airflow 2500 m\u00B3/h."); inputRef.current?.focus(); }}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all shadow-sm"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                I need a GDB housing, size 600x600, Galvanized FZ, airflow 2500 m&sup3;/h.
+              </button>
               {/* Explainable mode hint */}
               {explainableMode && (
                 <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full">
@@ -968,19 +1863,6 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                   </span>
                 </div>
               )}
-              <div className="mt-6 flex flex-wrap justify-center gap-2">
-                {[
-                  "I received a request from Airteam for the Huddinge Hospital project. They want standard GDB housings in Zinc (FZ) because they are budget-constrained. They didn't specify the airflow, but stated it's a standard office unit. Please help me preparing a quote.",
-                ].map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => setInput(suggestion)}
-                    className="px-4 py-2 text-sm rounded-full bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
             </div>
           )}
 
@@ -1016,11 +1898,28 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                 )}
               >
                 <div className="space-y-3">
-                  {/* ========== 1. REASONING TIMELINE (Top, Collapsible) ========== */}
+                  {/* ========== 0. STATUS BADGES (Resolved states at very top) ========== */}
+                  {message.role === "assistant" && message.deepExplainableData?.status_badges && message.deepExplainableData.status_badges.length > 0 && (
+                    <StatusBadges badges={message.deepExplainableData.status_badges} />
+                  )}
+                  {/* Fallback: show compliance badge if risk_resolved but no status_badges */}
+                  {message.role === "assistant" && message.deepExplainableData?.risk_resolved && !message.deepExplainableData?.risk_detected && (!message.deepExplainableData?.status_badges || message.deepExplainableData.status_badges.length === 0) && (
+                    <ComplianceBadge />
+                  )}
+
+                  {/* ========== 1. REASONING TIMELINE (Collapsible) ========== */}
                   {message.role === "assistant" && message.deepExplainableData && (
                     <ThinkingTimeline
                       steps={message.deepExplainableData.reasoning_summary}
                       defaultCollapsed={true}
+                    />
+                  )}
+
+                  {/* ========== 2. ACTIVE RISK ALERT (After timeline, before content) ========== */}
+                  {message.role === "assistant" && message.deepExplainableData?.risk_detected && (
+                    <RiskDetectedBanner
+                      warnings={message.deepExplainableData.policy_warnings}
+                      severity={message.deepExplainableData.risk_severity}
                     />
                   )}
 
@@ -1055,7 +1954,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                           // Deep Explainable: Clean, Perplexity-style render
                           <ExplainableChatBubble
                             segments={message.deepExplainableData!.content_segments}
-                            expertMode={expertMode}
+                            expertMode={false}
                             selectedDetailIdx={selectedDetailIdx}
                             onSelectDetail={handleSelectDetail}
                             onConfirmInference={handleConfirmInference}
@@ -1078,28 +1977,20 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                     )}
                   </div>
 
-                  {/* ========== 3. RISK ALERT or COMPLIANCE BADGE ========== */}
-                  {message.role === "assistant" && message.deepExplainableData?.risk_detected && (
-                    <div className="mt-2">
-                      <RiskDetectedBanner
-                        warnings={message.deepExplainableData.policy_warnings}
-                        severity={message.deepExplainableData.risk_severity}
-                      />
-                    </div>
-                  )}
-                  {message.role === "assistant" && message.deepExplainableData?.risk_resolved && !message.deepExplainableData?.risk_detected && (
-                    <ComplianceBadge />
-                  )}
-
-                  {/* ========== 4. INTERACTIVE WIDGET (Action - Bottom) ========== */}
+                  {/* ========== 3. INTERACTIVE WIDGET (Action - directly after text) ========== */}
                   {/* Clarification Form */}
                   {message.role === "assistant" && message.deepExplainableData?.clarification_needed && message.deepExplainableData?.clarification && (
                     <div className="mt-3">
                       <ClarificationCard
                         clarification={message.deepExplainableData.clarification}
                         onOptionSelect={(value, description) => {
-                          if (pendingClarificationContext) {
-                            const displayValue = description ? `${value} (${description})` : value;
+                          const displayValue = description ? `${value} (${description})` : value;
+                          // Route through streaming endpoint (sendMessage) for graph-reasoning/neuro-symbolic
+                          // to ensure state management, airflow extraction, and session persistence
+                          const useStreaming = chatMode === "graph-reasoning" || chatMode === "neuro-symbolic";
+                          if (useStreaming) {
+                            sendMessage(displayValue);
+                          } else if (pendingClarificationContext) {
                             const fullContext = `${pendingClarificationContext.originalQuery}. Context Update: ${pendingClarificationContext.missingAttribute} is ${value}.`;
                             sendClarificationResponse(displayValue, fullContext);
                           } else {
@@ -1110,28 +2001,34 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                     </div>
                   )}
 
-                  {/* Product Card */}
+                  {/* Product Card(s) — supports multi-card assembly output */}
                   {message.role === "assistant" &&
-                   message.deepExplainableData?.product_card &&
-                   !message.deepExplainableData?.clarification_needed && (
-                    <div className="mt-3">
-                      <ProductCardComponent
-                        card={message.deepExplainableData.product_card}
-                        riskSeverity={message.deepExplainableData.risk_severity}
-                        onAction={(action) => console.log("Action:", action)}
-                      />
+                   !message.deepExplainableData?.clarification_needed &&
+                   (message.deepExplainableData?.product_cards?.length || message.deepExplainableData?.product_card) && (
+                    <div className="mt-3 space-y-3">
+                      {(message.deepExplainableData.product_cards && message.deepExplainableData.product_cards.length > 0)
+                        ? message.deepExplainableData.product_cards.map((card, i) => (
+                            <ProductCardComponent
+                              key={i}
+                              card={card}
+                              riskSeverity={
+                                // Multi-card assembly = risk is resolved by the assembly itself
+                                message.deepExplainableData!.product_cards!.length > 1
+                                  ? undefined
+                                  : message.deepExplainableData!.risk_severity
+                              }
+                              onAction={(action) => console.log("Action:", action, card.title)}
+                            />
+                          ))
+                        : message.deepExplainableData?.product_card && (
+                            <ProductCardComponent
+                              card={message.deepExplainableData.product_card}
+                              riskSeverity={message.deepExplainableData.risk_severity}
+                              onAction={(action) => console.log("Action:", action)}
+                            />
+                          )
+                      }
                     </div>
-                  )}
-
-                  {/* Deep Explainable Mode: Confidence & Stats - hide when clarification needed */}
-                  {message.role === "assistant" &&
-                   message.deepExplainableData &&
-                   !message.deepExplainableData?.clarification_needed && (
-                    <ConfidenceIndicator
-                      level={message.deepExplainableData.confidence_level}
-                      graphFacts={message.deepExplainableData.graph_facts_count}
-                      inferences={message.deepExplainableData.inference_count}
-                    />
                   )}
 
                   {/* Deep Explainable Mode: Policy Warnings (only if not risk_detected to avoid duplication) */}
@@ -1141,7 +2038,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                    message.deepExplainableData.policy_warnings &&
                    message.deepExplainableData.policy_warnings.length > 0 && (
                     <div className="space-y-2">
-                      {message.deepExplainableData.policy_warnings.map((warning, idx) => (
+                      {message.deepExplainableData.policy_warnings.filter(w => w && w !== "null" && w !== "None").map((warning, idx) => (
                         <PolicyWarning key={idx} warning={warning} />
                       ))}
                     </div>
@@ -1150,19 +2047,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                   {/* Legacy Explainable Mode: Policy Warnings */}
                   {message.role === "assistant" && !message.deepExplainableData && message.explainableData && message.explainableData.policy_warnings && message.explainableData.policy_warnings.length > 0 && (
                     <div className="space-y-2">
-                      {message.explainableData.policy_warnings.map((warning, idx) => (
+                      {message.explainableData.policy_warnings.filter(w => w && w !== "null" && w !== "None").map((warning, idx) => (
                         <PolicyWarning key={idx} warning={warning} />
                       ))}
                     </div>
-                  )}
-
-                  {/* Legacy Explainable Mode: Confidence Indicator */}
-                  {message.role === "assistant" && !message.deepExplainableData && message.explainableData && (
-                    <ConfidenceIndicator
-                      level={message.explainableData.confidence_level}
-                      graphFacts={message.explainableData.graph_facts_count}
-                      inferences={message.explainableData.llm_inferences_count}
-                    />
                   )}
 
                   {/* Render widgets for assistant messages */}
@@ -1170,13 +2058,39 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                     <WidgetList widgets={message.widgets} onProjectClick={handleProjectClick} />
                   )}
 
-                  {/* Dev Mode: Graph Paths & Prompt (shown after response) */}
-                  {devMode && message.role === "assistant" && (message.graphPaths || message.promptPreview) && (
+                  {/* ========== JUDGE VERDICT (Auto, Graph Reasoning only) ========== */}
+                  {message.role === "assistant" && message.chatMode === "graph-reasoning" && (message.judgeLoading || message.judgeResult) && (
+                    <JudgeBadge
+                      result={message.judgeResult}
+                      loading={message.judgeLoading}
+                      judgeReviews={message.judgeReviews}
+                      onJudgeReview={(provider, score) => handleJudgeReview(index, provider, score)}
+                    />
+                  )}
+
+                  {/* Mode-specific panels (always shown) */}
+                  {message.role === "assistant" && message.chatMode === "llm-driven" && (
+                    <LlmDiagnosticsPanel
+                      promptPreview={message.promptPreview}
+                      diagnostics={message.diagnostics}
+                    />
+                  )}
+                  {message.role === "assistant" && message.chatMode === "graphrag" && message.graphPaths && (
+                    <GraphTraversalPanel
+                      graphPaths={message.graphPaths}
+                      diagnostics={message.diagnostics}
+                      promptPreview={message.promptPreview}
+                    />
+                  )}
+
+                  {/* Dev Mode: Graph Paths & Prompt fallback (for messages without chatMode) */}
+                  {devMode && message.role === "assistant" && !message.chatMode && (message.graphPaths || message.promptPreview) && (
                     <DevModePanel
                       graphPaths={message.graphPaths}
                       promptPreview={message.promptPreview}
                     />
                   )}
+
                 </div>
               </div>
             </div>
@@ -1190,8 +2104,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
               </div>
               <div className="bg-gradient-to-br from-slate-50 to-blue-50/30 border border-blue-100/50 rounded-2xl px-4 py-3 min-w-[320px] max-w-[420px]">
                 <div className="text-xs font-medium text-blue-600 mb-3 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3" />
-                  Searching knowledge base...
+                  {chatMode === "llm-driven" && <><Cpu className="w-3 h-3" /> LLM Processing...</>}
+                  {chatMode === "graphrag" && <><Database className="w-3 h-3" /> LLM + Graph Data Analysis...</>}
+                  {chatMode === "graph-reasoning" && <><Network className="w-3 h-3" /> Graph Reasoning Engine...</>}
+                  {chatMode === "neuro-symbolic" && <><Brain className="w-3 h-3" /> Neuro-Symbolic Reasoning...</>}
                 </div>
                 <div className="space-y-3">
                   {reasoningSteps.map((step) => (
@@ -1214,7 +2130,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                             step.status === "pending" && "text-slate-400"
                           )}
                         >
-                          {step.detail || step.label}
+                          {step.label}
                         </div>
                         {/* Show concepts found */}
                         {step.status === "done" && step.data?.concepts && step.data.concepts.length > 0 && (
@@ -1247,11 +2163,42 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                     </div>
                   ))}
                 </div>
+                {/* Total time summary when all steps done */}
+                {reasoningSteps.every(s => s.status === "done") && (
+                  <div className="mt-3 pt-2 border-t border-slate-200/50 flex items-center justify-between text-[10px] text-slate-500">
+                    <span>Total pipeline time</span>
+                    <span className="font-mono">
+                      {(() => {
+                        // Extract times from detail strings like "Vector ready (0.5s)"
+                        let total = 0;
+                        reasoningSteps.forEach(s => {
+                          const match = s.detail?.match(/\((\d+\.?\d*)s\)/);
+                          if (match) total += parseFloat(match[1]);
+                        });
+                        return total > 0 ? `${total.toFixed(1)}s` : "—";
+                      })()}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
       </ScrollArea>
+
+      {/* Session Graph Panel (collapsible) */}
+      {showSessionGraph && sessionGraphState && (
+        <div className="border-t border-cyan-200 bg-gradient-to-b from-slate-900 to-slate-950">
+          <SessionGraphViewer
+            sessionState={sessionGraphState}
+            height={320}
+            onRefresh={async () => {
+              const state = await getSessionGraphState();
+              if (state) setSessionGraphState(state);
+            }}
+          />
+        </div>
+      )}
 
       {/* Input */}
       <div className="p-4 border-t border-slate-100 bg-slate-50/50">
@@ -1262,23 +2209,32 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             onSelectQuestion={(q) => setInput(q)}
           />
         )}
-        <div className="flex items-end gap-3">
-          <div className="flex-1 relative">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={handleInput}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask about past cases, products, or decisions..."
-              rows={1}
-              className="w-full px-4 py-3 pr-12 text-sm bg-white border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 placeholder:text-slate-400"
-              disabled={isLoading}
-            />
-          </div>
+        {/* Session Graph Toggle + Context indicators hidden for clean UI */}
+        <div className="flex gap-3 items-end">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={handleInput}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask about past cases, products, or decisions..."
+            rows={1}
+            className="flex-1 px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 placeholder:text-slate-400"
+            disabled={isLoading}
+          />
+          {messages.length > 0 && (
+            <Button
+              onClick={exportConversation}
+              variant="outline"
+              className="h-[42px] w-[42px] p-0 flex-shrink-0 rounded-xl border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+              title="Export conversation (JSON)"
+            >
+              <Download className="w-4 h-4 text-slate-500" />
+            </Button>
+          )}
           <Button
             onClick={sendMessage}
             disabled={isLoading || !input.trim()}
-            className="h-[46px] px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/25 rounded-xl"
+            className="h-[42px] w-[42px] p-0 flex-shrink-0 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/25 rounded-xl"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />

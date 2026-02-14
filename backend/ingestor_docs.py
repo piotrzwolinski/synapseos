@@ -115,6 +115,13 @@ Your task is to analyze the document structure deeply, looking beyond surface-le
     - Example: "PFF ram montażowa: 25, 50, 100mm"
     - Extract: available_depths_mm array for frame products
 
+14. **Source Page Numbers** (CRITICAL - For citation support):
+    - Track which PDF page each piece of information comes from
+    - For each product variant, note the page number where it appears
+    - For each specification table, note the page number
+    - This enables citations like "See page 18 of catalog"
+    - Extract: source_page_number for each product/specification
+
 ## Output Format (JSON):
 
 {{
@@ -174,6 +181,13 @@ Your task is to analyze the document structure deeply, looking beyond surface-le
 
   "has_consumable_filters": true,
   "consumable_filter_types": ["Carbon Cartridge", "Bag Filter", "Panel Filter", "HEPA"],
+
+  "has_page_tracking": true,
+  "page_ranges": {{
+    "product_tables": [1, 5, 10],
+    "specifications": [3, 8],
+    "options": [12]
+  }},
 
   "concepts": ["High-level semantic concepts for vector search bridging"]
 }}
@@ -297,6 +311,12 @@ DATA_EXTRACTION_PROMPT = """You are a Configuration Graph Extractor. Extract ALL
     - 25, 50, 100 = Frame depths
     - ALWAYS extract with English description
 
+16. **Source Page Numbers** (CRITICAL - For citation support):
+    - For EACH product variant, include "source_page" with the PDF page number where it appears
+    - For specification tables, note which page contains the data
+    - This enables user-facing citations like "See page 18 of catalog"
+    - If a product spans multiple pages, use the primary page where main specs appear
+
 ## Output Format (JSON):
 
 {{
@@ -304,6 +324,7 @@ DATA_EXTRACTION_PROMPT = """You are a Configuration Graph Extractor. Extract ALL
     {{
       "id": "GDC-900x600-750",
       "family": "GDC",
+      "source_page": 18,
       "variant_props": {{
         "width_mm": 900,
         "height_mm": 600,
@@ -332,6 +353,7 @@ DATA_EXTRACTION_PROMPT = """You are a Configuration Graph Extractor. Extract ALL
     {{
       "id": "GDMI-600x600-850",
       "family": "GDMI",
+      "source_page": 22,
       "variant_props": {{
         "width_mm": 600,
         "height_mm": 600,
@@ -347,6 +369,7 @@ DATA_EXTRACTION_PROMPT = """You are a Configuration Graph Extractor. Extract ALL
     {{
       "id": "GDMI-FLEX-600x600",
       "family": "GDMI",
+      "source_page": 23,
       "variant_props": {{
         "width_mm": 600,
         "height_mm": 600,
@@ -360,6 +383,7 @@ DATA_EXTRACTION_PROMPT = """You are a Configuration Graph Extractor. Extract ALL
     {{
       "id": "GDB-600x600-550",
       "family": "GDB",
+      "source_page": 8,
       "variant_props": {{
         "width_mm": 600,
         "height_mm": 600,
@@ -374,6 +398,7 @@ DATA_EXTRACTION_PROMPT = """You are a Configuration Graph Extractor. Extract ALL
     {{
       "id": "PFF-600x600",
       "family": "PFF",
+      "source_page": 15,
       "variant_props": {{
         "width_mm": 600,
         "height_mm": 600,
@@ -503,6 +528,7 @@ DATA_EXTRACTION_PROMPT = """You are a Configuration Graph Extractor. Extract ALL
 8. **GDMI Flex Range**: Extract adjustable length range 850-1100mm (or 1100-1350mm) - add length_min_mm, length_max_mm
 9. **Option Code F**: Undrilled flange (Fläns ohålad) - MUST be in available_options
 10. **Reference Airflow 592x592**: 3400 m³/h for full module - add reference_airflow_m3h and include reference_airflow_table
+11. **Source Page Numbers**: For EACH product, add "source_page" field with the PDF page number where the product appears
 
 ## DEFAULT MATERIALS (Always include if not found):
 If material specifications table is not explicit in document, use these defaults:
@@ -786,6 +812,11 @@ def write_configuration_graph(extracted_data: dict, schema: dict, source_documen
         available_depths = product.get("available_depths_mm", [])
         if available_depths:
             props["available_depths_mm"] = available_depths
+
+        # Add source page for citations (NEW)
+        source_page = product.get("source_page")
+        if source_page is not None:
+            props["source_page"] = source_page
 
         # Create ProductVariant node
         db.create_node("ProductVariant", props)

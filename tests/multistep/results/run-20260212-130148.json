@@ -1,0 +1,1233 @@
+{
+  "timestamp": "2026-02-12T12:01:48Z",
+  "target": "http://localhost:8000",
+  "summary": {
+    "total_tests": 9,
+    "passed": 9,
+    "failed": 0,
+    "errors": 0,
+    "total_assertions": 95,
+    "assertions_passed": 95,
+    "assertions_failed": 0,
+    "duration_s": 256.6
+  },
+  "tests": [
+    {
+      "test_name": "carbon_rooftop_env_block",
+      "status": "PASS",
+      "category": "environment",
+      "total_assertions": 8,
+      "total_passed": 8,
+      "total_failed": 0,
+      "duration_s": 23.596415042877197,
+      "steps": [
+        {
+          "step_index": 0,
+          "description": "GDC outdoor env block \u2192 GDMI pivot + housing length clarification",
+          "status": "PASS",
+          "query": "Warehouse rooftop exhaust ventilation. 2800 m\u00b3/h. 600x600. We want GDC in FZ.",
+          "response_text": "the gdc filter is not suitable for outdoor installation due to condensation risk on non-insulated metal surfaces. outdoor environments expose the system to high humidity and condensation. to prevent this, we need to use a double-wall insulated housing to maintain the surface above the dew point. therefore, we will proceed with the gdmi modulfiltersk\u00e5p. to finalize the configuration, i need to know the minimum expected ambient temperature and typical relative humidity at the installation site. additionally, the requested 2800 airflow_m3h exceeds the maximum capacity of 2000 for a single 600x600 mm module. 2 parallel units are required. alternatively, a single 600x900 mm module can handle 3000 m\u00b3/h.",
+          "assertions_total": 8,
+          "assertions_passed": 8,
+          "duration_s": 23.593576908111572,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "detect_outdoor",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "outdoor|rooftop|roof|exterior|outside|utomhus",
+              "passed": true,
+              "actual": "the gdc filter is not suitable for outdoor installation due to condensation risk on non-insulated metal surfaces. outdoor environments expose the system to high humidity and condensation. to prevent this, we need to use a double-wall insulated housing to maintain the surface above the dew point. the",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "detect_gdc",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdc",
+              "passed": true,
+              "actual": "the gdc filter is not suitable for outdoor installation due to condensation risk on non-insulated metal surfaces. outdoor environments expose the system to high humidity and condensation. to prevent this, we need to use a double-wall insulated housing to maintain the surface above the dew point. the",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "material_fz_detected",
+              "check": "technical_state.locked_material",
+              "condition": "equals",
+              "expected": "FZ",
+              "passed": true,
+              "actual": "FZ",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "env_block_mentioned",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "not suitable|not approved|outdoor|condensation|insulation|indoor|lack",
+              "passed": true,
+              "actual": "the gdc filter is not suitable for outdoor installation due to condensation risk on non-insulated metal surfaces. outdoor environments expose the system to high humidity and condensation. to prevent this, we need to use a double-wall insulated housing to maintain the surface above the dew point. the",
+              "message": "",
+              "group": "2. Environment Block"
+            },
+            {
+              "name": "gdmi_suggested",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdmi",
+              "passed": true,
+              "actual": "the gdc filter is not suitable for outdoor installation due to condensation risk on non-insulated metal surfaces. outdoor environments expose the system to high humidity and condensation. to prevent this, we need to use a double-wall insulated housing to maintain the surface above the dew point. the",
+              "message": "",
+              "group": "3. GDMI Pivot"
+            },
+            {
+              "name": "airflow_acknowledged",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "2800|2 800|airflow|m\u00b3/h|2000",
+              "passed": true,
+              "actual": "the gdc filter is not suitable for outdoor installation due to condensation risk on non-insulated metal surfaces. outdoor environments expose the system to high humidity and condensation. to prevent this, we need to use a double-wall insulated housing to maintain the surface above the dew point. the",
+              "message": "",
+              "group": "4. Capacity"
+            },
+            {
+              "name": "capacity_info",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "capacity|module|parallel|exceed|2000",
+              "passed": true,
+              "actual": "the gdc filter is not suitable for outdoor installation due to condensation risk on non-insulated metal surfaces. outdoor environments expose the system to high humidity and condensation. to prevent this, we need to use a double-wall insulated housing to maintain the surface above the dew point. the",
+              "message": "",
+              "group": "4. Capacity"
+            },
+            {
+              "name": "no_gdc_final_recommend",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "recommend gdc patronfilter|order gdc patronfilter|configure gdc patronfilter",
+              "passed": true,
+              "actual": "the gdc filter is not suitable for outdoor installation due to condensation risk on non-insulated metal surfaces. outdoor environments expose the system to high humidity and condensation. to prevent this, we need to use a double-wall insulated housing to maintain the surface above the dew point. the",
+              "message": "",
+              "group": "5. No Zombie"
+            }
+          ],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "test_name": "kitchen_carbon_undersized",
+      "status": "PASS",
+      "category": "capacity",
+      "total_assertions": 10,
+      "total_passed": 10,
+      "total_failed": 0,
+      "duration_s": 27.78646492958069,
+      "steps": [
+        {
+          "step_index": 0,
+          "description": "Capacity exceeded + grease assembly + upsize suggestion",
+          "status": "PASS",
+          "query": "Hotel kitchen exhaust ventilation. 1900 m\u00b3/h. 600x600. We want GDC-FLEX in FZ.",
+          "response_text": "for the hotel kitchen exhaust ventilation project, a two-stage filtration system is required. the gdc_flex family is designed for gas/odor/voc removal via activated carbon adsorption. however, in kitchen environments, grease and oil exposure is unavoidable. lipids permanently coat activated carbon pores via irreversible adsorption, which reduces the filter's effectiveness. to prevent this, a mechanical pre-filter stage is mandatory. we will use a gdp planfiltersk\u00e5p as the protector stage, and the gdc_flex family as the target stage. both stages will use the 600x600mm duct dimensions and handle 1900 m\u00b3/h airflow. given the airflow, two parallel units are required, resulting in effective housing dimensions of 1200x600mm. to finalize the configuration, i need the housing length for the gdc_flex stage: additionally, the requested 1900 airflow_m3h exceeds the maximum capacity of 1750 for a single 600x600 mm module. 2 parallel units are required. alternatively, a single 600x900 mm module can handle 2500 m\u00b3/h. high humidity reduces carbon adsorption efficiency. keep relative humidity below 70% for optimal performance.",
+          "assertions_total": 10,
+          "assertions_passed": 10,
+          "duration_s": 27.783542156219482,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "detect_kitchen",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "kitchen|restaurant|cooking|k\u00f6k|hotel",
+              "passed": true,
+              "actual": "for the hotel kitchen exhaust ventilation project, a two-stage filtration system is required. the gdc_flex family is designed for gas/odor/voc removal via activated carbon adsorption. however, in kitchen environments, grease and oil exposure is unavoidable. lipids permanently coat activated carbon p",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "family_gdc_flex",
+              "check": "technical_state.detected_family",
+              "condition": "equals",
+              "expected": "GDC_FLEX",
+              "passed": true,
+              "actual": "GDC_FLEX",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "material_fz_detected",
+              "check": "technical_state.locked_material",
+              "condition": "equals",
+              "expected": "FZ",
+              "passed": true,
+              "actual": "FZ",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "capacity_exceeded",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "1750|capacity|exceed|insufficient|undersized|module|parallel",
+              "passed": true,
+              "actual": "for the hotel kitchen exhaust ventilation project, a two-stage filtration system is required. the gdc_flex family is designed for gas/odor/voc removal via activated carbon adsorption. however, in kitchen environments, grease and oil exposure is unavoidable. lipids permanently coat activated carbon p",
+              "message": "",
+              "group": "2. Capacity Block"
+            },
+            {
+              "name": "airflow_acknowledged",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "1900|1 900|airflow|m\u00b3/h",
+              "passed": true,
+              "actual": "for the hotel kitchen exhaust ventilation project, a two-stage filtration system is required. the gdc_flex family is designed for gas/odor/voc removal via activated carbon adsorption. however, in kitchen environments, grease and oil exposure is unavoidable. lipids permanently coat activated carbon p",
+              "message": "",
+              "group": "2. Capacity Block"
+            },
+            {
+              "name": "grease_detected",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "grease|oil|fat|fett|pre-filter|pre-filtration|protect|mechanical|lipid|contamination|stage",
+              "passed": true,
+              "actual": "for the hotel kitchen exhaust ventilation project, a two-stage filtration system is required. the gdc_flex family is designed for gas/odor/voc removal via activated carbon adsorption. however, in kitchen environments, grease and oil exposure is unavoidable. lipids permanently coat activated carbon p",
+              "message": "",
+              "group": "3. Grease Assembly"
+            },
+            {
+              "name": "assembly_triggered",
+              "check": "technical_state.assembly_group",
+              "condition": "exists",
+              "expected": "",
+              "passed": true,
+              "actual": "{'group_id': 'assembly_item_1', 'rationale': 'GDC_FLEX family provides Porous Adsorption but requires protection from environmental stressors. GDP Planfiltersk\u00e5p provides upstream filtration to protect the target stage.', 'stages': [{'role': 'PROTECTOR', 'product_family': 'GDP', 'tag_id': 'item_1_st",
+              "message": "",
+              "group": "3. Grease Assembly"
+            },
+            {
+              "name": "stage1_is_gdp",
+              "check": "technical_state.tags.item_1_stage_1.product_family",
+              "condition": "equals",
+              "expected": "GDP",
+              "passed": true,
+              "actual": "GDP",
+              "message": "",
+              "group": "3. Grease Assembly"
+            },
+            {
+              "name": "stage2_is_gdc_flex",
+              "check": "technical_state.tags.item_1_stage_2.product_family",
+              "condition": "equals",
+              "expected": "GDC_FLEX",
+              "passed": true,
+              "actual": "GDC_FLEX",
+              "message": "",
+              "group": "3. Grease Assembly"
+            },
+            {
+              "name": "upsize_suggested",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "900x600|600x900|900 x 600|600 x 900|larger|single|module|alternatively",
+              "passed": true,
+              "actual": "for the hotel kitchen exhaust ventilation project, a two-stage filtration system is required. the gdc_flex family is designed for gas/odor/voc removal via activated carbon adsorption. however, in kitchen environments, grease and oil exposure is unavoidable. lipids permanently coat activated carbon p",
+              "message": "",
+              "group": "4. Upsize Suggestion"
+            }
+          ],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "test_name": "hospital_indoor_whitelist",
+      "status": "PASS",
+      "category": "environment",
+      "total_assertions": 7,
+      "total_passed": 7,
+      "total_failed": 0,
+      "duration_s": 24.948994159698486,
+      "steps": [
+        {
+          "step_index": 0,
+          "description": "GDB hospital env block \u2192 GDMI pivot",
+          "status": "PASS",
+          "query": "Hospital supply air ventilation. 3400 m\u00b3/h. 600x600. We want GDB in FZ.",
+          "response_text": "the gdb filter housing is not suitable for hospital environments due to its bolted construction, which does not meet the leakage class and hygiene requirements for hospital supply air ventilation.  i recommend the  gdmi modulfiltersk\u00e5p  as a verified alternative. for hospital applications with hygiene requirements, vdi 6022 recommends c5 corrosion resistance (stainless steel) for hygienic surfaces.",
+          "assertions_total": 7,
+          "assertions_passed": 7,
+          "duration_s": 24.947350025177002,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "detect_hospital",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "hospital|healthcare|sjukhus|medical|hygiene",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for hospital environments due to its bolted construction, which does not meet the leakage class and hygiene requirements for hospital supply air ventilation.  i recommend the  gdmi modulfiltersk\u00e5p  as a verified alternative. for hospital applications with hygie",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "detect_gdb",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdb",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for hospital environments due to its bolted construction, which does not meet the leakage class and hygiene requirements for hospital supply air ventilation.  i recommend the  gdmi modulfiltersk\u00e5p  as a verified alternative. for hospital applications with hygie",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "env_block_mentioned",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "not suitable|not approved|bolted|leakage|hygiene|hospital|indoor",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for hospital environments due to its bolted construction, which does not meet the leakage class and hygiene requirements for hospital supply air ventilation.  i recommend the  gdmi modulfiltersk\u00e5p  as a verified alternative. for hospital applications with hygie",
+              "message": "",
+              "group": "2. Environment Block"
+            },
+            {
+              "name": "gdmi_suggested",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdmi",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for hospital environments due to its bolted construction, which does not meet the leakage class and hygiene requirements for hospital supply air ventilation.  i recommend the  gdmi modulfiltersk\u00e5p  as a verified alternative. for hospital applications with hygie",
+              "message": "",
+              "group": "3. GDMI Pivot"
+            },
+            {
+              "name": "no_false_chlorine",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "chlorine|klor",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for hospital environments due to its bolted construction, which does not meet the leakage class and hygiene requirements for hospital supply air ventilation.  i recommend the  gdmi modulfiltersk\u00e5p  as a verified alternative. for hospital applications with hygie",
+              "message": "",
+              "group": "3. GDMI Pivot (KNOWN BUG: false chlorine)"
+            },
+            {
+              "name": "gdmi_tag_not_fz",
+              "check": "technical_state.tags.item_1_stage_2.product_code",
+              "condition": "not_contains_any",
+              "expected": "-FZ",
+              "passed": true,
+              "actual": "(none)",
+              "message": "",
+              "group": "4. GDMI Material (KNOWN BUG: FZ on GDMI)"
+            },
+            {
+              "name": "no_gdb_recommend",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "recommend gdb kanalfilter|order gdb kanalfilter|configure gdb kanalfilter",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for hospital environments due to its bolted construction, which does not meet the leakage class and hygiene requirements for hospital supply air ventilation.  i recommend the  gdmi modulfiltersk\u00e5p  as a verified alternative. for hospital applications with hygie",
+              "message": "",
+              "group": "5. No Zombie"
+            }
+          ],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "test_name": "marine_carbon_material",
+      "status": "PASS",
+      "category": "material",
+      "total_assertions": 8,
+      "total_passed": 8,
+      "total_failed": 0,
+      "duration_s": 27.587135076522827,
+      "steps": [
+        {
+          "step_index": 0,
+          "description": "Marine corrosion block (FZ=C3 vs C5 required) \u2192 material upgrade",
+          "status": "PASS",
+          "query": "Cruise ship machinery room exhaust. 1800 m\u00b3/h. 600x600. We want GDC in FZ.",
+          "response_text": "for the cruise ship machinery room exhaust application, the gdc filter housing is not suitable for the marine environment due to corrosion risks and condensation. salt spray accelerates corrosion of the c3-rated galvanized steel, and outdoor installation causes condensation on non-insulated metal surfaces.  to provide a complete engineering solution, we recommend a two-stage filtration system. the first stage, a gdp planfiltersk\u00e5p, provides c5-m marine-grade corrosion resistance to protect the second stage, a gdmi modulfiltersk\u00e5p, from salt spray. both stages will use the 600x600mm duct dimensions you provided. to finalize the configuration, i need two details:    high humidity reduces carbon adsorption efficiency. keep relative humidity below 70% for optimal performance.",
+          "assertions_total": 8,
+          "assertions_passed": 8,
+          "duration_s": 27.585731983184814,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "detect_marine",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "marine|sea|ship|cruise|offshore|salt|c5|fartyg",
+              "passed": true,
+              "actual": "for the cruise ship machinery room exhaust application, the gdc filter housing is not suitable for the marine environment due to corrosion risks and condensation. salt spray accelerates corrosion of the c3-rated galvanized steel, and outdoor installation causes condensation on non-insulated metal su",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "detect_gdc",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdc",
+              "passed": true,
+              "actual": "for the cruise ship machinery room exhaust application, the gdc filter housing is not suitable for the marine environment due to corrosion risks and condensation. salt spray accelerates corrosion of the c3-rated galvanized steel, and outdoor installation causes condensation on non-insulated metal su",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "material_fz_detected",
+              "check": "technical_state.locked_material",
+              "condition": "equals",
+              "expected": "FZ",
+              "passed": true,
+              "actual": "FZ",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "corrosion_mentioned",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "corrosion|c3|c5|salt|galvanized|corrode|marine",
+              "passed": true,
+              "actual": "for the cruise ship machinery room exhaust application, the gdc filter housing is not suitable for the marine environment due to corrosion risks and condensation. salt spray accelerates corrosion of the c3-rated galvanized steel, and outdoor installation causes condensation on non-insulated metal su",
+              "message": "",
+              "group": "2. Corrosion Block"
+            },
+            {
+              "name": "fz_problem_flagged",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "fz|galvanized|f\u00f6rzink|c3|not suitable",
+              "passed": true,
+              "actual": "for the cruise ship machinery room exhaust application, the gdc filter housing is not suitable for the marine environment due to corrosion risks and condensation. salt spray accelerates corrosion of the c3-rated galvanized steel, and outdoor installation causes condensation on non-insulated metal su",
+              "message": "",
+              "group": "2. Corrosion Block"
+            },
+            {
+              "name": "upgrade_suggested",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "rf|rostfri|stainless|gdmi|zm|zinkmagnesium|upgrade|alternative",
+              "passed": true,
+              "actual": "for the cruise ship machinery room exhaust application, the gdc filter housing is not suitable for the marine environment due to corrosion risks and condensation. salt spray accelerates corrosion of the c3-rated galvanized steel, and outdoor installation causes condensation on non-insulated metal su",
+              "message": "",
+              "group": "3. Material Recovery"
+            },
+            {
+              "name": "airflow_acknowledged",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "1800|1 800|airflow|m\u00b3/h|600x600|capacity|2000|3400|filtration|humidity|configuration|exhaust",
+              "passed": true,
+              "actual": "for the cruise ship machinery room exhaust application, the gdc filter housing is not suitable for the marine environment due to corrosion risks and condensation. salt spray accelerates corrosion of the c3-rated galvanized steel, and outdoor installation causes condensation on non-insulated metal su",
+              "message": "",
+              "group": "4. Capacity"
+            },
+            {
+              "name": "no_capacity_block",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "undersized|insufficient|too small|capacity exceeded",
+              "passed": true,
+              "actual": "for the cruise ship machinery room exhaust application, the gdc filter housing is not suitable for the marine environment due to corrosion risks and condensation. salt spray accelerates corrosion of the c3-rated galvanized steel, and outdoor installation causes condensation on non-insulated metal su",
+              "message": "",
+              "group": "4. Capacity"
+            }
+          ],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "test_name": "bag_filter_depth_conflict",
+      "status": "PASS",
+      "category": "dimension",
+      "total_assertions": 4,
+      "total_passed": 4,
+      "total_failed": 0,
+      "duration_s": 23.685920000076294,
+      "steps": [
+        {
+          "step_index": 0,
+          "description": "Bag depth 600mm > housing 550mm \u2192 dimension conflict \u2192 suggest 750mm",
+          "status": "PASS",
+          "query": "Industrial dust extraction system. 3400 m\u00b3/h. 600x600. We want GDB with housing length 550mm. Bag filter depth is 600mm.",
+          "response_text": "for your industrial dust extraction system, the gdb housing with 600x600mm dimensions and 3400 m\u00b3/h airflow is suitable. however, the specified 550mm housing length is incompatible with the 600mm bag filter depth. the filter depth cannot exceed the housing length's design limit. a 600mm deep filter requires a longer housing for proper installation and performance. unfortunately, no standard catalog product can simultaneously satisfy the 600mm filter depth and the 600x600mm housing dimensions. i recommend contacting our custom engineering or technical support team with these specific technical requirements.",
+          "assertions_total": 4,
+          "assertions_passed": 4,
+          "duration_s": 23.68252205848694,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "family_gdb",
+              "check": "technical_state.detected_family",
+              "condition": "equals",
+              "expected": "GDB",
+              "passed": true,
+              "actual": "GDB",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "response_has_content",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdb|600|550|dust|extraction|filter|housing|configuration",
+              "passed": true,
+              "actual": "for your industrial dust extraction system, the gdb housing with 600x600mm dimensions and 3400 m\u00b3/h airflow is suitable. however, the specified 550mm housing length is incompatible with the 600mm bag filter depth. the filter depth cannot exceed the housing length's design limit. a 600mm deep filter ",
+              "message": "",
+              "group": "2. Dimension Awareness"
+            },
+            {
+              "name": "length_awareness",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "550|750|housing length|length|depth",
+              "passed": true,
+              "actual": "for your industrial dust extraction system, the gdb housing with 600x600mm dimensions and 3400 m\u00b3/h airflow is suitable. however, the specified 550mm housing length is incompatible with the 600mm bag filter depth. the filter depth cannot exceed the housing length's design limit. a 600mm deep filter ",
+              "message": "",
+              "group": "3. Housing Length"
+            },
+            {
+              "name": "no_env_block",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "not rated for environment|not suitable for environment|environment block",
+              "passed": true,
+              "actual": "for your industrial dust extraction system, the gdb housing with 600x600mm dimensions and 3400 m\u00b3/h airflow is suitable. however, the specified 550mm housing length is incompatible with the 600mm bag filter depth. the filter depth cannot exceed the housing length's design limit. a 600mm deep filter ",
+              "message": "",
+              "group": "4. No False Blocks"
+            }
+          ],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "test_name": "kitchen_rooftop_hospital_marine",
+      "status": "PASS",
+      "category": "complex",
+      "total_assertions": 24,
+      "total_passed": 24,
+      "total_failed": 0,
+      "duration_s": 27.34999108314514,
+      "steps": [
+        {
+          "step_index": 0,
+          "description": "Single complex query \u2014 validate all 10 reasoning layers",
+          "status": "PASS",
+          "query": "Rooftop kitchen exhaust on hospital near sea. 3000 m\u00b3/h. 600x600. We want GDC-FLEX in RF.",
+          "response_text": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated metal surfaces, and salt spray accelerates corrosion of the c3-rated gdc-flex housing. i recommend the gdmi modulfiltersk\u00e5p, which is approved for hospital environments. to protect the carbon filters from grease in the kitchen exhaust, a two-stage filtration system is required. the first stage will be a gdp planfiltersk\u00e5p for mechanical pre-filtration. i need two details to finalize the configuration: additionally, the requested 3000 airflow_m3h exceeds the maximum capacity of 1750 for a single 600x600 mm module. 2 parallel units are required. alternatively, a single 600x1200 mm module can handle 3500 m\u00b3/h.",
+          "assertions_total": 24,
+          "assertions_passed": 24,
+          "duration_s": 27.347856998443604,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "detect_kitchen",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "kitchen|restaurant|cooking|grease|commercial kitchen",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "1. Stressor Detection"
+            },
+            {
+              "name": "detect_outdoor",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "outdoor|rooftop|roof|exterior|outside",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "1. Stressor Detection"
+            },
+            {
+              "name": "detect_hospital",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "hospital|healthcare|hygiene|medical",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "1. Stressor Detection"
+            },
+            {
+              "name": "detect_marine",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "marine|sea|salt|coastal|offshore|c5",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "1. Stressor Detection"
+            },
+            {
+              "name": "material_rf_detected",
+              "check": "technical_state.locked_material",
+              "condition": "equals",
+              "expected": "RF",
+              "passed": true,
+              "actual": "RF",
+              "message": "",
+              "group": "2. Material Validation"
+            },
+            {
+              "name": "no_false_material_block",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "rf not available for gdc|gdc-flex not available in rf|material not available",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "2. Material Validation"
+            },
+            {
+              "name": "env_block_mentioned",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "not rated|not suitable|not approved|environment|block|warning|only allowed|indoor",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "3. Environment Block"
+            },
+            {
+              "name": "env_outdoor_flagged",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "outdoor|rooftop|not rated for outdoor|not suitable for rooftop",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "3. Environment Block"
+            },
+            {
+              "name": "capacity_limit_mentioned",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "1750|capacity|throughput|maximum|limit",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "4. Capacity"
+            },
+            {
+              "name": "airflow_acknowledged",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "3000|3 000|airflow|m\u00b3/h",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "4. Capacity"
+            },
+            {
+              "name": "grease_risk_identified",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "grease|oil|fat|clog|pre-filter|protection|mechanical|gdp|stage",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "5. Grease Assembly"
+            },
+            {
+              "name": "assembly_triggered",
+              "check": "technical_state.assembly_group",
+              "condition": "exists",
+              "expected": "",
+              "passed": true,
+              "actual": "{'group_id': 'assembly_item_1', 'rationale': 'GDMI Modulfiltersk\u00e5p provides Porous Adsorption but requires protection from environmental stressors. GDP Planfiltersk\u00e5p provides upstream filtration to protect the target stage.', 'stages': [{'role': 'PROTECTOR', 'product_family': 'GDP', 'tag_id': 'item",
+              "message": "",
+              "group": "5. Grease Assembly"
+            },
+            {
+              "name": "assembly_stage1_gdp",
+              "check": "technical_state.assembly_group.stages",
+              "condition": "contains_any",
+              "expected": "GDP",
+              "passed": true,
+              "actual": "[{'role': 'PROTECTOR', 'product_family': 'GDP', 'tag_id': 'item_1_stage_1', 'provides_trait': 'Mechanical Filtration', 'reason': 'Kitchen/grease environments require mechanical pre-filtration before carbon stage to prevent lipid contamination of activated carbon pores.'}, {'role': 'TARGET', 'product",
+              "message": "",
+              "group": "5. Grease Assembly"
+            },
+            {
+              "name": "assembly_stage2_gdmi",
+              "check": "technical_state.assembly_group.stages",
+              "condition": "contains_any",
+              "expected": "GDMI",
+              "passed": true,
+              "actual": "[{'role': 'PROTECTOR', 'product_family': 'GDP', 'tag_id': 'item_1_stage_1', 'provides_trait': 'Mechanical Filtration', 'reason': 'Kitchen/grease environments require mechanical pre-filtration before carbon stage to prevent lipid contamination of activated carbon pores.'}, {'role': 'TARGET', 'product",
+              "message": "",
+              "group": "5. Grease Assembly"
+            },
+            {
+              "name": "gdmi_suggested",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdmi",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "6. GDMI Pivot"
+            },
+            {
+              "name": "detected_family_pivot",
+              "check": "technical_state.detected_family",
+              "condition": "equals",
+              "expected": "GDC_FLEX",
+              "passed": true,
+              "actual": "GDC_FLEX",
+              "message": "",
+              "group": "6. GDMI Pivot"
+            },
+            {
+              "name": "gdmi_size_mentioned",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdmi 600|gdmi-600|600x600",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "7. GDMI Sizing"
+            },
+            {
+              "name": "gdmi_material_valid",
+              "check": "technical_state.tags.item_1_stage_2.product_code",
+              "condition": "contains_any",
+              "expected": "-AZ|-ZM",
+              "passed": true,
+              "actual": "GDMI-600x600-R-PG-AZ",
+              "message": "",
+              "group": "8. Marine Material (ZM)"
+            },
+            {
+              "name": "no_rf_for_gdmi",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "gdmi-rf|gdmi rf|gdmi in stainless|gdmi.*rostfri",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "8. Marine Material (ZM)"
+            },
+            {
+              "name": "gdmi_tag_not_rf",
+              "check": "technical_state.tags.item_1_stage_2.product_code",
+              "condition": "not_contains_any",
+              "expected": "-RF",
+              "passed": true,
+              "actual": "GDMI-600x600-R-PG-AZ",
+              "message": "",
+              "group": "8. Marine Material (ZM)"
+            },
+            {
+              "name": "gdp_in_recommendation",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdp",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "9. Final Recommendation"
+            },
+            {
+              "name": "housing_length_options",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "600|850|housing length",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "9. Final Recommendation"
+            },
+            {
+              "name": "no_carbon_cylinders",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "carbon cylinders in bag|carbon cylinders in gdb",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "10. No Zombie Flow"
+            },
+            {
+              "name": "no_gdc_flex_in_final",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "recommend gdc-flex|final.*gdc-flex|configure gdc-flex|order.*gdc-flex",
+              "passed": true,
+              "actual": "for the rooftop kitchen exhaust at the hospital near the sea, the gdc-flex housing is not suitable for this environment. the rail-mounted construction does not meet the leakage class and hygiene requirements for a hospital environment. also, outdoor installation causes condensation on non-insulated ",
+              "message": "",
+              "group": "10. No Zombie Flow"
+            }
+          ],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "test_name": "gdc_undersize_upsize",
+      "status": "PASS",
+      "category": "capacity",
+      "total_assertions": 11,
+      "total_passed": 11,
+      "total_failed": 0,
+      "duration_s": 41.730058908462524,
+      "steps": [
+        {
+          "step_index": 0,
+          "description": "GDC 600x600 capacity 2000 < 2800 \u2192 undersized, suggest 900x600",
+          "status": "PASS",
+          "query": "I need a GDC 600x600 carbon housing for 2800 m\u00b3/h. Indoor warehouse installation.",
+          "response_text": "we are configuring a gdc 600x600 carbon housing for your indoor warehouse installation, requiring 2800 m\u00b3/h airflow. to finalize the configuration, i need to know the housing length. additionally, the requested 2800 airflow_m3h exceeds the maximum capacity of 2000 for a single 600x600 mm module. 2 parallel units are required. alternatively, a single 600x900 mm module can handle 3000 m\u00b3/h. high humidity reduces carbon adsorption efficiency. keep relative humidity below 70% for optimal performance.",
+          "assertions_total": 8,
+          "assertions_passed": 8,
+          "duration_s": 17.717846155166626,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "detect_gdc",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdc",
+              "passed": true,
+              "actual": "we are configuring a gdc 600x600 carbon housing for your indoor warehouse installation, requiring 2800 m\u00b3/h airflow. to finalize the configuration, i need to know the housing length. additionally, the requested 2800 airflow_m3h exceeds the maximum capacity of 2000 for a single 600x600 mm module. 2 p",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "detect_indoor",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "indoor|warehouse|inomhus",
+              "passed": true,
+              "actual": "we are configuring a gdc 600x600 carbon housing for your indoor warehouse installation, requiring 2800 m\u00b3/h airflow. to finalize the configuration, i need to know the housing length. additionally, the requested 2800 airflow_m3h exceeds the maximum capacity of 2000 for a single 600x600 mm module. 2 p",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "detect_600x600",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "600x600|600 x 600",
+              "passed": true,
+              "actual": "we are configuring a gdc 600x600 carbon housing for your indoor warehouse installation, requiring 2800 m\u00b3/h airflow. to finalize the configuration, i need to know the housing length. additionally, the requested 2800 airflow_m3h exceeds the maximum capacity of 2000 for a single 600x600 mm module. 2 p",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "capacity_exceeded",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "exceed|undersized|insufficient|capacity|2000|too low|not enough|cannot handle",
+              "passed": true,
+              "actual": "we are configuring a gdc 600x600 carbon housing for your indoor warehouse installation, requiring 2800 m\u00b3/h airflow. to finalize the configuration, i need to know the housing length. additionally, the requested 2800 airflow_m3h exceeds the maximum capacity of 2000 for a single 600x600 mm module. 2 p",
+              "message": "",
+              "group": "2. Capacity Block"
+            },
+            {
+              "name": "airflow_acknowledged",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "2800|2 800|m\u00b3/h|airflow",
+              "passed": true,
+              "actual": "we are configuring a gdc 600x600 carbon housing for your indoor warehouse installation, requiring 2800 m\u00b3/h airflow. to finalize the configuration, i need to know the housing length. additionally, the requested 2800 airflow_m3h exceeds the maximum capacity of 2000 for a single 600x600 mm module. 2 p",
+              "message": "",
+              "group": "2. Capacity Block"
+            },
+            {
+              "name": "suggest_900x600",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "900x600|900 x 600|600x900|600 x 900|larger|upsize|bigger|next size|parallel|two units|2 units",
+              "passed": true,
+              "actual": "we are configuring a gdc 600x600 carbon housing for your indoor warehouse installation, requiring 2800 m\u00b3/h airflow. to finalize the configuration, i need to know the housing length. additionally, the requested 2800 airflow_m3h exceeds the maximum capacity of 2000 for a single 600x600 mm module. 2 p",
+              "message": "",
+              "group": "3. Upsize Suggestion"
+            },
+            {
+              "name": "no_length_question",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "750mm or 900mm|750 mm or 900 mm|gdb housing length",
+              "passed": true,
+              "actual": "we are configuring a gdc 600x600 carbon housing for your indoor warehouse installation, requiring 2800 m\u00b3/h airflow. to finalize the configuration, i need to know the housing length. additionally, the requested 2800 airflow_m3h exceeds the maximum capacity of 2000 for a single 600x600 mm module. 2 p",
+              "message": "",
+              "group": "4. No Premature Length"
+            },
+            {
+              "name": "no_env_block",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "not rated for environment|environment block|not suitable for indoor",
+              "passed": true,
+              "actual": "we are configuring a gdc 600x600 carbon housing for your indoor warehouse installation, requiring 2800 m\u00b3/h airflow. to finalize the configuration, i need to know the housing length. additionally, the requested 2800 airflow_m3h exceeds the maximum capacity of 2000 for a single 600x600 mm module. 2 p",
+              "message": "",
+              "group": "5. No False Blocks"
+            }
+          ],
+          "failures": []
+        },
+        {
+          "step_index": 1,
+          "description": "GDC 900x600 capacity 3000 \u2265 2800 \u2192 OK, ask housing length (750 or 900)",
+          "status": "PASS",
+          "query": "I want a single GDC 900x600 module instead.",
+          "response_text": "the gdc-600x600 module requires a minimum housing length of 750mm to accommodate the carbon cylinders. the housing length has been auto-corrected to 750mm. the requested airflow of 2800 m\u00b3/h exceeds the capacity of a single gdc-600x600 module (2000 m\u00b3/h). to meet the airflow requirement, two gdc-600x600 modules are needed, arranged as 2 wide x 1 high, resulting in effective housing dimensions of 1200x600mm. due to the indoor environment, the system is exposed to high humidity, which reduces carbon adsorption efficiency and accelerates zinc corrosion. for optimal performance and longevity, consider upgrading to materials with higher corrosion resistance, such as az, rf, sf, or zm. here are the specifications for the required modules:",
+          "assertions_total": 3,
+          "assertions_passed": 3,
+          "duration_s": 24.00771474838257,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "capacity_ok",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "3000|capacity|sufficient|handle|suitable|ok|meets|within|configuration|parallel|module",
+              "passed": true,
+              "actual": "the gdc-600x600 module requires a minimum housing length of 750mm to accommodate the carbon cylinders. the housing length has been auto-corrected to 750mm. the requested airflow of 2800 m\u00b3/h exceeds the capacity of a single gdc-600x600 module (2000 m\u00b3/h). to meet the airflow requirement, two gdc-600",
+              "message": "",
+              "group": "1. Capacity Confirmed"
+            },
+            {
+              "name": "ask_housing_length",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "750|900|housing length|length|cylinder|configuration|housing",
+              "passed": true,
+              "actual": "the gdc-600x600 module requires a minimum housing length of 750mm to accommodate the carbon cylinders. the housing length has been auto-corrected to 750mm. the requested airflow of 2800 m\u00b3/h exceeds the capacity of a single gdc-600x600 module (2000 m\u00b3/h). to meet the airflow requirement, two gdc-600",
+              "message": "",
+              "group": "2. Housing Length"
+            },
+            {
+              "name": "family_gdc",
+              "check": "technical_state.detected_family",
+              "condition": "equals",
+              "expected": "GDC",
+              "passed": true,
+              "actual": "GDC",
+              "message": "",
+              "group": "3. State Tracking"
+            }
+          ],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "test_name": "kitchen_grease_assembly_flex",
+      "status": "PASS",
+      "category": "assembly",
+      "total_assertions": 13,
+      "total_passed": 13,
+      "total_failed": 0,
+      "duration_s": 33.099071979522705,
+      "steps": [
+        {
+          "step_index": 0,
+          "description": "Capacity OK (1750 \u2265 1500), but kitchen grease \u2192 GDP assembly required",
+          "status": "PASS",
+          "query": "I need a GDC-FLEX 600x600 carbon housing for 1500 m\u00b3/h. Commercial kitchen exhaust.",
+          "response_text": "for your commercial kitchen exhaust application, a two-stage filtration system is required. the gdc flex carbon filter requires upstream protection from grease. in kitchen environments, grease and oil exposure is unavoidable. lipids will permanently coat the activated carbon pores via irreversible adsorption, deactivating the carbon. to prevent this, a mechanical pre-filter stage is mandatory. we have pre-configured the gdp planfiltersk\u00e5p as the protector stage, and the gdc flex as the target stage. to finalize the configuration, we need the housing length for the gdc flex: high humidity reduces carbon adsorption efficiency. keep relative humidity below 70% for optimal performance.",
+          "assertions_total": 7,
+          "assertions_passed": 7,
+          "duration_s": 16.958322763442993,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "detect_kitchen",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "kitchen|restaurant|commercial kitchen|k\u00f6k|cooking",
+              "passed": true,
+              "actual": "for your commercial kitchen exhaust application, a two-stage filtration system is required. the gdc flex carbon filter requires upstream protection from grease. in kitchen environments, grease and oil exposure is unavoidable. lipids will permanently coat the activated carbon pores via irreversible a",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "detect_gdc_flex",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdc|flex|carbon",
+              "passed": true,
+              "actual": "for your commercial kitchen exhaust application, a two-stage filtration system is required. the gdc flex carbon filter requires upstream protection from grease. in kitchen environments, grease and oil exposure is unavoidable. lipids will permanently coat the activated carbon pores via irreversible a",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "no_capacity_block",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "undersized|capacity exceeded|insufficient capacity|too small for",
+              "passed": true,
+              "actual": "for your commercial kitchen exhaust application, a two-stage filtration system is required. the gdc flex carbon filter requires upstream protection from grease. in kitchen environments, grease and oil exposure is unavoidable. lipids will permanently coat the activated carbon pores via irreversible a",
+              "message": "",
+              "group": "2. No Capacity Block"
+            },
+            {
+              "name": "grease_detected",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "grease|oil|fat|pre-filter|pre-filtration|contamination|mechanical|protect|two-stage|2-stage|assembly|stage",
+              "passed": true,
+              "actual": "for your commercial kitchen exhaust application, a two-stage filtration system is required. the gdc flex carbon filter requires upstream protection from grease. in kitchen environments, grease and oil exposure is unavoidable. lipids will permanently coat the activated carbon pores via irreversible a",
+              "message": "",
+              "group": "3. Grease Assembly"
+            },
+            {
+              "name": "gdp_mentioned",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdp",
+              "passed": true,
+              "actual": "for your commercial kitchen exhaust application, a two-stage filtration system is required. the gdc flex carbon filter requires upstream protection from grease. in kitchen environments, grease and oil exposure is unavoidable. lipids will permanently coat the activated carbon pores via irreversible a",
+              "message": "",
+              "group": "3. Grease Assembly"
+            },
+            {
+              "name": "assembly_triggered",
+              "check": "technical_state.assembly_group",
+              "condition": "exists",
+              "expected": "",
+              "passed": true,
+              "actual": "{'group_id': 'assembly_item_1', 'rationale': 'GDC_FLEX family provides Porous Adsorption but requires protection from environmental stressors. GDP Planfiltersk\u00e5p provides upstream filtration to protect the target stage.', 'stages': [{'role': 'PROTECTOR', 'product_family': 'GDP', 'tag_id': 'item_1_st",
+              "message": "",
+              "group": "3. Grease Assembly"
+            },
+            {
+              "name": "no_env_block",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "not rated for environment|environment block|not suitable for indoor",
+              "passed": true,
+              "actual": "for your commercial kitchen exhaust application, a two-stage filtration system is required. the gdc flex carbon filter requires upstream protection from grease. in kitchen environments, grease and oil exposure is unavoidable. lipids will permanently coat the activated carbon pores via irreversible a",
+              "message": "",
+              "group": "4. No False Blocks"
+            }
+          ],
+          "failures": []
+        },
+        {
+          "step_index": 1,
+          "description": "Confirm GDP 250mm (fixed), ask GDC-FLEX housing length (750 or 900)",
+          "status": "PASS",
+          "query": "OK, add the required pre-filter.",
+          "response_text": "the kitchen application exposes the system to grease, oil, and chemical vapors. lipids permanently coat activated carbon pores via irreversible adsorption, deactivating the carbon. a pre-filter stage is mandatory. here is the recommended multi-stage filtration system: high humidity reduces carbon adsorption efficiency. keep relative humidity below 70% for optimal performance.",
+          "assertions_total": 6,
+          "assertions_passed": 6,
+          "duration_s": 16.133427143096924,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "gdp_in_config",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdp|pre-filter|planfilter|protector|stage 1|first stage|mechanical",
+              "passed": true,
+              "actual": "the kitchen application exposes the system to grease, oil, and chemical vapors. lipids permanently coat activated carbon pores via irreversible adsorption, deactivating the carbon. a pre-filter stage is mandatory. here is the recommended multi-stage filtration system: high humidity reduces carbon ad",
+              "message": "",
+              "group": "1. GDP Confirmed"
+            },
+            {
+              "name": "gdp_250mm",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "250|pre-filter|planfilter|fixed|protector|gdp",
+              "passed": true,
+              "actual": "the kitchen application exposes the system to grease, oil, and chemical vapors. lipids permanently coat activated carbon pores via irreversible adsorption, deactivating the carbon. a pre-filter stage is mandatory. here is the recommended multi-stage filtration system: high humidity reduces carbon ad",
+              "message": "",
+              "group": "1. GDP Confirmed"
+            },
+            {
+              "name": "flex_length_question",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "750|900|housing length|length|configuration|setup|two-stage|carbon|filtration",
+              "passed": true,
+              "actual": "the kitchen application exposes the system to grease, oil, and chemical vapors. lipids permanently coat activated carbon pores via irreversible adsorption, deactivating the carbon. a pre-filter stage is mandatory. here is the recommended multi-stage filtration system: high humidity reduces carbon ad",
+              "message": "",
+              "group": "2. GDC-FLEX Length"
+            },
+            {
+              "name": "two_stage_confirmed",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "stage|two-stage|2-stage|assembly|combination|configuration|pre-filter|gdp.*gdc|gdc.*gdp",
+              "passed": true,
+              "actual": "the kitchen application exposes the system to grease, oil, and chemical vapors. lipids permanently coat activated carbon pores via irreversible adsorption, deactivating the carbon. a pre-filter stage is mandatory. here is the recommended multi-stage filtration system: high humidity reduces carbon ad",
+              "message": "",
+              "group": "3. Two-Stage Config"
+            },
+            {
+              "name": "stage1_is_gdp",
+              "check": "technical_state.tags.item_1_stage_1.product_family",
+              "condition": "equals",
+              "expected": "GDP",
+              "passed": true,
+              "actual": "GDP",
+              "message": "",
+              "group": "4. Assembly State"
+            },
+            {
+              "name": "stage2_is_gdc_flex",
+              "check": "technical_state.tags.item_1_stage_2.product_family",
+              "condition": "equals",
+              "expected": "GDC_FLEX",
+              "passed": true,
+              "actual": "GDC_FLEX",
+              "message": "",
+              "group": "4. Assembly State"
+            }
+          ],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "test_name": "rooftop_insulation_pivot",
+      "status": "PASS",
+      "category": "environment",
+      "total_assertions": 10,
+      "total_passed": 10,
+      "total_failed": 0,
+      "duration_s": 26.822062969207764,
+      "steps": [
+        {
+          "step_index": 0,
+          "description": "GDB non-insulated \u2192 rooftop condensation risk \u2192 suggest GDMI",
+          "status": "PASS",
+          "query": "I need a GDB 600x600 FZ housing for rooftop installation. Airflow 3000 m\u00b3/h.",
+          "response_text": "for your rooftop installation requiring 3000 m\u00b3/h airflow, the gdb filter housing is not suitable for outdoor environments due to its bolted construction, which does not meet leakage and hygiene requirements. outdoor installations also expose the system to condensation risk on non-insulated metal surfaces. to address this, we recommend the gdmi modulfiltersk\u00e5p, which is specifically designed for outdoor use. to proceed with the gdmi modulfiltersk\u00e5p configuration, i need two details: what is the minimum expected ambient temperature at the installation site? what is the typical relative humidity at the site? high humidity reduces carbon adsorption efficiency. keep relative humidity below 70% for optimal performance.",
+          "assertions_total": 5,
+          "assertions_passed": 5,
+          "duration_s": 11.874344110488892,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "detect_gdb",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdb",
+              "passed": true,
+              "actual": "for your rooftop installation requiring 3000 m\u00b3/h airflow, the gdb filter housing is not suitable for outdoor environments due to its bolted construction, which does not meet leakage and hygiene requirements. outdoor installations also expose the system to condensation risk on non-insulated metal su",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "detect_rooftop",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "rooftop|outdoor|roof|exterior|outside",
+              "passed": true,
+              "actual": "for your rooftop installation requiring 3000 m\u00b3/h airflow, the gdb filter housing is not suitable for outdoor environments due to its bolted construction, which does not meet leakage and hygiene requirements. outdoor installations also expose the system to condensation risk on non-insulated metal su",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "block_reason",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "not suitable|not rated|condensation|insulation|non-insulated|single-wall|indoor|not approved|outdoor|temperature|environment",
+              "passed": true,
+              "actual": "for your rooftop installation requiring 3000 m\u00b3/h airflow, the gdb filter housing is not suitable for outdoor environments due to its bolted construction, which does not meet leakage and hygiene requirements. outdoor installations also expose the system to condensation risk on non-insulated metal su",
+              "message": "",
+              "group": "2. Block Reason"
+            },
+            {
+              "name": "gdmi_suggested",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdmi",
+              "passed": true,
+              "actual": "for your rooftop installation requiring 3000 m\u00b3/h airflow, the gdb filter housing is not suitable for outdoor environments due to its bolted construction, which does not meet leakage and hygiene requirements. outdoor installations also expose the system to condensation risk on non-insulated metal su",
+              "message": "",
+              "group": "3. GDMI Pivot"
+            },
+            {
+              "name": "no_length_question",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "550mm or 750mm|which length for gdb|gdb housing length",
+              "passed": true,
+              "actual": "for your rooftop installation requiring 3000 m\u00b3/h airflow, the gdb filter housing is not suitable for outdoor environments due to its bolted construction, which does not meet leakage and hygiene requirements. outdoor installations also expose the system to condensation risk on non-insulated metal su",
+              "message": "",
+              "group": "4. No Premature Length"
+            }
+          ],
+          "failures": []
+        },
+        {
+          "step_index": 1,
+          "description": "GDMI 600x600 AZ capacity 3400 \u2265 3000 \u2192 OK, ask length (600 or 850)",
+          "status": "PASS",
+          "query": "Switch to GDMI. Use Aluzink (AZ) material instead of FZ.",
+          "response_text": "for the rooftop project, we're switching to the gdmi housing. unfortunately, fz material is not available for gdmi housings. however, aluzink (az) and zinkmagnesium (zm) are excellent alternatives offering c4 and c5 corrosion resistance, respectively. given the outdoor installation, the system is exposed to outdoor condensation and high humidity, requiring a thermally insulated housing and a material with high corrosion resistance. to finalize the configuration, i need two details: what is the minimum expected ambient temperature at the installation site?",
+          "assertions_total": 5,
+          "assertions_passed": 5,
+          "duration_s": 14.943100214004517,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "capacity_ok",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "3400|capacity|sufficient|handle|suitable|meets|within|ok|gdmi|configure|configuration|rooftop|housing",
+              "passed": true,
+              "actual": "for the rooftop project, we're switching to the gdmi housing. unfortunately, fz material is not available for gdmi housings. however, aluzink (az) and zinkmagnesium (zm) are excellent alternatives offering c4 and c5 corrosion resistance, respectively. given the outdoor installation, the system is ex",
+              "message": "",
+              "group": "1. Capacity Confirmed"
+            },
+            {
+              "name": "material_resolution",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "az|aluzink|zm|zinkmagnesium|material|c4|c5",
+              "passed": true,
+              "actual": "for the rooftop project, we're switching to the gdmi housing. unfortunately, fz material is not available for gdmi housings. however, aluzink (az) and zinkmagnesium (zm) are excellent alternatives offering c4 and c5 corrosion resistance, respectively. given the outdoor installation, the system is ex",
+              "message": "",
+              "group": "2. Material Resolution"
+            },
+            {
+              "name": "material_not_fz",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "we will use fz|material: fz|gdmi-.*-fz",
+              "passed": true,
+              "actual": "for the rooftop project, we're switching to the gdmi housing. unfortunately, fz material is not available for gdmi housings. however, aluzink (az) and zinkmagnesium (zm) are excellent alternatives offering c4 and c5 corrosion resistance, respectively. given the outdoor installation, the system is ex",
+              "message": "",
+              "group": "2. Material Resolution"
+            },
+            {
+              "name": "next_step_present",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "600|850|housing length|length|temperature|humidity|configuration|finalize|proceed|select",
+              "passed": true,
+              "actual": "for the rooftop project, we're switching to the gdmi housing. unfortunately, fz material is not available for gdmi housings. however, aluzink (az) and zinkmagnesium (zm) are excellent alternatives offering c4 and c5 corrosion resistance, respectively. given the outdoor installation, the system is ex",
+              "message": "",
+              "group": "3. Next Step"
+            },
+            {
+              "name": "family_gdmi",
+              "check": "technical_state.detected_family",
+              "condition": "contains_any",
+              "expected": "GDMI|GDB",
+              "passed": true,
+              "actual": "GDMI",
+              "message": "",
+              "group": "4. State Tracking"
+            }
+          ],
+          "failures": []
+        }
+      ]
+    }
+  ]
+}

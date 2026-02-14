@@ -1,10 +1,31 @@
 import os
+import time
 from typing import Optional
 from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable, SessionExpired
 from dotenv import load_dotenv
+from functools import lru_cache
 
 load_dotenv(dotenv_path="../.env")
+
+# Simple TTL cache for expensive queries
+_query_cache = {}
+_cache_ttl = 300  # 5 minutes
+
+
+def _get_cached(key: str):
+    """Get value from cache if not expired."""
+    if key in _query_cache:
+        value, timestamp = _query_cache[key]
+        if time.time() - timestamp < _cache_ttl:
+            return value
+        del _query_cache[key]
+    return None
+
+
+def _set_cached(key: str, value):
+    """Store value in cache."""
+    _query_cache[key] = (value, time.time())
 
 VECTOR_INDEX_NAME = "concept_embeddings"
 
@@ -77,10 +98,30 @@ class Neo4jConnection:
             self.driver = GraphDatabase.driver(
                 self.uri,
                 auth=(self.user, self.password),
-                max_connection_lifetime=300,  # 5 minutes
+                max_connection_lifetime=3600,  # 1 hour (was 5 min)
+                max_connection_pool_size=50,   # More connections for parallel queries
+                connection_acquisition_timeout=30,
                 keep_alive=True,
             )
         return self.driver
+
+    def warmup(self):
+        """Pre-connect and warm up connection pool. Call on server start."""
+        import time
+        t = time.time()
+        driver = self.connect()
+        try:
+            with driver.session(database=self.database) as session:
+                # Simple query to establish SSL connection and warm pool
+                session.run("RETURN 1").single()
+            elapsed = time.time() - t
+            print(f"✓ Neo4j connection warmed up in {elapsed:.2f}s")
+
+            # Pre-load cached data
+            self.get_all_applications()
+            print("✓ Applications cache loaded")
+        except Exception as e:
+            print(f"⚠ Neo4j warmup failed: {e}")
 
     def reconnect(self):
         """Force reconnection by closing existing driver and creating new one."""
@@ -1074,6 +1115,7 @@ class Neo4jConnection:
         """Search for projects matching a name pattern and return their full context.
 
         This is used to supplement vector search when a project name is mentioned.
+        Uses fulltext index for fast case-insensitive substring matching.
 
         Args:
             search_term: The search query (will be fuzzy matched against project names)
@@ -1083,42 +1125,75 @@ class Neo4jConnection:
         """
         def _query():
             driver = self.connect()
+            # Escape special Lucene characters and prepare wildcard search
+            safe_term = search_term.replace("~", "\\~").replace("*", "\\*").replace("?", "\\?")
+            wildcard_term = f"*{safe_term}*"
+
             with driver.session(database=self.database) as session:
-                result = session.run("""
-                    // Find projects with name containing the search term (case-insensitive)
-                    MATCH (p:Project)
-                    WHERE toLower(p.name) CONTAINS toLower($search_term)
+                try:
+                    # Use fulltext index for fast search (was 4.28s, now ~100ms)
+                    result = session.run("""
+                        // Find projects using fulltext index
+                        CALL db.index.fulltext.queryNodes("project_fulltext", $search_term)
+                        YIELD node AS p, score
 
-                    // Get all events for this project
-                    OPTIONAL MATCH (e:Event)-[:PART_OF]->(p)
-                    OPTIONAL MATCH (e)-[:SENT_BY]->(person:Person)
-                    OPTIONAL MATCH (e)-[:REPORTED]->(obs:Observation)
-                    OPTIONAL MATCH (e)-[:PROPOSED]->(act:Action)
-                    OPTIONAL MATCH (obs)-[:RELATES_TO]->(c1:Concept)
-                    OPTIONAL MATCH (act)-[:RELATES_TO]->(c2:Concept)
+                        // Get all events for this project
+                        OPTIONAL MATCH (e:Event)-[:PART_OF]->(p)
+                        OPTIONAL MATCH (e)-[:SENT_BY]->(person:Person)
+                        OPTIONAL MATCH (e)-[:REPORTED]->(obs:Observation)
+                        OPTIONAL MATCH (e)-[:PROPOSED]->(act:Action)
+                        OPTIONAL MATCH (obs)-[:RELATES_TO]->(c1:Concept)
+                        OPTIONAL MATCH (act)-[:RELATES_TO]->(c2:Concept)
 
-                    WITH p, e, person, obs, act,
-                         collect(DISTINCT c1.name) + collect(DISTINCT c2.name) AS concepts
-                    ORDER BY e.step
+                        WITH p, e, person, obs, act,
+                             collect(DISTINCT c1.name) + collect(DISTINCT c2.name) AS concepts
+                        ORDER BY e.step
 
-                    RETURN DISTINCT
-                        p.name AS project,
-                        'direct_match' AS concept,
-                        1.0 AS score,
-                        e.summary AS event_summary,
-                        e.date AS event_date,
-                        person.name AS sender,
-                        CASE WHEN obs IS NOT NULL THEN 'Observation'
-                             WHEN act IS NOT NULL THEN 'Action'
-                             ELSE null END AS logic_type,
-                        COALESCE(obs.type, act.type) AS logic_subtype,
-                        COALESCE(obs.description, act.description) AS logic_description,
-                        COALESCE(obs.citation, act.citation) AS logic_citation,
-                        null AS revealed_constraint,
-                        null AS addresses_problem,
-                        null AS solution_action
-                """, search_term=search_term)
-                return [dict(record) for record in result]
+                        RETURN DISTINCT
+                            p.name AS project,
+                            'direct_match' AS concept,
+                            1.0 AS score,
+                            e.summary AS event_summary,
+                            e.date AS event_date,
+                            person.name AS sender,
+                            CASE WHEN obs IS NOT NULL THEN 'Observation'
+                                 WHEN act IS NOT NULL THEN 'Action'
+                                 ELSE null END AS logic_type,
+                            COALESCE(obs.type, act.type) AS logic_subtype,
+                            COALESCE(obs.description, act.description) AS logic_description,
+                            COALESCE(obs.citation, act.citation) AS logic_citation,
+                            null AS revealed_constraint,
+                            null AS addresses_problem,
+                            null AS solution_action
+                    """, search_term=wildcard_term)
+                    return [dict(record) for record in result]
+                except Exception:
+                    # Fallback to old query if fulltext index doesn't exist
+                    result = session.run("""
+                        MATCH (p:Project)
+                        WHERE toLower(p.name) CONTAINS toLower($search_term)
+                        OPTIONAL MATCH (e:Event)-[:PART_OF]->(p)
+                        OPTIONAL MATCH (e)-[:SENT_BY]->(person:Person)
+                        OPTIONAL MATCH (e)-[:REPORTED]->(obs:Observation)
+                        OPTIONAL MATCH (e)-[:PROPOSED]->(act:Action)
+                        OPTIONAL MATCH (obs)-[:RELATES_TO]->(c1:Concept)
+                        OPTIONAL MATCH (act)-[:RELATES_TO]->(c2:Concept)
+                        WITH p, e, person, obs, act,
+                             collect(DISTINCT c1.name) + collect(DISTINCT c2.name) AS concepts
+                        ORDER BY e.step
+                        RETURN DISTINCT
+                            p.name AS project, 'direct_match' AS concept, 1.0 AS score,
+                            e.summary AS event_summary, e.date AS event_date, person.name AS sender,
+                            CASE WHEN obs IS NOT NULL THEN 'Observation'
+                                 WHEN act IS NOT NULL THEN 'Action'
+                                 ELSE null END AS logic_type,
+                            COALESCE(obs.type, act.type) AS logic_subtype,
+                            COALESCE(obs.description, act.description) AS logic_description,
+                            COALESCE(obs.citation, act.citation) AS logic_citation,
+                            null AS revealed_constraint, null AS addresses_problem,
+                            null AS solution_action
+                    """, search_term=search_term)
+                    return [dict(record) for record in result]
         return self._execute_with_retry(_query)
 
     # ========================================
@@ -1816,6 +1891,8 @@ class Neo4jConnection:
     def search_product_variants(self, search_term: str) -> list[dict]:
         """Search ProductVariant nodes by name, family, or ID.
 
+        Uses fulltext index for fast case-insensitive substring matching.
+
         Args:
             search_term: The search query (matches name, family)
 
@@ -1824,39 +1901,74 @@ class Neo4jConnection:
         """
         def _query():
             driver = self.connect()
+            # Escape special Lucene characters and prepare wildcard search
+            safe_term = search_term.replace("~", "\\~").replace("*", "\\*").replace("?", "\\?")
+            wildcard_term = f"*{safe_term}*"
+
             with driver.session(database=self.database) as session:
-                result = session.run("""
-                    MATCH (pv:ProductVariant)
-                    WHERE toLower(pv.name) CONTAINS toLower($term)
-                       OR toLower(pv.family) CONTAINS toLower($term)
-                    OPTIONAL MATCH (pv)-[:ACCEPTS_CARTRIDGE]->(fc:FilterCartridge)
-                    OPTIONAL MATCH (pv)-[:ACCEPTS_FILTER]->(fcons:FilterConsumable)
-                    OPTIONAL MATCH (pv)-[:IS_CATEGORY]->(cat:Category)
-                    RETURN pv.name AS id,
-                           pv.family AS family,
-                           pv.width_mm AS width_mm,
-                           pv.height_mm AS height_mm,
-                           pv.depth_mm AS depth_mm,
-                           pv.airflow_m3h AS airflow_m3h,
-                           pv.weight_kg AS weight_kg,
-                           pv.price AS price,
-                           pv.available_options AS available_options,
-                           pv.options_json AS options_json,
-                           pv.available_materials AS available_materials,
-                           pv.compatible_duct_diameters_mm AS compatible_duct_diameters_mm,
-                           pv.cartridge_count AS cartridge_count,
-                           pv.is_insulated AS is_insulated,
-                           pv.special_features AS special_features,
-                           pv.length_min_mm AS length_min_mm,
-                           pv.length_max_mm AS length_max_mm,
-                           pv.reference_airflow_m3h AS reference_airflow_m3h,
-                           pv.standard_length_mm AS standard_length_mm,
-                           pv.available_depths_mm AS available_depths_mm,
-                           collect(DISTINCT fc.model_name) AS compatible_cartridges,
-                           collect(DISTINCT fcons.part_number) AS compatible_filters,
-                           collect(DISTINCT {type: cat.type, value: cat.name}) AS categories
-                    LIMIT 10
-                """, term=search_term)
+                try:
+                    # Use fulltext index for fast search
+                    result = session.run("""
+                        CALL db.index.fulltext.queryNodes("product_variant_fulltext", $term)
+                        YIELD node AS pv, score
+                        OPTIONAL MATCH (pv)-[:ACCEPTS_CARTRIDGE]->(fc:FilterCartridge)
+                        OPTIONAL MATCH (pv)-[:ACCEPTS_FILTER]->(fcons:FilterConsumable)
+                        OPTIONAL MATCH (pv)-[:IS_CATEGORY]->(cat:Category)
+                        RETURN pv.name AS id,
+                               pv.family AS family,
+                               pv.width_mm AS width_mm,
+                               pv.height_mm AS height_mm,
+                               pv.depth_mm AS depth_mm,
+                               pv.airflow_m3h AS airflow_m3h,
+                               pv.weight_kg AS weight_kg,
+                               pv.price AS price,
+                               pv.available_options AS available_options,
+                               pv.options_json AS options_json,
+                               pv.available_materials AS available_materials,
+                               pv.compatible_duct_diameters_mm AS compatible_duct_diameters_mm,
+                               pv.cartridge_count AS cartridge_count,
+                               pv.is_insulated AS is_insulated,
+                               pv.special_features AS special_features,
+                               pv.length_min_mm AS length_min_mm,
+                               pv.length_max_mm AS length_max_mm,
+                               pv.reference_airflow_m3h AS reference_airflow_m3h,
+                               pv.standard_length_mm AS standard_length_mm,
+                               pv.available_depths_mm AS available_depths_mm,
+                               collect(DISTINCT fc.model_name) AS compatible_cartridges,
+                               collect(DISTINCT fcons.part_number) AS compatible_filters,
+                               collect(DISTINCT {type: cat.type, value: cat.name}) AS categories
+                        ORDER BY score DESC
+                        LIMIT 10
+                    """, term=wildcard_term)
+                except Exception:
+                    # Fallback to old query if fulltext index doesn't exist
+                    result = session.run("""
+                        MATCH (pv:ProductVariant)
+                        WHERE toLower(pv.name) CONTAINS toLower($term)
+                           OR toLower(pv.family) CONTAINS toLower($term)
+                        OPTIONAL MATCH (pv)-[:ACCEPTS_CARTRIDGE]->(fc:FilterCartridge)
+                        OPTIONAL MATCH (pv)-[:ACCEPTS_FILTER]->(fcons:FilterConsumable)
+                        OPTIONAL MATCH (pv)-[:IS_CATEGORY]->(cat:Category)
+                        RETURN pv.name AS id, pv.family AS family,
+                               pv.width_mm AS width_mm, pv.height_mm AS height_mm,
+                               pv.depth_mm AS depth_mm, pv.airflow_m3h AS airflow_m3h,
+                               pv.weight_kg AS weight_kg, pv.price AS price,
+                               pv.available_options AS available_options,
+                               pv.options_json AS options_json,
+                               pv.available_materials AS available_materials,
+                               pv.compatible_duct_diameters_mm AS compatible_duct_diameters_mm,
+                               pv.cartridge_count AS cartridge_count,
+                               pv.is_insulated AS is_insulated,
+                               pv.special_features AS special_features,
+                               pv.length_min_mm AS length_min_mm, pv.length_max_mm AS length_max_mm,
+                               pv.reference_airflow_m3h AS reference_airflow_m3h,
+                               pv.standard_length_mm AS standard_length_mm,
+                               pv.available_depths_mm AS available_depths_mm,
+                               collect(DISTINCT fc.model_name) AS compatible_cartridges,
+                               collect(DISTINCT fcons.part_number) AS compatible_filters,
+                               collect(DISTINCT {type: cat.type, value: cat.name}) AS categories
+                        LIMIT 10
+                    """, term=search_term)
                 results = []
                 for record in result:
                     data = dict(record)
@@ -1952,6 +2064,7 @@ class Neo4jConnection:
         """Comprehensive search across Configuration Graph entities.
 
         Searches ProductVariants, FilterCartridges, FilterConsumables, MaterialSpecifications, and options.
+        Uses fulltext indexes for fast case-insensitive substring matching.
 
         Args:
             query: The search query
@@ -1969,85 +2082,147 @@ class Neo4jConnection:
                 "option_matches": []
             }
 
+            # Escape special Lucene characters and prepare fuzzy search term
+            search_term = query.replace("~", "\\~").replace("*", "\\*").replace("?", "\\?")
+            # Use wildcards for substring matching
+            wildcard_term = f"*{search_term}*"
+
             with driver.session(database=self.database) as session:
-                # Search ProductVariants by name/family
-                pv_result = session.run("""
-                    MATCH (pv:ProductVariant)
-                    WHERE toLower(pv.name) CONTAINS toLower($term)
-                       OR toLower(pv.family) CONTAINS toLower($term)
-                    RETURN pv.name AS id,
-                           pv.family AS family,
-                           pv.width_mm AS width_mm,
-                           pv.height_mm AS height_mm,
-                           pv.available_options AS available_options,
-                           pv.options_json AS options_json,
-                           pv.available_materials AS available_materials,
-                           pv.cartridge_count AS cartridge_count,
-                           pv.is_insulated AS is_insulated,
-                           pv.special_features AS special_features,
-                           pv.length_min_mm AS length_min_mm,
-                           pv.length_max_mm AS length_max_mm,
-                           pv.reference_airflow_m3h AS reference_airflow_m3h,
-                           pv.standard_length_mm AS standard_length_mm,
-                           pv.available_depths_mm AS available_depths_mm
-                    LIMIT 5
-                """, term=query)
-                results["variants"] = [dict(r) for r in pv_result]
+                # Search ProductVariants using fulltext index (was 1.5s per query, now ~50ms)
+                try:
+                    pv_result = session.run("""
+                        CALL db.index.fulltext.queryNodes("product_variant_fulltext", $term)
+                        YIELD node AS pv, score
+                        RETURN pv.name AS id,
+                               pv.family AS family,
+                               pv.width_mm AS width_mm,
+                               pv.height_mm AS height_mm,
+                               pv.available_options AS available_options,
+                               pv.options_json AS options_json,
+                               pv.available_materials AS available_materials,
+                               pv.cartridge_count AS cartridge_count,
+                               pv.is_insulated AS is_insulated,
+                               pv.special_features AS special_features,
+                               pv.length_min_mm AS length_min_mm,
+                               pv.length_max_mm AS length_max_mm,
+                               pv.reference_airflow_m3h AS reference_airflow_m3h,
+                               pv.standard_length_mm AS standard_length_mm,
+                               pv.available_depths_mm AS available_depths_mm,
+                               score
+                        ORDER BY score DESC
+                        LIMIT 5
+                    """, term=wildcard_term)
+                    results["variants"] = [dict(r) for r in pv_result]
+                except Exception:
+                    # Fallback to old query if fulltext index doesn't exist
+                    pv_result = session.run("""
+                        MATCH (pv:ProductVariant)
+                        WHERE toLower(pv.name) CONTAINS toLower($term)
+                           OR toLower(pv.family) CONTAINS toLower($term)
+                        RETURN pv.name AS id, pv.family AS family,
+                               pv.width_mm AS width_mm, pv.height_mm AS height_mm,
+                               pv.available_options AS available_options,
+                               pv.options_json AS options_json,
+                               pv.available_materials AS available_materials,
+                               pv.cartridge_count AS cartridge_count,
+                               pv.is_insulated AS is_insulated,
+                               pv.special_features AS special_features,
+                               pv.length_min_mm AS length_min_mm,
+                               pv.length_max_mm AS length_max_mm,
+                               pv.reference_airflow_m3h AS reference_airflow_m3h,
+                               pv.standard_length_mm AS standard_length_mm,
+                               pv.available_depths_mm AS available_depths_mm
+                        LIMIT 5
+                    """, term=query)
+                    results["variants"] = [dict(r) for r in pv_result]
 
-                # Search FilterCartridges
-                fc_result = session.run("""
-                    MATCH (fc:FilterCartridge)
-                    WHERE toLower(fc.model_name) CONTAINS toLower($term)
-                       OR toLower(fc.name) CONTAINS toLower($term)
-                    RETURN fc.name AS id,
-                           fc.model_name AS model_name,
-                           fc.weight_kg AS weight_kg,
-                           fc.media_type AS media_type
-                    LIMIT 5
-                """, term=query)
-                results["cartridges"] = [dict(r) for r in fc_result]
+                # Search FilterCartridges using fulltext index
+                try:
+                    fc_result = session.run("""
+                        CALL db.index.fulltext.queryNodes("filter_cartridge_fulltext", $term)
+                        YIELD node AS fc, score
+                        RETURN fc.name AS id,
+                               fc.model_name AS model_name,
+                               fc.weight_kg AS weight_kg,
+                               fc.media_type AS media_type,
+                               score
+                        ORDER BY score DESC
+                        LIMIT 5
+                    """, term=wildcard_term)
+                    results["cartridges"] = [dict(r) for r in fc_result]
+                except Exception:
+                    fc_result = session.run("""
+                        MATCH (fc:FilterCartridge)
+                        WHERE toLower(fc.model_name) CONTAINS toLower($term)
+                           OR toLower(fc.name) CONTAINS toLower($term)
+                        RETURN fc.name AS id, fc.model_name AS model_name,
+                               fc.weight_kg AS weight_kg, fc.media_type AS media_type
+                        LIMIT 5
+                    """, term=query)
+                    results["cartridges"] = [dict(r) for r in fc_result]
 
-                # Search FilterConsumables by part number or model
-                fcons_result = session.run("""
-                    MATCH (f:FilterConsumable)
-                    WHERE toLower(f.part_number) CONTAINS toLower($term)
-                       OR toLower(f.model_name) CONTAINS toLower($term)
-                       OR toLower(f.filter_type) CONTAINS toLower($term)
-                    RETURN f.name AS id,
-                           f.part_number AS part_number,
-                           f.model_name AS model_name,
-                           f.filter_type AS filter_type,
-                           f.weight_kg AS weight_kg
-                    LIMIT 5
-                """, term=query)
-                results["filters"] = [dict(r) for r in fcons_result]
+                # Search FilterConsumables using fulltext index
+                try:
+                    fcons_result = session.run("""
+                        CALL db.index.fulltext.queryNodes("filter_consumable_fulltext", $term)
+                        YIELD node AS f, score
+                        RETURN f.name AS id,
+                               f.part_number AS part_number,
+                               f.model_name AS model_name,
+                               f.filter_type AS filter_type,
+                               f.weight_kg AS weight_kg,
+                               score
+                        ORDER BY score DESC
+                        LIMIT 5
+                    """, term=wildcard_term)
+                    results["filters"] = [dict(r) for r in fcons_result]
+                except Exception:
+                    fcons_result = session.run("""
+                        MATCH (f:FilterConsumable)
+                        WHERE toLower(f.part_number) CONTAINS toLower($term)
+                           OR toLower(f.model_name) CONTAINS toLower($term)
+                           OR toLower(f.filter_type) CONTAINS toLower($term)
+                        RETURN f.name AS id, f.part_number AS part_number,
+                               f.model_name AS model_name, f.filter_type AS filter_type,
+                               f.weight_kg AS weight_kg
+                        LIMIT 5
+                    """, term=query)
+                    results["filters"] = [dict(r) for r in fcons_result]
 
-                # Search MaterialSpecifications by code, name, or corrosion class
-                mat_result = session.run("""
-                    MATCH (m:MaterialSpecification)
-                    WHERE toLower(m.code) CONTAINS toLower($term)
-                       OR toLower(m.full_name) CONTAINS toLower($term)
-                       OR toLower(m.name) CONTAINS toLower($term)
-                       OR toLower(m.description) CONTAINS toLower($term)
-                    RETURN m.code AS code,
-                           m.full_name AS full_name,
-                           m.corrosion_class AS corrosion_class,
-                           m.description AS description
-                    LIMIT 5
-                """, term=query)
-                results["materials"] = [dict(r) for r in mat_result]
+                # Search MaterialSpecifications using fulltext index
+                try:
+                    mat_result = session.run("""
+                        CALL db.index.fulltext.queryNodes("material_spec_fulltext", $term)
+                        YIELD node AS m, score
+                        RETURN m.code AS code,
+                               m.full_name AS full_name,
+                               m.corrosion_class AS corrosion_class,
+                               m.description AS description,
+                               score
+                        ORDER BY score DESC
+                        LIMIT 5
+                    """, term=wildcard_term)
+                    results["materials"] = [dict(r) for r in mat_result]
+                except Exception:
+                    mat_result = session.run("""
+                        MATCH (m:MaterialSpecification)
+                        WHERE toLower(m.code) CONTAINS toLower($term)
+                           OR toLower(m.full_name) CONTAINS toLower($term)
+                           OR toLower(m.name) CONTAINS toLower($term)
+                           OR toLower(m.description) CONTAINS toLower($term)
+                        RETURN m.code AS code, m.full_name AS full_name,
+                               m.corrosion_class AS corrosion_class, m.description AS description
+                        LIMIT 5
+                    """, term=query)
+                    results["materials"] = [dict(r) for r in mat_result]
 
-                # Search for options containing the term
-                opt_result = session.run("""
-                    MATCH (pv:ProductVariant)
-                    WHERE pv.options_json IS NOT NULL
-                      AND toLower(pv.options_json) CONTAINS toLower($term)
-                    RETURN pv.name AS variant_id,
-                           pv.family AS family,
-                           pv.options_json AS options_json
-                    LIMIT 10
-                """, term=query)
-                results["option_matches"] = [dict(r) for r in opt_result]
+                # Option matches already covered by product_variant_fulltext (options_json is indexed)
+                # Just filter results that matched on options_json
+                results["option_matches"] = [
+                    {"variant_id": v["id"], "family": v["family"], "options_json": v["options_json"]}
+                    for v in results["variants"]
+                    if v.get("options_json") and query.lower() in v.get("options_json", "").lower()
+                ]
 
             return results
         return self._execute_with_retry(_query)
@@ -2191,16 +2366,7 @@ class Neo4jConnection:
         def _query():
             driver = self.connect()
             with driver.session(database=self.database) as session:
-                # First check if the index exists
-                index_check = session.run("""
-                    SHOW INDEXES WHERE name = $index_name
-                    RETURN count(*) AS count
-                """, index_name=self.LEARNED_RULES_INDEX)
-
-                if index_check.single()["count"] == 0:
-                    return []  # No index, no rules
-
-                # Vector search for similar keywords
+                # Vector search for similar keywords (skip if index doesn't exist)
                 result = session.run("""
                     CALL db.index.vector.queryNodes($index_name, $top_k, $embedding)
                     YIELD node AS keyword, score
@@ -2304,6 +2470,2784 @@ class Neo4jConnection:
                 return result.single() is not None
 
         return self._execute_with_retry(_query)
+
+    # =========================================================================
+    # GRAPH REASONING ENGINE - Layer 2/3 Query Methods
+    # =========================================================================
+    # These methods support the GraphReasoningEngine for graph-native rule evaluation
+
+    def get_all_applications(self) -> list[dict]:
+        """Get all Application nodes from the Domain layer.
+
+        Returns:
+            List of Application nodes with their properties, risks, and requirements
+
+        Note: Results are cached for 5 minutes to reduce query overhead.
+        """
+        # Check cache first
+        cached = _get_cached("all_applications")
+        if cached is not None:
+            return cached
+
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (app:Application)
+                    OPTIONAL MATCH (app)-[:HAS_RISK]->(risk:Risk)
+                    OPTIONAL MATCH (app)-[:REQUIRES_RESISTANCE]->(req:Requirement)
+                    WITH app,
+                         collect(DISTINCT {id: risk.id, name: risk.name, severity: risk.severity, desc: risk.desc}) AS risks,
+                         collect(DISTINCT {id: req.id, name: req.name, desc: req.desc}) AS requirements
+                    RETURN app.id AS id,
+                           app.name AS name,
+                           app.keywords AS keywords,
+                           [r IN risks WHERE r.id IS NOT NULL] AS risks,
+                           [r IN requirements WHERE r.id IS NOT NULL] AS requirements
+                    ORDER BY app.name
+                """)
+                return [dict(record) for record in result]
+
+        result = self._execute_with_retry(_query)
+        _set_cached("all_applications", result)
+        return result
+
+    def match_application_by_keywords(self, keywords: list[str]) -> Optional[dict]:
+        """Find an Application node matching any of the provided keywords.
+
+        Searches both the application name and keywords array.
+
+        Args:
+            keywords: List of keywords to match against
+
+        Returns:
+            First matching Application dict or None
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                # Search for application where name or any keyword matches
+                result = session.run("""
+                    MATCH (app:Application)
+                    WHERE toLower(app.name) IN $keywords
+                       OR ANY(kw IN app.keywords WHERE toLower(kw) IN $keywords)
+                    OPTIONAL MATCH (app)-[:HAS_RISK]->(risk:Risk)
+                    OPTIONAL MATCH (app)-[:REQUIRES_RESISTANCE]->(req:Requirement)
+                    WITH app,
+                         collect(DISTINCT {id: risk.id, name: risk.name, severity: risk.severity}) AS risks,
+                         collect(DISTINCT {id: req.id, name: req.name}) AS requirements
+                    RETURN app.id AS id,
+                           app.name AS name,
+                           app.keywords AS keywords,
+                           [r IN risks WHERE r.id IS NOT NULL] AS risks,
+                           [r IN requirements WHERE r.id IS NOT NULL] AS requirements
+                    LIMIT 1
+                """, keywords=[k.lower() for k in keywords])
+                record = result.single()
+                return dict(record) if record else None
+
+        return self._execute_with_retry(_query)
+
+    def vector_search_applications(
+        self,
+        query_embedding: list[float],
+        top_k: int = 3,
+        min_score: float = 0.75
+    ) -> list[dict]:
+        """Perform vector similarity search on Application nodes.
+
+        This is the fallback for hybrid search when keyword matching fails.
+        Finds semantically similar applications (e.g., "Surgery Center" -> "Hospital").
+
+        Args:
+            query_embedding: The query embedding vector (3072 dimensions)
+            top_k: Maximum number of results to return
+            min_score: Minimum cosine similarity score (0.0-1.0)
+
+        Returns:
+            List of matching Application dicts with similarity scores
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    // Vector similarity search on Application embeddings
+                    CALL db.index.vector.queryNodes('application_embeddings', $top_k, $embedding)
+                    YIELD node AS app, score
+                    WHERE score >= $min_score
+
+                    // Get associated risks and requirements
+                    OPTIONAL MATCH (app)-[:HAS_RISK]->(risk:Risk)
+                    OPTIONAL MATCH (app)-[:REQUIRES_RESISTANCE]->(req:Requirement)
+
+                    WITH app, score,
+                         collect(DISTINCT {id: risk.id, name: risk.name, severity: risk.severity, desc: risk.desc}) AS risks,
+                         collect(DISTINCT {id: req.id, name: req.name, desc: req.desc}) AS requirements
+
+                    RETURN app.id AS id,
+                           app.name AS name,
+                           app.keywords AS keywords,
+                           score AS similarity_score,
+                           [r IN risks WHERE r.id IS NOT NULL] AS risks,
+                           [r IN requirements WHERE r.id IS NOT NULL] AS requirements
+                    ORDER BY score DESC
+                """, embedding=query_embedding, top_k=top_k, min_score=min_score)
+                return [dict(record) for record in result]
+
+        try:
+            return self._execute_with_retry(_query)
+        except Exception as e:
+            # Graceful degradation if vector index doesn't exist
+            error_msg = str(e).lower()
+            if "index" in error_msg or "vector" in error_msg:
+                print(f"Warning: Vector search unavailable (index may not exist): {e}")
+                return []
+            raise
+
+    def get_material_requirements(self, application_name: str) -> list[dict]:
+        """Get material requirements for an application via REQUIRES_MATERIAL relationships.
+
+        Traverses (Application)-[:REQUIRES_MATERIAL]->(Material) to find
+        which materials are required for the specified application.
+
+        Args:
+            application_name: Name of the Application node
+
+        Returns:
+            List of required materials with their properties
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (app:Application)
+                    WHERE app.name = $app_name OR app.id = $app_name
+                    MATCH (app)-[r:REQUIRES_MATERIAL]->(mat:Material)
+                    RETURN mat.code AS material_code,
+                           mat.name AS material_name,
+                           mat.corrosion_class AS corrosion_class,
+                           r.reason AS reason
+                    ORDER BY mat.corrosion_class DESC
+                """, app_name=application_name)
+                return [dict(record) for record in result]
+
+        return self._execute_with_retry(_query)
+
+    def get_application_requirements(self, application_id: str) -> list[dict]:
+        """Get requirements for an application via REQUIRES_RESISTANCE relationships.
+
+        Args:
+            application_id: ID of the Application node
+
+        Returns:
+            List of requirements (corrosion classes, regulations)
+
+        Note: Results are cached for 5 minutes per application.
+        """
+        cache_key = f"app_requirements_{application_id}"
+        cached = _get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (app:Application)
+                    WHERE app.id = $app_id OR app.name = $app_id
+                    OPTIONAL MATCH (app)-[:REQUIRES_RESISTANCE]->(req:Requirement)
+                    OPTIONAL MATCH (app)-[:REQUIRES_COMPLIANCE]->(reg:Regulation)
+                    WITH collect(DISTINCT {id: req.id, name: req.name, desc: req.desc, type: 'Requirement'}) AS reqs,
+                         collect(DISTINCT {id: reg.id, name: reg.name, desc: reg.desc, type: 'Regulation'}) AS regs
+                    RETURN [r IN reqs WHERE r.id IS NOT NULL] + [r IN regs WHERE r.id IS NOT NULL] AS requirements
+                """, app_id=application_id)
+                record = result.single()
+                return record['requirements'] if record else []
+
+        result = self._execute_with_retry(_query)
+        _set_cached(cache_key, result)
+        return result
+
+    def get_materials_meeting_requirements(self, application_id: str) -> list[dict]:
+        """Get materials that meet an application's requirements.
+
+        Traverses (Application)-[:REQUIRES_RESISTANCE]->(Requirement)<-[:MEETS_REQUIREMENT]-(Material)
+
+        Args:
+            application_id: ID of the Application node
+
+        Returns:
+            List of suitable materials
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (app:Application)
+                    WHERE app.id = $app_id OR app.name = $app_id
+                    MATCH (app)-[:REQUIRES_RESISTANCE]->(req:Requirement)<-[:MEETS_REQUIREMENT]-(mat:Material)
+                    RETURN DISTINCT
+                           mat.id AS id,
+                           mat.code AS code,
+                           mat.name AS name,
+                           mat.corrosion_class AS corrosion_class,
+                           req.name AS requirement_name
+                    ORDER BY mat.corrosion_class DESC
+                """, app_id=application_id)
+                return [dict(record) for record in result]
+
+        return self._execute_with_retry(_query)
+
+    def get_application_generated_substances(self, application_id: str) -> list[dict]:
+        """Get substances generated by an application via GENERATES relationships.
+
+        Args:
+            application_id: ID of the Application node
+
+        Returns:
+            List of generated substances
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (app:Application)
+                    WHERE app.id = $app_id OR app.name = $app_id
+                    MATCH (app)-[:GENERATES]->(sub:Substance)
+                    RETURN sub.id AS id,
+                           sub.name AS name
+                """, app_id=application_id)
+                return [dict(record) for record in result]
+
+        return self._execute_with_retry(_query)
+
+    def get_application_risks(self, application_id: str) -> list[dict]:
+        """Get risks associated with an application via HAS_RISK relationships.
+
+        Args:
+            application_id: ID of the Application node
+
+        Returns:
+            List of risks
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (app:Application)
+                    WHERE app.id = $app_id OR app.name = $app_id
+                    MATCH (app)-[:HAS_RISK]->(risk:Risk)
+                    RETURN risk.id AS id,
+                           risk.name AS name,
+                           risk.severity AS severity,
+                           risk.desc AS desc
+                """, app_id=application_id)
+                return [dict(record) for record in result]
+
+        return self._execute_with_retry(_query)
+
+    def get_product_vulnerabilities(self, product_family: str) -> list[dict]:
+        """Get vulnerabilities for a product family via VULNERABLE_TO and PRONE_TO relationships.
+
+        Traverses ProductFamily to find what substances/risks the product is susceptible to.
+
+        Args:
+            product_family: Product family code (e.g., 'GDB', 'GDC')
+
+        Returns:
+            List of vulnerabilities with consequences and mitigations
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                # Get vulnerabilities to substances and risks
+                result = session.run("""
+                    MATCH (pf:ProductFamily)
+                    WHERE pf.id = 'FAM_' + $family OR pf.name CONTAINS $family
+                    OPTIONAL MATCH (pf)-[r1:VULNERABLE_TO]->(target)
+                    OPTIONAL MATCH (pf)-[r2:PRONE_TO]->(risk:Risk)
+                    WITH pf,
+                         collect(DISTINCT {
+                             target_id: target.id,
+                             target_name: target.name,
+                             reason: r1.reason,
+                             type: labels(target)[0]
+                         }) AS vulnerabilities,
+                         collect(DISTINCT {
+                             risk_id: risk.id,
+                             risk_name: risk.name,
+                             severity: risk.severity,
+                             desc: risk.desc
+                         }) AS prone_risks
+                    RETURN pf.name AS product_family,
+                           [v IN vulnerabilities WHERE v.target_id IS NOT NULL] AS vulnerabilities,
+                           [r IN prone_risks WHERE r.risk_id IS NOT NULL] AS prone_risks
+                """, family=product_family)
+                record = result.single()
+                if not record:
+                    return []
+
+                # Combine vulnerabilities and prone_risks
+                all_vulns = []
+                for v in record['vulnerabilities']:
+                    all_vulns.append({
+                        'product_family': record['product_family'],
+                        'target_id': v['target_id'],
+                        'target_name': v['target_name'],
+                        'reason': v['reason'],
+                        'type': v['type']
+                    })
+                for r in record['prone_risks']:
+                    all_vulns.append({
+                        'product_family': record['product_family'],
+                        'risk_id': r['risk_id'],
+                        'risk_name': r['risk_name'],
+                        'severity': r['severity'],
+                        'target_name': r['risk_name'],
+                        'reason': r['desc']
+                    })
+                return all_vulns
+
+        return self._execute_with_retry(_query)
+
+    def get_application_generated_risks(self, application_name: str) -> list[dict]:
+        """Get risks generated by an application via GENERATES relationships.
+
+        Traverses (Application)-[:GENERATES]->(Substance/Risk) to find what
+        is generated by the specified application environment.
+
+        Args:
+            application_name: Name or ID of the Application node
+
+        Returns:
+            List of generated substances/risks
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (app:Application)
+                    WHERE app.name = $app_name OR app.id = $app_name
+                    OPTIONAL MATCH (app)-[:GENERATES]->(sub:Substance)
+                    OPTIONAL MATCH (app)-[:HAS_RISK]->(risk:Risk)
+                    WITH collect(DISTINCT {id: sub.id, name: sub.name, type: 'Substance'}) AS substances,
+                         collect(DISTINCT {id: risk.id, name: risk.name, severity: risk.severity, type: 'Risk'}) AS risks
+                    RETURN [s IN substances WHERE s.id IS NOT NULL] + [r IN risks WHERE r.id IS NOT NULL] AS generated
+                """, app_name=application_name)
+                record = result.single()
+                return record['generated'] if record else []
+
+        return self._execute_with_retry(_query)
+
+    def get_risk_mitigations(self, risk_id: str) -> list[dict]:
+        """Get solutions that mitigate a specific risk via MITIGATED_BY relationships.
+
+        Traverses (Risk)-[:MITIGATED_BY]->(Solution) to find solutions
+        that can address the specified risk.
+
+        Args:
+            risk_id: ID or name of the Risk node
+
+        Returns:
+            List of solutions with descriptions
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (risk:Risk)-[:MITIGATED_BY]->(sol:Solution)
+                    WHERE risk.id = $risk_id OR risk.name = $risk_id
+                    RETURN sol.id AS id,
+                           sol.name AS name,
+                           sol.desc AS description
+                """, risk_id=risk_id)
+                return [dict(record) for record in result]
+
+        return self._execute_with_retry(_query)
+
+    def check_outdoor_suitability(self, product_family: str) -> Optional[dict]:
+        """Check if a product is suitable for outdoor installation.
+
+        Checks for VULNERABLE_TO condensation risk and SUITABLE_FOR outdoor env.
+
+        Args:
+            product_family: Product family code (e.g., 'GDB', 'GDC')
+
+        Returns:
+            Dict with suitability info or None
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (pf:ProductFamily)
+                    WHERE pf.id = 'FAM_' + $family OR pf.name CONTAINS $family
+                    OPTIONAL MATCH (pf)-[:VULNERABLE_TO]->(cond_risk:Risk {id: 'RISK_COND'})
+                    OPTIONAL MATCH (pf)-[:PROTECTS_AGAINST]->(cond_risk2:Risk {id: 'RISK_COND'})
+                    OPTIONAL MATCH (pf)-[:SUITABLE_FOR]->(env:Environment {id: 'ENV_OUTDOOR'})
+                    RETURN pf.name AS product_family,
+                           cond_risk IS NOT NULL AS has_condensation_risk,
+                           cond_risk2 IS NOT NULL AS protects_against_condensation,
+                           env IS NOT NULL AS suitable_for_outdoor
+                """, family=product_family)
+                record = result.single()
+                return dict(record) if record else None
+
+        return self._execute_with_retry(_query)
+
+    def get_variable_features(self, product_family: str) -> list[dict]:
+        """Get variable features that require user selection for a product family.
+
+        Queries the graph for features marked as 'is_variable: true' that
+        require user input before a final product configuration can be made.
+
+        This enables the "Variance Check Loop" - the system must ask about
+        ALL variable features before giving a final answer.
+
+        Args:
+            product_family: Product family code (e.g., 'GDB', 'GDMI')
+
+        Returns:
+            List of variable features with their options and questions
+
+        Note: Results are cached for 5 minutes per product family.
+        """
+        # Check cache first
+        cache_key = f"variable_features_{product_family}"
+        cached = _get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (pf:ProductFamily)-[:HAS_VARIABLE_FEATURE]->(f:VariableFeature {is_variable: true})
+                    WHERE pf.id = 'FAM_' + $family
+                       OR pf.name CONTAINS $family
+                       OR f.applies_to = $family
+
+                    OPTIONAL MATCH (f)-[:SELECTION_DEPENDS_ON]->(d:Discriminator)
+                    OPTIONAL MATCH (f)-[:HAS_OPTION]->(o:FeatureOption)
+
+                    WITH f, d, collect({
+                        id: o.id,
+                        name: o.name,
+                        value: o.value,
+                        description: o.description,
+                        is_default: o.is_default,
+                        // Enhanced UX fields
+                        display_label: o.display_label,
+                        benefit: o.benefit,
+                        use_case: o.use_case,
+                        is_recommended: o.is_recommended
+                    }) AS options
+
+                    RETURN f.id AS feature_id,
+                           COALESCE(f.feature_name, f.name) AS feature_name,
+                           f.description AS feature_description,
+                           COALESCE(f.question, d.question) AS question,
+                           COALESCE(f.why_needed, d.why_needed) AS why_needed,
+                           COALESCE(f.parameter_name, d.parameter_name) AS parameter_name,
+                           [opt IN options WHERE opt.id IS NOT NULL] AS options,
+                           COALESCE(f.auto_resolve, false) AS auto_resolve,
+                           f.default_value AS default_value
+                    ORDER BY f.feature_name
+                """, family=product_family)
+                return [dict(record) for record in result]
+
+        try:
+            result = self._execute_with_retry(_query)
+            _set_cached(cache_key, result)
+            return result
+        except Exception as e:
+            print(f"Warning: Could not get variable features: {e}")
+            return []
+
+    def get_connection_length_offset(self, family_id: str, connection_code: str) -> int:
+        """Get housing length offset for a connection type.
+
+        Flange connections add ~50mm to the base housing length.
+        Returns the offset in mm (0 for PG, 50 for Flange).
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (pf:ProductFamily {id: $fid})-[:HAS_VARIABLE_FEATURE]->
+                          (f:VariableFeature {parameter_name: 'connection_type'})-[:HAS_OPTION]->
+                          (o:FeatureOption {value: $code})
+                    RETURN o.length_offset_mm AS offset
+                """, fid=family_id, code=connection_code)
+                record = result.single()
+                return int(record["offset"]) if record and record["offset"] is not None else 0
+
+        try:
+            return self._execute_with_retry(_query)
+        except Exception as e:
+            print(f"Warning: Could not get connection length offset: {e}")
+            return 0
+
+    def get_available_materials(self, family_id: str) -> list:
+        """Get all materials available for a product family.
+
+        Returns list of dicts with 'id', 'name', 'code' for each linked Material.
+        """
+        cache_key = f"avail_mat_{family_id}"
+        cached = _get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (pf:ProductFamily {id: $fid})-[:AVAILABLE_IN_MATERIAL]->(m:Material)
+                    RETURN m.id AS id, m.name AS name, COALESCE(m.code, m.id) AS code
+                    ORDER BY m.name
+                """, fid=family_id)
+                return [dict(r) for r in result]
+
+        try:
+            materials = self._execute_with_retry(_query)
+            _set_cached(cache_key, materials)
+            return materials
+        except Exception as e:
+            print(f"Warning: Could not get available materials: {e}")
+            return []
+
+    def get_reference_airflow_for_dimensions(self, width_mm: int, height_mm: int) -> dict:
+        """Get reference airflow from DimensionModule node for given housing dimensions.
+
+        Tries both orientations (WxH and HxW) since the graph may store either.
+
+        Returns:
+            Dict with reference_airflow_m3h and label, or empty dict if not found.
+        """
+        cache_key = f"ref_airflow_{width_mm}x{height_mm}"
+        cached = _get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                # Primary: DimensionModule lookup
+                result = session.run("""
+                    MATCH (d:DimensionModule)
+                    WHERE (d.width_mm = $w AND d.height_mm = $h)
+                       OR (d.width_mm = $h AND d.height_mm = $w)
+                    RETURN d.reference_airflow_m3h AS reference_airflow_m3h,
+                           d.label AS label,
+                           d.width_mm AS width_mm,
+                           d.height_mm AS height_mm
+                    LIMIT 1
+                """, w=width_mm, h=height_mm)
+                record = result.single()
+                if record and record.get("reference_airflow_m3h"):
+                    return dict(record)
+
+                # Fallback: ProductVariant with matching dimensions
+                result2 = session.run("""
+                    MATCH (pv:ProductVariant)
+                    WHERE ((pv.width_mm = $w AND pv.height_mm = $h)
+                        OR (pv.width_mm = $h AND pv.height_mm = $w))
+                      AND pv.reference_airflow_m3h IS NOT NULL
+                    RETURN pv.reference_airflow_m3h AS reference_airflow_m3h,
+                           pv.name AS label,
+                           pv.width_mm AS width_mm,
+                           pv.height_mm AS height_mm
+                    ORDER BY pv.reference_airflow_m3h DESC
+                    LIMIT 1
+                """, w=width_mm, h=height_mm)
+                record2 = result2.single()
+                return dict(record2) if record2 else {}
+
+        try:
+            result = self._execute_with_retry(_query)
+            _set_cached(cache_key, result)
+            return result
+        except Exception as e:
+            print(f"Warning: Could not get reference airflow: {e}")
+            return {}
+
+    def get_option_geometric_constraints(
+        self,
+        product_family: str,
+        selected_options: list[str]
+    ) -> list[dict]:
+        """Get geometric constraints for selected options.
+
+        Queries the graph for options that have min_required_housing_length
+        property, which indicates they consume physical space in the housing.
+
+        This enables the "Physical Constraint Validator" - ensuring that
+        options like 'Polis' (which requires 900mm) cannot be fitted into
+        a smaller housing.
+
+        Args:
+            product_family: Product family code (e.g., 'GDC')
+            selected_options: List of option IDs or names to check
+
+        Returns:
+            List of option constraints with their geometric requirements
+        """
+        if not selected_options:
+            return []
+
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                # Query options that have geometric constraints
+                # Matches by option ID, name, or value (case-insensitive)
+                result = session.run("""
+                    MATCH (pf:ProductFamily)-[:HAS_VARIABLE_FEATURE]->(f:VariableFeature)
+                          -[:HAS_OPTION]->(o:FeatureOption)
+                    WHERE (pf.id = 'FAM_' + $family OR pf.name CONTAINS $family)
+                      AND (
+                          toLower(o.id) IN $options_lower
+                          OR toLower(o.name) IN $options_lower
+                          OR toLower(o.value) IN $options_lower
+                      )
+                      AND o.min_required_housing_length IS NOT NULL
+
+                    RETURN DISTINCT o.id AS option_id,
+                           COALESCE(o.name, o.value) AS option_name,
+                           o.min_required_housing_length AS min_required_housing_length,
+                           o.physics_logic AS physics_logic,
+                           f.feature_name AS feature_name,
+                           f.parameter_name AS parameter_name
+                """,
+                    family=product_family,
+                    options_lower=[opt.lower() for opt in selected_options]
+                )
+                return [dict(record) for record in result]
+
+        try:
+            return self._execute_with_retry(_query)
+        except Exception as e:
+            print(f"Warning: Could not get option geometric constraints: {e}")
+            return []
+
+    def get_variant_weight(self, variant_name: str) -> int | None:
+        """Get the weight in kg for a specific product variant.
+
+        Looks up the weight_kg property from the ProductVariant node.
+        This ensures we return VERIFIED data, not hallucinated values.
+
+        Args:
+            variant_name: Variant name like 'GDB-600x600-550'
+
+        Returns:
+            Weight in kg, or None if not found
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (v:ProductVariant)
+                    WHERE v.name = $name OR v.name CONTAINS $name
+                    RETURN v.weight_kg AS weight
+                    LIMIT 1
+                """, name=variant_name)
+                record = result.single()
+                return record["weight"] if record else None
+
+        try:
+            return self._execute_with_retry(_query)
+        except Exception as e:
+            print(f"Warning: Could not get variant weight for {variant_name}: {e}")
+            return None
+
+    def get_product_family_code_format(self, family_id: str):
+        """Get the code_format template and metadata for a product family.
+
+        Returns dict with 'fmt' and 'default_frame_depth' (for GDP-style codes
+        where the length field represents frame depth, not housing length).
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (pf:ProductFamily {id: $fid})
+                    RETURN pf.code_format AS fmt,
+                           pf.default_frame_depth AS default_frame_depth
+                """, fid=family_id)
+                record = result.single()
+                if not record:
+                    return None
+                return {
+                    "fmt": record["fmt"],
+                    "default_frame_depth": record["default_frame_depth"],
+                }
+
+        try:
+            return self._execute_with_retry(_query)
+        except Exception as e:
+            print(f"Warning: Could not get code_format for {family_id}: {e}")
+            return None
+
+    def get_dimension_module_weight(self, width_mm: int, height_mm: int):
+        """Get weight data from DimensionModule graph node for given dimensions."""
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (dm:DimensionModule)
+                    WHERE dm.width_mm = $w AND dm.height_mm = $h
+                    RETURN dm.unit_weight_kg AS unit_weight_kg,
+                           dm.weight_per_mm_length AS weight_per_mm_length,
+                           dm.reference_length_mm AS reference_length_mm
+                    LIMIT 1
+                """, w=width_mm, h=height_mm)
+                record = result.single()
+                if record:
+                    return {
+                        "unit_weight_kg": record["unit_weight_kg"],
+                        "weight_per_mm_length": record["weight_per_mm_length"],
+                        "reference_length_mm": record["reference_length_mm"],
+                    }
+                return None
+
+        try:
+            return self._execute_with_retry(_query)
+        except Exception as e:
+            print(f"Warning: Could not get DimensionModule weight for {width_mm}x{height_mm}: {e}")
+            return None
+
+    def get_clarification_params(self, product_family: str = None) -> list[dict]:
+        """Get clarification parameters from the Playbook layer.
+
+        Retrieves ClarificationParam nodes with their options, optionally
+        filtered by product family.
+
+        Args:
+            product_family: Optional product family to filter applicable params
+
+        Returns:
+            List of clarification parameters sorted by priority
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                if product_family:
+                    # Filter by applicable product family
+                    result = session.run("""
+                        MATCH (param:ClarificationParam)
+                        WHERE 'all' IN param.applies_to OR $family IN param.applies_to
+                        OPTIONAL MATCH (param)-[:HAS_OPTION]->(opt:ParamOption)
+                        WITH param, collect({
+                            value: opt.value,
+                            description: opt.description,
+                            leads_to: opt.leads_to,
+                            implications: opt.implications,
+                            housing_length: opt.housing_length,
+                            is_default: opt.is_default
+                        }) AS options
+                        RETURN param.name AS name,
+                               param.question AS question,
+                               param.why_needed AS why_needed,
+                               param.priority AS priority,
+                               param.applies_to AS applies_to,
+                               [opt IN options WHERE opt.value IS NOT NULL] AS options
+                        ORDER BY param.priority
+                    """, family=product_family)
+                else:
+                    # Get all params
+                    result = session.run("""
+                        MATCH (param:ClarificationParam)
+                        OPTIONAL MATCH (param)-[:HAS_OPTION]->(opt:ParamOption)
+                        WITH param, collect({
+                            value: opt.value,
+                            description: opt.description,
+                            leads_to: opt.leads_to,
+                            implications: opt.implications,
+                            housing_length: opt.housing_length,
+                            is_default: opt.is_default
+                        }) AS options
+                        RETURN param.name AS name,
+                               param.question AS question,
+                               param.why_needed AS why_needed,
+                               param.priority AS priority,
+                               param.applies_to AS applies_to,
+                               [opt IN options WHERE opt.value IS NOT NULL] AS options
+                        ORDER BY param.priority
+                    """)
+                return [dict(record) for record in result]
+
+        return self._execute_with_retry(_query)
+
+    def get_required_parameters(self, product_family: str) -> list[dict]:
+        """Get required parameters for a product family via REQUIRES_PARAMETER relationships.
+
+        Traverses (ProductFamily)-[:REQUIRES_PARAMETER]->(Parameter)-[:ASKED_VIA]->(Question)
+
+        Args:
+            product_family: Product family code (e.g., 'GDB', 'GDC')
+
+        Returns:
+            List of parameters with their questions
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (pf:ProductFamily)-[r:REQUIRES_PARAMETER]->(param:Parameter)
+                    WHERE pf.id = 'FAM_' + $family OR pf.name CONTAINS $family
+                    OPTIONAL MATCH (param)-[:ASKED_VIA]->(q:Question)
+                    RETURN param.id AS param_id,
+                           param.name AS param_name,
+                           param.type AS param_type,
+                           param.unit AS param_unit,
+                           r.reason AS reason,
+                           q.id AS question_id,
+                           q.text AS question_text,
+                           q.intent AS intent,
+                           q.priority AS priority
+                    ORDER BY q.priority
+                """, family=product_family)
+                return [dict(record) for record in result]
+
+        return self._execute_with_retry(_query)
+
+    def get_contextual_clarifications(self, application_id: str, product_family: str = None) -> list[dict]:
+        """Get contextual clarification rules triggered by application context.
+
+        Traverses ClarificationRule nodes that are triggered by the application
+        and optionally apply to the product family.
+
+        Args:
+            application_id: ID of the Application node
+            product_family: Optional product family to filter rules
+
+        Returns:
+            List of parameters demanded by triggered rules
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                if product_family:
+                    result = session.run("""
+                        MATCH (rule:ClarificationRule)-[:TRIGGERED_BY_CONTEXT]->(app:Application)
+                        WHERE app.id = $app_id OR app.name = $app_id
+                        MATCH (rule)-[:APPLIES_TO_PRODUCT]->(pf:ProductFamily)
+                        WHERE pf.id = 'FAM_' + $family OR pf.name CONTAINS $family
+                        MATCH (rule)-[:DEMANDS_PARAMETER]->(param:Parameter)
+                        OPTIONAL MATCH (param)-[:ASKED_VIA]->(q:Question)
+                        RETURN DISTINCT
+                               rule.id AS rule_id,
+                               rule.name AS rule_name,
+                               param.id AS param_id,
+                               param.name AS param_name,
+                               q.id AS question_id,
+                               q.text AS question_text,
+                               q.intent AS intent,
+                               q.priority AS priority
+                        ORDER BY q.priority
+                    """, app_id=application_id, family=product_family)
+                else:
+                    result = session.run("""
+                        MATCH (rule:ClarificationRule)-[:TRIGGERED_BY_CONTEXT]->(app:Application)
+                        WHERE app.id = $app_id OR app.name = $app_id
+                        MATCH (rule)-[:DEMANDS_PARAMETER]->(param:Parameter)
+                        OPTIONAL MATCH (param)-[:ASKED_VIA]->(q:Question)
+                        RETURN DISTINCT
+                               rule.id AS rule_id,
+                               rule.name AS rule_name,
+                               param.id AS param_id,
+                               param.name AS param_name,
+                               q.id AS question_id,
+                               q.text AS question_text,
+                               q.intent AS intent,
+                               q.priority AS priority
+                        ORDER BY q.priority
+                    """, app_id=application_id)
+                return [dict(record) for record in result]
+
+        return self._execute_with_retry(_query)
+
+    def get_risk_strategy(self, risk_id: str) -> Optional[dict]:
+        """Get the strategy triggered by a specific risk.
+
+        Traverses (Risk)-[:TRIGGERS_STRATEGY]->(Strategy)
+
+        Args:
+            risk_id: ID or name of the Risk node
+
+        Returns:
+            Strategy dict with action and instruction, or None
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (risk:Risk)-[:TRIGGERS_STRATEGY]->(strat:Strategy)
+                    WHERE risk.id = $risk_id OR risk.name = $risk_id
+                    RETURN strat.id AS id,
+                           strat.name AS name,
+                           strat.action AS action,
+                           strat.instruction AS instruction
+                """, risk_id=risk_id)
+                record = result.single()
+                return dict(record) if record else None
+
+        return self._execute_with_retry(_query)
+
+    def get_cross_sell_suggestions(self, product_family: str) -> list[dict]:
+        """Get cross-sell suggestions for a product family.
+
+        Traverses (ProductFamily)-[:SUGGESTS_CROSS_SELL]->(Option/Solution)
+
+        Args:
+            product_family: Product family code (e.g., 'GDB', 'GDC')
+
+        Returns:
+            List of suggested cross-sell items with reasons
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (pf:ProductFamily)-[r:SUGGESTS_CROSS_SELL]->(item)
+                    WHERE pf.id = 'FAM_' + $family OR pf.name CONTAINS $family
+                    RETURN item.id AS id,
+                           item.name AS name,
+                           item.type AS type,
+                           item.desc AS description,
+                           r.reason AS reason,
+                           labels(item)[0] AS node_type
+                """, family=product_family)
+                return [dict(record) for record in result]
+
+        return self._execute_with_retry(_query)
+
+    def check_material_suitability(self, application_name: str, material_code: str) -> dict:
+        """Check if a material is suitable for an application.
+
+        Directly queries the graph to see if the material meets the
+        application's requirements.
+
+        Args:
+            application_name: Name of the Application node
+            material_code: Material code to check (e.g., 'FZ', 'RF')
+
+        Returns:
+            Dict with is_suitable bool, required_materials list, and reason
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (app:Application {name: $app_name})
+                    OPTIONAL MATCH (app)-[r:REQUIRES_MATERIAL]->(required_mat:Material)
+                    WITH app, collect({
+                        code: required_mat.code,
+                        name: required_mat.full_name,
+                        reason: r.reason
+                    }) AS required_materials
+
+                    // Check if the requested material is in the required list
+                    WITH app, required_materials,
+                         [mat IN required_materials WHERE mat.code IS NOT NULL] AS valid_materials,
+                         ANY(mat IN required_materials WHERE mat.code = $material_code) AS is_suitable
+
+                    RETURN app.name AS application,
+                           app.criticality AS criticality,
+                           app.concern AS concern,
+                           valid_materials AS required_materials,
+                           is_suitable,
+                           CASE WHEN size(valid_materials) = 0 THEN true ELSE is_suitable END AS final_suitable
+                """, app_name=application_name, material_code=material_code)
+                record = result.single()
+                if record:
+                    return {
+                        "application": record["application"],
+                        "criticality": record["criticality"],
+                        "concern": record["concern"],
+                        "required_materials": record["required_materials"],
+                        "is_suitable": record["final_suitable"],
+                        "checked_material": material_code
+                    }
+                return {"is_suitable": True, "required_materials": []}
+
+        return self._execute_with_retry(_query)
+
+    def get_accessory_compatibility(self, accessory_code: str, product_family: str) -> dict:
+        """Check if an accessory is compatible with a product family.
+
+        Uses the allow-list approach: if there's no HAS_COMPATIBLE_ACCESSORY
+        relationship, the combination is NOT allowed.
+
+        Args:
+            accessory_code: Accessory code or name (e.g., 'EXL', 'L', 'Polis')
+            product_family: Product family code (e.g., 'GDB', 'GDC')
+
+        Returns:
+            Dict with is_compatible bool, reason, and alternative suggestions
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    // Find the accessory by id or name - prefer nodes with proper IDs
+                    MATCH (acc:Accessory)
+                    WHERE acc.id = 'ACC_' + toUpper($acc_code)
+                       OR acc.name = $acc_code
+                       OR toUpper(acc.name) = toUpper($acc_code)
+
+                    // Prioritize accessory with proper ID
+                    WITH acc
+                    ORDER BY CASE WHEN acc.id IS NOT NULL THEN 0 ELSE 1 END
+                    LIMIT 1
+
+                    // Find the product family - prefer exact ID match
+                    MATCH (pf:ProductFamily)
+                    WHERE pf.id = 'FAM_' + toUpper($family)
+                       OR pf.name CONTAINS $family
+
+                    // Prioritize product family with exact ID match
+                    WITH acc, pf
+                    ORDER BY CASE WHEN pf.id = 'FAM_' + toUpper($family) THEN 0 ELSE 1 END
+                    LIMIT 1
+
+                    // Now check relationships for the selected pair
+                    OPTIONAL MATCH (pf)-[compat:HAS_COMPATIBLE_ACCESSORY]->(acc)
+                    OPTIONAL MATCH (pf)-[incompat:INCOMPATIBLE_WITH]->(acc)
+                    OPTIONAL MATCH (pf)-[:HAS_COMPATIBLE_ACCESSORY]->(other_acc:Accessory)
+                    OPTIONAL MATCH (pf)-[:USES_MOUNTING_SYSTEM]->(mount:MountingSystem)
+
+                    RETURN acc.name AS accessory_name,
+                           acc.full_name AS accessory_full_name,
+                           acc.description AS accessory_description,
+                           acc.category AS accessory_category,
+                           pf.name AS product_family,
+                           pf.id AS product_family_id,
+                           compat IS NOT NULL AS is_explicitly_compatible,
+                           compat.note AS compatibility_note,
+                           incompat IS NOT NULL AS is_explicitly_incompatible,
+                           incompat.reason AS incompatibility_reason,
+                           collect(DISTINCT other_acc.name) AS compatible_accessories,
+                           head(collect(DISTINCT mount.name)) AS uses_mounting_system
+                """, acc_code=accessory_code, family=product_family)
+                record = result.single()
+
+                if not record or not record["accessory_name"]:
+                    # Accessory not found in graph
+                    return {
+                        "accessory": accessory_code,
+                        "product_family": product_family,
+                        "is_compatible": None,  # Unknown - not in graph
+                        "status": "UNKNOWN",
+                        "reason": f"Accessory '{accessory_code}' not found in compatibility database"
+                    }
+
+                # STRICT ALLOW-LIST: Must have explicit compatibility OR not be incompatible
+                is_explicitly_compatible = record["is_explicitly_compatible"]
+                is_explicitly_incompatible = record["is_explicitly_incompatible"]
+
+                if is_explicitly_incompatible:
+                    # Blocked with reason
+                    return {
+                        "accessory": record["accessory_name"],
+                        "accessory_full_name": record["accessory_full_name"],
+                        "product_family": record["product_family"],
+                        "is_compatible": False,
+                        "status": "BLOCKED",
+                        "reason": record["incompatibility_reason"],
+                        "compatible_alternatives": record["compatible_accessories"],
+                        "uses_mounting_system": record["uses_mounting_system"]
+                    }
+                elif is_explicitly_compatible:
+                    # Allowed
+                    return {
+                        "accessory": record["accessory_name"],
+                        "accessory_full_name": record["accessory_full_name"],
+                        "product_family": record["product_family"],
+                        "is_compatible": True,
+                        "status": "ALLOWED",
+                        "note": record["compatibility_note"]
+                    }
+                else:
+                    # No relationship found - default to NOT ALLOWED (strict mode)
+                    return {
+                        "accessory": record["accessory_name"],
+                        "accessory_full_name": record["accessory_full_name"],
+                        "product_family": record["product_family"],
+                        "is_compatible": False,
+                        "status": "NOT_ALLOWED",
+                        "reason": f"No compatibility relationship found. {record['accessory_name']} is not listed as compatible with {record['product_family']}.",
+                        "compatible_alternatives": record["compatible_accessories"],
+                        "uses_mounting_system": record["uses_mounting_system"]
+                    }
+
+        return self._execute_with_retry(_query)
+
+    def get_geometric_constraints(self, option_name: str) -> Optional[dict]:
+        """Get geometric constraints for an option.
+
+        Args:
+            option_name: Option name or alias
+
+        Returns:
+            Dict with constraint details or None
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (gc:GeometricConstraint)
+                    WHERE gc.option = $option
+                       OR $option IN gc.aliases
+                    RETURN gc.option AS option,
+                           gc.aliases AS aliases,
+                           gc.min_length_mm AS min_length_mm,
+                           gc.additional_length_mm AS additional_length_mm,
+                           gc.message AS message
+                    LIMIT 1
+                """, option=option_name)
+                record = result.single()
+                return dict(record) if record else None
+
+        return self._execute_with_retry(_query)
+
+    def check_unmitigated_physics_risks(self, product_family: str, environment_id: str = None, environment_keywords: list[str] = None) -> list[dict]:
+        """Check for unmitigated physics-based risks.
+
+        This is the core of the "Mitigation Path Validator":
+        If Environment CAUSES Risk, and Risk is MITIGATED_BY Feature,
+        but Product does NOT have that Feature -> BLOCK.
+
+        This moves physics logic FROM the LLM (unreliable) TO the Graph (authoritative).
+
+        Args:
+            product_family: Product family code (e.g., 'GDB', 'GDMI')
+            environment_id: Optional specific environment ID (e.g., 'ENV_OUTDOOR')
+            environment_keywords: Optional keywords to detect environment from query
+
+        Returns:
+            List of unmitigated risks with physics explanations and safe alternatives
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                # Build environment match condition
+                if environment_id:
+                    env_condition = "env.id = $env_id"
+                elif environment_keywords:
+                    # Match environment by keywords
+                    env_condition = "ANY(kw IN env.keywords WHERE ANY(qkw IN $keywords WHERE toLower(qkw) CONTAINS toLower(kw) OR toLower(kw) CONTAINS toLower(qkw)))"
+                else:
+                    return []
+
+                result = session.run(f"""
+                    // Find the environment context
+                    MATCH (env:Environment)
+                    WHERE {env_condition}
+
+                    // Find risks caused by this environment
+                    MATCH (env)-[causes:CAUSES]->(risk:Risk)
+
+                    // Find the product family
+                    MATCH (prod:ProductFamily)
+                    WHERE prod.id = 'FAM_' + toUpper($product_family)
+                       OR prod.name CONTAINS $product_family
+
+                    // Check if product has mitigation via feature (HAS_FEATURE or INCLUDES_FEATURE)
+                    OPTIONAL MATCH (prod)-[:HAS_FEATURE|INCLUDES_FEATURE]->(feat:Feature)<-[:MITIGATED_BY]-(risk)
+                    OPTIONAL MATCH (prod)-[protects:PROTECTS_AGAINST]->(risk)
+
+                    // Only return if NO mitigation exists (unmitigated risk)
+                    WITH env, causes, risk, prod, feat, protects
+                    WHERE feat IS NULL AND protects IS NULL
+
+                    // Find the required mitigation feature
+                    OPTIONAL MATCH (risk)-[:MITIGATED_BY]->(required_feat:Feature)
+
+                    // Find products that DO have the mitigation (safe alternatives)
+                    OPTIONAL MATCH (safe_prod:ProductFamily)-[:HAS_FEATURE|INCLUDES_FEATURE]->(required_feat)
+                    WHERE safe_prod <> prod
+
+                    RETURN env.id AS environment_id,
+                           env.name AS environment_name,
+                           risk.id AS risk_id,
+                           risk.name AS risk_name,
+                           risk.severity AS risk_severity,
+                           risk.physics_explanation AS physics_explanation,
+                           risk.consequence AS consequence,
+                           risk.user_misconception AS user_misconception,
+                           causes.certainty AS risk_certainty,
+                           required_feat.name AS required_feature,
+                           required_feat.physics_function AS mitigation_mechanism,
+                           collect(DISTINCT safe_prod.name) AS safe_alternatives,
+                           prod.name AS blocked_product
+                """, product_family=product_family,
+                     env_id=environment_id,
+                     keywords=environment_keywords or [])
+
+                return [dict(record) for record in result]
+
+        try:
+            return self._execute_with_retry(_query)
+        except Exception as e:
+            print(f"Warning: Physics risk check failed: {e}")
+            return []
+
+    def get_safe_alternative_for_risk(self, risk_id: str) -> list[dict]:
+        """Get products that can mitigate a specific risk.
+
+        Args:
+            risk_id: Risk ID (e.g., 'RISK_COND')
+
+        Returns:
+            List of products with the required mitigation feature
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (risk:Risk {id: $risk_id})
+                    MATCH (risk)-[:MITIGATED_BY]->(feat:Feature)
+                    MATCH (prod:ProductFamily)-[:HAS_FEATURE]->(feat)
+                    RETURN prod.id AS product_id,
+                           prod.name AS product_name,
+                           feat.name AS has_feature,
+                           feat.physics_function AS mitigation_mechanism
+                """, risk_id=risk_id)
+                return [dict(record) for record in result]
+
+        return self._execute_with_retry(_query)
+
+    def detect_environment_from_keywords(self, keywords: list[str]) -> dict | None:
+        """Detect environment context from query keywords.
+
+        Args:
+            keywords: List of keywords from the query
+
+        Returns:
+            Environment dict if found, None otherwise
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (env:Environment)
+                    WHERE ANY(kw IN env.keywords
+                              WHERE ANY(qkw IN $keywords
+                                        WHERE toLower(qkw) CONTAINS toLower(kw)
+                                           OR toLower(kw) CONTAINS toLower(qkw)))
+                    RETURN env.id AS id,
+                           env.name AS name,
+                           env.keywords AS keywords,
+                           env.description AS description
+                    LIMIT 1
+                """, keywords=keywords)
+                record = result.single()
+                return dict(record) if record else None
+
+        return self._execute_with_retry(_query)
+
+    def get_graph_reasoning_context(self, application_name: str, product_family: str, material_code: str = None) -> dict:
+        """Get complete reasoning context from the graph in a single query.
+
+        This is an optimized method that retrieves all relevant information
+        for reasoning in one database round-trip.
+
+        Args:
+            application_name: Application/environment name
+            product_family: Product family code
+            material_code: Optional requested material
+
+        Returns:
+            Dict with application info, material requirements, vulnerabilities, and mitigations
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    // Get application details
+                    OPTIONAL MATCH (app:Application {name: $app_name})
+
+                    // Get material requirements for the application
+                    OPTIONAL MATCH (app)-[rm:REQUIRES_MATERIAL]->(req_mat:Material)
+                    WITH app, collect(DISTINCT {
+                        code: req_mat.code,
+                        name: req_mat.full_name,
+                        corrosion_class: req_mat.corrosion_class,
+                        reason: rm.reason
+                    }) AS material_requirements
+
+                    // Get risks generated by the application
+                    OPTIONAL MATCH (app)-[gr:GENERATES]->(risk:Risk)
+                    WITH app, material_requirements, collect(DISTINCT {
+                        name: risk.name,
+                        description: risk.description,
+                        severity: risk.severity
+                    }) AS generated_risks
+
+                    // Get product vulnerabilities
+                    OPTIONAL MATCH (pv:ProductVariant)-[vt:VULNERABLE_TO]->(vuln_risk:Risk)
+                    WHERE pv.family = $family
+                    WITH app, material_requirements, generated_risks, collect(DISTINCT {
+                        risk: vuln_risk.name,
+                        consequence: vt.consequence,
+                        mitigation: vt.mitigation
+                    }) AS vulnerabilities
+
+                    // Get products that mitigate risks
+                    OPTIONAL MATCH (mit_pv:ProductVariant)-[mit:MITIGATES]->(mit_risk:Risk)
+                    WHERE mit_risk.name IN [r IN generated_risks | r.name]
+                    WITH app, material_requirements, generated_risks, vulnerabilities,
+                         collect(DISTINCT {
+                             product_family: mit_pv.family,
+                             risk: mit_risk.name,
+                             mechanism: mit.mechanism
+                         }) AS mitigations
+
+                    // Check if requested material is suitable
+                    WITH app, material_requirements, generated_risks, vulnerabilities, mitigations,
+                         CASE WHEN $material IS NOT NULL
+                              THEN ANY(m IN material_requirements WHERE m.code = $material)
+                              ELSE null END AS material_is_suitable
+
+                    RETURN {
+                        application: {
+                            name: app.name,
+                            criticality: app.criticality,
+                            concern: app.concern,
+                            min_corrosion_class: app.min_corrosion_class
+                        },
+                        material_requirements: [m IN material_requirements WHERE m.code IS NOT NULL],
+                        generated_risks: [r IN generated_risks WHERE r.name IS NOT NULL],
+                        product_vulnerabilities: [v IN vulnerabilities WHERE v.risk IS NOT NULL],
+                        available_mitigations: [m IN mitigations WHERE m.product_family IS NOT NULL],
+                        requested_material: $material,
+                        material_suitable: material_is_suitable
+                    } AS context
+                """, app_name=application_name, family=product_family, material=material_code)
+                record = result.single()
+                return record["context"] if record else {}
+
+        return self._execute_with_retry(_query)
+
+    def get_product_family_data_dump(self, product_family: str) -> dict:
+        """THE BIG DATA DUMP: Fetch EVERYTHING related to a product family.
+
+        This method retrieves all variants, materials, maintenance rules, and
+        constraints for a product family in one comprehensive query. The result
+        is meant to be injected directly into the LLM context as GRAPH_DATA.
+
+        This approach moves intelligence FROM Python state management TO the LLM:
+        - LLM has ALL the data it needs in context
+        - No more guessing weights or codes
+        - Ground truth for product selection
+
+        Args:
+            product_family: Product family code (e.g., 'GDB', 'GDMI', 'GDC', 'GDP')
+
+        Returns:
+            Dict with complete product family data:
+            {
+                "family": "GDB",
+                "variants": [
+                    {
+                        "id": "GDB-300x600-550",
+                        "width_mm": 300,
+                        "height_mm": 600,
+                        "length_mm": 550,
+                        "weight_kg": 20,
+                        "airflow_m3h": 2500,
+                        "available_materials": ["FZ", "ZM", "RF", "SF"]
+                    },
+                    ...
+                ],
+                "materials": [
+                    {"code": "FZ", "name": "Galvanized", "corrosion_class": "C3"},
+                    {"code": "RF", "name": "Stainless Steel", "corrosion_class": "C5"},
+                    ...
+                ],
+                "maintenance_rules": [
+                    {"condition": "Hospital", "restriction": "No Zinc (FZ/ZM)", "required": ["RF", "SF"]},
+                    ...
+                ],
+                "sizing_reference": {
+                    "300x300": 850,
+                    "300x600": 2500,
+                    "600x600": 3400,
+                    ...
+                }
+            }
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                # Query 1: Get all variants for this product family
+                variants_result = session.run("""
+                    MATCH (pv:ProductVariant)
+                    WHERE pv.family = $family
+                    RETURN pv.name AS id,
+                           pv.family AS family,
+                           pv.width_mm AS width_mm,
+                           pv.height_mm AS height_mm,
+                           pv.depth_mm AS depth_mm,
+                           pv.length_mm AS length_mm,
+                           pv.weight_kg AS weight_kg,
+                           pv.airflow_m3h AS airflow_m3h,
+                           pv.available_materials AS available_materials,
+                           pv.available_options AS available_options,
+                           pv.price AS price
+                    ORDER BY pv.width_mm, pv.height_mm, pv.depth_mm
+                """, family=product_family)
+                variants = [dict(r) for r in variants_result]
+
+                # Query 2: Get all materials
+                materials_result = session.run("""
+                    MATCH (ms:MaterialSpecification)
+                    RETURN ms.code AS code,
+                           ms.full_name AS name,
+                           ms.corrosion_class AS corrosion_class,
+                           ms.description AS description
+                    ORDER BY ms.corrosion_class DESC
+                """)
+                materials = [dict(r) for r in materials_result]
+
+                # Query 3: Get material restrictions by application/environment
+                restrictions_result = session.run("""
+                    MATCH (app:Application)-[:REQUIRES_MATERIAL]->(mat:Material)
+                    RETURN app.name AS environment,
+                           collect(DISTINCT mat.code) AS required_materials,
+                           app.concern AS reason
+                """)
+                restrictions = [dict(r) for r in restrictions_result]
+
+                # Query 4: Get product vulnerabilities
+                vulnerabilities_result = session.run("""
+                    MATCH (pv:ProductVariant)-[v:VULNERABLE_TO]->(risk:Risk)
+                    WHERE pv.family = $family
+                    RETURN pv.family AS product,
+                           risk.name AS risk,
+                           v.consequence AS consequence,
+                           v.mitigation AS mitigation
+                """, family=product_family)
+                vulnerabilities = [dict(r) for r in vulnerabilities_result]
+
+                # Query 5: Get insulation requirements (for outdoor/condensation risks)
+                insulation_result = session.run("""
+                    MATCH (env:Environment)-[:CAUSES]->(risk:Risk)-[:MITIGATED_BY]->(feat:Feature)
+                    OPTIONAL MATCH (pf:ProductFamily)-[:HAS_FEATURE]->(feat)
+                    RETURN env.name AS environment,
+                           risk.name AS risk,
+                           feat.name AS required_feature,
+                           collect(DISTINCT pf.id) AS products_with_feature
+                """)
+                insulation_rules = [dict(r) for r in insulation_result]
+
+                # Build sizing reference from variants
+                sizing_reference = {}
+                for v in variants:
+                    if v.get('width_mm') and v.get('height_mm'):
+                        size_key = f"{v['width_mm']}x{v['height_mm']}"
+                        if v.get('airflow_m3h') and size_key not in sizing_reference:
+                            sizing_reference[size_key] = v['airflow_m3h']
+
+                # Build weight lookup table
+                weight_table = {}
+                for v in variants:
+                    if v.get('width_mm') and v.get('height_mm') and v.get('weight_kg'):
+                        # Support both depth_mm and length_mm naming conventions
+                        length = v.get('length_mm') or v.get('depth_mm')
+                        if length:
+                            key = f"{v['width_mm']}x{v['height_mm']}x{length}"
+                            weight_table[key] = v['weight_kg']
+
+                # Query 6: Get ProductFamily metadata (corrosion, indoor_only)
+                pf_id = f"FAM_{product_family}" if not product_family.startswith("FAM_") else product_family
+                pf_result = session.run("""
+                    MATCH (pf:ProductFamily {id: $pf_id})
+                    RETURN pf.corrosion_class AS housing_corrosion_class,
+                           pf.indoor_only AS indoor_only,
+                           pf.allowed_environments AS allowed_environments
+                """, pf_id=pf_id)
+                pf_meta = dict(pf_result.single()) if pf_result.peek() else {}
+
+                return {
+                    "family": product_family,
+                    "housing_corrosion_class": pf_meta.get("housing_corrosion_class"),
+                    "indoor_only": pf_meta.get("indoor_only", False),
+                    "variants": variants,
+                    "materials": materials,
+                    "environment_restrictions": restrictions,
+                    "product_vulnerabilities": vulnerabilities,
+                    "insulation_rules": insulation_rules,
+                    "sizing_reference_m3h": sizing_reference,
+                    "weight_table_kg": weight_table,
+                    "_meta": {
+                        "total_variants": len(variants),
+                        "total_materials": len(materials),
+                        "source": "Neo4j Knowledge Graph"
+                    }
+                }
+
+        return self._execute_with_retry(_query)
+
+    def get_full_conversation_context(self, product_family: str, application_name: str = None) -> dict:
+        """Build complete context for LLM-driven reasoning.
+
+        Combines product data dump with application-specific constraints.
+        This is the single source of truth for the LLM.
+
+        Args:
+            product_family: Product family code
+            application_name: Optional detected application/environment
+
+        Returns:
+            Complete context dict for LLM injection
+        """
+        # Get the big data dump for the product family
+        product_data = self.get_product_family_data_dump(product_family) if product_family else {}
+
+        # If application is detected, get additional constraints
+        app_context = {}
+        if application_name:
+            app_result = self.get_graph_reasoning_context(
+                application_name=application_name,
+                product_family=product_family or "GDB"
+            )
+            app_context = app_result if app_result else {}
+
+        return {
+            "product_catalog": product_data,
+            "application_context": app_context,
+            "_instructions": {
+                "weights": "Use weight_table_kg for EXACT weights. Never estimate.",
+                "materials": "Respect environment_restrictions. Hospital = RF/SF only.",
+                "sizing": "Use sizing_reference_m3h for airflow-to-size mapping.",
+                "corrosion": (
+                    "Valid corrosion classes: C1, C2, C3, C4, C5, C5.1 ONLY. "
+                    "There is NO class called C5-M. "
+                    "housing_corrosion_class is the corrosion rating of the HOUSING itself. "
+                    "Material corrosion_class is the rating of each material option. "
+                    "Always mention both when discussing corrosion suitability."
+                ),
+                "indoor_only": (
+                    "If indoor_only=true, the product is designed for indoor use only. "
+                    "Explicitly warn if the user's environment is outdoor, rooftop, or marine."
+                ),
+            }
+        }
+
+
+    # =========================================================================
+    # LAYER 4: SESSION GRAPH METHODS
+    # =========================================================================
+
+    def get_session_graph_manager(self):
+        """Get a SessionGraphManager instance using this connection.
+
+        Lazy import to avoid circular dependencies.
+        """
+        from logic.session_graph import SessionGraphManager
+        self.connect()
+        return SessionGraphManager(self)
+
+    def init_session_schema(self):
+        """Initialize Layer 4 session schema constraints and indexes."""
+        schema_statements = [
+            "CREATE CONSTRAINT IF NOT EXISTS FOR (s:Session) REQUIRE s.id IS UNIQUE",
+            "CREATE CONSTRAINT IF NOT EXISTS FOR (ap:ActiveProject) REQUIRE ap.id IS UNIQUE",
+            "CREATE INDEX session_last_active IF NOT EXISTS FOR (s:Session) ON (s.last_active)",
+            "CREATE INDEX tagunit_session IF NOT EXISTS FOR (t:TagUnit) ON (t.session_id)",
+            "CREATE INDEX activeproject_session IF NOT EXISTS FOR (ap:ActiveProject) ON (ap.session_id)",
+            # Expert review
+            "CREATE CONSTRAINT IF NOT EXISTS FOR (er:ExpertReview) REQUIRE er.id IS UNIQUE",
+            "CREATE INDEX expert_review_session IF NOT EXISTS FOR (er:ExpertReview) ON (er.session_id)",
+        ]
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            for stmt in schema_statements:
+                try:
+                    session.run(stmt)
+                except Exception as e:
+                    if "already exists" not in str(e).lower():
+                        print(f"⚠ Session schema statement failed: {e}")
+        print("✓ Layer 4 session schema initialized")
+
+    # =========================================================================
+    # EXPERT REVIEW QUERIES
+    # =========================================================================
+
+    def get_expert_conversations(self, limit: int = 50, offset: int = 0) -> dict:
+        """List all conversations with turn counts and review status."""
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            # Count total
+            total_result = session.run("""
+                MATCH (p:ActiveProject)
+                WHERE EXISTS { (p)-[:HAS_TURN]->(:ConversationTurn) }
+                RETURN count(p) AS total
+            """)
+            total = total_result.single()["total"]
+
+            # Paginated list
+            result = session.run("""
+                MATCH (p:ActiveProject)
+                WHERE EXISTS { (p)-[:HAS_TURN]->(:ConversationTurn) }
+                OPTIONAL MATCH (p)-[:HAS_TURN]->(ct:ConversationTurn)
+                OPTIONAL MATCH (p)-[:HAS_REVIEW]->(er:ExpertReview)
+                WITH p,
+                     count(DISTINCT ct) AS turn_count,
+                     max(ct.created_at) AS last_activity,
+                     count(DISTINCT er) > 0 AS has_review,
+                     head(collect(DISTINCT er.overall_score)) AS review_score
+                RETURN p.session_id AS session_id,
+                       p.name AS project_name,
+                       p.detected_family AS detected_family,
+                       p.locked_material AS locked_material,
+                       turn_count,
+                       last_activity,
+                       has_review,
+                       review_score
+                ORDER BY last_activity DESC
+                SKIP $offset LIMIT $limit
+            """, limit=limit, offset=offset)
+            conversations = [dict(r) for r in result]
+            return {"conversations": conversations, "total": total}
+
+    def get_conversation_detail(self, session_id: str) -> dict:
+        """Get full conversation turns + expert reviews for a session."""
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            # Project metadata
+            proj_result = session.run("""
+                MATCH (p:ActiveProject {session_id: $sid})
+                RETURN p.session_id AS session_id,
+                       p.name AS project_name,
+                       p.detected_family AS detected_family,
+                       p.locked_material AS locked_material,
+                       p.resolved_params AS resolved_params
+            """, sid=session_id)
+            proj = dict(proj_result.single()) if proj_result.peek() else {
+                "session_id": session_id, "project_name": None,
+                "detected_family": None, "locked_material": None, "resolved_params": None
+            }
+
+            # Conversation turns (include judge_results if saved)
+            turns_result = session.run("""
+                MATCH (p:ActiveProject {session_id: $sid})-[:HAS_TURN]->(ct:ConversationTurn)
+                RETURN ct.id AS id, ct.role AS role, ct.message AS message,
+                       ct.turn_number AS turn_number, ct.created_at AS created_at,
+                       ct.judge_results AS judge_results
+                ORDER BY ct.turn_number ASC
+            """, sid=session_id)
+            turns = [dict(r) for r in turns_result]
+
+            # Expert reviews (include provider + turn_number for per-judge reviews)
+            reviews_result = session.run("""
+                MATCH (p:ActiveProject {session_id: $sid})-[:HAS_REVIEW]->(er:ExpertReview)
+                RETURN er.id AS id, er.reviewer AS reviewer, er.comment AS comment,
+                       er.overall_score AS overall_score,
+                       er.dimension_scores AS dimension_scores,
+                       er.provider AS provider,
+                       er.turn_number AS turn_number,
+                       er.created_at AS created_at
+                ORDER BY er.created_at DESC
+            """, sid=session_id)
+            reviews = [dict(r) for r in reviews_result]
+
+            return {**proj, "turns": turns, "reviews": reviews}
+
+    def save_judge_results(self, session_id: str, turn_number: int,
+                           judge_results: str) -> bool:
+        """Save judge results JSON on an assistant ConversationTurn node."""
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (p:ActiveProject {session_id: $sid})-[:HAS_TURN]->(ct:ConversationTurn)
+                WHERE ct.role = 'assistant' AND ct.turn_number = $tn
+                SET ct.judge_results = $jr
+                RETURN ct.id AS id
+            """, sid=session_id, tn=turn_number, jr=judge_results)
+            return result.single() is not None
+
+    def submit_expert_review(self, session_id: str, reviewer: str,
+                             comment: str, overall_score: str,
+                             dimension_scores: str = None,
+                             provider: str = None,
+                             turn_number: int = None) -> dict:
+        """Create an ExpertReview node linked to the conversation's ActiveProject.
+        If provider is set, this is a per-judge review (e.g. 'gemini', 'openai', 'anthropic').
+        """
+        import time
+        suffix = f"_{provider}" if provider else ""
+        review_id = f"REVIEW_{session_id}_{reviewer}_{int(time.time())}{suffix}"
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (p:ActiveProject {session_id: $session_id})
+                CREATE (p)-[:HAS_REVIEW]->(er:ExpertReview {
+                    id: $review_id,
+                    session_id: $session_id,
+                    reviewer: $reviewer,
+                    comment: $comment,
+                    overall_score: $overall_score,
+                    dimension_scores: $dimension_scores,
+                    provider: $provider,
+                    turn_number: $turn_number,
+                    created_at: timestamp()
+                })
+                RETURN er {.*} AS review
+            """, session_id=session_id, review_id=review_id,
+                 reviewer=reviewer, comment=comment,
+                 overall_score=overall_score,
+                 dimension_scores=dimension_scores,
+                 provider=provider, turn_number=turn_number)
+            record = result.single()
+            return dict(record["review"]) if record else {}
+
+    def get_expert_reviews_summary(self) -> dict:
+        """Get aggregate stats for expert reviews."""
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            stats_result = session.run("""
+                MATCH (er:ExpertReview)
+                WITH count(er) AS total,
+                     count(CASE WHEN er.overall_score = 'thumbs_up' THEN 1 END) AS positive,
+                     count(CASE WHEN er.overall_score = 'thumbs_down' THEN 1 END) AS negative
+                RETURN total, positive, negative
+            """)
+            stats = dict(stats_result.single()) if stats_result.peek() else {
+                "total": 0, "positive": 0, "negative": 0
+            }
+
+            recent_result = session.run("""
+                MATCH (er:ExpertReview)
+                OPTIONAL MATCH (p:ActiveProject {session_id: er.session_id})
+                RETURN er.id AS id, er.session_id AS session_id,
+                       er.reviewer AS reviewer, er.comment AS comment,
+                       er.overall_score AS overall_score,
+                       er.created_at AS created_at,
+                       p.detected_family AS detected_family
+                ORDER BY er.created_at DESC
+                LIMIT 20
+            """)
+            recent = [dict(r) for r in recent_result]
+
+            return {**stats, "recent": recent}
+
+    # =========================================================================
+    # TRAIT-BASED REASONING QUERIES (Layer 2.5: Trait Engine)
+    # =========================================================================
+
+    def get_stressors_by_keywords(self, keywords: list[str]) -> list[dict]:
+        """Find EnvironmentalStressor nodes matching query keywords.
+
+        Args:
+            keywords: List of lowercase keywords from user query
+
+        Returns:
+            List of stressor dicts with id, name, description, matched_keyword
+        """
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (s:EnvironmentalStressor)
+                WHERE s.keywords IS NOT NULL
+                WITH s, [kw IN s.keywords WHERE ANY(qkw IN $keywords WHERE
+                    toLower(qkw) = toLower(kw)
+                    OR (size(kw) >= 3 AND toLower(qkw) STARTS WITH toLower(kw))
+                )] AS matched
+                WHERE size(matched) > 0
+                RETURN s.id AS id,
+                       s.name AS name,
+                       s.description AS description,
+                       s.category AS category,
+                       matched AS matched_keywords,
+                       size(matched) AS match_count
+                ORDER BY match_count DESC
+            """, {"keywords": keywords})
+            return [dict(record) for record in result]
+
+    def get_stressors_for_application(self, app_id: str) -> list[dict]:
+        """Get stressors linked to an application/environment via EXPOSES_TO.
+
+        Traverses IS_A hierarchy so child environments inherit parent stressors.
+        E.g., ENV_KITCHEN IS_A ENV_INDOOR → returns stressors from both.
+
+        Args:
+            app_id: Application or Environment node ID
+
+        Returns:
+            List of stressor dicts (deduplicated by stressor ID)
+        """
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (ctx {id: $app_id})
+                OPTIONAL MATCH (ctx)-[:IS_A*0..5]->(parent)
+                WITH collect(DISTINCT ctx) + collect(DISTINCT parent) AS contexts
+                UNWIND contexts AS c
+                MATCH (c)-[:EXPOSES_TO]->(s:EnvironmentalStressor)
+                RETURN DISTINCT s.id AS id,
+                       s.name AS name,
+                       s.description AS description,
+                       s.category AS category,
+                       c.name AS source_context,
+                       labels(c)[0] AS source_type
+            """, {"app_id": app_id})
+            return [dict(record) for record in result]
+
+    def resolve_environment_hierarchy(self, env_id: str) -> list[str]:
+        """Resolve an environment ID to itself + all IS_A parents.
+
+        E.g., ENV_KITCHEN → [ENV_KITCHEN, ENV_INDOOR]
+        Used by constraint checking: if product allows ENV_INDOOR,
+        it also allows ENV_KITCHEN (child environment).
+        """
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (env:Environment {id: $env_id})
+                OPTIONAL MATCH (env)-[:IS_A*0..5]->(parent:Environment)
+                RETURN collect(DISTINCT env.id) + collect(DISTINCT parent.id) AS env_chain
+            """, {"env_id": env_id})
+            record = result.single()
+            if record and record["env_chain"]:
+                return list(dict.fromkeys(record["env_chain"]))
+            return [env_id]
+
+    def get_environment_keywords(self) -> dict[str, list[str]]:
+        """Read environment keywords from graph.
+
+        Replaces hardcoded env_keywords dict in engine.
+        Each Environment node has a 'keywords' property.
+        """
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (env:Environment)
+                WHERE env.keywords IS NOT NULL
+                RETURN env.id AS env_id, env.keywords AS keywords
+            """)
+            return {r["env_id"]: r["keywords"] for r in result}
+
+    def get_causal_rules_for_stressors(self, stressor_ids: list[str]) -> list[dict]:
+        """Get all causal rules (NEUTRALIZED_BY, DEMANDS_TRAIT) for given stressors.
+
+        Args:
+            stressor_ids: List of EnvironmentalStressor IDs
+
+        Returns:
+            List of rule dicts with rule_type, trait_id/name, stressor_id/name, severity, explanation
+        """
+        if not stressor_ids:
+            return []
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (t:PhysicalTrait)-[r:NEUTRALIZED_BY]->(s:EnvironmentalStressor)
+                WHERE s.id IN $stressor_ids
+                RETURN 'NEUTRALIZED_BY' AS rule_type,
+                       t.id AS trait_id, t.name AS trait_name,
+                       s.id AS stressor_id, s.name AS stressor_name,
+                       r.severity AS severity,
+                       r.explanation AS explanation
+                UNION ALL
+                MATCH (s:EnvironmentalStressor)-[r:DEMANDS_TRAIT]->(t:PhysicalTrait)
+                WHERE s.id IN $stressor_ids
+                RETURN 'DEMANDS_TRAIT' AS rule_type,
+                       t.id AS trait_id, t.name AS trait_name,
+                       s.id AS stressor_id, s.name AS stressor_name,
+                       r.severity AS severity,
+                       r.explanation AS explanation
+            """, {"stressor_ids": stressor_ids})
+            return [dict(record) for record in result]
+
+    def get_product_traits(self, product_family: str) -> list[dict]:
+        """Get all PhysicalTraits for a product family (direct + via material).
+
+        Args:
+            product_family: Product family code (e.g., 'GDB') or full ID (e.g., 'FAM_GDB')
+
+        Returns:
+            List of trait dicts with id, name, source ('direct' or material code), primary flag
+        """
+        pf_id = product_family if product_family.startswith("FAM_") else f"FAM_{product_family.upper()}"
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (pf:ProductFamily {id: $pf_id})-[r:HAS_TRAIT]->(t:PhysicalTrait)
+                RETURN t.id AS id, t.name AS name, 'direct' AS source, r.primary AS is_primary
+                UNION
+                MATCH (pf:ProductFamily {id: $pf_id})-[:AVAILABLE_IN_MATERIAL]->(m:Material)-[:PROVIDES_TRAIT]->(t:PhysicalTrait)
+                RETURN DISTINCT t.id AS id, t.name AS name, m.code AS source, false AS is_primary
+            """, {"pf_id": pf_id})
+            return [dict(record) for record in result]
+
+    def get_all_product_families_with_traits(self) -> list[dict]:
+        """Batch query: all product families with their trait sets.
+
+        Returns:
+            List of dicts with product_id, product_name, product_type,
+            direct_trait_ids, material_trait_ids, all_trait_ids
+        """
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (pf:ProductFamily)
+                OPTIONAL MATCH (pf)-[:HAS_TRAIT]->(dt:PhysicalTrait)
+                OPTIONAL MATCH (pf)-[:AVAILABLE_IN_MATERIAL]->(m:Material)-[:PROVIDES_TRAIT]->(mt:PhysicalTrait)
+                WITH pf,
+                     collect(DISTINCT dt.id) AS direct_trait_ids,
+                     collect(DISTINCT dt.name) AS direct_trait_names,
+                     collect(DISTINCT mt.id) AS material_trait_ids,
+                     collect(DISTINCT mt.name) AS material_trait_names
+                RETURN pf.id AS product_id,
+                       pf.name AS product_name,
+                       pf.type AS product_type,
+                       pf.selection_priority AS selection_priority,
+                       direct_trait_ids,
+                       direct_trait_names,
+                       material_trait_ids,
+                       material_trait_names,
+                       direct_trait_ids + [x IN material_trait_ids WHERE NOT x IN direct_trait_ids] AS all_trait_ids
+                ORDER BY pf.selection_priority ASC
+            """)
+            return [dict(record) for record in result]
+
+
+    def get_goals_by_keywords(self, keywords: list[str]) -> list[dict]:
+        """Find FunctionalGoal nodes matching query keywords.
+
+        Args:
+            keywords: List of lowercase keywords from user query
+
+        Returns:
+            List of goal dicts with id, name, description, required_trait_id, required_trait_name
+        """
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (g:FunctionalGoal)-[:REQUIRES_TRAIT]->(t:PhysicalTrait)
+                WHERE g.keywords IS NOT NULL
+                WITH g, t, [kw IN g.keywords WHERE ANY(qkw IN $keywords WHERE toLower(qkw) = toLower(kw))] AS matched
+                WHERE size(matched) > 0
+                RETURN g.id AS id,
+                       g.name AS name,
+                       g.description AS description,
+                       t.id AS required_trait_id,
+                       t.name AS required_trait_name,
+                       matched AS matched_keywords,
+                       size(matched) AS match_count
+                ORDER BY match_count DESC
+            """, {"keywords": keywords})
+            return [dict(record) for record in result]
+
+
+    # =========================================================================
+    # v2.0 — Logic Gates, Hard Constraints, Dependencies, Strategy, Capacity
+    # =========================================================================
+
+    def get_logic_gates_for_stressors(self, stressor_ids: list[str]) -> list[dict]:
+        """Get LogicGate nodes that MONITOR any of the given stressors, with REQUIRES_DATA parameters.
+
+        Args:
+            stressor_ids: List of EnvironmentalStressor IDs
+
+        Returns:
+            List of gate dicts with gate_id, gate_name, condition_logic, physics_explanation,
+            stressor_id, stressor_name, and params list [{param_id, name, property_key, priority, question, unit}]
+        """
+        if not stressor_ids:
+            return []
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (g:LogicGate)-[:MONITORS]->(s:EnvironmentalStressor)
+                WHERE s.id IN $stressor_ids
+                OPTIONAL MATCH (g)-[:REQUIRES_DATA]->(p:Parameter)
+                WITH g, s, collect({
+                    param_id: p.id,
+                    name: p.name,
+                    property_key: p.property_key,
+                    priority: p.priority,
+                    question: p.question,
+                    unit: p.unit
+                }) AS params
+                RETURN g.id AS gate_id,
+                       g.name AS gate_name,
+                       g.condition_logic AS condition_logic,
+                       g.physics_explanation AS physics_explanation,
+                       s.id AS stressor_id,
+                       s.name AS stressor_name,
+                       params
+                ORDER BY g.id
+            """, {"stressor_ids": stressor_ids})
+            return [dict(record) for record in result]
+
+    def get_gates_triggered_by_context(self, context_ids: list[str]) -> list[dict]:
+        """Get LogicGate nodes triggered by Application/Environment contexts.
+
+        Args:
+            context_ids: List of Application or Environment IDs (e.g., ['ENV_OUTDOOR', 'APP_KITCHEN'])
+
+        Returns:
+            List of gate dicts with gate_id, gate_name, condition_logic, physics_explanation,
+            stressor_id, stressor_name, context_id, and params list
+        """
+        if not context_ids:
+            return []
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (ctx)-[:TRIGGERS_GATE]->(g:LogicGate)-[:MONITORS]->(s:EnvironmentalStressor)
+                WHERE ctx.id IN $context_ids
+                OPTIONAL MATCH (g)-[:REQUIRES_DATA]->(p:Parameter)
+                WITH ctx, g, s, collect({
+                    param_id: p.id,
+                    name: p.name,
+                    property_key: p.property_key,
+                    priority: p.priority,
+                    question: p.question,
+                    unit: p.unit
+                }) AS params
+                RETURN g.id AS gate_id,
+                       g.name AS gate_name,
+                       g.condition_logic AS condition_logic,
+                       g.physics_explanation AS physics_explanation,
+                       s.id AS stressor_id,
+                       s.name AS stressor_name,
+                       ctx.id AS context_id,
+                       params
+                ORDER BY g.id
+            """, {"context_ids": context_ids})
+            return [dict(record) for record in result]
+
+    def get_hard_constraints(self, item_id: str) -> list[dict]:
+        """Get HardConstraint nodes for a product family.
+
+        Args:
+            item_id: ProductFamily ID (e.g., 'FAM_GDC') or short form ('GDC')
+
+        Returns:
+            List of constraint dicts with id, property_key, operator, value, error_msg
+        """
+        pf_id = item_id if item_id.startswith("FAM_") else f"FAM_{item_id.upper()}"
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (pf:ProductFamily {id: $pf_id})-[:HAS_HARD_CONSTRAINT]->(hc:HardConstraint)
+                RETURN hc.id AS id,
+                       hc.property_key AS property_key,
+                       hc.operator AS operator,
+                       hc.value AS value,
+                       hc.error_msg AS error_msg
+            """, {"pf_id": pf_id})
+            return [dict(record) for record in result]
+
+    def get_installation_constraints(self, item_id: str) -> list[dict]:
+        """Get InstallationConstraint nodes for a product family.
+
+        Returns constraint dicts with all IC properties plus relevant
+        ProductFamily properties (service_access_factor, allowed_environments, etc).
+        """
+        pf_id = item_id if item_id.startswith("FAM_") else f"FAM_{item_id.upper()}"
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (pf:ProductFamily {id: $pf_id})-[:HAS_INSTALLATION_CONSTRAINT]->(ic:InstallationConstraint)
+                RETURN ic.id AS id,
+                       ic.constraint_type AS constraint_type,
+                       ic.dimension_key AS dimension_key,
+                       ic.factor_property AS factor_property,
+                       ic.comparison_key AS comparison_key,
+                       ic.list_property AS list_property,
+                       ic.input_key AS input_key,
+                       ic.cross_property AS cross_property,
+                       ic.material_context_key AS material_context_key,
+                       ic.context_match_key AS context_match_key,
+                       ic.cross_rel_type AS cross_rel_type,
+                       ic.cross_node_match_property AS cross_node_match_property,
+                       ic.operator AS operator,
+                       ic.severity AS severity,
+                       ic.error_msg AS error_msg,
+                       pf.service_access_factor AS service_access_factor,
+                       pf.service_access_type AS service_access_type,
+                       pf.service_warning AS service_warning,
+                       pf.allowed_environments AS allowed_environments,
+                       pf.construction_type AS construction_type,
+                       ic.valid_set AS valid_set
+            """, {"pf_id": pf_id})
+            return [dict(record) for record in result]
+
+    def get_material_property(self, item_id: str, material_code: str, property_name: str):
+        """Get a single property from a Material node linked to a ProductFamily.
+
+        Returns the property value or None if not found.
+        """
+        pf_id = item_id if item_id.startswith("FAM_") else f"FAM_{item_id.upper()}"
+        mat_id = material_code if material_code.startswith("MAT_") else f"MAT_{material_code.upper()}"
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (pf:ProductFamily {id: $pf_id})-[:AVAILABLE_IN_MATERIAL]->(m:Material {id: $mat_id})
+                RETURN m[$property_name] AS value
+            """, {"pf_id": pf_id, "mat_id": mat_id, "property_name": property_name})
+            record = result.single()
+            return record["value"] if record else None
+
+    def get_related_node_property(self, pf_id: str, rel_type: str,
+                                   match_prop: str, match_val,
+                                   target_prop: str):
+        """Look up a property on a node related to ProductFamily via specified relationship.
+
+        Generic: works for any node type (VariantLength, SizeProperty, etc.).
+        Property names come from graph IC metadata (trusted, not user input).
+        """
+        pf_id = pf_id if pf_id.startswith("FAM_") else f"FAM_{pf_id.upper()}"
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run(f"""
+                MATCH (pf:ProductFamily {{id: $pf_id}})-[:{rel_type}]->(node)
+                WHERE node.{match_prop} = $match_val
+                RETURN node.{target_prop} AS value
+                LIMIT 1
+            """, {"pf_id": pf_id, "match_val": match_val})
+            record = result.single()
+            return record["value"] if record else None
+
+    def find_compatible_variants(self, pf_id: str, rel_type: str,
+                                  match_prop: str, threshold_prop: str,
+                                  min_threshold: float):
+        """Find related nodes where threshold_prop >= min_threshold.
+
+        Used by installation constraint evaluator to suggest compatible
+        variant alternatives (e.g. longer housing that fits a given depth).
+        """
+        pf_id = pf_id if pf_id.startswith("FAM_") else f"FAM_{pf_id.upper()}"
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run(f"""
+                MATCH (pf:ProductFamily {{id: $pf_id}})-[:{rel_type}]->(node)
+                WHERE node.{threshold_prop} >= $min_threshold
+                RETURN node.{match_prop} AS variant_value,
+                       node.{threshold_prop} AS threshold
+                ORDER BY node.{match_prop} ASC
+            """, {"pf_id": pf_id, "min_threshold": min_threshold})
+            return [dict(r) for r in result]
+
+    def get_application_properties(self, app_id: str) -> dict:
+        """Get properties from an Application node (e.g. typical_chlorine_ppm).
+
+        Returns dict of application properties or empty dict if not found.
+        """
+        full_id = app_id if app_id.startswith("APP_") else f"APP_{app_id.upper()}"
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (a:Application {id: $app_id})
+                RETURN a.typical_chlorine_ppm AS typical_chlorine_ppm
+            """, {"app_id": full_id})
+            record = result.single()
+            return dict(record) if record else {}
+
+    # =========================================================================
+    # v3.3: Alternative product search for installation constraint violations
+    # =========================================================================
+
+    def find_alternatives_for_space_constraint(
+        self,
+        blocked_pf_id: str,
+        dimension_key: str,
+        available_space: float,
+        dim_value: float,
+        required_trait_ids: list[str] | None = None,
+    ) -> list[dict]:
+        """Find product families that fit within available space (COMPUTED_FORMULA).
+
+        For each candidate, computes required = dim_value * (1 + service_access_factor).
+        Returns only those where required <= available_space and the product has
+        a DimensionModule matching the requested dimension.
+        v3.5: Filters by required traits when provided (trait qualification).
+        Ordered by selection_priority ASC (preferred first).
+        """
+        pf_id = blocked_pf_id if blocked_pf_id.startswith("FAM_") else f"FAM_{blocked_pf_id.upper()}"
+        # Build dimension filter property name (safe: dimension_key from graph, not user)
+        dm_prop = f"{dimension_key}_mm"
+        trait_ids = required_trait_ids or []
+        trait_count = len(trait_ids)
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run(f"""
+                MATCH (pf:ProductFamily)
+                WHERE pf.id <> $blocked_pf_id
+                  AND pf.service_access_factor IS NOT NULL
+                WITH pf, $dim_value * (1.0 + pf.service_access_factor) AS required_space
+                WHERE required_space <= $available_space
+                OPTIONAL MATCH (pf)-[:AVAILABLE_IN_SIZE]->(dm:DimensionModule)
+                WHERE dm.{dm_prop} = toInteger($dim_value)
+                WITH pf, required_space, count(dm) AS matching_sizes
+                WHERE matching_sizes > 0
+                // v3.5: Trait qualification — only return alternatives with required traits
+                WITH pf, required_space
+                OPTIONAL MATCH (pf)-[:HAS_TRAIT]->(t:PhysicalTrait)
+                WHERE t.id IN $trait_ids
+                WITH pf, required_space, count(t) AS matched_traits
+                WHERE $trait_count = 0 OR matched_traits >= $trait_count
+                RETURN pf.id AS product_id,
+                       pf.name AS product_name,
+                       pf.type AS product_type,
+                       pf.selection_priority AS selection_priority,
+                       pf.service_access_factor AS service_access_factor,
+                       pf.service_access_type AS service_access_type,
+                       required_space AS required_space_mm
+                ORDER BY pf.selection_priority ASC
+            """, {
+                "blocked_pf_id": pf_id,
+                "dim_value": dim_value,
+                "available_space": available_space,
+                "trait_ids": trait_ids,
+                "trait_count": trait_count,
+            })
+            return [dict(record) for record in result]
+
+    def find_alternatives_for_environment_constraint(
+        self,
+        blocked_pf_id: str,
+        required_environment: str | None = None,
+        required_trait_ids: list[str] | None = None,
+        required_environments: list[str] | None = None,
+    ) -> list[dict]:
+        """Find product families whose allowed_environments include the target (SET_MEMBERSHIP).
+
+        v3.6: Accepts either a single required_environment or a list (IS_A chain).
+        When chain provided, matches if ANY env in chain is in allowed_environments.
+        v3.5: Filters by required traits when provided (trait qualification).
+        Ordered by selection_priority ASC.
+        """
+        pf_id = blocked_pf_id if blocked_pf_id.startswith("FAM_") else f"FAM_{blocked_pf_id.upper()}"
+        trait_ids = required_trait_ids or []
+        trait_count = len(trait_ids)
+        # v3.6: Support env chain (IS_A hierarchy)
+        env_chain = required_environments or ([required_environment.strip()] if required_environment else [])
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (pf:ProductFamily)
+                WHERE pf.id <> $blocked_pf_id
+                  AND pf.allowed_environments IS NOT NULL
+                  AND ANY(env IN $env_chain WHERE env IN pf.allowed_environments)
+                // v3.5: Trait qualification
+                WITH pf
+                OPTIONAL MATCH (pf)-[:HAS_TRAIT]->(t:PhysicalTrait)
+                WHERE t.id IN $trait_ids
+                WITH pf, count(t) AS matched_traits
+                WHERE $trait_count = 0 OR matched_traits >= $trait_count
+                RETURN pf.id AS product_id,
+                       pf.name AS product_name,
+                       pf.type AS product_type,
+                       pf.selection_priority AS selection_priority,
+                       pf.allowed_environments AS allowed_environments
+                ORDER BY pf.selection_priority ASC
+            """, {
+                "blocked_pf_id": pf_id,
+                "env_chain": env_chain,
+                "trait_ids": trait_ids,
+                "trait_count": trait_count,
+            })
+            return [dict(record) for record in result]
+
+    def find_material_alternatives_for_threshold(
+        self,
+        pf_id: str,
+        cross_property: str,
+        required_value: float,
+    ) -> list[dict]:
+        """Find materials on the SAME product that meet a threshold (CROSS_NODE_THRESHOLD).
+
+        Returns materials where the cross_property value >= required_value.
+        Ordered by threshold value DESC (best first).
+        """
+        full_pf_id = pf_id if pf_id.startswith("FAM_") else f"FAM_{pf_id.upper()}"
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run(f"""
+                MATCH (pf:ProductFamily {{id: $pf_id}})-[:AVAILABLE_IN_MATERIAL]->(m:Material)
+                WHERE m.{cross_property} IS NOT NULL
+                  AND m.{cross_property} >= $required_value
+                RETURN m.id AS material_id,
+                       m.code AS material_code,
+                       m.name AS material_name,
+                       m.{cross_property} AS threshold_value
+                ORDER BY m.{cross_property} DESC
+            """, {
+                "pf_id": full_pf_id,
+                "required_value": required_value,
+            })
+            return [dict(record) for record in result]
+
+    def find_other_products_for_material_threshold(
+        self,
+        blocked_pf_id: str,
+        cross_property: str,
+        required_value: float,
+        required_trait_ids: list[str] | None = None,
+    ) -> list[dict]:
+        """Find OTHER product families that have materials meeting a threshold.
+
+        Prong 2 of CROSS_NODE_THRESHOLD: when the blocked product has no material
+        meeting the threshold, search other product families.
+        Returns products with at least one qualifying material.
+        v3.5: Filters by required traits when provided (trait qualification).
+        Ordered by selection_priority ASC.
+        """
+        pf_id = blocked_pf_id if blocked_pf_id.startswith("FAM_") else f"FAM_{blocked_pf_id.upper()}"
+        trait_ids = required_trait_ids or []
+        trait_count = len(trait_ids)
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run(f"""
+                MATCH (pf:ProductFamily)-[:AVAILABLE_IN_MATERIAL]->(m:Material)
+                WHERE pf.id <> $blocked_pf_id
+                  AND m.{cross_property} IS NOT NULL
+                  AND m.{cross_property} >= $required_value
+                WITH pf, collect({{
+                    code: m.code,
+                    name: m.name,
+                    threshold: m.{cross_property}
+                }}) AS qualifying_materials
+                WHERE size(qualifying_materials) > 0
+                // v3.5: Trait qualification
+                OPTIONAL MATCH (pf)-[:HAS_TRAIT]->(t:PhysicalTrait)
+                WHERE t.id IN $trait_ids
+                WITH pf, qualifying_materials, count(t) AS matched_traits
+                WHERE $trait_count = 0 OR matched_traits >= $trait_count
+                RETURN pf.id AS product_id,
+                       pf.name AS product_name,
+                       pf.type AS product_type,
+                       pf.selection_priority AS selection_priority,
+                       qualifying_materials
+                ORDER BY pf.selection_priority ASC
+            """, {
+                "blocked_pf_id": pf_id,
+                "required_value": required_value,
+                "trait_ids": trait_ids,
+                "trait_count": trait_count,
+            })
+            return [dict(record) for record in result]
+
+    def find_products_with_higher_capacity(
+        self,
+        blocked_pf_id: str,
+        module_descriptor: str,
+        min_output_rating: float,
+        required_trait_ids: list[str] | None = None,
+    ) -> list[dict]:
+        """Find product families with higher CapacityRule output_rating for the same module size.
+
+        Used by v3.4 Capacity Alternatives: when modules_needed > 1, find products
+        that can handle the airflow in fewer modules.
+        Returns products whose CapacityRule output_rating > min_output_rating.
+        v3.5: Filters by required traits when provided (trait qualification).
+        Ordered by selection_priority ASC (preferred first).
+        """
+        pf_id = blocked_pf_id if blocked_pf_id.startswith("FAM_") else f"FAM_{blocked_pf_id.upper()}"
+        trait_ids = required_trait_ids or []
+        trait_count = len(trait_ids)
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (pf:ProductFamily)-[:HAS_CAPACITY]->(cr:CapacityRule)
+                WHERE pf.id <> $blocked_pf_id
+                  AND cr.module_descriptor = $module_descriptor
+                  AND cr.output_rating > $min_output_rating
+                // v3.5: Trait qualification
+                WITH pf, cr
+                OPTIONAL MATCH (pf)-[:HAS_TRAIT]->(t:PhysicalTrait)
+                WHERE t.id IN $trait_ids
+                WITH pf, cr, count(t) AS matched_traits
+                WHERE $trait_count = 0 OR matched_traits >= $trait_count
+                RETURN pf.id AS product_id,
+                       pf.name AS product_name,
+                       pf.selection_priority AS selection_priority,
+                       cr.output_rating AS output_rating,
+                       cr.description AS description
+                ORDER BY pf.selection_priority ASC
+            """, {
+                "blocked_pf_id": pf_id,
+                "module_descriptor": module_descriptor,
+                "min_output_rating": min_output_rating,
+                "trait_ids": trait_ids,
+                "trait_count": trait_count,
+            })
+            return [dict(record) for record in result]
+
+    def get_dependency_rules_for_stressors(self, stressor_ids: list[str]) -> list[dict]:
+        """Get DependencyRule nodes triggered by given stressors.
+
+        Args:
+            stressor_ids: List of EnvironmentalStressor IDs
+
+        Returns:
+            List of rule dicts with id, dependency_type, description,
+            upstream_trait_id/name, downstream_trait_id/name, stressor_id
+        """
+        if not stressor_ids:
+            return []
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (dr:DependencyRule)-[:TRIGGERED_BY_STRESSOR]->(s:EnvironmentalStressor)
+                WHERE s.id IN $stressor_ids
+                MATCH (dr)-[:UPSTREAM_REQUIRES_TRAIT]->(ut:PhysicalTrait)
+                MATCH (dr)-[:DOWNSTREAM_PROVIDES_TRAIT]->(dt:PhysicalTrait)
+                RETURN dr.id AS id,
+                       dr.dependency_type AS dependency_type,
+                       dr.description AS description,
+                       ut.id AS upstream_trait_id,
+                       ut.name AS upstream_trait_name,
+                       dt.id AS downstream_trait_id,
+                       dt.name AS downstream_trait_name,
+                       s.id AS stressor_id,
+                       s.name AS stressor_name
+            """, {"stressor_ids": stressor_ids})
+            return [dict(record) for record in result]
+
+    def get_optimization_strategy(self, item_id: str) -> dict | None:
+        """Get optimization Strategy for a product family.
+
+        Args:
+            item_id: ProductFamily ID (e.g., 'FAM_GDC') or short form ('GDC')
+
+        Returns:
+            Strategy dict with id, name, sort_property, sort_order, description — or None
+        """
+        pf_id = item_id if item_id.startswith("FAM_") else f"FAM_{item_id.upper()}"
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (pf:ProductFamily {id: $pf_id})-[:OPTIMIZATION_STRATEGY]->(s:Strategy)
+                RETURN s.id AS id,
+                       s.name AS name,
+                       s.sort_property AS sort_property,
+                       s.sort_order AS sort_order,
+                       s.description AS description,
+                       s.primary_axis AS primary_axis,
+                       s.secondary_axis AS secondary_axis,
+                       s.expansion_unit AS expansion_unit
+                LIMIT 1
+            """, {"pf_id": pf_id})
+            record = result.single()
+            return dict(record) if record else None
+
+    def get_size_determined_properties(
+        self, module_id: str, product_family_id: str
+    ) -> list[dict]:
+        """Get properties auto-determined by a DimensionModule + ProductFamily combo.
+
+        When a module size is selected, some properties become fixed (e.g.,
+        cartridge count for a specific housing size). These are stored as
+        SizeProperty nodes linked via DETERMINES_PROPERTY.
+
+        Returns:
+            List of dicts with key, value, display_name
+        """
+        pf_id = (
+            product_family_id
+            if product_family_id.startswith("FAM_")
+            else f"FAM_{product_family_id.upper()}"
+        )
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (dm:DimensionModule {id: $module_id})-[:DETERMINES_PROPERTY]->(sp:SizeProperty)
+                WHERE sp.for_family = $pf_id OR sp.for_family IS NULL
+                RETURN sp.key AS key,
+                       sp.value AS value,
+                       sp.display_name AS display_name
+            """, {"module_id": module_id, "pf_id": pf_id})
+            return [dict(record) for record in result]
+
+    def get_capacity_rules(self, item_id: str) -> list[dict]:
+        """Get CapacityRule nodes for a product family.
+
+        Args:
+            item_id: ProductFamily ID (e.g., 'FAM_GDC') or short form ('GDC')
+
+        Returns:
+            List of capacity rule dicts with id, module_descriptor, input_requirement,
+            output_rating, assumption, description
+        """
+        pf_id = item_id if item_id.startswith("FAM_") else f"FAM_{item_id.upper()}"
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (pf:ProductFamily {id: $pf_id})-[:HAS_CAPACITY]->(cr:CapacityRule)
+                RETURN cr.id AS id,
+                       cr.module_descriptor AS module_descriptor,
+                       cr.input_requirement AS input_requirement,
+                       cr.output_rating AS output_rating,
+                       cr.assumption AS assumption,
+                       cr.description AS description,
+                       cr.capacity_per_component AS capacity_per_component,
+                       cr.component_count_key AS component_count_key
+            """, {"pf_id": pf_id})
+            return [dict(record) for record in result]
+
+
+    def get_available_dimension_modules(self, item_id: str) -> list[dict]:
+        """Get all DimensionModule nodes available for a product family.
+
+        Queries ProductFamily -[:AVAILABLE_IN_SIZE]-> DimensionModule.
+        Returns modules sorted by effective airflow descending (largest first).
+
+        v3.5: Computes product-specific airflow by joining CapacityRule +
+        SizeProperty. For products with component-based capacity (e.g., carbon
+        cartridges), effective_airflow = component_count × capacity_per_component.
+        Falls back to DimensionModule.reference_airflow_m3h when no CapacityRule.
+
+        Args:
+            item_id: ProductFamily ID (e.g., 'FAM_GDP') or short form ('GDP')
+
+        Returns:
+            List of dicts with id, width_mm, height_mm, reference_airflow_m3h, label
+        """
+        pf_id = item_id if item_id.startswith("FAM_") else f"FAM_{item_id.upper()}"
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (pf:ProductFamily {id: $pf_id})-[:AVAILABLE_IN_SIZE]->(dm:DimensionModule)
+                OPTIONAL MATCH (pf)-[:HAS_CAPACITY]->(cr:CapacityRule)
+                OPTIONAL MATCH (dm)-[:DETERMINES_PROPERTY]->(sp_fam:SizeProperty)
+                  WHERE sp_fam.key = cr.component_count_key
+                    AND sp_fam.for_family = pf.id
+                OPTIONAL MATCH (dm)-[:DETERMINES_PROPERTY]->(sp_gen:SizeProperty)
+                  WHERE sp_gen.key = cr.component_count_key
+                    AND sp_gen.for_family IS NULL
+                WITH dm,
+                     CASE WHEN cr IS NOT NULL
+                               AND COALESCE(sp_fam.value, sp_gen.value) IS NOT NULL
+                          THEN toFloat(COALESCE(sp_fam.value, sp_gen.value))
+                               * toFloat(cr.capacity_per_component)
+                          ELSE dm.reference_airflow_m3h
+                     END AS effective_airflow
+                WITH dm, min(effective_airflow) AS effective_airflow
+                RETURN dm.id AS id,
+                       dm.width_mm AS width_mm,
+                       dm.height_mm AS height_mm,
+                       effective_airflow AS reference_airflow_m3h,
+                       dm.label AS label
+                ORDER BY effective_airflow DESC
+            """, {"pf_id": pf_id})
+            return [dict(record) for record in result]
+
+    def validate_spatial_feasibility(
+        self,
+        pf_ids: list[str],
+        airflow: float,
+        max_width: int = 0,
+        max_height: int = 0,
+        explicit_width: int = 0,
+        explicit_height: int = 0,
+    ) -> list[dict]:
+        """Batch-validate spatial feasibility for candidate product families.
+
+        v3.5c: Given a list of candidate product family IDs, airflow requirement,
+        and spatial constraints, return ONLY families whose optimal module
+        arrangement physically fits. Uses UNWIND for batch processing.
+
+        Parameters use 0 as "no constraint" sentinel.
+
+        Returns:
+            List of dicts with product_family_id, modules_needed,
+            airflow_per_module, module_width, module_height, max_modules_fitting.
+            Only families that PASS the spatial check are returned.
+        """
+        if not pf_ids or airflow <= 0:
+            return []
+
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                UNWIND $pf_ids AS pf_id
+                MATCH (pf:ProductFamily {id: pf_id})-[:AVAILABLE_IN_SIZE]->(dm:DimensionModule)
+                WHERE ($explicit_width = 0 OR dm.width_mm = $explicit_width)
+                  AND ($explicit_height = 0 OR dm.height_mm = $explicit_height)
+                  AND ($max_width = 0 OR dm.width_mm <= $max_width)
+                  AND ($max_height = 0 OR dm.height_mm <= $max_height)
+
+                OPTIONAL MATCH (pf)-[:HAS_CAPACITY]->(cr:CapacityRule)
+                OPTIONAL MATCH (dm)-[:DETERMINES_PROPERTY]->(sp_fam:SizeProperty)
+                  WHERE sp_fam.key = cr.component_count_key AND sp_fam.for_family = pf.id
+                OPTIONAL MATCH (dm)-[:DETERMINES_PROPERTY]->(sp_gen:SizeProperty)
+                  WHERE sp_gen.key = cr.component_count_key AND sp_gen.for_family IS NULL
+
+                WITH pf, dm,
+                     CASE WHEN cr IS NOT NULL
+                               AND COALESCE(sp_fam.value, sp_gen.value) IS NOT NULL
+                          THEN toFloat(COALESCE(sp_fam.value, sp_gen.value))
+                               * toFloat(cr.capacity_per_component)
+                          ELSE dm.reference_airflow_m3h
+                     END AS effective_airflow
+                WITH pf, dm, min(effective_airflow) AS effective_airflow
+
+                ORDER BY effective_airflow DESC
+                WITH pf, collect({w: dm.width_mm, h: dm.height_mm, af: effective_airflow})[0] AS best
+                WHERE best.af IS NOT NULL AND best.af > 0
+
+                WITH pf, best,
+                     toInteger(ceil(toFloat($airflow) / best.af)) AS modules_needed
+
+                WITH pf, best, modules_needed,
+                     CASE WHEN $max_width > 0
+                          THEN toInteger(floor(toFloat($max_width) / best.w))
+                          ELSE modules_needed END AS max_horizontal,
+                     CASE WHEN $max_height > 0
+                          THEN toInteger(floor(toFloat($max_height) / best.h))
+                          ELSE modules_needed END AS max_vertical
+
+                WHERE modules_needed <= max_horizontal * max_vertical
+
+                RETURN pf.id AS product_family_id,
+                       modules_needed,
+                       best.af AS airflow_per_module,
+                       best.w AS module_width,
+                       best.h AS module_height,
+                       max_horizontal * max_vertical AS max_modules_fitting
+                ORDER BY modules_needed ASC
+            """, {
+                "pf_ids": pf_ids,
+                "airflow": airflow,
+                "max_width": max_width,
+                "max_height": max_height,
+                "explicit_width": explicit_width,
+                "explicit_height": explicit_height,
+            })
+            return [dict(record) for record in result]
+
+    def get_all_accessory_codes(self) -> list[dict]:
+        """Get all known accessory codes from the graph.
+
+        Returns:
+            List of dicts with code (from ID) and name for each Accessory node.
+        """
+        driver = self.connect()
+        with driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (a:Accessory)
+                RETURN a.id AS id,
+                       replace(a.id, 'ACC_', '') AS code,
+                       a.name AS name
+                ORDER BY a.id
+            """)
+            return [dict(record) for record in result]
+
+
+    # ========================================
+    # Knowledge Refinery: Graph Rules as Candidates
+    # ========================================
+
+    def get_graph_rules_as_candidates(self) -> list[dict]:
+        """Get all graph rule nodes formatted as knowledge candidates for the Refinery UI.
+
+        Queries across 6 rule types using UNION ALL:
+        - Causal Rules (NEUTRALIZED_BY, DEMANDS_TRAIT)
+        - Logic Gates
+        - Hard Constraints
+        - Dependency Rules
+        - Capacity Rules
+
+        Returns:
+            List of candidate-shaped dicts matching the KnowledgeCandidate interface.
+        """
+        cache_key = "graph_rules_as_candidates"
+        cached = _get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    // Sub-query 1: Failure Modes (NEUTRALIZED_BY)
+                    MATCH (t:PhysicalTrait)-[r:NEUTRALIZED_BY]->(s:EnvironmentalStressor)
+                    OPTIONAL MATCH (pf:ProductFamily)-[:HAS_TRAIT]->(t)
+                    WITH t, r, s, collect(DISTINCT pf.name) AS families
+                    RETURN s.id + '_NEUTRALIZES_' + t.id AS id,
+                           t.name + ' failure from ' + s.name AS raw_name,
+                           'Failure Mode' AS type,
+                           COALESCE(r.explanation, s.name + ' neutralizes ' + t.name) AS inference_logic,
+                           'Severity: ' + COALESCE(r.severity, 'UNKNOWN') + ' | ' + s.name + ' neutralizes ' + t.name AS citation,
+                           'pending' AS status, '' AS created_at,
+                           families AS projects, [s.name] AS events, null AS verified_as
+
+                    UNION ALL
+
+                    // Sub-query 2: Engineering Requirements (DEMANDS_TRAIT)
+                    MATCH (s:EnvironmentalStressor)-[r:DEMANDS_TRAIT]->(t:PhysicalTrait)
+                    OPTIONAL MATCH (pf:ProductFamily)-[:HAS_TRAIT]->(t)
+                    WITH t, r, s, collect(DISTINCT pf.name) AS families
+                    RETURN s.id + '_DEMANDS_' + t.id AS id,
+                           t.name + ' required against ' + s.name AS raw_name,
+                           'Engineering Requirement' AS type,
+                           COALESCE(r.explanation, s.name + ' demands ' + t.name) AS inference_logic,
+                           'Severity: ' + COALESCE(r.severity, 'UNKNOWN') + ' | ' + s.name + ' demands ' + t.name AS citation,
+                           'pending' AS status, '' AS created_at,
+                           families AS projects, [s.name] AS events, null AS verified_as
+
+                    UNION ALL
+
+                    // Sub-query 3: Validation Checks (Logic Gates)
+                    MATCH (g:LogicGate)-[:MONITORS]->(s:EnvironmentalStressor)
+                    OPTIONAL MATCH (g)-[:REQUIRES_DATA]->(p:Parameter)
+                    WITH g, s, collect(DISTINCT p.name) AS param_names
+                    RETURN g.id AS id, g.name AS raw_name, 'Validation Check' AS type,
+                           COALESCE(g.physics_explanation, g.name) AS inference_logic,
+                           COALESCE(g.condition_logic, '') AS citation,
+                           'pending' AS status, '' AS created_at,
+                           [s.name] AS projects, param_names AS events, null AS verified_as
+
+                    UNION ALL
+
+                    // Sub-query 4: Physical Limits (Hard Constraints)
+                    MATCH (pf:ProductFamily)-[:HAS_HARD_CONSTRAINT]->(hc:HardConstraint)
+                    RETURN hc.id AS id,
+                           pf.name + ' — ' + COALESCE(hc.error_msg, hc.property_key + ' ' + hc.operator + ' ' + toString(hc.value)) AS raw_name,
+                           'Physical Limit' AS type,
+                           COALESCE(hc.error_msg, 'Constraint: ' + hc.property_key + ' ' + hc.operator + ' ' + toString(hc.value)) AS inference_logic,
+                           hc.property_key + ' ' + hc.operator + ' ' + toString(hc.value) AS citation,
+                           'pending' AS status, '' AS created_at,
+                           [pf.name] AS projects, [hc.property_key] AS events, null AS verified_as
+
+                    UNION ALL
+
+                    // Sub-query 5: Assembly Requirements (Dependency Rules)
+                    MATCH (dr:DependencyRule)-[:TRIGGERED_BY_STRESSOR]->(s:EnvironmentalStressor)
+                    MATCH (dr)-[:UPSTREAM_REQUIRES_TRAIT]->(ut:PhysicalTrait)
+                    MATCH (dr)-[:DOWNSTREAM_PROVIDES_TRAIT]->(dt:PhysicalTrait)
+                    RETURN dr.id AS id,
+                           ut.name + ' → ' + dt.name + ' (multi-stage)' AS raw_name,
+                           'Assembly Requirement' AS type,
+                           COALESCE(dr.description, ut.name + ' must protect ' + dt.name) AS inference_logic,
+                           'Triggered by: ' + s.name + ' | Type: ' + COALESCE(dr.dependency_type, 'MANDATES_PROTECTION') AS citation,
+                           'pending' AS status, '' AS created_at,
+                           [s.name] AS projects, [ut.name, dt.name] AS events, null AS verified_as
+
+                    UNION ALL
+
+                    // Sub-query 6: Performance Ratings (Capacity Rules)
+                    MATCH (pf:ProductFamily)-[:HAS_CAPACITY]->(cr:CapacityRule)
+                    RETURN cr.id AS id,
+                           pf.name + ' Capacity (' + COALESCE(cr.module_descriptor, 'default') + ')' AS raw_name,
+                           'Performance Rating' AS type,
+                           COALESCE(cr.description, '') + CASE WHEN cr.assumption IS NOT NULL THEN ' | ' + cr.assumption ELSE '' END AS inference_logic,
+                           'Output: ' + COALESCE(toString(cr.output_rating), '?') + ' ' + COALESCE(cr.input_requirement, '?') AS citation,
+                           'pending' AS status, '' AS created_at,
+                           [pf.name] AS projects, [COALESCE(cr.input_requirement, 'unknown')] AS events, null AS verified_as
+                """)
+                return [dict(record) for record in result]
+
+        result = self._execute_with_retry(_query)
+        _set_cached(cache_key, result)
+        return result
 
 
 db = Neo4jConnection()

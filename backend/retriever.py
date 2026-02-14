@@ -10,7 +10,11 @@ by loading the appropriate configuration file.
 import os
 import re
 import json
+import time
+import logging
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from google import genai
 from google.genai import types
@@ -22,6 +26,21 @@ from config_loader import get_config, reload_config, DomainConfig, ReasoningPoli
 from models import (
     ConsultResponse, StructuredResponse, GraphEvidence, PolicyCheckResult,
     ExplainableResponse, ReferenceDetail, ReasoningStep
+)
+from logic.graph_reasoning import GraphReasoningEngine
+from logic.session_graph import _derive_housing_length
+from logic.scribe import (
+    extract_semantic_intent,
+    resolve_derived_actions,
+    SemanticIntent,
+)
+from logic.state import (
+    TechnicalState,
+    TagSpecification,
+    extract_tags_from_query,
+    extract_material_from_query,
+    extract_project_from_query,
+    extract_accessories_from_query,
 )
 
 load_dotenv(dotenv_path="../.env")
@@ -85,41 +104,92 @@ class QueryIntent:
         return f"QueryIntent(lang={self.language}, constraints={constraints}, entities={entities}, intent={self.action_intent})"
 
 
-def detect_intent(query: str) -> QueryIntent:
-    """Use LLM to extract structured intent from query.
-
-    This is a fast, domain-agnostic call that extracts:
-    - Language
-    - Numeric requirements (any units)
-    - Entity references (product codes, model names)
-    - Action intent
-    - Context keywords
+def detect_intent_fast(query: str) -> QueryIntent:
+    """FALLBACK: Regex-based intent detection. Only called when Scribe LLM
+    fails or for fields Scribe didn't extract. Scribe is the primary extractor (v4.0).
     """
-    try:
-        response = client.models.generate_content(
-            model=LLM_MODEL_FAST,
-            contents=[
-                types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text=INTENT_DETECTION_PROMPT.format(query=query))]
-                )
-            ],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.1,
-            ),
-        )
-        data = json.loads(response.text)
-        return QueryIntent(data)
-    except Exception as e:
-        # Fallback to basic detection if LLM fails
-        return QueryIntent({
-            "language": _detect_language_fallback(query),
-            "numeric_constraints": _extract_numeric_constraints_fallback(query),
-            "entity_references": [],
-            "action_intent": "general_info",
-            "has_specific_constraint": False
-        })
+    query_lower = query.lower()
+
+    # 1. Detect language
+    language = _detect_language_fallback(query)
+
+    # 2. Extract product codes (GDB, GDMI, GDC, GDP, PFF, BFF, etc.)
+    product_pattern = r'\b(GDB|GDMI|GDC|GDP|GDF|GDR|PFF|BFF|EXL)[-\s]?(\d{2,4})?[xX]?(\d{2,4})?\b'
+    product_matches = re.findall(product_pattern, query, re.IGNORECASE)
+    entity_references = [m[0].upper() for m in product_matches] if product_matches else []
+
+    # Also catch full product codes like "GDB-600x600-750"
+    full_code_pattern = r'\b([A-Z]{2,4}-\d{2,4}[xX]\d{2,4}(?:-\d{2,4})?)\b'
+    full_codes = re.findall(full_code_pattern, query, re.IGNORECASE)
+    entity_references.extend([c.upper() for c in full_codes])
+    entity_references = list(set(entity_references))  # dedupe
+
+    # 3. Extract numeric constraints
+    numeric_constraints = _extract_numeric_constraints_fallback(query)
+
+    # 4. Detect application/environment keywords
+    app_keywords = {
+        'hospital': ['hospital', 'szpital', 'medical', 'clinic', 'klinik'],
+        'kitchen': ['kitchen', 'kuchnia', 'restaurant', 'restauracja', 'food'],
+        'office': ['office', 'biuro', 'commercial', 'komercyjny'],
+        'industrial': ['industrial', 'przemysłowy', 'factory', 'fabryka'],
+        'cleanroom': ['cleanroom', 'czyste pomieszczenie', 'pharma', 'farmaceut'],
+    }
+    context_keywords = []
+    for app, keywords in app_keywords.items():
+        if any(kw in query_lower for kw in keywords):
+            context_keywords.append(app)
+
+    # 5. Detect action intent
+    if any(w in query_lower for w in ['compare', 'porównaj', 'vs', 'versus', 'difference']):
+        action_intent = "compare"
+    elif any(w in query_lower for w in ['configure', 'konfigur', 'setup', 'option']):
+        action_intent = "configure"
+    elif any(w in query_lower for w in ['problem', 'issue', 'nie działa', 'error', 'troubleshoot']):
+        action_intent = "troubleshoot"
+    elif entity_references or any(w in query_lower for w in ['recommend', 'suggest', 'need', 'potrzeb', 'want', 'chcę']):
+        action_intent = "select"
+    else:
+        action_intent = "general_info"
+
+    # 6. Check for specific constraints
+    has_specific = bool(numeric_constraints) or "context update:" in query_lower
+
+    return QueryIntent({
+        "language": language,
+        "numeric_constraints": numeric_constraints,
+        "entity_references": entity_references,
+        "action_intent": action_intent,
+        "context_keywords": context_keywords,
+        "has_specific_constraint": has_specific
+    })
+
+
+def detect_intent(query: str) -> QueryIntent:
+    """FALLBACK: Regex-based intent detection. Scribe LLM is the primary extractor (v4.0).
+    Only called when Scribe results need supplementing.
+    """
+    # Try fast detection first
+    fast_intent = detect_intent_fast(query)
+
+    # If we found products or clear application context, fast path is enough
+    if fast_intent.entity_references or fast_intent.context_keywords:
+        return fast_intent
+
+    # For very short queries or greetings, fast path is enough
+    if len(query.split()) < 4:
+        return fast_intent
+
+    # Only use LLM for truly ambiguous queries (rare case)
+    # For now, just use fast path - LLM fallback disabled for performance
+    return fast_intent
+
+    # DISABLED: LLM fallback (uncomment if needed for complex queries)
+    # try:
+    #     response = client.models.generate_content(...)
+    #     return QueryIntent(json.loads(response.text))
+    # except:
+    #     return fast_intent
 
 
 def _detect_language_fallback(query: str) -> str:
@@ -311,13 +381,294 @@ def analyze_entity_variance(entities: list[dict]) -> dict:
 
 
 # =============================================================================
+# NUMERIC NORMALIZATION
+# =============================================================================
+
+def _normalize_numeric_string(text: str) -> str:
+    """Normalize thousand-separated numbers for regex extraction.
+
+    Handles comma separators (6,000), space separators (6 000),
+    and dot separators used in some locales (6.000).
+
+    Examples:
+        "6,000 m³/h" → "6000 m³/h"
+        "6 000 m³/h" → "6000 m³/h"
+        "12,500"     → "12500"
+        "600x600"    → "600x600" (unchanged — no separator pattern)
+    """
+    # Comma thousand separator: 6,000 or 12,500
+    text = re.sub(r'(\d{1,3}),(\d{3})\b', r'\1\2', text)
+    # Space thousand separator: 6 000 or 12 500
+    text = re.sub(r'(\d{1,3})\s(\d{3})\b', r'\1\2', text)
+    return text
+
+
+# =============================================================================
+# SEMANTIC SCRIBE — STATE MERGE HELPER (v3.0)
+# =============================================================================
+
+def _merge_scribe_into_state(
+    intent: SemanticIntent,
+    state: TechnicalState,
+    detected_family: str,
+) -> None:
+    """Merge Scribe extraction results into TechnicalState.
+
+    v4.0: Scribe is SOLE PRIMARY extractor. Merge priority:
+    1. CORRECT actions → always win (user corrections override everything)
+    2. Scribe entity data → primary (fill dimensions, airflow, material, etc.)
+    3. SET/COPY actions → fill empty fields (references, arithmetic)
+    4. Parameters (constraints) → always set from Scribe
+    5. Project, accessories, housing_length → Scribe primary
+    6. Clarification answers → route to tag attributes or resolved_params
+    """
+    # 1. CORRECT actions first (override existing values)
+    for action in intent.actions:
+        if action.type != "CORRECT":
+            continue
+        tag = state.tags.get(action.target_tag)
+        if not tag:
+            continue
+        # Handle dimension corrections: unpack dict → filter_width/height
+        if action.field == "dimensions" and isinstance(action.value, dict):
+            w = action.value.get("width")
+            h = action.value.get("height")
+            d = action.value.get("depth")
+            kwargs = {}
+            if w is not None:
+                kwargs["filter_width"] = int(w)
+            if h is not None:
+                kwargs["filter_height"] = int(h)
+            if d is not None:
+                kwargs["filter_depth"] = int(d)
+            if kwargs:
+                # Force override: temporarily clear existing values
+                if "filter_width" in kwargs:
+                    tag.filter_width = None
+                    tag.housing_width = None
+                if "filter_height" in kwargs:
+                    tag.filter_height = None
+                    tag.housing_height = None
+                state.merge_tag(action.target_tag, **kwargs)
+                print(f"🧠 [SCRIBE] CORRECT: {action.target_tag} dimensions → "
+                      f"{kwargs}")
+        elif hasattr(tag, action.field) and action.value is not None:
+            # Clear existing value then merge to trigger recomputation
+            setattr(tag, action.field, None)
+            state.merge_tag(action.target_tag, **{action.field: action.value})
+            print(f"🧠 [SCRIBE] CORRECT: {action.target_tag}.{action.field} → "
+                  f"{action.value}")
+
+    # 2. Entity data — Scribe is primary (v3.1). Only skip dimensions that
+    #    structural regex already extracted (WxH patterns are precise).
+    for entity in intent.entities:
+        tag_ref = entity.tag_ref
+        if tag_ref not in state.tags:
+            # Only create new tags if Scribe entity has meaningful data
+            # (prevents phantom tags from LLM hallucination)
+            has_data = entity.dimensions or entity.airflow_m3h or entity.product_family
+            if not has_data:
+                continue
+            # Use Scribe's product_family (primary), fall back to regex-detected
+            tag_family = entity.product_family or detected_family
+            state.merge_tag(tag_ref, product_family=tag_family)
+            print(f"🧠 [SCRIBE] Created new tag: {tag_ref}")
+
+        tag = state.tags[tag_ref]
+
+        # Dimensions (only fill if structural regex didn't already extract)
+        if entity.dimensions and not tag.housing_width:
+            w = entity.dimensions.get("width")
+            h = entity.dimensions.get("height")
+            d = entity.dimensions.get("depth")
+            kwargs = {}
+            if w is not None:
+                kwargs["filter_width"] = int(w)
+            if h is not None:
+                kwargs["filter_height"] = int(h)
+            if d is not None:
+                kwargs["filter_depth"] = int(d)
+            if kwargs:
+                state.merge_tag(tag_ref, **kwargs)
+
+        # Airflow — Scribe is primary
+        if entity.airflow_m3h and not tag.airflow_m3h:
+            state.merge_tag(tag_ref, airflow_m3h=entity.airflow_m3h)
+
+        # Product family — Scribe is primary (v3.1), always override
+        if entity.product_family:
+            state.merge_tag(tag_ref, product_family=entity.product_family)
+
+        # Material — Scribe is primary
+        if entity.material:
+            state.lock_material(entity.material)
+
+        # Connection type — Scribe is primary
+        if entity.connection_type:
+            state.resolved_params["connection_type"] = entity.connection_type
+            print(f"🧠 [SCRIBE] Connection type: {entity.connection_type}")
+
+        # Housing length — Scribe is primary (v4.0), overrides auto-derived
+        if entity.housing_length:
+            state.merge_tag(tag_ref, housing_length=entity.housing_length)
+            print(f"🧠 [SCRIBE] Housing length: {entity.housing_length} on {tag_ref}")
+
+    # 2b. Project name from Scribe (v4.0)
+    if intent.project_name and not state.project_name:
+        state.set_project(intent.project_name)
+        print(f"🧠 [SCRIBE] Project: {intent.project_name}")
+
+    # 3. SET/COPY actions (fill empty fields only — regex had priority)
+    for action in intent.actions:
+        if action.type not in ("SET", "COPY") or action.value is None:
+            continue
+
+        # Full copy (all fields from source tag)
+        if action.field == "_full_copy" and isinstance(action.value, dict):
+            target = action.target_tag
+            if target not in state.tags:
+                state.merge_tag(target, product_family=detected_family)
+            tag = state.tags[target]
+            copy_data = action.value
+
+            if copy_data.get("dimensions") and not tag.housing_width:
+                dims = copy_data["dimensions"]
+                state.merge_tag(target,
+                    filter_width=dims.get("width"),
+                    filter_height=dims.get("height"))
+            if copy_data.get("airflow_m3h") and not tag.airflow_m3h:
+                state.merge_tag(target, airflow_m3h=copy_data["airflow_m3h"])
+            if copy_data.get("product_family") and not tag.product_family:
+                state.merge_tag(target, product_family=copy_data["product_family"])
+            print(f"🧠 [SCRIBE] COPY → {target}")
+            continue
+
+        # Single field SET
+        tag = state.tags.get(action.target_tag)
+        if not tag:
+            continue
+
+        # Handle dimension SET (unpack dict)
+        if action.field == "dimensions" and isinstance(action.value, dict):
+            if not tag.housing_width:
+                w = action.value.get("width")
+                h = action.value.get("height")
+                kwargs = {}
+                if w is not None:
+                    kwargs["filter_width"] = int(w)
+                if h is not None:
+                    kwargs["filter_height"] = int(h)
+                if kwargs:
+                    state.merge_tag(action.target_tag, **kwargs)
+        elif hasattr(tag, action.field):
+            current = getattr(tag, action.field)
+            if current is None:
+                state.merge_tag(action.target_tag, **{action.field: action.value})
+                print(f"🧠 [SCRIBE] SET: {action.target_tag}.{action.field} = "
+                      f"{action.value}")
+
+    # 4. Parameters (constraints, generic params — always set, Scribe is primary)
+    for key, val in intent.parameters.items():
+        state.resolved_params[key] = str(val)
+        print(f"🧠 [SCRIBE] Param: {key} = {val}")
+
+    # 4b. Route filter_depth parameter to tag (IC constraint needs it on tag)
+    if "filter_depth" in intent.parameters:
+        fd_val = _safe_int_val(intent.parameters["filter_depth"])
+        if fd_val:
+            for _tid, _tag in state.tags.items():
+                if not _tag.filter_depth:
+                    state.merge_tag(_tid, filter_depth=fd_val)
+                    print(f"🧠 [SCRIBE] Param → filter_depth={fd_val} on {_tid}")
+
+    # 5. Clarification answers → route to tag attributes or resolved_params (v3.1)
+    # Guard: only process when there's an actual pending_clarification.
+    # Prevents Scribe from hallucinating answers on Turn 1 (e.g. confusing
+    # airflow "2500 m³/h" with housing_length).
+    if not state.pending_clarification and intent.clarification_answers:
+        print(f"⚠️ [SCRIBE] Ignoring {len(intent.clarification_answers)} clarification "
+              f"answers (no pending_clarification): {intent.clarification_answers}")
+        intent.clarification_answers = {}
+    for param_key, value in intent.clarification_answers.items():
+        _routed = False
+        pk = param_key.lower().strip()
+
+        # Route airflow to tag attribute
+        if pk in ('airflow', 'airflow_m3h', 'przepływ'):
+            int_val = _safe_int_val(value)
+            if int_val and 500 <= int_val <= 100000:
+                for _tid, _tag in state.tags.items():
+                    if not _tag.airflow_m3h:
+                        state.merge_tag(_tid, airflow_m3h=int_val)
+                        print(f"🧠 [SCRIBE] Clarification → airflow_m3h={int_val} on {_tid}")
+                _routed = True
+                state.pending_clarification = _consume_pending_parts(
+                    state.pending_clarification, ['airflow', 'przepływ'])
+
+        # Route filter_depth to tag attribute
+        elif pk in ('filter_depth', 'depth'):
+            int_val = _safe_int_val(value)
+            if int_val:
+                for _tid, _tag in state.tags.items():
+                    if not _tag.filter_depth:
+                        state.merge_tag(_tid, filter_depth=int_val)
+                        print(f"🧠 [SCRIBE] Clarification → filter_depth={int_val} on {_tid}")
+                _routed = True
+                state.pending_clarification = _consume_pending_parts(
+                    state.pending_clarification, ['depth', 'filter_depth'])
+
+        # Route housing_length to tag attribute (overrides auto-derived)
+        elif pk in ('housing_length', 'length', 'längd'):
+            int_val = _safe_int_val(value)
+            if int_val:
+                for _tid, _tag in state.tags.items():
+                    state.merge_tag(_tid, housing_length=int_val)
+                    print(f"🧠 [SCRIBE] Clarification → housing_length={int_val} on {_tid}")
+                _routed = True
+                state.pending_clarification = _consume_pending_parts(
+                    state.pending_clarification, ['length', 'housing', 'längd'])
+
+        # Generic → resolved_params
+        if not _routed:
+            state.resolved_params[pk] = str(value)
+            print(f"🧠 [SCRIBE] Clarification → resolved_params[{pk}] = {value}")
+            state.pending_clarification = _consume_pending_parts(
+                state.pending_clarification, [pk])
+
+
+def _safe_int_val(val) -> int | None:
+    """Safely convert a value to int."""
+    if val is None:
+        return None
+    try:
+        return int(float(str(val).replace(",", "").replace(" ", "")))
+    except (ValueError, TypeError):
+        return None
+
+
+def _consume_pending_parts(pending: str | None, keywords: list[str]) -> str | None:
+    """Remove consumed parts from compound pending_clarification.
+
+    E.g., pending="atex_zone, housing_length", keywords=["housing", "length"]
+    → returns "atex_zone"
+    """
+    if not pending:
+        return None
+    parts = [p.strip() for p in pending.split(",")]
+    remaining = [p for p in parts
+                 if not any(kw in p.lower() for kw in keywords)]
+    return ", ".join(remaining) if remaining else None
+
+
+# =============================================================================
 # ENTITY EXTRACTION (Configuration-Driven)
 # =============================================================================
 
 def extract_entity_codes(query: str) -> list[str]:
-    """Extract domain entity codes from query using configured patterns.
+    """FALLBACK: Regex-based entity code extraction. Only called when Scribe LLM
+    fails or returns no entity_codes. Scribe is the primary extractor (v4.0).
 
-    This function is completely generic - patterns come from config.
+    Patterns come from domain_config.yaml.
 
     Args:
         query: User's query string
@@ -545,7 +896,7 @@ Return ONLY a JSON array of strings. No explanation.
             contents=[types.Content(role="user", parts=[types.Part.from_text(text=extraction_prompt)])],
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
-                temperature=0.1,
+                temperature=0.0,
             ),
         )
 
@@ -773,14 +1124,18 @@ def get_semantic_rules(query_embedding: list[float], user_query: str = "") -> st
     return "\n".join(formatted_lines)
 
 
-def format_configuration_context(config_results: dict) -> str:
+def format_configuration_context(config_results: dict, max_variants: int = 5, max_context_chars: int = 4000) -> str:
     """Format search results using configuration-driven rendering.
 
     This function contains NO hardcoded field names - everything
     comes from the display schema in configuration.
 
+    CONTEXT PRUNING: Limits output to prevent LLM token overload.
+
     Args:
         config_results: Results from configuration graph search
+        max_variants: Maximum number of product variants to include (default: 5)
+        max_context_chars: Maximum characters in output (default: 4000)
 
     Returns:
         Formatted context string for LLM consumption
@@ -791,8 +1146,8 @@ def format_configuration_context(config_results: dict) -> str:
     config = get_config()
     context_parts = []
 
-    # Format primary entities (variants/products)
-    variants = config_results.get("variants", [])
+    # PRUNING: Limit variants to top N matches
+    variants = config_results.get("variants", [])[:max_variants]
     if variants:
         display = config.primary_entity_display
         header = display.header_template.format(icon=display.icon, title=display.title)
@@ -848,11 +1203,18 @@ def format_configuration_context(config_results: dict) -> str:
                 option_lines = _format_options(item, config)
                 context_parts.extend(option_lines)
 
-    return "\n".join(context_parts) if context_parts else ""
+    result = "\n".join(context_parts) if context_parts else ""
+
+    # PRUNING: Truncate if too long (with warning)
+    if len(result) > max_context_chars:
+        result = result[:max_context_chars] + "\n... [CONTEXT TRUNCATED - too many results]"
+        print(f"⚠️ Context pruned: {len(result)} -> {max_context_chars} chars")
+
+    return result
 
 
 # =============================================================================
-# GUARDIAN REASONING ENGINE (Policy-Driven)
+# GUARDIAN REASONING ENGINE (Graph-Based)
 # =============================================================================
 
 def evaluate_policies(
@@ -860,97 +1222,163 @@ def evaluate_policies(
     graph_data: dict,
     config: DomainConfig
 ) -> tuple[list[PolicyCheckResult], str]:
-    """Evaluate Guardian policies against query and graph data.
+    """Evaluate policies via GRAPH traversal - no YAML config.
 
-    This is the core of the reasoning layer - it validates user intent
-    against configured business rules.
+    This function now uses the GraphReasoningEngine to evaluate rules
+    stored in Neo4j instead of YAML-based policies.
 
     Args:
         query: User's query
-        graph_data: Retrieved graph data
-        config: Domain configuration
+        graph_data: Retrieved graph data (used for context)
+        config: Domain configuration (kept for backwards compatibility, not used for rules)
 
     Returns:
         Tuple of (policy check results, formatted policy analysis string)
     """
-    active_policies = config.get_active_policies_for_query(query)
+    engine = get_graph_reasoning_engine()
     results = []
     analysis_parts = []
 
-    if not active_policies:
+    # Extract product family from graph data or query
+    product_family = None
+    for variant in graph_data.get("variants", []):
+        if "family" in variant:
+            product_family = variant["family"]
+            break
+
+    # Generate graph-based reasoning report
+    report = engine.generate_reasoning_report(query, product_family)
+
+    if not report.application and not report.suitability.warnings:
         return results, "No special policies triggered for this query."
 
-    analysis_parts.append("**Policy Evaluation:**\n")
+    analysis_parts.append("**Graph-Based Policy Evaluation:**\n")
 
-    for policy in active_policies:
+    # Process application context
+    if report.application:
+        analysis_parts.append(f"• [APPLICATION] Detected: {report.application.name}")
+        analysis_parts.append(f"  Keywords matched: '{report.application.matched_keyword}'")
+
+        # Check for associated risks
+        if report.application.risks:
+            for risk in report.application.risks:
+                analysis_parts.append(f"  ⚠️ Associated Risk: {risk.get('name', '')} ({risk.get('severity', '')})")
+
+        # Check for requirements
+        if report.application.requirements:
+            for req in report.application.requirements:
+                analysis_parts.append(f"  📋 Requires: {req.get('name', '')}")
+        analysis_parts.append("")
+
+    # Process suitability warnings
+    for warning in report.suitability.warnings:
         result = PolicyCheckResult(
-            policy_id=policy.id,
-            policy_name=policy.name,
+            policy_id=f"GRAPH_{warning.risk_type}",
+            policy_name=warning.risk_name,
             triggered=True,
-            passed=True,
-            message="",
-            recommendation=""
+            passed=False if warning.severity in ['CRITICAL', 'WARNING'] else True,
+            message=warning.description,
+            recommendation=warning.mitigation
         )
 
-        analysis_parts.append(f"• [{policy.id}] {policy.name} - TRIGGERED")
-
-        # Check if graph data contains the required attribute
-        check_attr = policy.validation.check_attribute
-        found_values = []
-
-        # Search in variants
-        for variant in graph_data.get("variants", []):
-            if check_attr in variant and variant[check_attr]:
-                found_values.append(variant[check_attr])
-
-        # Search in materials
-        for material in graph_data.get("materials", []):
-            if check_attr in material and material[check_attr]:
-                found_values.append(material[check_attr])
-
-        # Evaluate validation rules
-        if policy.validation.required_values and found_values:
-            matching = [v for v in found_values if v in policy.validation.required_values]
-            if not matching:
-                result.passed = False
-                result.message = policy.validation.fail_message
-                result.recommendation = policy.validation.recommendation
-                analysis_parts.append(f"  ⚠️ FAILED: {result.message}")
-                analysis_parts.append(f"  → Recommendation: {result.recommendation}")
-            else:
-                analysis_parts.append(f"  ✓ PASSED: Found {', '.join(matching)}")
-
-        elif policy.validation.min_value is not None:
-            numeric_values = [v for v in found_values if isinstance(v, (int, float))]
-            if numeric_values:
-                if min(numeric_values) < policy.validation.min_value:
-                    result.passed = False
-                    result.message = policy.validation.fail_message
-                    result.recommendation = policy.validation.recommendation
-            else:
-                analysis_parts.append(f"  ℹ️ Unable to verify: attribute not found in graph")
-
-        elif not found_values:
-            analysis_parts.append(f"  ℹ️ Unable to verify: '{check_attr}' not found in retrieved data")
+        severity_icon = "🔴" if warning.severity == "CRITICAL" else "🟡" if warning.severity == "WARNING" else "🔵"
+        analysis_parts.append(f"• [{warning.risk_type}] {warning.risk_name} - {severity_icon} {warning.severity}")
+        analysis_parts.append(f"  Description: {warning.description}")
+        analysis_parts.append(f"  Consequence: {warning.consequence}")
+        analysis_parts.append(f"  → Recommendation: {warning.mitigation}")
+        analysis_parts.append(f"  Graph Path: {warning.graph_path}")
+        analysis_parts.append("")
 
         results.append(result)
+
+    # Process required materials
+    if report.suitability.required_materials:
+        analysis_parts.append("• [MATERIAL_REQUIREMENTS] From Graph:")
+        for mat in report.suitability.required_materials:
+            analysis_parts.append(f"  ✓ {mat.material_code} ({mat.material_name}) - {mat.reason}")
         analysis_parts.append("")
 
     return results, "\n".join(analysis_parts)
 
 
 def build_guardian_prompt(query: str, config: DomainConfig) -> str:
-    """Build the Guardian policy injection for the system prompt."""
-    active_policies = config.get_active_policies_for_query(query)
-    policy_prompt = config.format_policies_for_prompt(active_policies)
+    """DEPRECATED: Use build_graph_reasoning_prompt() instead.
 
-    # Add domain-specific Guardian rules from config
-    guardian_rules = config.get_all_guardian_rules_prompt()
-    if guardian_rules:
-        return f"""{guardian_rules}
+    This function is kept for backwards compatibility but should not be used.
+    All rules are now stored in the Neo4j graph and retrieved via GraphReasoningEngine.
+    """
+    # Return empty string - all reasoning comes from graph now
+    return ""
 
-{policy_prompt}"""
-    return policy_prompt
+
+# =============================================================================
+# GRAPH-NATIVE REASONING ENGINE
+# =============================================================================
+
+# Global instance of the GraphReasoningEngine
+_graph_reasoning_engine = None
+_trait_engine = None
+
+
+def _get_trait_engine():
+    """Get or create the TraitBasedEngine singleton."""
+    global _trait_engine
+    if _trait_engine is None:
+        from logic.universal_engine import TraitBasedEngine
+        _trait_engine = TraitBasedEngine(db)
+    return _trait_engine
+
+
+def get_graph_reasoning_engine() -> GraphReasoningEngine:
+    """Get or create the GraphReasoningEngine singleton."""
+    global _graph_reasoning_engine
+    if _graph_reasoning_engine is None:
+        _graph_reasoning_engine = GraphReasoningEngine(db)
+    return _graph_reasoning_engine
+
+
+def build_graph_reasoning_prompt(query: str, product_family: str = None, context: dict = None) -> str:
+    """Build reasoning context from graph traversal instead of YAML config.
+
+    This function replaces build_guardian_prompt() with graph-native reasoning.
+    Rules are retrieved via Neo4j queries rather than loaded from YAML.
+
+    Args:
+        query: User's query string
+        product_family: Optional pre-detected product family
+        context: Optional dict of already-known parameters
+
+    Returns:
+        Formatted reasoning context for LLM injection
+    """
+    engine = get_graph_reasoning_engine()
+    report = engine.generate_reasoning_report(query, product_family, context)
+    return report.to_prompt_injection()
+
+
+def get_graph_reasoning_report(query: str, product_family: str = None, context: dict = None,
+                               material: str = None, accessories: list = None):
+    """Get the full GraphReasoningReport for advanced use cases.
+
+    Returns the structured report object for cases where you need
+    programmatic access to the reasoning results.
+
+    Default: TraitBasedEngine (has full installation constraint pipeline).
+    Set REASONING_ENGINE=legacy to force the old GraphReasoningEngine
+    (missing IC_ENVIRONMENT_WHITELIST and other critical safety checks).
+    """
+    if os.getenv("REASONING_ENGINE", "trait_based") != "legacy":
+        from logic.universal_engine import TraitBasedEngine
+        from logic.verdict_adapter import VerdictToReportAdapter
+        engine = _get_trait_engine()
+        verdict = engine.process_query(query, product_hint=product_family, context=context)
+        return VerdictToReportAdapter().adapt(verdict)
+    else:
+        engine = get_graph_reasoning_engine()
+        return engine.generate_reasoning_report(
+            query, product_family, context,
+            material=material, accessories=accessories
+        )
 
 
 # =============================================================================
@@ -1206,8 +1634,8 @@ def query_knowledge_graph(user_query: str) -> dict:
     if knowledge_context:
         graph_context = f"{graph_context}\n\n{knowledge_context}"
 
-    # Step 9: Build dynamic prompts
-    active_policies_prompt = build_guardian_prompt(user_query, config)
+    # Step 9: Build dynamic prompts - GRAPH-ONLY reasoning (no YAML)
+    active_policies_prompt = build_graph_reasoning_prompt(user_query)
 
     # Format system prompt with active policies
     system_prompt = config.prompts.system.format(active_policies=active_policies_prompt)
@@ -1232,7 +1660,7 @@ def query_knowledge_graph(user_query: str) -> dict:
         config=types.GenerateContentConfig(
             system_instruction=system_prompt,
             response_mime_type="application/json",
-            temperature=0.1,
+            temperature=0.0,
         ),
     )
 
@@ -1358,7 +1786,7 @@ ALWAYS respond in ENGLISH regardless of the user's query language.
 ### 2. INLINE CITATIONS (MANDATORY)
 Every fact from the Knowledge Graph MUST be followed immediately by a [[REF:ID]] marker.
 
-Format: "The housing is 600x600mm [[REF:GDC-600x600]] and weighs 12kg [[REF:weight-spec]]."
+Format: "The housing is [W]x[H]mm [[REF:product-id]] and weighs [X]kg [[REF:weight-spec]]."
 
 - The [[REF:ID]] appears AFTER the fact it verifies
 - ID should be the node name/ID from the graph data
@@ -1381,10 +1809,10 @@ Never recommend undersized equipment.
 ```json
 {{
   "reasoning_chain": [
-    {{"step": "Found GDC-900x600 with airflow 3000 m³/h", "source": "GRAPH", "node_id": "GDC-900x600"}},
-    {{"step": "Carbon filters effective for exhaust fumes", "source": "LLM", "node_id": null}},
-    {{"step": "POL-003 Capacity Check: PASSED (3000 >= 3000)", "source": "POLICY", "node_id": null}},
-    {{"step": "Undersized products filtered out: GDC-600x600", "source": "FILTER", "node_id": null}}
+    {{"step": "Found [Product]-[Size] with [capacity] [unit]", "source": "GRAPH", "node_id": "[product-id]"}},
+    {{"step": "[Technology] effective for [problem]", "source": "LLM", "node_id": null}},
+    {{"step": "Capacity Check: PASSED ([value] >= [required])", "source": "POLICY", "node_id": null}},
+    {{"step": "Undersized products filtered out: [product-id]", "source": "FILTER", "node_id": null}}
   ],
   "final_answer_markdown": "Your answer with [[REF:ID]] markers...",
   "references": {{
@@ -1527,8 +1955,8 @@ def query_explainable(user_query: str) -> ExplainableResponse:
     if sizing_note:
         graph_context = sizing_note + graph_context
 
-    # Step 11: Build prompts - always English
-    active_policies_prompt = build_guardian_prompt(user_query, config)
+    # Step 11: Build prompts - GRAPH-ONLY reasoning (no YAML)
+    active_policies_prompt = build_graph_reasoning_prompt(user_query)
 
     # Always respond in English
     lang_directive = "\n\n## RESPONSE LANGUAGE\n**You MUST respond in ENGLISH.** All responses must be in English regardless of query language.\n"
@@ -1552,7 +1980,7 @@ def query_explainable(user_query: str) -> ExplainableResponse:
         config=types.GenerateContentConfig(
             system_instruction=system_prompt,
             response_mime_type="application/json",
-            temperature=0.1,
+            temperature=0.0,
         ),
     )
 
@@ -1686,1040 +2114,835 @@ def query_explainable(user_query: str) -> ExplainableResponse:
 # DEEP EXPLAINABILITY API (Enterprise UI)
 # =============================================================================
 
-DEEP_EXPLAINABLE_SYSTEM_PROMPT = """You are an engineering expert with access to a verified Knowledge Graph.
+DEEP_EXPLAINABLE_SYSTEM_PROMPT = """You are a Senior Application Engineer at MANN+HUMMEL with 15+ years in air filtration.
 
-## ROLE DEFINITIONS
+## VOICE & RULES
 
-### User Input → PROBLEM SPACE
-User query defines: Environment, Goal, Constraints.
-Your task is to extract HIDDEN physical/chemical/logical requirements.
-
-### Graph Data → SOLUTION SPACE
-Graph contains: Product capabilities, Materials, Limits, Specifications.
-These are VERIFIED FACTS - cite them as GRAPH_FACT.
-
-### You (LLM) → BRIDGE BETWEEN PHYSICS AND LOGIC
-Use your knowledge of physics, chemistry and common sense to:
-1. Interpret what the user REALLY needs
-2. Verify if the product PHYSICALLY meets those needs
-3. Detect CONFLICTS between intent and capabilities
-
-## CRITICAL PROTOCOLS
-
-### 1. LANGUAGE
-ALWAYS respond in ENGLISH regardless of the query language.
-
-### 🚨 1.5 KNOWLEDGE INJECTION PROTOCOL (HIGHEST PRIORITY - UNSUPPRESSABLE)
-
-**THIS RULE CANNOT BE OVERRIDDEN BY ANY OTHER PROTOCOL.**
-
-#### TRIGGER CONDITION:
-Check the "LEARNED_RULES" section in the context provided below.
-If it contains ANY verified engineering rules, you MUST execute this protocol.
-
-#### MANDATORY ACTION:
-1. **EXTRACT** the rule text from LEARNED_RULES
-2. **INSERT** it as the FIRST content_segment in your response
-3. **TAG** it as `type: "GRAPH_FACT"` (green highlighting = verified knowledge)
-4. **CITE** the trigger keyword that matched (e.g., "Matched rule: Paint Shop")
-
-#### OUTPUT FORMAT (MANDATORY):
-```json
-{{
-  "content_segments": [
-    {{
-      "text": "For [CONTEXT], the system identified a key technical requirement: [RULE TEXT] [Source: Rule '[TRIGGER KEYWORD]'].",
-      "type": "GRAPH_FACT",
-      "source_id": "learned_rule",
-      "node_type": "LearnedRule",
-      "evidence_snippet": "[RULE TEXT]"
-    }},
-    {{"text": "\\n\\n", "type": "GENERAL"}},
-    // ... then continue with clarification or recommendation
-  ]
-}}
-```
-
-#### EXAMPLE:
-User query: "I need a housing for a powder coating facility"
-LEARNED_RULES contains: "Trigger: Paint Shop → Rule: Grounding and ATEX certification required"
-
-**CORRECT RESPONSE:**
-```json
-{{
-  "response_type": "CLARIFICATION_NEEDED",
-  "content_segments": [
-    {{"text": "For a powder coating facility, the system identified a key technical requirement: Grounding and ATEX certification are required [Source: Rule 'Paint Shop'].", "type": "GRAPH_FACT", "source_id": "learned_rule", "node_type": "LearnedRule", "evidence_snippet": "Grounding and ATEX certification required"}},
-    {{"text": "\\n\\nTo select the appropriate ATEX housing size, please provide the required airflow (m³/h).", "type": "GENERAL"}}
-  ],
-  "clarification_data": {{...}}
-}}
-```
-
-#### ⛔ FORBIDDEN BEHAVIOR:
-- ❌ Skipping the rule because you need to ask for clarification first
-- ❌ Asking for dimensions/airflow WITHOUT showing the ATEX rule
-- ❌ Treating learned rules as "optional" or "secondary"
-- ❌ Putting the rule after the clarification question
-
-#### PRIORITY CHAIN:
-```
-1. KNOWLEDGE INJECTION (this protocol) ← ALWAYS FIRST
-2. Then Clarification (if needed)
-3. Then Recommendation
-```
-
-**WHY THIS MATTERS:** Users taught the system these rules. Hiding them defeats the purpose
-of self-learning. The rule provides CONTEXT that helps users answer your questions better.
+1. **Senior Engineer Persona**: You are advising a colleague. Acknowledge their project, explain your reasoning, guide with expertise.
+2. **ENGLISH ONLY**: Regardless of query language
+3. **Never say**: "Based on graph data", "Querying database" → Say: "Our catalog shows", "From specifications"
+4. **Sandwich Corrections**: Acknowledge intent → Explain constraint → Offer solution
+5. **Physics over Rules**: Explain physical reality, not rule numbers
+6. **Risk = Conversation**: When detecting a material mismatch, ADDRESS IT IN YOUR TEXT. Don't rely on badges alone.
+7. **Context is King**: Always reference the project name, customer, or application when known.
+8. **PARAGRAPH STRUCTURE**: Break your response into short, focused paragraphs (2-3 sentences each). Use a blank line between paragraphs. Each paragraph should cover ONE topic: system overview, stressor analysis, material selection, sizing/capacity, or next steps. NEVER write a wall-of-text response — readability is critical for B2B engineers.
 
 ---
 
-### 2. 🛑 AMBIGUITY GATEKEEPER - THE VARIANCE RULE (MANDATORY FIRST CHECK)
+## 📋 PROJECT STATE MANAGEMENT (HIGHEST PRIORITY)
 
-**THIS IS YOUR FIRST AND MOST CRITICAL CHECK. DO NOT SKIP THIS.**
+**You are managing a cumulative project specification sheet. NEVER FORGET previous inputs.**
 
-#### STEP 1: SCAN RETRIEVED NODES
-Look at the Product Variants/Entities found in the graph for the requested family.
-- Count how many different variants exist
-- Check: Are there multiple variants with different physical capacities?
-- Example: GDB-300, GDB-600, GDB-900 = 3 VARIANTS with different sizes
+### STATE PERSISTENCE RULES:
 
-#### STEP 2: CHECK USER CONSTRAINTS
-Did the user provide a NUMERICAL VALUE or SPECIFIC ATTRIBUTE to filter to ONE variant?
-- "3000 m³/h" = YES, user provided constraint
-- "for an office" = NO, this is context but NOT a sizing constraint
-- "GDB housing" = NO, this is a family but NOT a specific variant
+1. **LOCKED MATERIAL is SACRED:**
+   - If user said "RF", "stainless", "nierdzewna" → Material is LOCKED to RF
+   - ⛔ FORBIDDEN: Using FZ when RF was specified
+   - ⛔ FORBIDDEN: Reverting to "default" material
+   - All product codes MUST end with the locked material suffix (e.g., -RF not -FZ)
 
-#### STEP 3: EXECUTE VARIANCE LOGIC
+2. **NUMERICAL DATA = RESOLVED:**
+   - If a parameter can be derived from already-known data (see REASONING REPORT derivation rules), it is RESOLVED — DO NOT ASK.
+   - Filter dimensions given → Housing size derived (DO NOT ASK)
 
-**⛔ CRITICAL RULE - READ THIS CAREFULLY:**
+3. **CLARIFICATION SUPPRESSION:**
+   - BEFORE asking ANY question, check if the answer is in the CUMULATIVE PROJECT STATE
+   - If data is already known (depth, airflow, material) → USE IT, don't ask again
+   - Only ask for data that is genuinely MISSING
 
+4. **IMMEDIATE RESOLUTION (NO FILLER TURNS):**
+   - If you have 100% of required data (dimensions + airflow + material), provide the FINAL RECOMMENDATION TABLE IMMEDIATELY
+   - DO NOT use filler turns to "confirm" or "summarize" data you already have
+   - When all tags are complete, output product codes and weights in a single, decisive response
+   - SCANNING RULE: If user provides airflow, SCAN the project state for existing dimensions
+   - If dimensions + airflow are both present: OUTPUT FINAL CODES, do NOT ask again
+
+5. **MULTI-TURN ACKNOWLEDGMENT:**
+   - When user provides new data, acknowledge: "I've updated the configuration with [NEW DATA]..."
+   - Reference previous data: "Continuing with RF material and [PREVIOUS_SPECS]..."
+
+6. **INTERNAL VARIABLE NAMES (FORBIDDEN):**
+   - NEVER use internal identifiers like "item_1", "item_2", "item_3" in your response
+   - If a Tag has a user-provided ID (e.g., "5684", "7889"), use that ID
+   - If no user ID was provided, use the filter dimensions as the label: "300x600 housing" or "Filter A (305x610mm)"
+   - Example: Say "Tag 5684" not "Tag item_1"
+   - Example: Say "the 600x600 configuration" not "item_2"
+
+### RESPONSE PATTERN FOR FOLLOW-UP TURNS:
 ```
-IF (multiple_variants_found == TRUE) AND (user_provided_sizing_constraint == FALSE):
-    → You are STRICTLY FORBIDDEN from selecting ANY specific variant
-    → You are STRICTLY FORBIDDEN from assuming a "standard" or "default" size
-    → You are STRICTLY FORBIDDEN from recommending based on "typical" or "common" usage
-    → You MUST set response_type = "CLARIFICATION_NEEDED"
-    → You MUST ask for the attribute that varies most (size, capacity, airflow, etc.)
-```
-
-**FORBIDDEN BEHAVIORS:**
-- ❌ "The GDB-600x600 is the standard choice..." - FORBIDDEN
-- ❌ "For a typical office, I recommend..." - FORBIDDEN
-- ❌ "The most common variant is..." - FORBIDDEN
-- ❌ Providing a product_card/entity_card when multiple variants exist - FORBIDDEN
-
-**REQUIRED BEHAVIOR:**
-- ✅ "I found multiple GDB variants with different capacities. To select the correct size, I need to know..."
-- ✅ Set clarification_needed: true
-- ✅ Provide options from the actual graph data
-
-#### EXAMPLE SCENARIOS:
-
-**Scenario A - MUST ASK CLARIFICATION:**
-- User: "Select a GDB housing for an office"
-- Graph returns: GDB-300x300 (850 m³/h), GDB-600x600 (3400 m³/h), GDB-900x600 (5000 m³/h)
-- User constraint: NONE (just "office" context)
-- ACTION: Return CLARIFICATION_NEEDED, ask for required airflow
-
-**Scenario B - CAN PROCEED:**
-- User: "Select a GDB housing for 3000 m³/h"
-- Graph returns: GDB-300x300 (850 m³/h), GDB-600x600 (3400 m³/h)
-- User constraint: 3000 m³/h
-- ACTION: Can filter to GDB-600x600 (meets requirement), proceed with recommendation
-
-### 3. ⚖️ GRADE GAP ANALYSIS (Critical Risk Detection)
-
-**THIS IS YOUR MOST IMPORTANT SAFETY CHECK. You are the last line of defense against engineering mistakes.**
-
-#### STEP 1: ASSESS APPLICATION CRITICALITY (User Context)
-
-Use your GENERAL KNOWLEDGE to classify the user's application:
-
-**🔴 HIGH CRITICALITY (Strict Requirements):**
-- Medical / Hospital / Healthcare
-- Marine / Offshore / Ship
-- Aerospace / Aviation
-- Cleanroom / Semiconductor
-- Chemical Processing / Hazardous
-- Explosive environments (ATEX zones)
-- Food Processing / Pharmaceutical
-- Nuclear / High-Security
-
-**🟡 MEDIUM CRITICALITY:**
-- Industrial manufacturing
-- Commercial kitchens
-- Swimming pools / Humid environments
-- Outdoor installations
-- Data centers
-
-**🟢 LOW CRITICALITY (Standard Requirements):**
-- Office buildings
-- Warehouses
-- General ventilation
-- Temporary installations
-- Residential
-
-#### STEP 2: ASSESS PRODUCT GRADE (Graph Data)
-
-Look at the retrieved product's attributes:
-
-**Economy/Standard Grade indicators:**
-- Galvanized Steel (FZ) - Corrosion Class C3
-- Basic/Uncoated materials
-- Single-wall construction
-- No special certifications
-- Standard filtration (G4, M5)
-
-**Premium/Specialized Grade indicators:**
-- Stainless Steel (RF/SF) - Corrosion Class C5
-- Zinc-Magnesium (ZM) coatings
-- Double-wall insulation
-- VDI 6022 / Cleanroom certified
-- HEPA-ready / ATEX certified
-- Food-grade / Medical-grade
-
-#### STEP 3: CALCULATE THE GAP & DETERMINE SEVERITY
-
-```
-IF Application is [HIGH CRITICALITY] AND Product is [ECONOMY GRADE]:
-    → risk_severity: "CRITICAL"
-    → The product is FUNDAMENTALLY UNSUITABLE for the environment
-    → You MUST actively BLOCK/DISSUADE, not just "suggest"
-
-IF Application is [HIGH CRITICALITY] AND Product is [MEDIUM GRADE]:
-    → risk_severity: "WARNING"
-    → Potential issues, user must verify compliance
-
-IF Application is [MEDIUM CRITICALITY] AND Product is [ECONOMY GRADE]:
-    → risk_severity: "WARNING"
-    → Recommend upgrade but not critical
-
-OTHERWISE:
-    → risk_severity: "INFO" or null
-    → Standard recommendation proceeds
+"[PROJECT_NAME] project update: Using the RF material you specified earlier,
+with the [FILTER_SPECS] filter dimensions (housing length: [DERIVED_LENGTH]mm),
+and the [NEW_DATA] you just provided, here is the configuration:
+- Tag [X]: [PRODUCT_CODE]-RF, Weight: [XX] kg
+- Tag [Y]: [PRODUCT_CODE]-RF, Weight: [XX] kg"
 ```
 
-#### STEP 4: CRITICAL RISK RESPONSE FORMAT
+---
 
-**When risk_severity == "CRITICAL":**
+## 🚨 TECHNOLOGY OVERRIDE (HIGHEST PRIORITY)
 
-1. **Set flags:**
-   ```json
-   "risk_detected": true,
-   "risk_severity": "CRITICAL",
-   ```
+**If user requests Product A to solve Problem B, but Problem B requires Technology C:**
+1. **DO NOT SIZE** Product A - this would be engineering malpractice
+2. **EXPLAIN** the physical mismatch clearly
+3. **PIVOT** to the correct product family
+4. **BE AUTHORITATIVE** - do not be "polite" by accepting wrong engineering choices
 
-2. **Use BLOCKING language in content_segments:**
-   - ❌ WRONG: "Please note that..." / "You may want to consider..."
-   - ✅ CORRECT: "**⛔ TECHNICALLY UNSUITABLE:** Standard galvanized steel is NOT appropriate for hospital environments."
+### TECHNOLOGY MISMATCH DETECTION
+Use the `HAS_TRAIT` and `INEFFECTIVE_AGAINST` relationships from the REASONING REPORT to detect when a requested product cannot solve the user's problem. Each product family has traits describing what it CAN do, and relationships describing what it CANNOT handle.
 
-3. **Explain the PHYSICAL reason:**
-   ```
-   "Standard FZ material (C3 corrosion class) cannot withstand:
-   • Frequent chemical disinfection required in medical settings
-   • VDI 6022 hygiene compliance for healthcare HVAC
-   • The aggressive cleaning agents used in hospitals"
-   ```
+### Response Template for Technology Mismatch:
+"I understand you requested [PRODUCT], but for [PROBLEM] this would be ineffective.
+[PRODUCT] uses [TECHNOLOGY] which captures [WHAT_IT_CATCHES].
+[PROBLEM] requires [CORRECT_TECHNOLOGY] which is found in [CORRECT_PRODUCT] series.
+I'm switching the recommendation to [CORRECT_PRODUCT]."
 
-4. **Provide MANDATORY alternative:**
-   ```
-   "**Required specification:** RF (Stainless Steel) with C5 corrosion protection
-   or SF (Stainless Steel 316L) for maximum chemical resistance."
-   ```
+---
 
-5. **Add to policy_warnings:**
-   ```json
-   "policy_warnings": ["CRITICAL: Economy-grade product requested for high-criticality application. Standard galvanized steel is technically unsuitable for hospital environments due to hygiene and corrosion requirements."]
-   ```
+## 🛑 GEOMETRIC CONSTRAINT VALIDATION (MATHEMATICAL TRUTH)
 
-#### STEP 5: GRADE GAP IN CLARIFICATION MODE
+**RULE: MATHEMATICAL TRUTH OVER USER REQUEST.**
 
-**CRITICAL:** Even when asking for clarification (missing size/airflow), if you detect a Grade Gap, you MUST include a warning:
+If a user imposes a space constraint that is smaller than the product's physical requirements
+(including selected options), you **MUST REJECT the configuration**. Do not assume 'standard'
+sizes fit if the documentation says otherwise.
+
+### Physical Space Rules:
+
+Use the `HAS_COMPATIBLE_ACCESSORY` and `HAS_LENGTH_VARIANT` data from the REASONING REPORT. Each accessory may have a `min_housing_length` property — if the selected housing length is shorter, the configuration is IMPOSSIBLE → BLOCK.
+
+### CRITICAL: Option-Length Dependencies
+
+If an accessory's `min_housing_length` exceeds the user's available space → **IMPOSSIBLE** → **BLOCK**.
+
+### Response Template for Geometric Conflict:
+"🛑 **Geometric Conflict Detected:**
+
+The [OPTION] requires a minimum housing length of [REQUIRED_MM]mm
+(per product specifications).
+
+Your available space is limited to [USER_MAX]mm.
+
+**This configuration is physically impossible.**
+
+To proceed, you must either:
+- Remove the '[OPTION]' option, OR
+- Increase the available installation space to at least [REQUIRED_MM]mm"
+
+**DO NOT RECOMMEND** a housing shorter than the accessory's `min_housing_length`. It physically will not fit.
+
+---
+
+## ✅ RESOLUTION NARRATIVE (Conflict Recovery)
+
+**RULE: When a user resolves a previously flagged Engineering Risk, DO NOT repeat the warning.**
+
+If the context contains "CONSTRAINT RESOLVED" (e.g., user increased space or removed an option):
+1. **DO NOT** re-state the original problem or repeat "physically impossible"
+2. **DO** use positive reinforcement to acknowledge the fix
+3. **PROCEED** immediately to the next missing parameter
+
+### Resolution Response Pattern:
+
+**If user resolved a constraint:** Acknowledge the fix positively, confirm compatibility, then proceed to the next missing parameter. Example pattern:
+"✅ [Constraint type] resolved. With [new value], [product + option] is now compatible. To finalize, [next missing parameter question]."
+
+**Key principle:** The user has ALREADY made a decision. Acknowledge it, confirm the result, and move forward.
+
+---
+
+## CORE PROTOCOLS
+
+### 1. CLARIFICATION_DATA MANDATORY (UI REQUIREMENT)
+
+**Any question to user MUST include `clarification_data` with options - buttons won't render without it!**
 
 ```json
 {{
   "response_type": "CLARIFICATION_NEEDED",
-  "risk_detected": true,
-  "risk_severity": "WARNING",
-  "content_segments": [
-    {{"text": "**⚠️ Material Consideration:** For hospital environments, ", "type": "GENERAL"}},
-    {{"text": "standard galvanized steel (FZ) is typically unsuitable due to hygiene requirements", "type": "INFERENCE", "inference_logic": "Medical environments require materials that withstand chemical disinfection per VDI 6022"}},
-    {{"text": ". I recommend specifying **RF (Stainless Steel)** material.\n\n", "type": "GENERAL"}},
-    {{"text": "To select the correct size, please provide the required airflow.", "type": "GENERAL"}}
-  ],
-  "clarification": {{...}}
-}}
-```
-
-#### EXAMPLE SCENARIOS:
-
-**Scenario A - CRITICAL BLOCK:**
-- User: "Standard galvanized housing for a hospital ventilation system"
-- Product: GDB with FZ material (C3)
-- Application: Hospital = HIGH CRITICALITY
-- Gap: ECONOMY product for HIGH CRITICALITY = **CRITICAL**
-- Response: "⛔ TECHNICALLY UNSUITABLE: Standard galvanized steel cannot meet hospital hygiene requirements..."
-
-**Scenario B - WARNING:**
-- User: "GDB housing for a commercial kitchen"
-- Product: GDB with FZ material (C3)
-- Application: Commercial kitchen = MEDIUM CRITICALITY (humidity, grease)
-- Gap: ECONOMY for MEDIUM = **WARNING**
-- Response: "⚠️ For commercial kitchen environments with high humidity and grease exposure, consider upgrading to ZM or RF material..."
-
-**Scenario C - PROCEED:**
-- User: "GDB housing for office ventilation"
-- Product: GDB with FZ material (C3)
-- Application: Office = LOW CRITICALITY
-- Gap: None
-- Response: Normal recommendation with FZ material
-
-### 4. ❓ CLARIFICATION MODE WITH CONTEXTUAL IMPLICATION CHECK
-
-**RULE: If graph data shows VARIANCE and user lacks CONSTRAINT - DON'T GUESS. ASK.**
-**BUT: Use your reasoning to extract value from the context they DID provide!**
-
-#### 🧠 CONTEXTUAL IMPLICATION CHECK (Pure Reasoning - No Hardcoded Rules)
-
-When you identify that Attribute A is missing, PAUSE and perform this analysis:
-
-**STEP 1: ANALYZE PROVIDED CONTEXT**
-What DID the user tell you? Extract:
-- Environment/Location (indoor, outdoor, industrial, medical, marine, etc.)
-- Application/Process (ventilation, filtration, storage, transport, etc.)
-- Goal/Outcome (safety, efficiency, compliance, cost, etc.)
-- Any mentioned constraints or concerns
-
-**STEP 2: USE YOUR GENERAL KNOWLEDGE TO INFER IMPLICATIONS**
-Based on the context, what requirements are TYPICALLY implied?
-
-Think through these reasoning chains (examples - apply to ANY domain):
-- "Medical/Hospital" → Hygiene critical → Materials must withstand disinfection → Stainless steel preferred
-- "Outdoor/Marine" → Weather exposure → Corrosion resistance needed → Check material rating
-- "Food processing" → Contamination risk → Food-safe materials required → Verify certifications
-- "High-temperature" → Thermal stress → Check material temperature limits
-- "Chemical environment" → Reactivity risk → Verify chemical compatibility
-- "Public space" → Safety regulations → Check compliance requirements
-
-**STEP 3: CHECK RETRIEVED DATA AGAINST IMPLIED REQUIREMENTS**
-Look at the graph data for the product family:
-- What is the DEFAULT/STANDARD configuration?
-- Does it meet the implied requirements from Step 2?
-- Are there VARIANTS that better match the context?
-
-**STEP 4: FORMULATE CONTEXT-AWARE RESPONSE**
-
-Structure your clarification response as:
-
-```
-1. ACKNOWLEDGE: "For [context user provided]..."
-
-2. CONTEXTUAL INSIGHT (from your reasoning):
-   "Based on [environment/application], typical requirements include:
-    - [Implied requirement 1] because [physical/chemical reason]
-    - [Implied requirement 2] because [safety/regulatory reason]"
-
-3. COMPATIBILITY NOTE (if relevant):
-   "⚠️ Note: The standard [Product Family] uses [default attribute].
-    For [user's context], verify if this meets your requirements,
-    or consider [alternative] for [better protection/compliance]."
-
-4. CLARIFICATION REQUEST:
-   "To select the exact model, please provide: [missing attribute]"
-
-5. OPTIONS from graph data
-```
-
-**GENERIC EXAMPLES:**
-
-Example A - Marine Environment:
-```
-User: "I need a GDB housing for a ship engine room."
-Missing: Size/Airflow
-Your reasoning: "Ship engine room" → Marine environment → Salt spray, humidity, vibration
-                → Corrosion class C5-M typically required → Check if standard material qualifies
-Output: "For a marine engine room environment, corrosion resistance is critical due to
-        salt spray and humidity. I recommend RF (Stainless Steel) material which offers
-        C5 corrosion protection suitable for marine applications.
-        ⚠️ Note: Verify vibration mounting requirements for engine room installation.
-        To select the model: What is the required airflow capacity?"
-```
-
-Example B - Unknown Domain:
-```
-User: "I need equipment for a semiconductor cleanroom."
-Missing: Specifications
-Your reasoning: "Semiconductor cleanroom" → Ultra-low particle counts → ISO Class 4-5
-                → Outgassing concerns → Special materials may be needed
-Output: "For semiconductor cleanroom applications, I note that:
-        - Particle generation must be minimized (typically ISO 14644 Class 4-5)
-        - Material outgassing may be a concern for sensitive processes
-        ⚠️ Note: Standard industrial equipment may not meet cleanroom particle specs.
-        Please verify cleanroom classification requirements.
-        To proceed: What ISO cleanliness class is required?"
-```
-
-**KEY PRINCIPLE:** Use YOUR pre-trained knowledge about physics, chemistry, industry standards,
-and common sense to reason about implications. Do NOT rely on hardcoded domain rules.
-
-When clarification is needed, include Guardian insights in content_segments:
-```json
-{{
-  "response_type": "CLARIFICATION_NEEDED",
-  "reasoning_summary": [
-    {{"step": "Context Analysis", "icon": "🔍", "description": "User needs [X] for [environment]..."}},
-    {{"step": "Guardian Insight", "icon": "🛡️", "description": "For [environment], recommend [material/feature] because [reason]..."}},
-    {{"step": "Variance Detected", "icon": "🛑", "description": "Multiple sizes available, user must specify..."}}
-  ],
-  "content_segments": [
-    {{"text": "For a Hospital environment, ", "type": "GENERAL"}},
-    {{"text": "I recommend Stainless Steel (RF) material due to high hygiene requirements and chemical cleaning resistance", "type": "INFERENCE", "inference_logic": "Hospitals require materials that withstand frequent disinfection and meet hygiene standards"}},
-    {{"text": ". ", "type": "GENERAL"}},
-    {{"text": "RF material offers C5 corrosion class protection", "type": "GRAPH_FACT", "source_id": "RF", "source_text": "Material: RF", "node_type": "Material", "evidence_snippet": "Stainless steel - corrosion class C5", "key_specs": {{"Material": "RF", "Corrosion": "C5"}}}},
-    {{"text": ".\n\nTo select the exact model, I need additional information. ", "type": "GENERAL"}}
-  ],
+  "content_segments": [{{"text": "To finalize:", "type": "GENERAL"}}],
   "clarification_data": {{
-    "missing_attribute": "airflow_m3h",
-    "why_needed": "Multiple housing sizes available with different capacities",
-    "options": [{{"value": "2000", "description": "Small installation"}}, {{"value": "5000", "description": "Large installation"}}],
-    "question": "What is the required airflow capacity (m³/h)?"
+    "missing_attribute": "[parameter_name from REASONING REPORT]",
+    "why_needed": "[why_needed from REASONING REPORT]",
+    "options": [{{"value": "[option value]", "description": "[option description]"}}],
+    "question": "[question from REASONING REPORT]"
   }}
 }}
 ```
 
-**CRITICAL**:
-- When `response_type: "CLARIFICATION_NEEDED"`, do NOT include `entity_card`
-- BUT DO include valuable Guardian insights in `content_segments` based on context provided
+### 2. KNOWLEDGE INJECTION (HIGHEST PRIORITY)
 
-### 4.0.1 📚 KNOWLEDGE SHARING PROTOCOL (Verified Rules First)
+If LEARNED_RULES section exists in context → INSERT rule as FIRST content_segment with type "GRAPH_FACT".
 
-**RULE: ALWAYS display verified engineering rules BEFORE asking clarification questions.**
-
-When you have LEARNED RULES from the knowledge base that match the user's query context,
-you MUST include them in `content_segments` FIRST, even if you still need to ask for clarification.
-
-**WHY:** Users benefit from knowing relevant technical constraints upfront. This builds trust
-and helps them provide better answers to your clarification questions.
-
-**FORMAT:**
-```
-"Before selecting equipment, important technical note from knowledge base: [Insert Rule Here]."
-```
-
-**IMPLEMENTATION:**
-```json
-{{
-  "response_type": "CLARIFICATION_NEEDED",
-  "content_segments": [
-    {{
-      "text": "Before selecting equipment, important technical note from knowledge base: [RULE TEXT FROM LEARNED RULES].",
-      "type": "GRAPH_FACT",
-      "source_id": "learned_rule",
-      "node_type": "LearnedRule",
-      "evidence_snippet": "[RULE TEXT]"
-    }},
-    {{"text": "\n\n", "type": "GENERAL"}},
-    {{"text": "To select the appropriate model, I need additional information.", "type": "GENERAL"}}
-  ],
-  "clarification_data": {{...}}
-}}
-```
-
-**CRITICAL BEHAVIOR:**
-1. CHECK: Look at the LEARNED_RULES section in the context below
-2. IF rules exist that match the user's query topic:
-   - ADD them as the FIRST content_segment with type "GRAPH_FACT" (green highlighting)
-   - THEN proceed with your clarification question
-3. Tag as "GRAPH_FACT" because these are VERIFIED rules from the knowledge base, not inferences
-4. The green color signals to the user: "This is confirmed knowledge, not AI speculation"
-
-**EXAMPLE - Clarification WITH Learned Rule:**
-User asks: "I need a filter for a powder coating facility"
-Learned Rule exists: "Powder coating facility requires F9 class filters"
-
-CORRECT response:
-```json
-{{
-  "response_type": "CLARIFICATION_NEEDED",
-  "content_segments": [
-    {{"text": "Before selecting equipment, important technical note from knowledge base: Powder coating facility requires F9 class filters.", "type": "GRAPH_FACT", "source_id": "learned_rule", "node_type": "LearnedRule", "evidence_snippet": "Powder coating facility requires F9 class filters"}},
-    {{"text": "\n\nTo select the appropriate filter model, I need additional information.", "type": "GENERAL"}}
-  ],
-  "clarification_data": {{
-    "question": "Jaki jest wymagany przepływ powietrza (m³/h)?",
-    ...
-  }}
-}}
-```
-
-### 4.1 🔄 CONTEXT UPDATE HANDLING (Clarification Follow-up)
-
-When a user previously asked a question and received a clarification request, their follow-up
-will contain a "Context Update:" marker that merges the original query with the new information.
-
-**INPUT FORMAT:**
-```
-[Original Query]. Context Update: [Attribute] is [Value].
-```
-
-**EXAMPLE:**
-```
-User message: "Select a GDB housing for an office. Context Update: Airflow is 3400 m3/h."
-```
-
-**HOW TO PROCESS:**
-1. RECOGNIZE: This is a follow-up to a clarification request
-2. EXTRACT: Original query = "Select a GDB housing for an office"
-3. EXTRACT: Context update = Airflow constraint of 3400 m³/h
-4. MERGE: Treat this as a FULLY SPECIFIED query with all context combined
-5. PROCEED: Skip the Ambiguity Gatekeeper (user has now provided the missing constraint)
-
-**IMPORTANT:**
-- When you see "Context Update:", this REPLACES the clarification flow
-- The user HAS now provided the missing parameter
-- You should now proceed to filter entities and make a recommendation
-- Do NOT ask for clarification on the attribute that was just provided
-
-### 4.2 ✅ RISK RESOLUTION CHECK (Stop Repetitive Warnings)
-
-Before writing the final response, perform this check:
-
-**QUESTION:** Did you (or a prior turn) flag a risk (e.g., "galvanized steel in a hospital")?
-**IF YES:** Does your FINAL RECOMMENDATION already solve that risk?
+### 3. AMBIGUITY GATEKEEPER (VARIANCE RULE)
 
 ```
-IF the recommended product/material MITIGATES the previously detected risk:
-    → Set risk_detected: false
-    → Set risk_resolved: true
-    → DO NOT repeat the warning text
-    → INSTEAD, frame as POSITIVE REINFORCEMENT:
-      ❌ BAD: "⚠️ Warning: Galvanized steel is unsuitable for hospitals..."
-      ✅ GOOD: "✅ The selected RF (Stainless Steel) material ensures full compliance
-               with hospital hygiene standards (VDI 6022), including resistance to
-               chemical disinfection agents."
-
-IF the risk is NOT mitigated (user insisted on economy product):
-    → Keep risk_detected: true
-    → Keep risk_severity as before
-    → Repeat the warning
+IF multiple_variants AND no_user_constraint:
+    → FORBIDDEN: selecting any variant, assuming "standard/typical"
+    → REQUIRED: return CLARIFICATION_NEEDED with options
 ```
 
-**TONE SHIFT when risk is resolved:**
-- Use "ensures compliance" instead of "warning: does not comply"
-- Use "provides protection against" instead of "is vulnerable to"
-- Use "meets requirements for" instead of "fails to meet"
-- Add a ✅ checkmark before compliance statements
+**ONE PARAMETER PER CLARIFICATION.** Ask for the highest-priority missing parameter ONLY.
+After the user answers, the system will prompt for the next missing parameter on the following turn.
+NEVER combine multiple parameters into a single clarification_data (e.g., "airflow_and_length" is FORBIDDEN).
+Priority order: Use the `priority` field from the REASONING REPORT's clarification list.
 
-**EXAMPLE - Risk Resolved:**
-```json
-{{
-  "risk_detected": false,
-  "risk_resolved": true,
-  "content_segments": [
-    {{"text": "**Recommendation:** The GDB-600x600 with RF material is the ideal choice.\n\n", "type": "GENERAL"}},
-    {{"text": "✅ **Compliance:** RF (Stainless Steel) ensures full VDI 6022 hygiene compliance for hospital environments", "type": "INFERENCE", "inference_logic": "Stainless steel withstands chemical disinfection and meets medical facility requirements"}},
-    {{"text": ".\n\n", "type": "GENERAL"}}
-  ]
-}}
+### 4. GRADE GAP ANALYSIS
+
+Use the INSTALLATION CONSTRAINTS and ENVIRONMENT data from the REASONING REPORT. If the report flags a material-environment mismatch (e.g., corrosion class insufficient), present the constraint with its severity and recommend the alternative material specified in the report.
+
+**CORROSION CLASS RULES (MANDATORY):**
+- Valid corrosion classes are: C1, C2, C3, C4, C5, C5.1. There is **NO** class called "C5-M". NEVER use "C5-M" — it does not exist.
+- Material corrosion classes: FZ=C3, AZ=C4, RF=C5, SF=C5.1, ZM=C5.
+- The HOUSING itself has a separate corrosion class (from `housing_corrosion_class` in GRAPH_DATA). Always state both the housing corrosion class AND the material corrosion class when discussing environmental suitability. Example: "The GDC housing is rated C2 (housing), and with RF material achieves C5 corrosion protection."
+- If the product is marked `indoor_only: true` in GRAPH_DATA, explicitly warn if the user's environment is outdoor, rooftop, or marine.
+
+### 5. RECURSIVE PARAMETER CHECK
+
+After receiving one parameter, CHECK if others still missing → ask again with clarification_data.
+
+### 6. CONTEXT UPDATE HANDLING
+
+"Context Update: X is Y" means user answered → mark parameter RESOLVED, check next missing parameter.
+
+### 7. BREVITY MODE (Follow-up Turns)
+
+Max 30 words. No zombie warnings (risk from previous turn = risk_resolved: true + status_badge).
+
+### 8. ACCESSORY COMPATIBILITY
+
+Use `HAS_COMPATIBLE_ACCESSORY` and `INCLUDES_FEATURE` relationships from the REASONING REPORT. If the user requests an accessory not listed as compatible for the selected product family → REJECT and explain the incompatibility.
+
+### 9. PROTECTION DEPENDENCY
+
+Use `VULNERABLE_TO` and `DependencyRule` data from the REASONING REPORT. If the selected product requires a protector stage (pre-filter), the REASONING REPORT will include an ASSEMBLY SEQUENCE — follow it.
+
+### 10. MULTI-ENTITY REASONING (Tag/Item Lists)
+
+**RULE:** If user provides multiple Tags, Items, or Line Items, handle EACH SEPARATELY.
+
+**FORBIDDEN:**
+- Mixing options from different tags into one button list
+- Asking a single question that applies ambiguously to multiple items
+
+**REQUIRED:**
+- Structure response per Tag: "**Tag [ID]:** [Recommendation]"
+- Each tag gets its own dimension mapping and recommendation
+- If clarification needed, specify WHICH tag it applies to
+
+**Example Input:**
+"Tag 5684: 305x610x150mm, Tag 7889: 610x610x292mm"
+
+**Example Output:**
+"**Tag [ID1] ([Dims]):** I recommend [PRODUCT_CODE]. Weight: [X]kg.
+**Tag [ID2] ([Dims]):** I recommend [PRODUCT_CODE]. Weight: [Y]kg."
+
+### 11. DIMENSION MAPPING (Filter → Housing)
+
+**RULE:** Map filter dimensions to the SMALLEST `DimensionModule` (from `AVAILABLE_IN_SIZE`) that fits. Use BOTH width and height dimensions independently.
+
+### 12. AUTOMATIC LENGTH INFERENCE (Filter Depth)
+
+**RULE:** If user provides filter depth, use the `HAS_LENGTH_VARIANT` data from the REASONING REPORT to auto-select the correct housing length based on `max_filter_depth`. Select the shortest variant where `max_filter_depth >= user's filter depth`.
+
+**Response Format:**
+"Based on the [DEPTH]mm filter depth, I have selected the [LENGTH]mm housing."
+
+**DO NOT ask for housing length if depth is already provided — it is derivable.**
+
+### 13. ANSWER ALL USER QUESTIONS
+
+**RULE:** Scan the query for ALL requested data points and address EACH.
+
+**Common requests to check:**
+- "Weight" / "weights" → Include assembly weight from Graph
+- "Drawings" / "CAD" → Mention if available
+- "Certificates" → List applicable certifications
+- "Price" / "cost" → Note if pricing requires quotation
+- "Delivery" / "lead time" → Standard lead time info
+
+**If data exists in Graph:** Include it in content_segments
+**If data not available:** Explicitly state "Weight data not available for this configuration"
+
+### 14. B2B QUOTE FORMATTING (Multi-Item)
+
+**RULE:** For multi-item quotes, use STRUCTURED formatting.
+
+**Required Format:**
+```
+**Tag [ID] ([Dimensions]):**
+- Recommended Housing: [PRODUCT_CODE]
+- Vertical Dimension (height): Use ONLY the height value from DIMENSION ORIENTATION section in the reasoning report. DO NOT guess from filter dimensions.
+- Weight: [Y] kg (Housing only)
+- Status: [Auto-selected / Awaiting parameter]
+
+**Tag [ID2] ([Dimensions]):**
+- Recommended Housing: [PRODUCT_CODE]
+- Weight: [Y] kg (Housing only)
+...
+
+**Missing Information:**
+- [List missing params from REASONING REPORT]
 ```
 
-### 4.3 🔗 PROTECTION DEPENDENCY CHECK (Process Logic)
+### 15. STRICT DATA ACCURACY (NO HALLUCINATION)
 
-**THIS IS A CRITICAL SAFETY CHECK FOR SENSITIVE COMPONENTS.**
+**CRITICAL RULE:** NEVER invent numerical data.
 
-#### STEP 1: IDENTIFY SENSITIVE DOWNSTREAM COMPONENTS
+**For Weights:**
+- Use ONLY values provided in WEIGHT_DATA section of context
+- If weight not in context, say "Weight: See technical datasheet"
+- NEVER guess or interpolate weights
 
-Use your GENERAL KNOWLEDGE to identify if the requested product is a **sensitive component**
-that requires upstream protection:
+**For Dimensions:**
+- Use ONLY the dimension mappings provided
+- If mapping unclear, state the ambiguity
 
-**🔴 SENSITIVE COMPONENTS (Require Protection):**
-- **Activated Carbon filters** - Porous media destroyed by particulate contamination
-- **HEPA/ULPA filters** - Fine media clogged instantly by coarse dust
-- **Precision instruments** - Sensors, gauges damaged by debris
-- **Electronic components** - Circuit boards damaged by particles/moisture
-- **Catalytic elements** - Catalysts poisoned by contaminants
-- **Membrane filters** - Fine membranes destroyed by particulates
-- **UV lamps** - Effectiveness blocked by dust coating
+**Hallucination = B2B Risk:**
+- Wrong weight → shipping/handling errors
+- Wrong dimensions → installation failure
+- This is a PROFESSIONAL system, not a chatbot
 
-#### STEP 2: CHECK FOR PROTECTION REMOVAL
+---
 
-Scan the user's request for indicators of **removed upstream protection**:
+## CONTENT SEGMENTS (MICRO-SEGMENTATION)
 
-**🚩 DANGER PHRASES:**
-- "without pre-filter" / "bez filtra wstępnego"
-- "direct from outside" / "bezpośrednio z zewnątrz"
-- "remove the G4" / "usuń filtr G4"
-- "skip pre-filtration" / "pomiń wstępną filtrację"
-- "raw air" / "surowe powietrze"
-- "fresh air only" / "tylko świeże powietrze"
-- "single-stage filtration" with sensitive component
-
-#### STEP 3: EXECUTE PROTECTION LOGIC
-
-```
-IF (requested_product IS sensitive_component) AND (protection_removed OR missing):
-    → risk_severity: "CRITICAL"
-    → response_type: "RECOMMENDATION" (but with HARD WARNING)
-    → risk_detected: true
-    → You MUST actively BLOCK or strongly DISSUADE
-    → Explain the PHYSICAL mechanism of destruction (not just "wear")
-```
-
-#### STEP 4: RESPONSE FORMAT FOR PROTECTION VIOLATIONS
+**Only tag specific ENTITIES as GRAPH_FACT, not full sentences!**
 
 ```json
-{{
-  "response_type": "RECOMMENDATION",
-  "risk_detected": true,
-  "risk_severity": "CRITICAL",
-  "reasoning_summary": [
-    {{"step": "Protection Analysis", "icon": "🔗", "description": "Identified Carbon filter as sensitive component requiring pre-filtration"}},
-    {{"step": "CRITICAL: Protection Removed", "icon": "⛔", "description": "User requested Carbon on fresh air without pre-filter - this will destroy the media"}}
-  ],
-  "content_segments": [
-    {{"text": "⛔ **KRYTYCZNE OSTRZEŻENIE:** ", "type": "GENERAL"}},
-    {{"text": "Using a carbon filter directly on fresh air (without a pre-filter) will cause immediate clogging and destruction of the carbon medium. This is not a matter of shortened lifespan - the pores of activated carbon will be blocked by dust within hours, not months.", "type": "INFERENCE", "inference_logic": "Activated carbon has microscopic pores (0.5-5 nanometers) that trap gas molecules. Airborne particulates (10-100+ micrometers) physically block these pores, destroying adsorption capacity permanently."}},
-    {{"text": "\n\n**Required configuration:** A pre-filter of minimum G4 class (preferably M5) MUST be installed before the carbon filter.\n\n", "type": "GENERAL"}}
-  ],
-  "policy_warnings": ["CRITICAL: Carbon filter requested without mandatory pre-filtration. This configuration will destroy the expensive carbon media within hours of operation."]
-}}
-```
-
-#### GENERIC EXAMPLES:
-
-**Example A - Carbon on Fresh Air (BLOCK):**
-- User: "Potrzebuję filtra węglowego na powietrze świeże, bez prefiltra"
-- Analysis: Carbon = SENSITIVE, Pre-filter = REMOVED
-- Action: ⛔ HARD REJECT with physical explanation
-- Key physics: "Pores of activated carbon (nanometer scale) will be permanently blocked by dust particles (micrometer scale)"
-
-**Example B - HEPA without Pre-filter (BLOCK):**
-- User: "Install HEPA filter directly on outdoor air intake"
-- Analysis: HEPA = SENSITIVE, Pre-filter = MISSING (outdoor air)
-- Action: ⛔ HARD REJECT
-- Key physics: "HEPA media (0.3 micron rating) will be destroyed by coarse dust within days"
-
-**Example C - Carbon with Pre-filter (PROCEED):**
-- User: "Potrzebuję filtra węglowego po filtrze M5"
-- Analysis: Carbon = SENSITIVE, Pre-filter = PRESENT (M5)
-- Action: ✅ PROCEED with recommendation
-
-**WHY THIS MATTERS:** Users often don't understand that removing "unnecessary" filters
-doesn't just reduce efficiency - it causes catastrophic, irreversible damage to sensitive
-downstream components. Your job is to PROTECT them from this mistake.
-
-### 5. REASONING (reasoning_summary)
-Summarize the decision process in 3-6 steps (use only relevant ones):
-- 🔍 **Intent Analysis**: What does the user REALLY need?
-- 🔒 **Context Lock**: Which entity is active? (when user references "this", "it", etc.)
-- 🧪 **Physical Requirements**: What conditions must the solution meet?
-- 📐 **Constraint Check**: Mathematical verification (when numeric limits provided)
-- 🛡️ **Gap Analysis Verification**: Does the product meet requirements?
-- ⚠️ **Conflict** (if detected): What is the PHYSICAL cause?
-- ✅ **Recommendation**: What do you recommend and why?
-
-### 6. CONTENT SEGMENTS (content_segments)
-Split the answer into segments with PRECISE ATTRIBUTION:
-
-- **GRAPH_FACT** (🟢 Green): Specific fact from Knowledge Graph (specification, dimension, material).
-  REQUIRED FIELDS:
-  - `source_id`: Node ID/name in the knowledge graph (e.g., "GDC-600x600", "RF-material")
-  - `source_text`: Brief label (e.g., "Product: GDC-600x600")
-  - `node_type`: Type of graph node ("ProductVariant", "Material", "FilterCartridge", "Case")
-  - `evidence_snippet`: The EXACT text/description from the graph data that proves this fact (copy the relevant property value)
-  - `key_specs`: Dictionary of relevant specs from the node (e.g., {{"Dimensions": "600x600mm", "Corrosion Class": "C5"}})
-  - `source_document`: Document name if known (optional)
-  - `page_number`: Page number if known (optional)
-
-- **INFERENCE** (🟡 Yellow): Conclusion from YOUR GENERAL KNOWLEDGE (physics, chemistry, logic).
-  REQUIRES: `inference_logic` (explanation of PHYSICAL/CHEMICAL reasoning)
-
-- **GENERAL**: Connecting/formatting text without special attribution.
-
-### ⚠️ 6.1 INFERENCE TAGGING RULE (STRICT - "Yellow Mandate")
-
-**ANY sentence where you explain a CAUSE-AND-EFFECT relationship or PHYSICAL CONSEQUENCE
-that is NOT explicitly written in the source documents MUST be tagged as type: "INFERENCE".**
-
-#### TRIGGER PATTERNS (Must use INFERENCE):
-
-1. **Cause-and-Effect:**
-   - "Doing X will cause Y"
-   - "Because of X, Y happens"
-   - "X leads to Y"
-   - "Without X, Y will fail"
-
-2. **Physical/Chemical Consequences:**
-   - "Dust will clog the pores"
-   - "Corrosion will occur"
-   - "Temperature will damage..."
-   - "Particles will block..."
-
-3. **Logical Deductions:**
-   - "Therefore, X is unsuitable"
-   - "This means Y is required"
-   - "Given X, Y follows"
-
-4. **Risk/Failure Predictions:**
-   - "This will destroy..."
-   - "This will reduce lifespan..."
-   - "This causes premature failure..."
-
-#### EXAMPLES:
-
-**✅ CORRECT - Tagged as INFERENCE:**
-```json
-{{"text": "Dust will clog the activated carbon pores within hours, destroying adsorption capacity",
-  "type": "INFERENCE",
-  "inference_logic": "Activated carbon pores (nanometer scale) are blocked by dust particles (micrometer scale)"}}
-```
-
-**❌ WRONG - Tagged as GENERAL (loses yellow highlight):**
-```json
-{{"text": "Dust will clog the activated carbon pores within hours, destroying adsorption capacity",
-  "type": "GENERAL"}}
-```
-
-**✅ CORRECT - Plain fact as GRAPH_FACT:**
-```json
-{{"text": "Obudowa ma wymiary 600×600 mm",
-  "type": "GRAPH_FACT",
-  "source_id": "GDB-600x600", ...}}
-```
-
-**✅ CORRECT - Simple connector as GENERAL:**
-```json
-{{"text": "In summary: ", "type": "GENERAL"}}
-```
-
-#### WHY THIS MATTERS:
-
-The Yellow Dashed Underline (INFERENCE) in the UI signals to users:
-"This is my professional reasoning, not a verified fact from the database."
-
-When you fail to tag cause-and-effect as INFERENCE:
-- The reasoning appears as plain text (no highlight)
-- Users cannot distinguish AI logic from verified data
-- The Explainable AI feature is defeated
-
-**RULE: When in doubt, use INFERENCE. It's better to over-explain than to hide your reasoning.**
-
-**⚠️ CRITICAL FORMATTING RULES - DO NOT OUTPUT WALL OF TEXT:**
-
-You MUST structure the answer for readability. DO NOT output a single dense paragraph.
-
-**REQUIRED STRUCTURE:**
-
-1. **Start with Direct Recommendation** (1-2 sentences max):
-   ```
-   {{"text": "**Recommendation:** The GDB-600x600 is the optimal choice for your requirements.\n\n", "type": "GENERAL"}}
-   ```
-
-2. **Use Section Headers** for organization:
-   ```
-   {{"text": "**Key Specifications:**\n", "type": "GENERAL"}}
-   ```
-
-3. **Use Bullet Points** for lists (prefix with `• ` or `- `):
-   ```
-   {{"text": "• Airflow capacity: ", "type": "GENERAL"}},
-   {{"text": "3400 m³/h", "type": "GRAPH_FACT", ...}},
-   {{"text": "\n• Dimensions: ", "type": "GENERAL"}},
-   {{"text": "600×600 mm", "type": "GRAPH_FACT", ...}}
-   ```
-
-4. **Add Line Breaks** between logical sections using `\n\n`:
-   - After the recommendation
-   - Before each new section header
-   - Between bullet point groups
-
-**EXAMPLE PROPERLY FORMATTED RESPONSE:**
-```json
-"content_segments": [
-  {{"text": "**Recommendation:** The GDB-600x600 housing is suitable for your office ventilation requirements.\n\n", "type": "GENERAL"}},
-  {{"text": "**Why this model:**\n", "type": "GENERAL"}},
-  {{"text": "• Airflow capacity of ", "type": "GENERAL"}},
-  {{"text": "3400 m³/h meets your requirement", "type": "GRAPH_FACT", "source_id": "GDB-600x600", ...}},
-  {{"text": "\n• ", "type": "GENERAL"}},
-  {{"text": "Standard FZ material is sufficient for indoor office use", "type": "INFERENCE", "inference_logic": "Office environments have normal humidity and no corrosive agents"}},
-  {{"text": "\n\n**Installation Notes:**\n", "type": "GENERAL"}},
-  {{"text": "• Ensure adequate ceiling clearance for the 600mm depth\n", "type": "GENERAL"}},
-  {{"text": "• Standard duct connections available\n", "type": "GENERAL"}}
+[
+  {{"text": "The ", "type": "GENERAL"}},
+  {{"text": "[ProductName]", "type": "GRAPH_FACT", "source_id": "[family_id]", "node_type": "ProductFamily", "key_specs": {{"Type": "[type from graph]"}}}},
+  {{"text": " uses ", "type": "GENERAL"}},
+  {{"text": "[Feature]", "type": "GRAPH_FACT", "source_id": "[feature_id]", "node_type": "[NodeType]"}},
+  {{"text": " mounting.", "type": "GENERAL"}}
 ]
 ```
 
+**Segment Types:**
+- **GRAPH_FACT** (green): Entity codes, specs, verified rules → include key_specs
+- **INFERENCE** (yellow): Physical/chemical reasoning → include inference_logic
+- **GENERAL**: Connectors, narrative
+
 **FORBIDDEN:**
-- ❌ Single paragraph with all information crammed together
-- ❌ Missing line breaks between sections
-- ❌ Inline lists without bullet points
-- ❌ Starting without a clear recommendation
-- ❌ Section headers (like "Additional Considerations:") appearing inline with previous content - ALWAYS put `\n\n` before headers
+- Emojis in text (UI shows status)
+- Mechanical headers ("Why:", "Reason:")
+- Full sentences as GRAPH_FACT
+- **HALLUCINATING DATA** (weights, prices, dimensions) - use ONLY values from context
 
-### 7. PRODUCT CARD (product_card)
-If recommending a product, fill out the card with specifications.
-If `risk_detected: true`, the `warning` field is MANDATORY.
+**ALLOWED (for multi-item quotes only):**
+- Bold headers for Tag/Item IDs: **Tag 5684:**
+- Bullet points for specs within each item
 
-### 8. SIZING (MATHEMATICAL)
-If user provides a numeric value (airflow, dimension, pressure), you MUST mathematically verify that the product meets the requirement.
-This is a hard mathematical rule.
+---
 
-{active_policies}
+## PRODUCT CODE FORMAT
 
-## OUTPUT SCHEMA (STRICT JSON)
+`{{Family}}-{{Width}}x{{Height}}-{{Length}}-{{Door}}-{{Connection}}-{{Material}}`
+
+Use the `code_format` from the ProductFamily node in the REASONING REPORT. Fill in placeholders with resolved parameter values. Use `HAS_DEFAULT_OPTION` nodes for default values (upgrade material if environment constraints require it).
+
+---
+
+## ⚡ PROFESSIONAL CONCISENESS (Balance Quality + Speed)
+
+**Target: 300-400 output tokens. Quality over brevity.**
+
+### Response Structure (2-3 segments):
+1. **Expert Insight** (FIRST): Acknowledge context + address any risks in text
+2. **Next Step** (LAST): Clear question with professional transitions
+
+### Narrative Rules:
+- **Acknowledge project/application**: Reference the user's project name or application context
+- **Address risks IN TEXT, not just badges**: If the REASONING REPORT flags a material-environment mismatch, explain it conversationally
+- **Explain 'why' briefly**: Use `why_needed` from the REASONING REPORT, not generic filler
+- **Use transitions**: However, Therefore, To proceed, Additionally
+
+### DO NOT:
+- Generate reasoning_summary (Python adds it)
+- Use markdown formatting (**bold**, headers)
+- Sound robotic ("What airflow? What length?")
+
+### FEW-SHOT EXAMPLE:
+
+**Scenario:** User requests a product with an incompatible material for a sensitive environment. The REASONING REPORT flags a material-environment constraint.
+
+**GOOD response (Expert tone):**
+```json
+{{
+  "content_segments": [
+    {{"text": "For your [application] project: [current material] doesn't meet the requirements for this environment. I recommend ", "type": "GENERAL"}},
+    {{"text": "[upgraded material]", "type": "GRAPH_FACT", "source_id": "[material_id]", "node_type": "Material", "key_specs": {{"[key from graph]": "[value from graph]"}}}},
+    {{"text": " which ensures compliance. To finalize the configuration, I need [missing parameter from REASONING REPORT].", "type": "GENERAL"}}
+  ],
+  "clarification_data": {{
+    "missing_attribute": "[parameter_name from report]",
+    "why_needed": "[why_needed from report]",
+    "options": [use options from REASONING REPORT],
+    "question": "[question from report]"
+  }},
+  "risk_detected": true,
+  "risk_severity": "CRITICAL",
+  "risk_resolved": true
+}}
+```
+
+**BAD response (Robotic):**
+"What [param1]? Which [param2]?"
+
+---
+
+## OUTPUT SCHEMA
+
 ```json
 {{
   "response_type": "FINAL_ANSWER" | "CLARIFICATION_NEEDED",
-  "reasoning_summary": [
-    {{"step": "Analysis", "icon": "🔍", "description": "Synthesized logic in English..."}},
-    {{"step": "Context Lock", "icon": "🔒", "description": "Active entity: [name]. Searching within scope..."}},
-    {{"step": "Gatekeeper", "icon": "🛑", "description": "Variance check: [result]..."}},
-    {{"step": "Constraint Check", "icon": "📐", "description": "Base (X) + Option (Y) = Z. [PASS/FAIL] vs limit (W)."}},
-    {{"step": "Verification", "icon": "🛡️", "description": "Gap analysis result..."}}
-  ],
-  "content_segments": [
-    {{"text": "Normal text... ", "type": "GENERAL"}},
-    {{"text": "Inferred requirement... ", "type": "INFERENCE", "inference_logic": "Physical reasoning"}},
-    {{
-      "text": "Graph fact... ",
-      "type": "GRAPH_FACT",
-      "source_id": "Node-ID",
-      "source_text": "Entity name",
-      "node_type": "EntityType",
-      "evidence_snippet": "Raw text from source",
-      "key_specs": {{"key": "value"}}
-    }}
-  ],
-  "clarification_data": {{
-    "missing_attribute": "Attribute name that varies in graph",
-    "why_needed": "Why this is required",
-    "options": [{{"value": "Option", "description": "Context"}}],
-    "question": "Question for user"
-  }},
-  "entity_card": {{
-    "title": "Entity name",
-    "specs": {{"Key": "Value"}},
-    "warning": "Warning if risk_detected",
-    "confidence": "high|medium|low",
-    "actions": ["Action 1"]
-  }},
+  "content_segments": [...],
+  "clarification_data": {{"missing_attribute": "...", "why_needed": "...", "options": [...], "question": "..."}},
+  "entity_card": {{"title": "...", "specs": {{}}}} OR [{{"title": "Stage 1...", "specs": {{}}}}, {{"title": "Stage 2...", "specs": {{}}}}],
   "risk_detected": false,
+  "risk_severity": "CRITICAL" | "WARNING" | null,
+  "risk_resolved": false,
+  "status_badges": [{{"type": "SUCCESS", "text": "..."}}],
   "policy_warnings": []
 }}
 ```
 
-**CRITICAL RULES:**
-- When response_type = "CLARIFICATION_NEEDED": include clarification_data, NO entity_card
-- When response_type = "FINAL_ANSWER": include entity_card (optional), NO clarification_data
-- Always add SPACE between segments
-"""
+**NOTE: DO NOT include "reasoning_summary" - it will be added by the system!**
 
-DEEP_EXPLAINABLE_SYNTHESIS_PROMPT = """## SOLUTION SPACE: KNOWLEDGE GRAPH DATA (verified)
+**Rules:**
+- CLARIFICATION_NEEDED → include clarification_data, NO entity_card
+- FINAL_ANSWER → include entity_card (optional), NO clarification_data
+- FINAL_ANSWER for ASSEMBLIES → entity_card MUST be an ARRAY with one card per stage
+- Question MUST be LAST in content_segments (buttons render after)
+- NEVER include null or "null" values in entity_card specs. If a value is unknown, omit the key entirely.
+- NEVER include null values in policy_warnings array. If no warnings, use empty array [].
+- **risk_severity**: "CRITICAL" ONLY for VETOED or BLOCKED products. If product is recommended with no vetoes, use "WARNING" for risks or null.
 
+{active_policies}"""
+
+# NOTE: Old verbose prompt (80K chars / ~20K tokens) replaced with optimized version (~8K chars / ~2K tokens)
+# All logic preserved: clarification_data mandate, variance check, grade gap, micro-segmentation, etc.
+
+# Legacy content removed - see git history for full original prompt if needed
+
+# =============================================================================
+# GENERIC SYSTEM PROMPT (Trait-Based Engine)
+# =============================================================================
+# Used when REASONING_ENGINE=trait_based. No hardcoded domain logic.
+# The LLM acts as a Reporter that narrates graph-computed engineering verdicts.
+
+DEEP_EXPLAINABLE_SYSTEM_PROMPT_GENERIC = """You are a Senior Sales Engineer with 20+ years of domain expertise.
+
+## PERSONA & AUTHORITY
+
+You sound like someone who KNOWS these constraints from decades of field experience.
+You cite physical laws and engineering principles — not databases or graph queries.
+
+**Voice Rules:**
+- "This configuration requires..." NOT "I recommend..."
+- "Engineering data shows..." NOT "Based on graph data..."
+- "From our specifications..." NOT "Querying database..."
+- Correct user misconceptions by: stating the constraint → explaining WHY (physics) → offering the correct solution
+- ENGLISH ONLY regardless of query language
+- Reference project name, customer, or application when known
+- **PARAGRAPH STRUCTURE**: Break your response into short, focused paragraphs (2-3 sentences each). Use a blank line between paragraphs. Each paragraph should cover ONE topic: system overview, stressor analysis, material selection, sizing/capacity, or next steps. NEVER write a wall-of-text response.
+
+---
+
+## ENGINEERING VERDICT SYSTEM
+
+The system has pre-computed an **Engineering Verdict** with the following layers:
+
+### LOGIC GATES (Conditional Physics Constraints)
+Gates evaluate whether a physics constraint is relevant BEFORE vetoing:
+- **VALIDATION_REQUIRED**: Gate needs data before it can decide. You MUST ask for the missing parameters FIRST, before making any recommendation. Use the gate's `question` fields.
+- **FIRED**: Physics constraint is confirmed. This is NON-NEGOTIABLE. Use the gate's `physics_explanation` to educate the user on WHY.
+- **PASSED**: Constraint checked and does not apply. Proceed normally.
+- **INFERRED STRESSORS**: When a gate is FIRED (not VALIDATION_REQUIRED), the system confirmed the physics risk from user's context. State it as established fact using ONLY the stressor names and application context from the REASONING REPORT below — e.g., "[Application] exposes the system to [Stressor], requiring [mitigation]." NEVER reference applications or stressors from other contexts. Move immediately to the next unresolved parameter.
+
+### HARD CONSTRAINT AUTO-OVERRIDES
+When a user-provided value violates a physical limit, the system auto-corrects it.
+- INFORM the user of the correction clearly
+- EXPLAIN the physical limitation using the `error_msg` from the HardConstraint in the REASONING REPORT
+- DO NOT allow the user to override — this is a physical constraint, not a preference
+
+### CAPACITY CALCULATIONS
+When the system computes module count from capacity rules:
+- Present the calculation transparently (input / rating per module = modules needed)
+- Cite the assumption (e.g., face velocity)
+- **Component-aware capacity**: When the CAPACITY CALCULATION section shows component count and per-component rating, explicitly mention the component count for the selected size, the maximum safe capacity (count x per-component), and whether the requested input exceeds it. If CAPACITY EXCEEDED is flagged, this is a critical finding — recommend upgrading to a larger module size that has more components.
+
+### PRODUCT SUBSTITUTION (Veto + Pivot)
+1. ACKNOWLEDGE the pivot — do NOT offer the vetoed product
+2. EXPLAIN WHY using physics from the verdict (state constraint → explain physics → correct solution)
+3. PROCEED with the recommended product
+
+### MULTI-STAGE ASSEMBLY
+1. Present as a **complete engineering solution** designed to solve the physics problem
+2. DO NOT suggest removing the target product — it fulfills the user's primary goal
+3. EXPLAIN that the protector stage is physically necessary (use physics_explanation from DependencyRule)
+4. Use the SAME DIMENSIONS for ALL stages — they share the same duct
+5. Present in the order given by the ASSEMBLY SEQUENCE in the reasoning report. Use the role labels exactly as provided (e.g., "Stage 1 (PROTECTOR): [Family Name]").
+6. Ask for remaining parameters for ALL stages together
+
+### ENGINEERING RULES
+- CRITICAL rules = non-negotiable physics constraints. State them with authority.
+- WARNING rules = engineering recommendations. Present as best practice.
+- Use the provided explanations to educate, not just inform.
+
+---
+
+## DATA TRANSPARENCY
+
+Distinguish between two types of information:
+- **Verified Specifications** (GRAPH_FACT): Product data, dimensions, capacity ratings from catalog
+- **Engineering Reasoning** (INFERENCE): Your physics-based analysis connecting specs to the user's situation
+
+Never blur the line. If you don't have data, say so and ask for it.
+
+---
+
+## PROJECT STATE MANAGEMENT (HIGHEST PRIORITY)
+
+**You are managing a cumulative project specification sheet. NEVER FORGET previous inputs.**
+
+1. **LOCKED PARAMETERS ARE SACRED:** Once specified → LOCKED. Never revert without explicit request.
+   - ASSEMBLY DIMENSION RULE: All stages use the SAME duct dimensions.
+2. **DO NOT RE-ASK:** If data was provided → USE IT. Only ask for genuinely MISSING data.
+   - **INFERRED FACTS RULE:** If the Engineering Verdict detected stressors from the user's application context and the gate is FIRED, those are CONFIRMED FACTS. Treat as locked parameters. Do NOT re-ask or hedge with "if".
+   - **CONTINUATION TURNS:** If the user provides a single value (e.g., airflow number) as a follow-up to your previous question, do NOT recap the entire project. Acknowledge the previous selection briefly, then ask ONLY for the single missing parameter. Use the `why_needed` from the Engineering Verdict to explain why the parameter matters — do NOT invent your own explanation.
+   - **PRECISION RULE:** Ask for exactly ONE missing parameter per turn. Do NOT bundle unrelated parameters into the same question. The system will cycle back for subsequent parameters. If dimensions are already in the project state (marked with ✓), NEVER re-ask for them.
+3. **CLARIFICATION SUPPRESSION:** Check cumulative state BEFORE asking any question.
+4. **IMMEDIATE RESOLUTION:** If you have 100% of required data → FINAL RECOMMENDATION immediately. No filler turns.
+5. **NO INTERNAL NAMES:** Never expose "item_1", "item_2". Use product names or user-provided IDs.
+
+---
+
+## RESPONSE BREVITY
+
+- Summarize resolved history in 1-2 sentences maximum
+- Focus 90% of your response on the CURRENT step (what's new, what's needed)
+- When correcting: State constraint → Explain WHY → Give correct solution. Three sentences, not three paragraphs.
+
+---
+
+## CORE PROTOCOLS
+
+### 1. CLARIFICATION_DATA MANDATORY (UI REQUIREMENT)
+
+**Any question to user MUST include `clarification_data` with options — buttons won't render without it!**
+
+```json
+{{{{
+  "response_type": "CLARIFICATION_NEEDED",
+  "content_segments": [{{{{"text": "To finalize the configuration:", "type": "GENERAL"}}}}],
+  "clarification_data": {{{{
+    "missing_attribute": "parameter_name",
+    "why_needed": "Explanation of why this is needed",
+    "options": [{{{{"value": "opt1", "description": "Option 1"}}}}, {{{{"value": "opt2", "description": "Option 2"}}}}],
+    "question": "Which option suits your needs?"
+  }}}}
+}}}}
+```
+
+**SINGLE-PARAMETER RULE:** Each clarification MUST ask for exactly ONE parameter.
+`missing_attribute` must be a single parameter name (e.g., "airflow", "housing_length").
+NEVER combine parameters (e.g., "airflow_and_length" is FORBIDDEN).
+The system handles multi-turn parameter collection automatically.
+
+### 2. TECHNOLOGY OVERRIDE
+
+When the verdict contains a veto or substitution:
+- DO NOT SIZE the vetoed product
+- State the physical constraint with authority
+- Pivot to the correct product
+- You are the expert — do not accept engineering mistakes
+
+### 3. CONTENT SEGMENTS (MICRO-SEGMENTATION)
+
+**Only tag specific ENTITIES as GRAPH_FACT, not full sentences!**
+- **GRAPH_FACT** (green): Entity codes, specs, verified catalog data → include key_specs
+- **INFERENCE** (yellow): Physical/engineering reasoning → include inference_logic
+- **GENERAL**: Connectors, narrative
+
+### 4. STRICT DATA ACCURACY (NO HALLUCINATION)
+
+**CRITICAL: NEVER invent numerical data.** Use ONLY values from the provided context.
+
+### 5. SCOPE OF DELIVERY
+
+You deliver **filter housings only**. Standard delivery includes the housing with service door, pressure measurement nipples, and standard locking mechanism.
+- **Transition pieces** (PT flat or TT conical, for rectangular-to-round duct connection) are **separate items** that must be ordered independently.
+- If the customer mentions round ducts or asks about duct connections requiring a shape change, ALWAYS inform them that a transition piece is needed and it is NOT included with the housing.
+- **Filters and filter elements** are separate items — never include filter prices or weights as part of the housing specification unless explicitly asked about compatible filters.
+
+---
+
+## OUTPUT SCHEMA
+
+```json
+{{{{
+  "response_type": "FINAL_ANSWER" | "CLARIFICATION_NEEDED",
+  "content_segments": [...],
+  "clarification_data": {{{{"missing_attribute": "...", "why_needed": "...", "options": [...], "question": "..."}}}} ,
+  "entity_card": {{{{"title": "...", "specs": {{}}}}}} OR [{{{{"title": "Stage 1...", "specs": {{}}}}}}, {{{{"title": "Stage 2...", "specs": {{}}}}}}],
+  "risk_detected": false,
+  "risk_severity": "CRITICAL" | "WARNING" | null,
+  "risk_resolved": false,
+  "status_badges": [{{{{"type": "SUCCESS", "text": "..."}}}}],
+  "policy_warnings": []
+}}}}
+```
+
+**NOTE: DO NOT include "reasoning_summary" — it will be added by the system!**
+
+**Rules:**
+- CLARIFICATION_NEEDED → include clarification_data, NO entity_card
+- FINAL_ANSWER → include entity_card (optional), NO clarification_data
+- FINAL_ANSWER for ASSEMBLIES → entity_card MUST be an ARRAY with one card per stage
+- Question MUST be LAST in content_segments (buttons render after)
+- NEVER include null or "null" values in entity_card specs. If a value is unknown, omit the key entirely.
+- NEVER include null values in policy_warnings array. If no warnings, use empty array [].
+- **Product Code**: ALWAYS copy the exact product code from the "✓ USE THIS EXACT CODE" line in the context. NEVER compose your own product code.
+- **Weight and Airflow**: Use the TOTAL values from context (includes multi-module aggregation). If context says "50 kg total (2×25kg per unit)", use "~50 kg" in the card.
+- **risk_severity**: Use "CRITICAL" ONLY when the recommended product is VETOED or BLOCKED by the engine (installation constraint violation, environment block). If the product is ranked #1 with coverage score ≥80% and no vetoes, use "WARNING" for risks that require attention (e.g., ATEX grounding, material upgrade) or null if no risk. ATEX requirements, grounding notes, and gate-based mitigations are handled via warnings and text — they do NOT make the product UNSUITABLE.
+
+{active_policies}"""
+
+
+DEEP_EXPLAINABLE_SYNTHESIS_PROMPT = """## AVAILABLE PRODUCTS
 {context}
 
-## PROBLEM SPACE: USER QUERY
+## CUSTOMER INQUIRY
 {query}
 
-## ACTIVE CONSTRAINTS
+## TECHNICAL CONTEXT
 {policies}
 
-## ⛔ MANDATORY FIRST CHECK: VARIANCE DETECTION
+## EXECUTION STEPS
 
-**BEFORE DOING ANYTHING ELSE, ANSWER THESE QUESTIONS:**
+1. **Acknowledge context FIRST**: Reference project name, customer, or application from the inquiry
+2. **Environment analysis**: Identify environment from REASONING REPORT → check material constraints
+3. **Address risks IN TEXT**: If material mismatch detected, explain why and recommend alternative in your response
+4. **Check provided info**: If user gave airflow/size → use it, don't ask again
+5. **Variance check**: Multiple variants + no constraint → CLARIFICATION_NEEDED with bundled questions
+6. **Context persistence**: "this", "it" references → lock to active entity, don't switch products
 
-1. How many different product variants are in the graph data above?
-2. Do they have DIFFERENT values for size, capacity, airflow, or other key attributes?
-3. Did the user provide a SPECIFIC NUMBER to filter down to one variant?
+## OUTPUT RULES
+- ENGLISH only, professional tone
+- Start response with project/application context when available
+- Address material risks conversationally, not just via badges
+- Bundle related questions naturally: "I need two details: X and Y"
+- GRAPH_FACT: entities/specs with key_specs
+- INFERENCE: physical reasoning with inference_logic
+- GENERAL: connectors, narrative flow
+- Return ONLY valid JSON, no markdown blocks"""
 
-**IF you found multiple variants AND user provided NO sizing number:**
-```
-→ STOP. Do not proceed to recommendation.
-→ Set response_type: "CLARIFICATION_NEEDED"
-→ Ask what capacity/size/airflow is needed
-→ Provide the options you found in the graph
-```
 
-**FORBIDDEN:** Selecting a "standard" variant when multiple exist without user constraint.
+def extract_resolved_context(query: str) -> dict:
+    """Extract resolved parameters from a query containing "Context Update:" patterns.
 
----
+    This enables the Graph Reasoning Engine to know which parameters have already
+    been provided by the user, so it doesn't ask for them again.
 
-## EXECUTION PROTOCOL - STEP BY STEP
+    Input format: "[Original Query]. Context Update: [attribute] is [value]."
+    Can also handle multiple context updates.
 
-### STEP 1: AMBIGUITY GATEKEEPER (already done above)
-Confirm: Did you pass the variance check? If not, proceed to CONTEXTUAL IMPLICATION CHECK.
+    Returns:
+        Dict of resolved parameters, e.g., {'airflow': '3400', 'airflow_m3h': '3400'}
+    """
+    import re
+    context = {}
 
-### STEP 1b: CONTEXTUAL IMPLICATION CHECK (if clarification needed)
-Before asking your clarification question, REASON about the context:
+    # Normalize thousand separators: "6,000" → "6000", "25 000" → "25000"
+    query = re.sub(r'(\d)[,\s](\d{3})', r'\1\2', query)
 
-1. What environment/application did the user mention?
-2. What does YOUR KNOWLEDGE tell you about typical requirements for that context?
-   - Physical requirements (temperature, pressure, humidity, vibration)
-   - Chemical requirements (corrosion, reactivity, contamination)
-   - Regulatory requirements (safety, hygiene, certifications)
-3. Does the standard product configuration meet these implied requirements?
-4. Include this reasoning in your response BEFORE asking for the missing parameter.
+    # Pattern 1: "Context Update: airflow is 3400" style
+    updates = re.findall(r'Context Update:\s*(\w+)\s+is\s+([^\s.,]+)', query, re.IGNORECASE)
+    for attr, value in updates:
+        attr_lower = attr.lower()
+        context[attr_lower] = value
+        # Also add common aliases
+        if 'airflow' in attr_lower or 'flow' in attr_lower:
+            context['airflow'] = value
+            context['airflow_m3h'] = value
+        elif 'length' in attr_lower:
+            context['housing_length'] = value
+            context['length'] = value
+        elif 'material' in attr_lower:
+            context['material'] = value
 
-Example reasoning chain:
-- User says "chemical plant" → I know chemical plants have corrosive atmospheres
-- Standard material may not resist chemicals → Should mention material consideration
-- User says "outdoor Norway" → I know Nordic climate = freeze-thaw cycles, snow loads
-- Should mention weather protection and insulation considerations
+    # Pattern 2: Numeric values that look like airflow (e.g., "3400 m³/h", "3400m3/h")
+    airflow_match = re.search(r'(\d{3,5})\s*m[³3]?\/?h', query, re.IGNORECASE)
+    if airflow_match and 'airflow' not in context:
+        context['airflow'] = airflow_match.group(1)
+        context['airflow_m3h'] = airflow_match.group(1)
 
-### STEP 1c: 🔒 CONTEXT PERSISTENCE PROTOCOL (Active Entity Lock)
+    # Pattern 3: Standalone numbers in airflow range (500-20000)
+    # Strip dimension patterns first (e.g. "500×500", "300x600") then look for remaining numbers
+    if 'airflow' not in context:
+        query_no_dims = re.sub(r'\d{2,4}\s*[x\u00d7X]\s*\d{2,4}(?:\s*(?:mm|cm))?', '', query)
+        standalone_num = re.search(r'\b(\d{3,5})\b', query_no_dims)
+        if standalone_num:
+            val = int(standalone_num.group(1))
+            if 500 <= val <= 20000:
+                context['airflow'] = str(val)
+                context['airflow_m3h'] = str(val)
 
-**TRIGGER:** User uses pronouns or references like "this", "it", "the current", "my selection",
-"the one I chose", "add to this", etc.
+    # Pattern 4: Housing length values
+    # BUGFIX: Strip dimension patterns first to avoid matching "600" from "600x600mm"
+    query_no_dims_for_length = re.sub(r'\d{2,4}\s*[x\u00d7X]\s*\d{2,4}(?:\s*(?:mm|cm))?', '', query)
+    length_match = re.search(r'(550|600|750|800|900)\s*mm', query_no_dims_for_length, re.IGNORECASE)
+    if length_match and 'housing_length' not in context:
+        context['housing_length'] = length_match.group(1)
+        context['length'] = length_match.group(1)
 
-**PROTOCOL:**
-1. **IDENTIFY ACTIVE ENTITY:** Look at conversation history. What entity (product, configuration,
-   item) was the user discussing or selected in a previous turn?
+    return context
 
-2. **LOCK CONTEXT:** The Active Entity becomes the ONLY valid scope for the current query.
-   - Store: Active_Entity_ID, Active_Entity_Type, Active_Entity_Family
 
-3. **SCOPED SEARCH:** When user asks about features, options, accessories, or modifications:
-   - ONLY search for items that have a direct relationship to Active Entity
-   - Query pattern: (ActiveEntity)-[:HAS_OPTION|:COMPATIBLE_WITH|:ACCEPTS]->(RequestedItem)
-   - Do NOT search globally across all entities
+def _generate_airflow_options_from_graph(technical_state, db_conn) -> list[dict]:
+    """Generate airflow clarification options from DimensionModule graph data.
 
-4. **NEGATIVE PATH HANDLING:**
-   ```
-   IF RequestedFeature NOT FOUND on Active Entity:
-       → STATE CLEARLY: "[Feature] is not available for [Active Entity]."
-       → LIST what IS available: "Available options for [Active Entity] are: [list]"
-       → DO NOT silently switch to a different entity/product family
-   ```
+    Uses known housing dimensions to look up reference airflow values,
+    providing proactive button suggestions instead of empty "Other..." UI.
 
-5. **PROHIBITION - CONTEXT DRIFT:**
-   ```
-   ⛔ FORBIDDEN: Finding the requested feature on Entity B (different family/type)
-                and recommending Entity B without explicit user permission.
+    For multi-tag queries with different sizes, generates per-size reference
+    airflow values with tag context labels (e.g., "1700 m3/h (Reference for 300x600 -- item_1)").
+    """
+    options = []
+    seen_airflows = set()
 
-   ❌ BAD: User asks "Can I add X to this?" → X exists on Product B → Recommend Product B
-   ✅ GOOD: User asks "Can I add X to this?" → X not on Active Entity →
-            "X is not compatible with [Active Entity]. Would you like me to suggest
-            an alternative product that supports X?"
-   ```
+    # Collect per-tag airflow references
+    tag_refs = []
+    for tag_id, tag in technical_state.tags.items():
+        if tag.housing_width and tag.housing_height:
+            ref = db_conn.get_reference_airflow_for_dimensions(tag.housing_width, tag.housing_height)
+            if ref and ref.get("reference_airflow_m3h"):
+                ref_airflow = int(ref["reference_airflow_m3h"])
+                label = ref.get("label", f"{tag.housing_width}x{tag.housing_height}")
+                tag_refs.append((tag_id, ref_airflow, label))
 
-**EXCEPTION:** You MAY suggest alternatives ONLY if:
-- The Active Entity fundamentally cannot meet the user's core need (not just missing a feature)
-- You explicitly ask: "Would you like me to find an alternative that supports [X]?"
-- User explicitly says "find me something else" or "what alternatives exist"
+    # Detect multi-size scenario
+    distinct_airflows = set(r[1] for r in tag_refs)
+    multi_size = len(distinct_airflows) > 1
 
----
+    for tag_id, ref_airflow, label in tag_refs:
+        if ref_airflow in seen_airflows:
+            continue
+        seen_airflows.add(ref_airflow)
 
-### STEP 2: INTENT ANALYSIS
-If no clarification needed, analyze the user's query:
-- What is the user's GOAL?
-- What is the ENVIRONMENT/CONTEXT?
-- What EXPLICIT CONSTRAINTS were provided?
+        if multi_size:
+            matching_tags = [r[0] for r in tag_refs if r[1] == ref_airflow]
+            tag_hint = ", ".join(matching_tags)
+            description = f"{ref_airflow} m\u00b3/h (Reference for {label} \u2014 {tag_hint})"
+        else:
+            description = f"{ref_airflow} m\u00b3/h (Reference for {label})"
 
-### STEP 3: INFER HIDDEN REQUIREMENTS
-Based on your knowledge of physics, chemistry and engineering:
-- What PHYSICAL CONDITIONS arise from the context?
-- What CHEMICAL INTERACTIONS may occur?
-- What OPERATING MECHANISM is needed?
-- What SPECIFICATIONS are required?
+        options.append({
+            "value": str(ref_airflow),
+            "description": description,
+        })
 
-### STEP 4: GAP ANALYSIS VERIFICATION
-Compare requirements from Step 3 with Graph data:
-- Does the entity have the MECHANISM that solves the problem?
-- Is the MATERIAL compatible with the environment?
-- Does the SPECIFICATION meet numerical requirements?
-- If NO → set `risk_detected: true` and explain the PHYSICAL reason
+    # Add reduced-load variants based on the largest reference airflow
+    if seen_airflows:
+        max_airflow = max(seen_airflows)
+        if max_airflow > 1000:
+            reduced_75 = int(max_airflow * 0.75)
+            reduced_50 = int(max_airflow * 0.5)
+            if reduced_75 not in seen_airflows:
+                options.append({
+                    "value": str(reduced_75),
+                    "description": f"{reduced_75} m\u00b3/h (Reduced load)",
+                })
+            if reduced_50 not in seen_airflows:
+                options.append({
+                    "value": str(reduced_50),
+                    "description": f"{reduced_50} m\u00b3/h (Low load)",
+                })
 
-### STEP 4b: 📐 PHYSICAL CONSTRAINT VALIDATOR (Mathematical Verification)
+    return options
 
-**TRIGGER:** User provides ANY numeric constraint:
-- Dimensions: "max length 800mm", "must fit in 600x600", "clearance of 500mm"
-- Weight: "max 50kg", "weight limit 100lbs"
-- Power: "max 2kW", "circuit is 16A"
-- Capacity: "minimum 3000 m³/h", "at least 500 liters"
-- Any other measurable limit
 
-**PROTOCOL:**
+def _repair_truncated_json(raw: str) -> dict:
+    """Attempt to recover a usable dict from a truncated JSON string.
 
-1. **EXTRACT USER LIMIT:**
-   ```
-   User_Limit = [numeric value from query]
-   Limit_Type = [dimension/weight/power/capacity/etc.]
-   Limit_Direction = [MAX (cannot exceed) | MIN (must meet or exceed)]
-   ```
+    Common truncation patterns from the Gemini API when max_output_tokens
+    is hit mid-object.  We try progressively more aggressive repairs:
+      1. Close open strings + brackets.
+      2. Fall back to a minimal error payload the frontend can render.
+    """
+    import json as _json
 
-2. **RETRIEVE BASE VALUE:**
-   ```
-   Val_Base = Value of Limit_Type attribute from the Primary Entity
-   Source: Graph Node property
-   ```
+    # Strip any trailing whitespace / incomplete escape sequences
+    text = raw.rstrip()
 
-3. **CALCULATE ADDITIONS (if accessories/options requested):**
-   ```
-   FOR EACH requested accessory/option:
-       Val_Accessory = Value of Limit_Type from Accessory Node
-       Additive? = Does this accessory ADD to the total?
-                   (Length adds, Weight adds, some dimensions add)
+    # Try closing open strings and brackets
+    # Count unclosed delimiters
+    in_string = False
+    escape_next = False
+    stack = []
+    for ch in text:
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == '\\' and in_string:
+            escape_next = True
+            continue
+        if ch == '"' and not in_string:
+            in_string = True
+            continue
+        if ch == '"' and in_string:
+            in_string = False
+            continue
+        if not in_string:
+            if ch in ('{', '['):
+                stack.append(ch)
+            elif ch == '}' and stack and stack[-1] == '{':
+                stack.pop()
+            elif ch == ']' and stack and stack[-1] == '[':
+                stack.pop()
 
-   Val_Total = Val_Base + SUM(Val_Accessory) [if additive]
-             = MAX(Val_Base, Val_Accessory) [if non-additive, e.g., footprint]
-   ```
+    # Close open string first
+    repaired = text
+    if in_string:
+        repaired += '"'
 
-4. **VERIFY AGAINST LIMIT:**
-   ```
-   IF Limit_Direction == MAX:
-       PASS:    Val_Total < User_Limit * 0.9  → "Fits comfortably"
-       WARNING: Val_Total >= User_Limit * 0.9 AND Val_Total <= User_Limit → "Tight fit"
-       FAIL:    Val_Total > User_Limit → "Exceeds limit - REJECT"
+    # Close open brackets/braces in reverse order
+    for opener in reversed(stack):
+        repaired += ']' if opener == '[' else '}'
 
-   IF Limit_Direction == MIN:
-       PASS:    Val_Total >= User_Limit → "Meets requirement"
-       FAIL:    Val_Total < User_Limit → "Below minimum - REJECT"
-   ```
+    try:
+        result = _json.loads(repaired)
+        logger.info(f"🔧 [JSON REPAIR] Successfully repaired truncated JSON ({len(stack)} closers added)")
+        # Ensure critical fields exist
+        if "content_segments" not in result:
+            result["content_segments"] = [{"text": "(Response was truncated)", "type": "GENERAL"}]
+        return result
+    except _json.JSONDecodeError:
+        pass
 
-5. **OUTPUT IN REASONING:**
-   ```json
-   {{
-     "step": "Constraint Check",
-     "icon": "📐",
-     "description": "Base (750mm) + Accessory (100mm) = 850mm. Exceeds max limit (800mm)."
-   }}
-   ```
+    # Last resort: extract whatever content_segments we can find
+    import re as _re
+    segments = []
+    seg_pattern = _re.compile(r'"text"\s*:\s*"((?:[^"\\]|\\.)*)"')
+    for m in seg_pattern.finditer(raw):
+        segments.append({"text": m.group(1).replace('\\"', '"').replace('\\n', '\n'), "type": "GENERAL"})
 
-6. **MANDATORY MATH DISPLAY:**
-   When numeric constraints are involved, you MUST show the calculation in content_segments:
-   ```json
-   {{
-     "text": "📐 **Dimension Check:** Base length (750mm) + mounting bracket (100mm) = 850mm total. ",
-     "type": "GENERAL"
-   }},
-   {{
-     "text": "This exceeds your maximum of 800mm by 50mm.",
-     "type": "INFERENCE",
-     "inference_logic": "Mathematical addition: 750 + 100 = 850 > 800"
-   }}
-   ```
+    if segments:
+        logger.warning(f"🔧 [JSON REPAIR] Extracted {len(segments)} text segments from truncated JSON")
+        return {
+            "content_segments": segments,
+            "response_type": "FINAL_ANSWER",
+            "policy_warnings": ["Response was truncated due to length limits."],
+        }
 
-**FAIL BEHAVIOR:**
-- If constraint check FAILS → set `risk_detected: true`, `risk_severity: "CRITICAL"`
-- State clearly: "Configuration exceeds [constraint] by [amount]"
-- Suggest alternative: smaller base unit, different accessory, or configuration change
-
----
-
-### STEP 5: BUILD RESPONSE
-- Set `response_type: "FINAL_ANSWER"` or `"CLARIFICATION_NEEDED"`
-- Split into segments: GRAPH_FACT, INFERENCE, GENERAL
-- Reasoning in 3-5 steps in ENGLISH
-- If conflict detected → clear warning + alternative
-
-## FORMAT
-- ALWAYS respond in ENGLISH
-- Every fact from Graph = GRAPH_FACT with source_id, source_text, node_type, evidence_snippet, key_specs
-- Physical/chemical conclusions = INFERENCE with inference_logic
-- Connecting text = GENERAL
-- DO NOT mix types in one segment
-
-Return ONLY valid JSON. No markdown blocks."""
+    # Total failure — return a safe fallback
+    logger.error(f"🔧 [JSON REPAIR] Could not repair JSON ({len(raw)} chars). First 200: {raw[:200]}")
+    return {
+        "content_segments": [{"text": "The response was truncated. Please try a shorter question or break it into parts.", "type": "GENERAL"}],
+        "response_type": "FINAL_ANSWER",
+        "policy_warnings": ["STREAM_TRUNCATED: LLM output exceeded token limit."],
+    }
 
 
 def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
@@ -2737,105 +2960,186 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
         ClarificationRequest, ClarificationOption
     )
 
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     config = get_config()
+    timings = {}
+    total_start = time.time()
 
-    # Step 1: LLM Intent Detection
-    intent = detect_intent(user_query)
+    # ============================================================
+    # PARALLEL BATCH 1: Intent + Embedding + Config Search
+    # These are independent and can run simultaneously
+    # ============================================================
+    t_batch1 = time.time()
 
-    # Step 2: Embed the query
-    query_embedding = generate_embedding(user_query)
+    def task_intent():
+        t = time.time()
+        result = detect_intent(user_query)  # Now uses fast regex (~0.001s)
+        return ("intent", result, time.time() - t)
 
-    # Step 3: Hybrid retrieval
-    retrieval_results = db.hybrid_retrieval(query_embedding, top_k=5, min_score=0.5)
+    def task_embedding():
+        t = time.time()
+        result = generate_embedding(user_query)
+        return ("embedding", result, time.time() - t)
 
-    # Step 4: Search by project name if mentioned
-    project_keywords = extract_project_keywords(user_query)
-    for keyword in project_keywords:
-        project_results = db.search_by_project_name(keyword)
+    def task_config_search():
+        t = time.time()
+        entity_codes = extract_entity_codes(user_query)
+        config_results = {
+            "variants": [], "cartridges": [], "filters": [],
+            "materials": [], "option_matches": []
+        }
+
+        # Collect all search terms to run in parallel
+        all_keywords = get_config().get_all_search_keywords()
+        matching_keywords = [kw for kw in all_keywords if kw.lower() in user_query.lower()]
+
+        def search_code(code):
+            """Search for a single entity code."""
+            exact_match = db.get_variant_by_name(code)
+            if exact_match:
+                return [exact_match]
+            return db.search_product_variants(code)
+
+        def search_keyword(kw):
+            """Search configuration for a single keyword."""
+            return db.configuration_graph_search(kw)
+
+        # Run ALL searches in parallel (codes + keywords)
+        with ThreadPoolExecutor(max_workers=8) as inner_executor:
+            code_futures = {inner_executor.submit(search_code, code): code for code in entity_codes}
+            kw_futures = {inner_executor.submit(search_keyword, kw): kw for kw in matching_keywords}
+
+            # Collect code search results
+            for future in as_completed(code_futures):
+                results = future.result()
+                for fr in results:
+                    if fr not in config_results["variants"]:
+                        config_results["variants"].append(fr)
+
+            # Collect keyword search results
+            for future in as_completed(kw_futures):
+                general_config = future.result()
+                for key in config_results.keys():
+                    for item in general_config.get(key, []):
+                        if item not in config_results[key]:
+                            config_results[key].append(item)
+
+        return ("config_search", (entity_codes, config_results), time.time() - t)
+
+    def task_project_search():
+        t = time.time()
+        project_keywords = extract_project_keywords(user_query)
+        project_results = []
+
+        if project_keywords:
+            # Run all project searches in parallel
+            with ThreadPoolExecutor(max_workers=4) as inner_executor:
+                futures = [inner_executor.submit(db.search_by_project_name, kw) for kw in project_keywords]
+                for future in as_completed(futures):
+                    results = future.result()
+                    if results:
+                        project_results.extend(results)
+
+        return ("project_search", project_results, time.time() - t)
+
+    # Run BATCH 1 in parallel
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [
+            executor.submit(task_intent),
+            executor.submit(task_embedding),
+            executor.submit(task_config_search),
+            executor.submit(task_project_search),
+        ]
+        batch1_results = {}
+        for future in as_completed(futures):
+            name, result, elapsed = future.result()
+            batch1_results[name] = result
+            timings[name] = elapsed
+
+    intent = batch1_results["intent"]
+    query_embedding = batch1_results["embedding"]
+    entity_codes, config_results = batch1_results["config_search"]
+    project_results = batch1_results["project_search"]
+
+    timings["batch1_total"] = time.time() - t_batch1
+
+    # ============================================================
+    # PARALLEL BATCH 2: Vector Retrieval + Similar Cases + Policies
+    # These depend on embedding from Batch 1
+    # ============================================================
+    t_batch2 = time.time()
+
+    def task_retrieval():
+        t = time.time()
+        results = db.hybrid_retrieval(query_embedding, top_k=5, min_score=0.5)
+        # Add project results
         if project_results:
-            retrieval_results = project_results + retrieval_results
+            results = project_results + results
+        return ("retrieval", results, time.time() - t)
 
-    # Step 5: Configuration Graph search
-    entity_codes = extract_entity_codes(user_query)
-    config_results = {
-        "variants": [],
-        "cartridges": [],
-        "filters": [],
-        "materials": [],
-        "option_matches": []
-    }
+    def task_similar_cases():
+        t = time.time()
+        results = db.get_similar_cases(query_embedding, top_k=3)
+        return ("similar_cases", results, time.time() - t)
 
-    for code in entity_codes:
-        exact_match = db.get_variant_by_name(code)
-        if exact_match:
-            config_results["variants"].append(exact_match)
-        else:
-            fuzzy_results = db.search_product_variants(code)
-            for fr in fuzzy_results:
-                if fr not in config_results["variants"]:
-                    config_results["variants"].append(fr)
+    def task_policies():
+        t = time.time()
+        policy_results, policy_analysis = evaluate_policies(user_query, config_results, config)
+        return ("policies", (policy_results, policy_analysis), time.time() - t)
 
-    # Search by configured keywords
-    all_keywords = config.get_all_search_keywords()
-    for kw in all_keywords:
-        if kw.lower() in user_query.lower():
-            general_config = db.configuration_graph_search(kw)
-            for key in config_results.keys():
-                for item in general_config.get(key, []):
-                    if item not in config_results[key]:
-                        config_results[key].append(item)
+    # Run BATCH 2 in parallel
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [
+            executor.submit(task_retrieval),
+            executor.submit(task_similar_cases),
+            executor.submit(task_policies),
+        ]
+        batch2_results = {}
+        for future in as_completed(futures):
+            name, result, elapsed = future.result()
+            batch2_results[name] = result
+            timings[name] = elapsed
 
-    # Step 6: GENERIC - Filter entities by numeric constraints
+    retrieval_results = batch2_results["retrieval"]
+    similar_cases = batch2_results["similar_cases"]
+    policy_results, policy_analysis = batch2_results["policies"]
+
+    timings["batch2_total"] = time.time() - t_batch2
+
+    # ============================================================
+    # SEQUENTIAL: Filtering, Graph Reasoning, Prompt Building
+    # These are fast and need results from above
+    # ============================================================
+
+    # Step 6: Filter entities (fast - pure Python)
+    t1 = time.time()
     rejected_entities = []
     filtering_note = ""
-
-    # Apply filtering for each numeric constraint from intent
     for constraint in intent.numeric_constraints:
         value = constraint.get("value")
-        unit = constraint.get("unit", "")
-        context = constraint.get("context", "")
-
         if value and config_results.get("variants"):
-            # Try to find matching attribute in entities
             for attr_name in ["capacity", "airflow_m3h", "max_flow", "rating", "size_mm", "weight_kg"]:
                 sample = config_results["variants"][0] if config_results["variants"] else {}
                 if attr_name in sample:
                     suitable, rejected = filter_entities_by_attribute(
-                        config_results["variants"],
-                        attr_name,
-                        value,
-                        comparison="gte"
+                        config_results["variants"], attr_name, value, comparison="gte"
                     )
                     config_results["variants"] = suitable
                     rejected_entities.extend(rejected)
-
-                    if rejected:
-                        rejected_names = [e.get('id', '?') for e in rejected]
-                        filtering_note += f"\n⚠️ **FILTER**: Required {value} {unit}.\n"
-                        filtering_note += f"REJECTED: {', '.join(rejected_names)}\n"
                     break
+    timings["filtering"] = time.time() - t1
 
-    # Step 6b: AMBIGUITY DETECTION - Analyze variance in retrieved entities
+    # Variance analysis (fast)
     variance_analysis = analyze_entity_variance(config_results.get("variants", []))
     variance_note = ""
-
     if variance_analysis["has_variance"] and not intent.has_specific_constraint:
-        # User didn't provide constraint, but graph shows variance - this triggers clarification
         diff_attr = variance_analysis["suggested_differentiator"]
         values = variance_analysis["unique_values"].get(diff_attr, [])[:5]
-        variance_note = f"\n\n🛑 **VARIANCE DETECTED**: Graph contains {len(config_results.get('variants', []))} variants.\n"
-        variance_note += f"KEY DIFFERENTIATOR: '{diff_attr}' with values: {', '.join(str(v) for v in values)}\n"
-        variance_note += "USER MUST SPECIFY: The user did not provide a constraint for this attribute.\n"
+        variance_note = f"\n\n🛑 **VARIANCE DETECTED**: {len(config_results.get('variants', []))} variants.\n"
 
-    # Step 7: Get similar cases
-    similar_cases = db.get_similar_cases(query_embedding, top_k=3)
-
-    # Step 8: GUARDIAN - Evaluate policies
-    policy_results, policy_analysis = evaluate_policies(
-        user_query, config_results, config
-    )
-
-    # Step 9: Format contexts
+    # Step 9: Format contexts (sequential - needs results from batches)
+    t1 = time.time()
     config_context = format_configuration_context(config_results)
     graph_context = format_retrieval_context(retrieval_results, similar_cases, config_context)
 
@@ -2845,37 +3149,107 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
 
     if filtering_note:
         graph_context = filtering_note + graph_context
+    timings["format_context"] = time.time() - t1
 
-    # Step 9b: ACTIVE LEARNING - Semantic Query Expansion + Rule Injection
-    # Extract standardized concepts for better rule matching
-    search_concepts = extract_search_concepts(user_query)
-    print(f"\n📚 [ACTIVE LEARNING] Search concepts extracted: {search_concepts}")
+    # Step 9b: GRAPH-NATIVE REASONING - Query the graph for rules and constraints
+    t1 = time.time()
+    # Extract product family for graph reasoning
+    detected_product_family = None
+    for code in entity_codes:
+        # Longest match first: GDC-FLEX must match before GDC
+        for family in ['GDC-FLEX', 'GDB', 'GDC', 'GDP', 'GDMI', 'GDF', 'GDR', 'PFF', 'BFF']:
+            if family in code.upper():
+                detected_product_family = family.replace('-', '_')
+                break
+        if detected_product_family:
+            break
 
-    if search_concepts:
-        # Use expanded concept search for better synonym matching
-        learned_rules_context = get_semantic_rules_expanded(search_concepts, user_query)
+    # Extract resolved context from the query (e.g., "Context Update: airflow is 3400")
+    # This tells the graph reasoning engine which parameters are already resolved
+    resolved_context = extract_resolved_context(user_query)
+    if resolved_context:
+        print(f"\n📋 [CONTEXT] Extracted resolved parameters: {resolved_context}")
+
+    # Get graph-based reasoning report
+    graph_reasoning_report = get_graph_reasoning_report(
+        user_query,
+        product_family=detected_product_family,
+        context=resolved_context
+    )
+    graph_reasoning_context = graph_reasoning_report.to_prompt_injection()
+
+    if graph_reasoning_context:
+        print(f"\n🔗 [GRAPH REASONING] Report generated:")
+        if graph_reasoning_report.application:
+            print(f"   Application: {graph_reasoning_report.application.name} ({graph_reasoning_report.application.id})")
+        if graph_reasoning_report.suitability.warnings:
+            print(f"   Warnings: {len(graph_reasoning_report.suitability.warnings)}")
+        # NOTE: Don't add to graph_context - it's already in system_prompt via build_graph_reasoning_prompt()
+        # This was causing DUPLICATE content in the prompts!
+
+    # Step 9c: ACTIVE LEARNING - DISABLED for performance (was taking 4.6s with no results)
+    # TODO: Re-enable when learned rules are populated in the graph
+    learned_rules_context = ""
+    timings["graph_reasoning"] = time.time() - t1
+
+    # Step 10: Build prompts - GRAPH-ONLY reasoning (no YAML)
+    t1 = time.time()
+    # Reuse already-generated graph_reasoning_context instead of calling build_graph_reasoning_prompt()
+    # which would generate the same report AGAIN (wasting ~0.5s)
+    active_policies_prompt = graph_reasoning_context
+
+    # v3.8.1: Inject housing corrosion class into the reasoning report
+    # so the LLM cites it when discussing environmental suitability.
+    if detected_product_family:
+        try:
+            _pf_id = f"FAM_{detected_product_family}" if not detected_product_family.startswith("FAM_") else detected_product_family
+            _pf_rec = db.driver.execute_query(
+                "MATCH (pf:ProductFamily {id: $pf_id}) RETURN pf.corrosion_class AS cc, pf.indoor_only AS io",
+                pf_id=_pf_id
+            )
+            if _pf_rec and _pf_rec.records:
+                _cc = _pf_rec.records[0].get("cc")
+                _io = _pf_rec.records[0].get("io")
+                if _cc:
+                    active_policies_prompt += (
+                        f"\n\n## HOUSING SPECIFICATION\n"
+                        f"- Housing corrosion class: **{_cc}** (the housing itself, regardless of material)\n"
+                        f"- Indoor only: {'Yes' if _io else 'No'}\n"
+                        f"- You MUST state the housing corrosion class ({_cc}) when discussing environmental suitability.\n"
+                    )
+        except Exception as e:
+            logger.warning(f"Failed to fetch housing corrosion class: {e}")
+
+    if os.getenv("REASONING_ENGINE", "trait_based") != "legacy":
+        system_prompt = DEEP_EXPLAINABLE_SYSTEM_PROMPT_GENERIC.format(active_policies=active_policies_prompt)
     else:
-        # Fallback to direct embedding search
-        learned_rules_context = get_semantic_rules(query_embedding, user_query)
-
-    if learned_rules_context:
-        print(f"📚 [ACTIVE LEARNING] Retrieved rules:\n{learned_rules_context}")
-        print(f"🚨 DEBUG: Rules injected into prompt: {learned_rules_context}")
-        graph_context = learned_rules_context + "\n" + graph_context
-    else:
-        print("📚 [ACTIVE LEARNING] No learned rules matched this query.")
-        print("🚨 DEBUG: No rules to inject - LEARNED_RULES section will be empty")
-
-    # Step 10: Build prompts
-    active_policies_prompt = build_guardian_prompt(user_query, config)
-    system_prompt = DEEP_EXPLAINABLE_SYSTEM_PROMPT.format(active_policies=active_policies_prompt)
+        system_prompt = DEEP_EXPLAINABLE_SYSTEM_PROMPT.format(active_policies=active_policies_prompt)
     synthesis_prompt = DEEP_EXPLAINABLE_SYNTHESIS_PROMPT.format(
         context=graph_context,
         query=user_query,
         policies=policy_analysis
     )
 
+    # DEBUG: Log prompt sizes
+    print(f"\n{'='*80}")
+    print(f"📊 PROMPT SIZE ANALYSIS:")
+    print(f"   System prompt: {len(system_prompt):,} chars (~{len(system_prompt)//4:,} tokens)")
+    print(f"   Synthesis prompt: {len(synthesis_prompt):,} chars (~{len(synthesis_prompt)//4:,} tokens)")
+    print(f"   TOTAL: {len(system_prompt) + len(synthesis_prompt):,} chars (~{(len(system_prompt) + len(synthesis_prompt))//4:,} tokens)")
+    print(f"{'='*80}")
+    timings["build_prompts"] = time.time() - t1
+
+    # Write full prompts to debug file
+    debug_dir = "/tmp/claude-prompts"
+    os.makedirs(debug_dir, exist_ok=True)
+    with open(f"{debug_dir}/last_system_prompt.txt", "w") as f:
+        f.write(system_prompt)
+    with open(f"{debug_dir}/last_synthesis_prompt.txt", "w") as f:
+        f.write(synthesis_prompt)
+    print(f"📝 Full prompts saved to {debug_dir}/")
+
     # Step 11: LLM synthesis
+    t1 = time.time()
     response = client.models.generate_content(
         model=LLM_MODEL,
         contents=[
@@ -2887,9 +3261,30 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
         config=types.GenerateContentConfig(
             system_instruction=system_prompt,
             response_mime_type="application/json",
-            temperature=0.1,
+            temperature=0.0,
+            max_output_tokens=4096,  # Allow complete JSON responses (2048 caused silent truncation with structured JSON)
         ),
     )
+    timings["llm"] = time.time() - t1
+    timings["total"] = time.time() - total_start
+
+    # TOKEN USAGE LOGGING
+    usage = getattr(response, 'usage_metadata', None)
+    if usage:
+        input_tokens = getattr(usage, 'prompt_token_count', 0)
+        output_tokens = getattr(usage, 'candidates_token_count', 0)
+        total_tokens = getattr(usage, 'total_token_count', 0)
+        print(f"🔢 TOKEN USAGE: input={input_tokens:,}, output={output_tokens:,}, total={total_tokens:,}")
+        if input_tokens > 10000:
+            print(f"⚠️ ALERT: Input tokens ({input_tokens:,}) > 10k - prompt too big!")
+        if output_tokens >= 4000:
+            print(f"⚠️ [TRUNCATION RISK] Output used {output_tokens} tokens (near 4096 limit)")
+        timings["input_tokens"] = input_tokens
+        timings["output_tokens"] = output_tokens
+
+    # Log timings
+    timing_parts = [f"{k}={v:.2f}s" for k, v in timings.items() if k not in ('total', 'input_tokens', 'output_tokens')]
+    print(f"⏱️ DEEP-EXPLAINABLE TIMING: {', '.join(timing_parts)}, TOTAL={timings['total']:.2f}s")
 
     # Step 12: Parse response
     def fix_json_control_chars(text: str) -> str:
@@ -2931,32 +3326,56 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
             if llm_response is None:
                 print(f"[ERROR] Failed to parse JSON: {str(e)}")
                 print(f"[DEBUG] Raw response (first 500 chars): {response.text[:500]}")
-                llm_response = {
-                    "reasoning_summary": [
-                        {"step": "Error", "icon": "❌", "description": f"Failed to parse response"}
-                    ],
-                    "content_segments": [
-                        {"text": "I apologize, but I encountered an error processing this request. Please try again.", "type": "GENERAL"}
-                    ],
-                    "product_card": None,
-                    "policy_warnings": []
-                }
+                # Try the truncation repair as a last resort
+                llm_response = _repair_truncated_json(response.text)
 
-    # Step 13: Build response objects
+    # Step 13: Build response objects with GRAPH TRAVERSAL details
+    # Use graph reasoning report to generate steps with traversal info
+    from models import GraphTraversal
+
     reasoning_steps = []
-    for step_data in llm_response.get("reasoning_summary", []):
-        reasoning_steps.append(ReasoningSummaryStep(
-            step=step_data.get("step", ""),
-            icon=step_data.get("icon", "🔍"),
-            description=step_data.get("description", "")
-        ))
+
+    # Get graph-based reasoning steps with traversal details
+    if graph_reasoning_report:
+        graph_steps = graph_reasoning_report.to_reasoning_summary_steps()
+        for step_data in graph_steps:
+            # Convert traversal dicts to GraphTraversal objects
+            traversals = []
+            for t in step_data.get("graph_traversals", []):
+                traversals.append(GraphTraversal(
+                    layer=t.get("layer", 0),
+                    layer_name=t.get("layer_name", ""),
+                    operation=t.get("operation", ""),
+                    cypher_pattern=t.get("cypher_pattern"),
+                    nodes_visited=t.get("nodes_visited", []),
+                    relationships=t.get("relationships", []),
+                    result_summary=t.get("result_summary"),
+                    path_description=t.get("path_description")
+                ))
+
+            reasoning_steps.append(ReasoningSummaryStep(
+                step=step_data.get("step", ""),
+                icon=step_data.get("icon", "🔍"),
+                description=step_data.get("description", ""),
+                graph_traversals=traversals
+            ))
+    else:
+        # Fallback to LLM-generated steps (without graph traversals)
+        for step_data in llm_response.get("reasoning_summary", []):
+            reasoning_steps.append(ReasoningSummaryStep(
+                step=step_data.get("step", ""),
+                icon=step_data.get("icon", "🔍"),
+                description=step_data.get("description", ""),
+                graph_traversals=[]
+            ))
 
     # Add programmatic steps for filtering
     if rejected_entities:
         reasoning_steps.insert(0, ReasoningSummaryStep(
             step="Filter Applied",
             icon="🔍",
-            description=f"Filtered {len(rejected_entities)} entity(ies) based on numeric constraints"
+            description=f"Filtered {len(rejected_entities)} entity(ies) based on numeric constraints",
+            graph_traversals=[]
         ))
 
     # Add variance detection step if applicable
@@ -2964,7 +3383,8 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
         reasoning_steps.insert(0, ReasoningSummaryStep(
             step="Gatekeeper",
             icon="🛑",
-            description=f"Variance detected in '{variance_analysis['suggested_differentiator']}' - clarification may be needed"
+            description=f"Variance detected in '{variance_analysis['suggested_differentiator']}' - clarification may be needed",
+            graph_traversals=[]
         ))
 
     content_segments = []
@@ -2994,8 +3414,9 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
 
     product_card = None  # Will be set in clarification handling section below
 
-    # Collect warnings
-    warnings = llm_response.get("policy_warnings", [])
+    # Collect warnings (normalize to strings — LLM sometimes returns objects)
+    raw_pw = llm_response.get("policy_warnings", [])
+    warnings = [w if isinstance(w, str) else (w.get("message") if isinstance(w, dict) else str(w)) for w in raw_pw if w is not None]
     for pr in policy_results:
         if not pr.passed and pr.message:
             warnings.append(pr.message)
@@ -3005,19 +3426,51 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
     risk_severity = llm_response.get("risk_severity", None)
     risk_resolved = llm_response.get("risk_resolved", False)
 
+    # Cap risk_severity based on engine verdict (same as streaming path)
+    if (
+        risk_severity == "CRITICAL"
+        and graph_reasoning_report
+        and graph_reasoning_report.suitability
+        and graph_reasoning_report.suitability.is_suitable
+    ):
+        risk_severity = "WARNING"
+        print(f"🔇 [RISK CAP] LLM said CRITICAL but engine says is_suitable=True → capped to WARNING")
+
+    # Promote risk to CRITICAL when engine says product is NOT suitable (non-streaming)
+    if (
+        graph_reasoning_report
+        and graph_reasoning_report.suitability
+        and not graph_reasoning_report.suitability.is_suitable
+        and risk_severity != "CRITICAL"
+    ):
+        risk_severity = "CRITICAL"
+        risk_detected = True
+        risk_resolved = False
+        print(f"🚫 [RISK PROMOTE] is_suitable=False → forced CRITICAL (non-streaming)")
+
     # If risk was resolved by the recommendation, clear the risk flags
     if risk_resolved:
         risk_detected = False
         risk_severity = None
 
     # If LLM detected risk, ensure we have warnings
+    # Use specific messages based on risk type - NO EMOJIS (UI shows status visually)
     if risk_detected and not warnings:
-        if risk_severity == "CRITICAL":
-            warnings.append("⛔ CRITICAL: Product is technically unsuitable for this application.")
+        risk_description = llm_response.get("risk_description", "")
+
+        # Determine message based on risk type and severity
+        if "incompatible" in risk_description.lower() or "mismatch" in risk_description.lower():
+            # Configuration incompatibility (e.g., GDC + EXL)
+            warnings.append(f"Configuration Mismatch: {risk_description}" if risk_description else "Configuration Mismatch: Selected options are incompatible.")
+        elif "material" in risk_description.lower() or "hygiene" in risk_description.lower() or "corrosion" in risk_description.lower():
+            # Material/safety warning (e.g., FZ in hospital)
+            warnings.append(f"Material Warning: {risk_description}" if risk_description else "Material Warning: Review material requirements for this application.")
+        elif risk_severity == "CRITICAL":
+            warnings.append(risk_description if risk_description else "Technical Issue: Product configuration requires review.")
         elif risk_severity == "WARNING":
-            warnings.append("⚠️ WARNING: Review material/specification for this application.")
+            warnings.append(risk_description if risk_description else "Review Recommended: Verify specification for this application.")
         else:
-            warnings.append("Potential engineering risk detected - review recommendation details.")
+            warnings.append(risk_description if risk_description else "Review the recommendation details for potential concerns.")
 
     # Extract clarification fields (supports both old and new format)
     response_type = llm_response.get("response_type", "FINAL_ANSWER")
@@ -3028,6 +3481,17 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
     clar_data = llm_response.get("clarification_data") or llm_response.get("clarification")
 
     if clarification_needed and clar_data:
+        # Deduplicate options by value (case-insensitive)
+        raw_opts = clar_data.get("options", [])
+        seen_vals = set()
+        deduped_opts = []
+        for opt in raw_opts:
+            val = opt.get("value", "") if isinstance(opt, dict) else str(opt)
+            key = val.lower().strip()
+            if key and key not in seen_vals:
+                seen_vals.add(key)
+                deduped_opts.append(opt)
+
         clarification = ClarificationRequest(
             missing_info=clar_data.get("missing_attribute") or clar_data.get("missing_info", "Missing information"),
             why_needed=clar_data.get("why_needed", "Information required for proper selection"),
@@ -3036,37 +3500,2112 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
                     value=opt.get("value", ""),
                     description=opt.get("description", "")
                 )
-                for opt in clar_data.get("options", [])
+                for opt in deduped_opts
             ],
             question=clar_data.get("question", "Please provide additional information")
         )
 
+    # Enrich LLM-generated options with display_labels from graph FeatureOption nodes
+    if clarification is not None and graph_reasoning_report and graph_reasoning_report.variable_features:
+        label_map = {}
+        for feat in graph_reasoning_report.variable_features:
+            for opt in feat.options:
+                val = str(opt.get('value', '')).strip().lower()
+                dl = opt.get('display_label') or opt.get('name', '')
+                if val and dl:
+                    label_map[val] = dl
+        if label_map:
+            for opt in clarification.options:
+                if not opt.display_label:
+                    opt.display_label = label_map.get(opt.value.strip().lower())
+
+    # ==========================================================================
+    # FALLBACK: Generic Parameter Validator using Graph Variable Features
+    # ==========================================================================
+    # If LLM didn't provide clarification_data but there are unresolved variable
+    # features in the graph, auto-generate clarification from graph data.
+    # This fixes the "missing UI widgets for secondary questions" bug.
+    #
+    # CRITICAL: Check if the feature is ACTUALLY missing from context first!
+    # Don't ask for data we already have (housing_length derivable from depth).
+    if clarification is None and graph_reasoning_report and graph_reasoning_report.variable_features:
+        unresolved = graph_reasoning_report.variable_features
+        truly_unresolved = []
+
+        for feat in unresolved:
+            param_name = feat.parameter_name.lower()
+
+            # Check if this is already in resolved_context
+            is_already_known = False
+
+            # Housing length / filter depth are derivable from each other
+            if 'length' in param_name or 'długość' in param_name:
+                if resolved_context.get('housing_length') or resolved_context.get('length'):
+                    is_already_known = True
+                    print(f"   ✅ [SKIP] {feat.feature_name} already known: {resolved_context.get('housing_length') or resolved_context.get('length')}")
+                elif resolved_context.get('filter_depth') or resolved_context.get('depth'):
+                    # Depth is known -> length is derivable
+                    is_already_known = True
+                    print(f"   ✅ [SKIP] {feat.feature_name} derivable from depth: {resolved_context.get('filter_depth') or resolved_context.get('depth')}")
+
+            # Airflow
+            if 'airflow' in param_name or 'przepływ' in param_name:
+                if resolved_context.get('airflow') or resolved_context.get('airflow_m3h'):
+                    is_already_known = True
+                    print(f"   ✅ [SKIP] {feat.feature_name} already known: {resolved_context.get('airflow')}")
+
+            # Material
+            if 'material' in param_name:
+                if resolved_context.get('material'):
+                    is_already_known = True
+                    print(f"   ✅ [SKIP] {feat.feature_name} already known: {resolved_context.get('material')}")
+
+            # Width / Height / Dimensions
+            if any(term in param_name for term in ['width', 'height', 'dimension', 'wymiar', 'size']):
+                if (resolved_context.get('housing_size') or resolved_context.get('housing_width')
+                        or resolved_context.get('dimensions') or resolved_context.get('width')):
+                    is_already_known = True
+                    print(f"   ✅ [SKIP] {feat.feature_name} already known from dimensions")
+
+            if not is_already_known:
+                truly_unresolved.append(feat)
+
+        if truly_unresolved:
+            # Take the first truly unresolved feature
+            feat = truly_unresolved[0]
+            print(f"\n⚠️ [FALLBACK] LLM didn't provide clarification_data, using graph variable feature: {feat.feature_name}")
+
+            # Build options from graph data
+            options = []
+            for opt in feat.options:
+                # Prefer display_label for UX, fall back to name/value
+                label = opt.get('display_label') or opt.get('name', opt.get('value', ''))
+                value = opt.get('value', '')
+                benefit = opt.get('benefit', '')
+                is_recommended = opt.get('is_recommended', False)
+
+                description = label
+                if benefit:
+                    description = f"{label} - {benefit}"
+                if is_recommended:
+                    description = f"{label} (Recommended)"
+
+                options.append(ClarificationOption(
+                    value=value,
+                    description=description,
+                    display_label=label
+                ))
+
+            # ENHANCEMENT: For airflow clarification with empty options,
+            # generate proactive options from DimensionModule graph data
+            param_name_lower = feat.parameter_name.lower() if feat.parameter_name else ""
+            if ('airflow' in param_name_lower or 'przepływ' in param_name_lower) and not options:
+                airflow_opts = _generate_airflow_options_from_graph(technical_state, db)
+                if airflow_opts:
+                    options = [
+                        ClarificationOption(value=o["value"], description=o["description"])
+                        for o in airflow_opts
+                    ]
+                    print(f"   🎯 [ENRICHMENT] Added {len(options)} airflow options from DimensionModule graph data")
+
+            clarification = ClarificationRequest(
+                missing_info=feat.parameter_name,
+                why_needed=feat.why_needed or f"Required to complete {feat.feature_name} selection",
+                options=options,
+                question=feat.question or f"Please select {feat.feature_name}"
+            )
+            clarification_needed = True
+            print(f"   Generated clarification with {len(options)} options")
+        else:
+            print(f"   ✅ [FALLBACK SKIPPED] All variable features are already resolved in context")
+
     # Handle entity_card (new format) vs product_card (old format)
+    # Supports both single card (dict) and multi-card array (assembly)
     entity_card_data = llm_response.get("entity_card") or llm_response.get("product_card")
-    if entity_card_data and not clarification_needed:
-        product_card = ProductCard(
-            title=entity_card_data.get("title", ""),
-            specs=entity_card_data.get("specs", {}),
-            warning=entity_card_data.get("warning"),
-            confidence=entity_card_data.get("confidence", "medium"),
-            actions=entity_card_data.get("actions", ["Add to Quote"])
+    product_cards = []
+
+    # Defense-in-depth: suppress product cards when engine says product is NOT suitable
+    _is_blocked = (
+        graph_reasoning_report
+        and graph_reasoning_report.suitability
+        and not graph_reasoning_report.suitability.is_suitable
+    )
+    if _is_blocked:
+        print(f"🚫 [BLOCK GUARD] Product cards suppressed (non-streaming): is_suitable=False")
+
+    if entity_card_data and not clarification_needed and not _is_blocked:
+        cards = entity_card_data if isinstance(entity_card_data, list) else [entity_card_data]
+        for cd in cards:
+            if isinstance(cd, dict):
+                # Strip null/None values from specs
+                raw_specs = cd.get("specs", {})
+                clean_specs = {
+                    k: v for k, v in raw_specs.items()
+                    if v is not None and str(v).lower() != "null"
+                } if isinstance(raw_specs, dict) else raw_specs
+                product_cards.append(ProductCard(
+                    title=cd.get("title", ""),
+                    specs=clean_specs,
+                    warning=cd.get("warning"),
+                    confidence=cd.get("confidence", "medium"),
+                    actions=cd.get("actions", ["Add to Quote"])
+                ))
+        product_card = product_cards[0] if product_cards else None
+
+    # Build product pivot info if physics override occurred
+    product_pivot_info = None
+    if graph_reasoning_report and graph_reasoning_report.product_pivot:
+        from models import ProductPivotInfo
+        pivot = graph_reasoning_report.product_pivot
+        product_pivot_info = ProductPivotInfo(
+            original_product=pivot.original_product,
+            pivoted_to=pivot.pivoted_to,
+            reason=pivot.reason,
+            physics_explanation=pivot.physics_explanation,
+            user_misconception=pivot.user_misconception,
+            required_feature=pivot.required_feature
         )
+        # If pivot occurred, ensure risk is flagged
+        risk_detected = True
+        risk_severity = "CRITICAL"
 
     return DeepExplainableResponse(
         reasoning_summary=reasoning_steps,
         content_segments=content_segments,
         product_card=product_card,
+        product_cards=product_cards,
         risk_detected=risk_detected,
         risk_severity=risk_severity,
         risk_resolved=risk_resolved,
+        product_pivot=product_pivot_info,
         clarification_needed=clarification_needed,
         clarification=clarification,
         query_language=intent.language,
         confidence_level="high" if config_results.get("variants") else "medium",
         policy_warnings=warnings,
         graph_facts_count=graph_facts,
-        inference_count=inferences
+        inference_count=inferences,
+        timings=timings
     )
+
+
+def query_deep_explainable_streaming(user_query: str, session_id: str = None):
+    """Streaming version of deep explainable query with real-time inference chain.
+
+    Yields SSE events showing the actual reasoning process:
+    - Intent detection with discovered context
+    - Domain rule matching (e.g., Hospital -> VDI 6022)
+    - Guardian risk detection (e.g., FZ vs C5 conflict)
+    - Product matching and sizing
+    - Final recommendation
+
+    Each yield is a dict with: {"type": "inference", "step": "...", "detail": "...", "data": {...}}
+
+    Args:
+        user_query: The user's question
+        session_id: Optional session ID for Layer 4 graph state persistence
+    """
+    import json
+    from models import (
+        DeepExplainableResponse, ReasoningSummaryStep, ContentSegment, ProductCard,
+        ClarificationRequest, ClarificationOption
+    )
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    config = get_config()
+
+    # Layer 4: Session Graph Manager (if session_id provided)
+    session_graph_mgr = None
+    if session_id:
+        try:
+            session_graph_mgr = db.get_session_graph_manager()
+            session_graph_mgr.ensure_session(session_id)
+        except Exception as e:
+            logger.warning(f"Session graph init failed (non-fatal): {e}")
+    timings = {}
+    total_start = time.time()
+
+    # Dimension constraint variables — extracted early so they're available for
+    # resolved_context + engine sizing. Actual regex extraction follows query_lower init.
+    user_max_width_mm = None
+    user_max_height_mm = None
+    user_max_length_mm = None
+
+    # ============================================================
+    # SIMPLIFIED STREAMING: 5 Key Steps Only
+    # ============================================================
+
+    # STEP 1: CONTEXT DETECTION (combines intent + application)
+    yield {"type": "inference", "step": "context", "status": "active",
+           "detail": "🔍 Analyzing project context..."}
+
+    t1 = time.time()
+
+    # Check if full state is present (if so, we should NOT create new entities)
+    has_full_state = bool(re.search(r'\[STATE:\s*\{', user_query, re.IGNORECASE))
+
+    # v4.0: Scribe-first pipeline. Product family and other fields are set by Scribe.
+    # These will be populated by Scribe merge or regex fallback below.
+    detected_product_family = None
+    multi_entity_context = ""
+    dimension_mappings = []
+
+    timings["intent"] = time.time() - t1
+
+    # ============================================================
+    # TECHNICAL STATE MANAGER: Cumulative Engineering Specification
+    # ============================================================
+    # This replaces simple variable locking with a full state manager
+    # that tracks per-tag specifications and never forgets parameters.
+
+    # Initialize state: try graph first (Layer 4), then fall back to frontend state
+    technical_state = TechnicalState()
+
+    if session_graph_mgr and session_id:
+        try:
+            graph_state = session_graph_mgr.get_project_state(session_id)
+            if graph_state.get("tags") or graph_state.get("project"):
+                technical_state = TechnicalState.load_from_graph(session_graph_mgr, session_id)
+                print(f"🔒 [GRAPH STATE] Loaded {len(technical_state.tags)} tags from Layer 4")
+        except Exception as e:
+            logger.warning(f"Graph state load failed (non-fatal): {e}")
+
+    # v3.0: Store user turn in Layer 4 for Scribe conversation history
+    if session_graph_mgr and session_id:
+        try:
+            session_graph_mgr.store_turn(
+                session_id, "user", user_query, technical_state.turn_count + 1
+            )
+        except Exception as e:
+            logger.warning(f"Failed to store user turn (non-fatal): {e}")
+
+    # Parse locked context from frontend [LOCKED: material=RF; project=Nouryon; filter_depths=292,600]
+    # Also check for full technical state JSON
+    locked_match = re.search(r'\[LOCKED:\s*([^\]]+)\]', user_query, re.IGNORECASE)
+
+    # BUGFIX: Use greedy match for nested JSON - find [STATE: then match until the last } before ]
+    state_json_match = re.search(r'\[STATE:\s*(\{.+\})\]', user_query, re.IGNORECASE | re.DOTALL)
+
+    if state_json_match:
+        # Full state JSON provided - deserialize it
+        try:
+            state_dict = json.loads(state_json_match.group(1))
+            technical_state = TechnicalState.from_dict(state_dict)
+            print(f"🔒 [STATE] Restored full technical state with {len(technical_state.tags)} tags")
+            # BUGFIX: Validate restored state has expected data
+            for tag_id, tag in technical_state.tags.items():
+                depth_status = f"depth={tag.filter_depth}mm" if tag.filter_depth else "NO DEPTH"
+                airflow_status = f"airflow={tag.airflow_m3h}" if tag.airflow_m3h else "NO AIRFLOW"
+                print(f"   📋 Tag {tag_id}: {tag.filter_width}x{tag.filter_height}, {depth_status}, {airflow_status}, complete={tag.is_complete}")
+        except json.JSONDecodeError as e:
+            print(f"⚠️ [STATE] Failed to parse state JSON: {e}, falling back to locked context")
+
+    if locked_match and not state_json_match:
+        locked_str = locked_match.group(1)
+        print(f"🔒 [ENTITY LOCK] Parsing locked context from frontend: {locked_str}")
+
+        # Parse material
+        mat_match = re.search(r'material=(\w+)', locked_str)
+        if mat_match:
+            technical_state.lock_material(mat_match.group(1).upper())
+            print(f"   📌 Material locked: {technical_state.locked_material}")
+
+        # Parse project
+        proj_match = re.search(r'project=([^;]+)', locked_str)
+        if proj_match:
+            technical_state.set_project(proj_match.group(1).strip())
+            print(f"   📌 Project locked: {technical_state.project_name}")
+
+        # Parse filter depths (legacy format)
+        depths_match = re.search(r'filter_depths=([\d,]+)', locked_str)
+        if depths_match:
+            locked_depths = [int(d) for d in depths_match.group(1).split(',') if d]
+            print(f"   📌 Filter depths from lock: {locked_depths}")
+
+        # BUGFIX: Parse dimensions from locked context (e.g., dimensions=305x610x150,610x610x292)
+        # GUARD: Skip creating bare item_N tags when assembly state already exists
+        # (assembly stage tags already carry their dimensions from create_assembly_tags)
+        dims_match = re.search(r'dimensions=([\d,x]+)', locked_str, re.IGNORECASE)
+        if dims_match and not technical_state.assembly_group:
+            dims_str = dims_match.group(1)
+            for i, dim in enumerate(dims_str.split(',')):
+                parts = dim.lower().split('x')
+                if len(parts) >= 2:
+                    tag_id = f"item_{i + 1}"
+                    technical_state.merge_tag(
+                        tag_id,
+                        filter_width=int(parts[0]) if parts[0] else None,
+                        filter_height=int(parts[1]) if parts[1] else None,
+                        filter_depth=int(parts[2]) if len(parts) > 2 and parts[2] else None
+                    )
+                    print(f"   📌 Parsed dimensions for {tag_id}: {dim}")
+
+    # Remove the [LOCKED: ...] and [STATE: ...] from query for processing
+    user_query = re.sub(r'\s*\[LOCKED:[^\]]+\]', '', user_query).strip()
+    user_query = re.sub(r'\s*\[STATE:\s*\{.+\}\s*\]', '', user_query, flags=re.IGNORECASE | re.DOTALL).strip()
+    query_lower = user_query.lower()
+
+    # Clean query for extraction (sanitization, not intent detection)
+    clean_query_for_extraction = re.sub(r'\[LOCKED:[^\]]+\]', '', user_query, flags=re.IGNORECASE)
+    clean_query_for_extraction = re.sub(r'\[STATE:\s*\{.+\}\]', '', clean_query_for_extraction, flags=re.IGNORECASE | re.DOTALL)
+
+    # =========================================================================
+    # SEMANTIC SCRIBE: LLM-based intent extraction (v4.0 — SOLE PRIMARY)
+    # Scribe runs FIRST. All extraction (dimensions, airflow, material,
+    # constraints, product family, accessories, project, action intent)
+    # is done by LLM. Regex is ONLY a post-Scribe fallback safety net.
+    # =========================================================================
+    scribe_intent = None
+    scribe_succeeded = False
+    try:
+        yield {"type": "inference", "step": "scribe", "status": "active",
+               "detail": "Analyzing intent..."}
+
+        recent_turns = []
+        if session_graph_mgr and session_id:
+            try:
+                recent_turns = session_graph_mgr.get_recent_turns(session_id, n=3)
+            except Exception:
+                pass  # Non-fatal: Scribe works without history
+
+        scribe_intent = extract_semantic_intent(
+            query=clean_query_for_extraction,
+            recent_turns=recent_turns,
+            technical_state=technical_state,
+            db=db,
+        )
+
+        if scribe_intent:
+            scribe_intent = resolve_derived_actions(scribe_intent, technical_state)
+            _merge_scribe_into_state(scribe_intent, technical_state, detected_product_family)
+            scribe_succeeded = bool(
+                scribe_intent.entities or scribe_intent.clarification_answers or scribe_intent.actions
+            )
+            # Scribe is primary for family detection (v3.3): override regex-detected family
+            for _ent in scribe_intent.entities:
+                if _ent.product_family:
+                    detected_product_family = _ent.product_family
+                    technical_state.detected_family = _ent.product_family
+                    print(f"🧠 [SCRIBE] Family override: {detected_product_family}")
+                    break
+            # Sync airflow to resolved_params (use FIRST tag's airflow for cross-turn continuity)
+            for _tid, _tag in technical_state.tags.items():
+                if _tag.airflow_m3h:
+                    technical_state.resolved_params["airflow_m3h"] = str(_tag.airflow_m3h)
+                    break
+            n_entities = len(scribe_intent.entities)
+            n_actions = len(scribe_intent.actions)
+            n_hints = len(scribe_intent.context_hints)
+            n_clar = len(scribe_intent.clarification_answers)
+            print(f"🧠 [SCRIBE] Extracted {n_entities} entities, "
+                  f"{n_actions} actions, {n_hints} context hints, "
+                  f"{n_clar} clarification answers")
+
+        yield {"type": "inference", "step": "scribe", "status": "done",
+               "detail": f"Resolved {len(scribe_intent.actions) if scribe_intent else 0} derived values"}
+
+    except Exception as e:
+        logger.warning(f"Scribe extraction failed (regex safety net): {e}")
+        yield {"type": "inference", "step": "scribe", "status": "done",
+               "detail": "Scribe failed — regex safety net active"}
+
+    # =========================================================================
+    # REGEX FALLBACK: Only fires for fields Scribe did NOT extract (v4.0)
+    # =========================================================================
+
+    # Fallback: entity codes + product family
+    if scribe_intent and scribe_intent.entity_codes:
+        entity_codes = scribe_intent.entity_codes
+    else:
+        entity_codes = extract_entity_codes(user_query)
+        if entity_codes:
+            print(f"🔄 [FALLBACK] Entity codes from regex: {entity_codes}")
+
+    # Product family from Scribe entities (already set above in merge), then entity codes
+    if not detected_product_family:
+        for code in entity_codes:
+            for family in ['GDC-FLEX', 'GDB', 'GDC', 'GDP', 'GDMI', 'GDF', 'GDR', 'PFF', 'BFF']:
+                if family in code.upper():
+                    detected_product_family = family.replace('-', '_')
+                    print(f"🔄 [FALLBACK] Product family from entity codes: {detected_product_family}")
+                    break
+            if detected_product_family:
+                break
+
+    # Set detected product family on state
+    if detected_product_family:
+        technical_state.detected_family = detected_product_family
+    # Graph-driven fallback: on continuation turns (button clicks, bare answers),
+    # the query text may not contain a product code. Read the active product family
+    # from the Graph (Layer 4), which was persisted in the previous turn.
+    elif technical_state.detected_family:
+        detected_product_family = technical_state.detected_family
+        print(f"🔄 [GRAPH STATE] Active product family from Layer 4: {detected_product_family}")
+
+    # Fallback: material (only if Scribe didn't extract it)
+    if not technical_state.locked_material:
+        detected_material = extract_material_from_query(user_query)
+        if detected_material:
+            technical_state.lock_material(detected_material)
+            print(f"🔄 [FALLBACK] Material from regex: {detected_material}")
+
+    # Fallback: project name (only if Scribe didn't extract it)
+    if not technical_state.project_name:
+        detected_project = extract_project_from_query(user_query)
+        if detected_project:
+            technical_state.set_project(detected_project)
+            print(f"🔄 [FALLBACK] Project from regex: {detected_project}")
+
+    # Fallback: airflow (only if Scribe didn't extract it into any tag or resolved_params)
+    _any_tag_has_airflow = any(tag.airflow_m3h for tag in technical_state.tags.values())
+    if not _any_tag_has_airflow and not technical_state.resolved_params.get("airflow_m3h"):
+        _q_normalized = re.sub(r'(\d)[,\s](\d{3})', r'\1\2', clean_query_for_extraction)
+        _airflow_match = re.search(r'(\d{3,6})\s*m[³3]?\/?h', _q_normalized, re.IGNORECASE)
+        if _airflow_match:
+            _airflow_val = int(_airflow_match.group(1))
+            if 500 <= _airflow_val <= 100000:
+                if technical_state.tags:
+                    for _tid in technical_state.tags:
+                        technical_state.merge_tag(_tid, airflow_m3h=_airflow_val)
+                        break
+                technical_state.resolved_params["airflow_m3h"] = str(_airflow_val)
+                print(f"🔄 [FALLBACK] Airflow from regex: {_airflow_val} m³/h")
+
+    # Fallback: tags/dimensions (only if Scribe failed entirely)
+    if not scribe_succeeded and not technical_state.tags:
+        print(f"⚠️ [SAFETY NET] Scribe produced no results — falling back to regex extraction")
+        extracted_tags = extract_tags_from_query(clean_query_for_extraction.strip())
+        for tag_data in extracted_tags:
+            if technical_state.assembly_group:
+                target_tid = None
+                for stage in technical_state.assembly_group.get("stages", []):
+                    if stage.get("role") == "TARGET":
+                        target_tid = stage["tag_id"]
+                        break
+                if not target_tid:
+                    stages = technical_state.assembly_group.get("stages", [])
+                    target_tid = stages[-1]["tag_id"] if stages else None
+                if target_tid and target_tid in technical_state.tags:
+                    technical_state.merge_tag(
+                        target_tid,
+                        filter_width=tag_data.get("filter_width"),
+                        filter_height=tag_data.get("filter_height"),
+                        filter_depth=tag_data.get("filter_depth"),
+                        airflow_m3h=tag_data.get("airflow_m3h"),
+                        product_family=detected_product_family
+                    )
+                    print(f"🔒 [SAFETY NET] Assembly: merged into TARGET tag {target_tid}")
+                    technical_state._sync_assembly_params()
+                continue
+
+            if tag_data.get("tag_id"):
+                tag_id = tag_data["tag_id"]
+            elif not technical_state.tags:
+                tag_id = f"item_{len(technical_state.tags) + 1}"
+            elif len(technical_state.tags) == 1:
+                tag_id = list(technical_state.tags.keys())[0]
+            else:
+                continue
+            technical_state.merge_tag(
+                tag_id,
+                filter_width=tag_data.get("filter_width"),
+                filter_height=tag_data.get("filter_height"),
+                filter_depth=tag_data.get("filter_depth"),
+                airflow_m3h=tag_data.get("airflow_m3h"),
+                product_family=detected_product_family
+            )
+            print(f"🔒 [SAFETY NET] Merged tag {tag_id}: {tag_data}")
+
+    # ============================================================
+    # DIMENSION VALIDATION: Snap non-standard sizes to nearest catalog module
+    # ============================================================
+    # Graph-driven — no hardcoded sizes.
+    for tag_id, tag in technical_state.tags.items():
+        if tag.housing_width and tag.housing_height:
+            _w, _h = tag.housing_width, tag.housing_height
+            pf = tag.product_family or detected_product_family or technical_state.detected_family
+            if pf:
+                pf_id = f"FAM_{pf}" if pf and not pf.startswith("FAM_") else pf
+                avail = db.get_available_dimension_modules(pf_id)
+                if avail:
+                    exact = any(m["width_mm"] == _w and m["height_mm"] == _h for m in avail)
+                    if not exact:
+                        nearest = min(
+                            avail,
+                            key=lambda m: ((m["width_mm"] - _w) ** 2 + (m["height_mm"] - _h) ** 2)
+                        )
+                        nw, nh = nearest["width_mm"], nearest["height_mm"]
+                        print(
+                            f"⚠️ [VALIDATION] Non-standard size {_w}x{_h}mm for {pf}. "
+                            f"Snapping to nearest catalog module: {nw}x{nh}mm"
+                        )
+                        technical_state.merge_tag(
+                            tag_id,
+                            housing_width=nw,
+                            housing_height=nh,
+                            filter_width=nw,
+                            filter_height=nh,
+                        )
+
+    print(f"🔍 [EXTRACTION] Result: {[(t.tag_id, t.airflow_m3h, t.housing_width, t.housing_height) for t in technical_state.tags.values()]}")
+
+    # ============================================================
+    # MULTI-ENTITY CONTEXT: Build from TechnicalState tags (post-extraction)
+    # ============================================================
+    if len(technical_state.tags) > 1:
+        weight_data = {}
+        for tag_id, tag in technical_state.tags.items():
+            if tag.housing_width and tag.housing_height:
+                size = f"{tag.housing_width}x{tag.housing_height}"
+                length = tag.housing_length or 550
+                pf = tag.product_family or detected_product_family or "GDB"
+                variant_name = f"{pf}-{size}-{length}"
+                try:
+                    weight_result = db.get_variant_weight(variant_name)
+                    if weight_result:
+                        weight_data[variant_name] = weight_result
+                except Exception:
+                    pass
+
+        multi_entity_context = "\n## MULTI-ENTITY REQUEST DETECTED\n\n"
+        multi_entity_context += "The user has provided multiple Tags/Items. Handle EACH SEPARATELY in your response.\n\n"
+        multi_entity_context += "## WEIGHT DATA (FROM GRAPH - USE EXACTLY):\n"
+        for variant, weight in weight_data.items():
+            multi_entity_context += f"- {variant}: **{weight} kg**\n"
+        if not weight_data:
+            multi_entity_context += "- No weight data available in database\n"
+        multi_entity_context += "\n"
+
+        for tag_id, tag in technical_state.tags.items():
+            if tag.housing_width and tag.housing_height:
+                size = f"{tag.housing_width}x{tag.housing_height}"
+                length = tag.housing_length or 550
+                pf = tag.product_family or detected_product_family or "GDB"
+                variant_name = f"{pf}-{size}-{length}"
+                weight = weight_data.get(variant_name, "See datasheet")
+                filter_dims = f"{tag.filter_width}x{tag.filter_height}"
+                if tag.filter_depth:
+                    filter_dims += f"x{tag.filter_depth}"
+
+                multi_entity_context += f"### {tag_id}:\n"
+                multi_entity_context += f"- **Filter dimensions:** {filter_dims}mm\n"
+                multi_entity_context += f"- **Mapped housing size:** {size}mm\n"
+                multi_entity_context += f"- **Recommended variant:** {variant_name}\n"
+                multi_entity_context += f"- **VERIFIED WEIGHT:** {weight} kg\n"
+                multi_entity_context += f"- **Width (horizontal):** {tag.housing_width} mm\n"
+                multi_entity_context += f"- **Height (vertical):** {tag.housing_height} mm\n"
+                if tag.housing_length:
+                    multi_entity_context += f"- **Auto-selected length:** {tag.housing_length}mm"
+                    if tag.filter_depth:
+                        multi_entity_context += f" (based on {tag.filter_depth}mm filter depth)"
+                    multi_entity_context += "\n"
+                multi_entity_context += "\n"
+
+        multi_entity_context += "**CRITICAL:** Use the EXACT weight values listed above. Do NOT invent weights.\n"
+
+    # Accessories: Scribe is primary (already merged above), regex fallback
+    if scribe_intent and scribe_intent.accessories:
+        for acc in scribe_intent.accessories:
+            if acc not in technical_state.accessories:
+                technical_state.accessories.append(acc)
+                print(f"🧠 [SCRIBE] Accessory: {acc}")
+    else:
+        extracted_accessories = extract_accessories_from_query(user_query)
+        if extracted_accessories:
+            for acc in extracted_accessories:
+                if acc not in technical_state.accessories:
+                    technical_state.accessories.append(acc)
+                    print(f"🔄 [FALLBACK] Accessory from regex: {acc}")
+
+    # =========================================================================
+    # MATERIAL AVAILABILITY VALIDATION: Check if locked material is available
+    # for the detected product family. If not, warn and suggest alternatives.
+    # =========================================================================
+    material_availability_warning = None
+    _unavailable_material_code = None
+    _available_material_names = []
+    if technical_state.locked_material and detected_product_family:
+        _mat_code = technical_state.locked_material.value
+        _fam_id = f"FAM_{detected_product_family}" if not detected_product_family.startswith("FAM_") else detected_product_family
+        _available_mats = db.get_available_materials(_fam_id)
+        if _available_mats:
+            _mat_ids = [m["id"] for m in _available_mats]
+            if f"MAT_{_mat_code}" not in _mat_ids:
+                _available_material_names = [m["name"] for m in _available_mats]
+                _unavailable_material_code = _mat_code
+                material_availability_warning = (
+                    f"⚠️ MATERIAL NOT AVAILABLE: {_mat_code} is NOT available for "
+                    f"{detected_product_family}. "
+                    f"Available materials: {', '.join(_available_material_names)}."
+                )
+                print(f"⚠️ [VALIDATION] {material_availability_warning}")
+                # UNLOCK the unavailable material so the system doesn't proceed with it
+                technical_state.locked_material = None
+                print(f"🔓 [VALIDATION] Unlocked unavailable material {_mat_code}")
+        else:
+            print(f"ℹ️ [VALIDATION] No AVAILABLE_IN_MATERIAL links for {_fam_id} — skipping material check")
+
+    # Increment turn count
+    technical_state.turn_count += 1
+
+    # =========================================================================
+    # FINAL TURN ENRICHMENT: Look up weights when all tags are complete
+    # =========================================================================
+    if technical_state.all_tags_complete():
+        print(f"✅ [STATE] All {len(technical_state.tags)} tags complete - enriching with weights")
+        technical_state.enrich_with_weights(db)
+
+    # Verify material codes (only when all tags complete)
+    if technical_state.all_tags_complete():
+        material_warnings = technical_state.verify_material_codes()
+        for warning in material_warnings:
+            print(f"⚠️ [STATE] {warning}")
+
+    # Build locked context for backwards compatibility
+    locked_material = technical_state.locked_material.value if technical_state.locked_material else None
+    locked_project = technical_state.project_name
+    locked_depths = []
+    for tag in technical_state.tags.values():
+        if tag.filter_depth and tag.filter_depth not in locked_depths:
+            locked_depths.append(tag.filter_depth)
+
+    # NOTE: locked_context is built AFTER product code rebuild (see below, after line ~4642)
+    # to ensure the LLM receives the final product codes with housing_length included.
+    locked_context = ""
+
+    # Check if user asked for weight/drawings/etc
+    user_asked_for_weight = any(w in query_lower for w in ['weight', 'weights', 'waga', 'masa', 'kg'])
+    user_asked_for_drawings = any(w in query_lower for w in ['drawing', 'drawings', 'cad', 'rysunek'])
+
+    additional_data_context = ""
+    if user_asked_for_weight:
+        additional_data_context += "\n**USER ASKED FOR WEIGHT:** Include assembly weight in your response for each product.\n"
+    if user_asked_for_drawings:
+        additional_data_context += "\n**USER ASKED FOR DRAWINGS:** Mention drawing/CAD availability.\n"
+
+    # Transition piece advisory: if round duct detected, inject explicit scope-of-delivery reminder
+    _round_duct_accs = [a for a in technical_state.accessories if "Round duct" in a]
+    if _round_duct_accs:
+        _duct_desc = ", ".join(_round_duct_accs)
+        additional_data_context += (
+            f"\n**⚠️ TRANSITION PIECE REQUIRED:** The customer has a round duct ({_duct_desc}). "
+            f"The housing has rectangular connections. A transition piece (PT flat or TT conical) "
+            f"is required and must be ordered SEPARATELY — it is NOT included with the housing. "
+            f"You MUST mention this to the customer.\n"
+        )
+
+    # ============================================================
+    # DIMENSION CONSTRAINTS: Read from Scribe-extracted resolved_params
+    # (No regex — Scribe is the sole extractor)
+    # ============================================================
+    if technical_state.resolved_params.get("max_width_mm"):
+        user_max_width_mm = int(technical_state.resolved_params["max_width_mm"])
+        print(f"📏 [CONSTRAINT] max_width_mm = {user_max_width_mm}mm")
+
+    if technical_state.resolved_params.get("max_height_mm"):
+        user_max_height_mm = int(technical_state.resolved_params["max_height_mm"])
+        print(f"📏 [CONSTRAINT] max_height_mm = {user_max_height_mm}mm")
+
+    if technical_state.resolved_params.get("max_length_mm"):
+        user_max_length_mm = int(technical_state.resolved_params["max_length_mm"])
+
+    # Installation constraint extraction — regex fallback (v3.0)
+    # Available space (shaft/opening)
+    if not technical_state.resolved_params.get("available_space_mm"):
+        space_match = re.search(
+            r'(?:shaft|opening|gap|available\s+(?:width|space)|fixed\s+width)'
+            r'[^0-9]{0,20}?(\d{3,5})\s*(?:mm)?',
+            clean_query_for_extraction, re.IGNORECASE
+        )
+        if space_match:
+            technical_state.resolved_params["available_space_mm"] = space_match.group(1)
+            print(f"📏 [CONSTRAINT] available_space_mm = {space_match.group(1)}mm (regex fallback)")
+
+    # Installation environment
+    if not technical_state.resolved_params.get("installation_environment"):
+        _env_keywords = {
+            "outdoor": "ENV_OUTDOOR", "rooftop": "ENV_OUTDOOR", "outside": "ENV_OUTDOOR",
+            "roof": "ENV_OUTDOOR", "exterior": "ENV_OUTDOOR",
+            "indoor": "ENV_INDOOR", "inside": "ENV_INDOOR",
+            "hospital": "ENV_HOSPITAL", "clinic": "ENV_HOSPITAL",
+            "pool": "ENV_POOL", "swimming": "ENV_POOL",
+            "kitchen": "ENV_KITCHEN", "restaurant": "ENV_KITCHEN",
+            "kuchnia": "ENV_KITCHEN", "fryer": "ENV_KITCHEN",
+            "atex": "ENV_ATEX", "explosive": "ENV_ATEX",
+            "ex zone": "ENV_ATEX", "wybuch": "ENV_ATEX",
+            "marine": "ENV_MARINE", "ship": "ENV_MARINE", "cruise": "ENV_MARINE",
+            "offshore": "ENV_MARINE", "vessel": "ENV_MARINE", "naval": "ENV_MARINE",
+            "pharma": "ENV_PHARMACEUTICAL", "cleanroom": "ENV_PHARMACEUTICAL",
+            "wastewater": "ENV_WASTEWATER", "sewage": "ENV_WASTEWATER",
+        }
+        for kw, env_val in _env_keywords.items():
+            if re.search(r'\b' + re.escape(kw) + r'\b', clean_query_for_extraction, re.IGNORECASE):
+                technical_state.resolved_params["installation_environment"] = env_val
+                print(f"🌍 [CONSTRAINT] installation_environment = {env_val} (regex fallback: '{kw}')")
+                break
+
+    # Chlorine ppm (explicit mention)
+    if not technical_state.resolved_params.get("chlorine_ppm"):
+        chlorine_match = re.search(
+            r'(\d{1,4})\s*(?:ppm)?\s*chlorine|chlorine[^0-9]{0,10}?(\d{1,4})\s*(?:ppm)?',
+            clean_query_for_extraction, re.IGNORECASE
+        )
+        if chlorine_match:
+            val = chlorine_match.group(1) or chlorine_match.group(2)
+            technical_state.resolved_params["chlorine_ppm"] = val
+            print(f"🧪 [CONSTRAINT] chlorine_ppm = {val} (regex fallback)")
+
+    # Build resolved_context FROM technical_state only (no query re-parsing)
+    t1 = time.time()
+    resolved_context = {}
+
+    # Merge technical state parameters into resolved_context
+    # This prevents the graph reasoning from asking for already-known values
+    for tag_id, tag in technical_state.tags.items():
+        if tag.filter_depth:
+            resolved_context['filter_depth'] = tag.filter_depth
+            resolved_context['depth'] = tag.filter_depth
+        if tag.housing_length:
+            resolved_context['housing_length'] = tag.housing_length
+            resolved_context['length'] = tag.housing_length
+        if tag.airflow_m3h:
+            resolved_context['airflow'] = tag.airflow_m3h
+            resolved_context['airflow_m3h'] = tag.airflow_m3h
+        if tag.housing_width and tag.housing_height:
+            resolved_context['housing_size'] = f"{tag.housing_width}x{tag.housing_height}"
+            resolved_context['housing_width'] = int(tag.housing_width)
+            resolved_context['housing_height'] = int(tag.housing_height)
+            resolved_context['width'] = int(tag.housing_width)
+            resolved_context['height'] = int(tag.housing_height)
+        if tag.filter_width and tag.filter_height:
+            resolved_context['filter_width'] = int(tag.filter_width)
+            resolved_context['filter_height'] = int(tag.filter_height)
+            resolved_context['dimensions'] = f"{tag.filter_width}x{tag.filter_height}"
+
+    # Airflow from resolved_params (cross-turn persistence via Layer 4)
+    if 'airflow' not in resolved_context and technical_state.resolved_params.get("airflow_m3h"):
+        stored_airflow = technical_state.resolved_params["airflow_m3h"]
+        resolved_context['airflow'] = stored_airflow
+        resolved_context['airflow_m3h'] = stored_airflow
+        print(f"🔄 [GRAPH STATE] Airflow from Layer 4: {stored_airflow} m³/h")
+
+    # Filter depth from resolved_params (Scribe extraction)
+    if 'filter_depth' not in resolved_context and technical_state.resolved_params.get("filter_depth"):
+        stored_depth = technical_state.resolved_params["filter_depth"]
+        try:
+            depth_int = int(stored_depth)
+            resolved_context['filter_depth'] = depth_int
+            resolved_context['depth'] = depth_int
+            print(f"🔄 [GRAPH STATE] Filter depth from params: {depth_int}mm")
+        except (ValueError, TypeError):
+            pass
+
+    if technical_state.locked_material:
+        resolved_context['material'] = technical_state.locked_material.value
+
+    # Add _mm suffix aliases for HardConstraint compatibility (graph uses _mm suffix)
+    for _key in ['housing_length', 'housing_width', 'housing_height']:
+        _val = resolved_context.get(_key)
+        if _val is not None:
+            resolved_context[f'{_key}_mm'] = _val
+
+    # Pass dimension constraints to engine for sizing arrangement
+    if user_max_width_mm:
+        resolved_context['max_width_mm'] = int(user_max_width_mm)
+    if user_max_height_mm:
+        resolved_context['max_height_mm'] = int(user_max_height_mm)
+
+    # Merge generic resolved parameters (gate answers, etc.) into engine context
+    if technical_state.resolved_params:
+        for rp_key, rp_value in technical_state.resolved_params.items():
+            if rp_key not in resolved_context:
+                resolved_context[rp_key] = rp_value
+
+    # Chlorine inference from detected application (v3.0)
+    # If no explicit chlorine_ppm but we know the application, infer from graph
+    if "chlorine_ppm" not in resolved_context:
+        app_id_for_chlorine = technical_state.resolved_params.get("detected_application")
+        # Also check installation_environment for app inference
+        env_to_app = {"ENV_HOSPITAL": "APP_HOSPITAL", "ENV_POOL": "APP_POOL"}
+        if not app_id_for_chlorine:
+            inst_env = resolved_context.get("installation_environment")
+            app_id_for_chlorine = env_to_app.get(inst_env)
+        if app_id_for_chlorine:
+            try:
+                app_props = db.get_application_properties(app_id_for_chlorine)
+                chlorine_val = app_props.get("typical_chlorine_ppm")
+                if chlorine_val is not None:
+                    resolved_context["chlorine_ppm"] = int(chlorine_val)
+                    print(f"🧪 [CONSTRAINT] chlorine_ppm = {chlorine_val} (inferred from {app_id_for_chlorine})")
+            except Exception as e:
+                print(f"⚠️ [CONSTRAINT] Failed to get application chlorine: {e}")
+
+    # Merge Scribe-extracted params into resolved_context for engine consumption
+    for rp_key in ("installation_environment", "detected_application", "max_width_mm", "max_height_mm"):
+        rp_val = technical_state.resolved_params.get(rp_key)
+        if rp_val and rp_key not in resolved_context:
+            resolved_context[rp_key] = rp_val
+            print(f"🧠 [SCRIBE→CONTEXT] {rp_key} = {rp_val}")
+
+    print(f"📋 [GRAPH REASONING] Resolved context for feature check: {resolved_context}")
+
+    # On continuation turns (button clicks / bare answers), the query lacks application
+    # context (e.g., "Zone 20" has no "powder coating"). Augment the query with the
+    # persisted application name so the engine can re-detect stressors correctly. (v2.8)
+    engine_query = user_query
+    if technical_state.resolved_params.get("detected_application"):
+        app_name = technical_state.resolved_params["detected_application"]
+        # Only augment if the application context is NOT already in the query
+        if app_name.lower() not in user_query.lower():
+            engine_query = f"{user_query} [Application context: {app_name}]"
+            print(f"🔄 [GRAPH STATE] Augmented engine query with application: {app_name}")
+
+    # v3.0: Wire Scribe context_hints into engine query for stressor detection
+    if scribe_intent and scribe_intent.context_hints:
+        hint_str = ", ".join(scribe_intent.context_hints)
+        if hint_str.lower() not in engine_query.lower():
+            engine_query = f"{engine_query} [Environment context: {hint_str}]"
+            print(f"🧠 [SCRIBE] Augmented engine query with context hints: {hint_str}")
+
+    graph_reasoning_report = get_graph_reasoning_report(
+        engine_query,
+        product_family=detected_product_family,
+        context=resolved_context,
+        material=technical_state.locked_material.value if technical_state.locked_material else None,
+        accessories=technical_state.accessories or None,
+    )
+    timings["graph_reasoning"] = time.time() - t1
+
+    # Persist application context for Turn 2+ (v2.8)
+    if (hasattr(graph_reasoning_report, 'application')
+            and graph_reasoning_report.application
+            and not technical_state.resolved_params.get("detected_application")):
+        technical_state.resolved_params["detected_application"] = graph_reasoning_report.application.name
+        print(f"💾 [STATE] Persisted detected_application={graph_reasoning_report.application.name}")
+
+    # =========================================================================
+    # PERSIST DETECTED FAMILY: Even when a gate blocks, the engine identifies
+    # the recommended product family. Store it for Turn 2 continuity. (v2.8)
+    # =========================================================================
+    _has_verdict = hasattr(graph_reasoning_report, '_verdict')
+    if _has_verdict and not technical_state.detected_family:
+        _v = graph_reasoning_report._verdict
+        if _v.recommended_product:
+            technical_state.detected_family = _v.recommended_product.product_family_id.replace("FAM_", "")
+            detected_product_family = technical_state.detected_family
+            print(f"💾 [STATE] Persisted detected_family={technical_state.detected_family} from engine verdict")
+        elif _v.is_assembly and _v.assembly:
+            # For assemblies, use the TARGET stage's family
+            target = next((s for s in _v.assembly if s.role == "TARGET"), None)
+            if target:
+                technical_state.detected_family = target.product_family_id.replace("FAM_", "")
+                detected_product_family = technical_state.detected_family
+                print(f"💾 [STATE] Persisted detected_family={technical_state.detected_family} from assembly TARGET")
+
+    # =========================================================================
+    # VETO PERSISTENCE: Store vetoed families in Layer 4 (v3.8)
+    # Ensures continuation turns don't forget the veto decision.
+    # =========================================================================
+    if _has_verdict:
+        _v = graph_reasoning_report._verdict
+        if _v.vetoed_products:
+            new_vetoes = [tm.product_family_id for tm in _v.vetoed_products]
+            # Merge with previously persisted vetoes (don't lose old ones)
+            existing = set(technical_state.vetoed_families)
+            for nv in new_vetoes:
+                if nv not in existing:
+                    technical_state.vetoed_families.append(nv)
+            if technical_state.vetoed_families:
+                print(f"🚫 [VETO PERSIST] vetoed_families={technical_state.vetoed_families}")
+
+    # =========================================================================
+    # ASSEMBLY STATE: Create assembly tags from engine verdict (v2.4)
+    # =========================================================================
+    _has_verdict = hasattr(graph_reasoning_report, '_verdict')
+    logger.info(f"[ASSEMBLY DEBUG] has _verdict: {_has_verdict}, report type: {type(graph_reasoning_report).__name__}")
+    if _has_verdict:
+        _v = graph_reasoning_report._verdict
+        logger.info(f"[ASSEMBLY DEBUG] is_assembly={_v.is_assembly}, assembly={_v.assembly}, assembly_rationale={getattr(_v, 'assembly_rationale', None)}")
+    if (_has_verdict
+            and graph_reasoning_report._verdict.is_assembly
+            and graph_reasoning_report._verdict.assembly):
+        verdict = graph_reasoning_report._verdict
+        if not technical_state.assembly_group:
+            # First time seeing assembly — create stage-prefixed tags
+            # Find the base tag: prefer "item_1" (bare), else first non-stage tag
+            existing_ids = list(technical_state.tags.keys())
+            bare_ids = [tid for tid in existing_ids if '_stage_' not in tid]
+            base_id = bare_ids[0] if bare_ids else (existing_ids[0] if existing_ids else "item_1")
+            technical_state.create_assembly_tags(verdict.assembly, base_tag_id=base_id)
+            technical_state.assembly_group["rationale"] = verdict.assembly_rationale or ""
+            logger.info(f"[ASSEMBLY] Created {len(verdict.assembly)} assembly tags from verdict")
+            for stage in technical_state.assembly_group["stages"]:
+                logger.info(f"   → {stage['role']}: {stage['product_family']} [tag: {stage['tag_id']}]")
+
+        # Cleanup: remove orphan item_N tags that aren't part of the assembly
+        assembly_tag_ids = {s["tag_id"] for s in technical_state.assembly_group.get("stages", [])}
+        orphan_ids = [tid for tid in list(technical_state.tags.keys())
+                      if tid not in assembly_tag_ids and '_stage_' not in tid]
+        for oid in orphan_ids:
+            del technical_state.tags[oid]
+            logger.info(f"[ASSEMBLY] Removed orphan tag: {oid}")
+
+        # Sync shared params every turn
+        technical_state._sync_assembly_params()
+
+    # Defense-in-depth: cleanup orphan bare tags even when engine didn't re-detect assembly
+    # (e.g., Turn 2 query "3400" might not trigger assembly detection, but LOCKED dims may have leaked item_1)
+    if technical_state.assembly_group and technical_state.assembly_group.get("stages"):
+        assembly_tag_ids = {s["tag_id"] for s in technical_state.assembly_group["stages"]}
+        orphan_ids = [tid for tid in list(technical_state.tags.keys())
+                      if tid not in assembly_tag_ids and '_stage_' not in tid]
+        for oid in orphan_ids:
+            del technical_state.tags[oid]
+            logger.info(f"[ASSEMBLY] Defense cleanup: removed orphan tag: {oid}")
+        # Sync shared params (dimensions, airflow) across assembly siblings
+        technical_state._sync_assembly_params()
+
+        # Apply auto-resolve defaults to each assembly stage's product family
+        # (e.g., GDP pre-filter always uses 250mm housing_length from graph)
+        for stage in technical_state.assembly_group["stages"]:
+            tag_id = stage["tag_id"]
+            pf_name = stage.get("product_family", "")
+            tag = technical_state.tags.get(tag_id)
+            if not tag or not pf_name:
+                continue
+            try:
+                vf_list = db.get_variable_features(pf_name.replace("FAM_", "").split()[0])
+                for vf in vf_list:
+                    if vf.get("auto_resolve") and vf.get("default_value") is not None:
+                        p_name = vf.get("parameter_name", "")
+                        if p_name and hasattr(tag, p_name):
+                            old_val = getattr(tag, p_name, None)
+                            default_val = vf["default_value"]
+                            if old_val != default_val:
+                                technical_state.merge_tag(tag_id, **{p_name: default_val})
+                                logger.info(
+                                    f"[ASSEMBLY] Auto-resolved {p_name}={default_val} for "
+                                    f"{stage['role']} ({pf_name}) [was {old_val}]"
+                                )
+            except Exception as e:
+                logger.warning(f"[ASSEMBLY] Auto-resolve failed for {pf_name}: {e}")
+
+        # Apply HardConstraint overrides to assembly tags (v3.0b)
+        # When engine corrected e.g. housing_length_mm for GDC from 250→750,
+        # propagate the corrected value to the appropriate assembly stage tags
+        if graph_reasoning_report._verdict.constraint_overrides:
+            for override in graph_reasoning_report._verdict.constraint_overrides:
+                prop_key = override.property_key  # e.g., "housing_length_mm"
+                attr_name = prop_key.replace("_mm", "") if prop_key.endswith("_mm") else prop_key
+                corrected = int(override.corrected_value) if override.corrected_value else None
+                if corrected:
+                    for tag_id, tag in technical_state.tags.items():
+                        fam_id = f"FAM_{tag.product_family}" if tag.product_family else ""
+                        if fam_id == override.item_id and hasattr(tag, attr_name):
+                            old_val = getattr(tag, attr_name, None)
+                            if old_val != corrected:
+                                setattr(tag, attr_name, corrected)
+                                print(f"🔒 [CONSTRAINT] {tag_id}: {attr_name} {old_val} → {corrected} (min for {tag.product_family})")
+
+    # =========================================================================
+    # SIZING ARRANGEMENT: Apply module dimensions from engine sizing (v2.5)
+    # =========================================================================
+    if _has_verdict and graph_reasoning_report._verdict.sizing_arrangement:
+        sa = graph_reasoning_report._verdict.sizing_arrangement
+        # Use effective dimensions (v2.8) which account for vertical stacking
+        sa_width = sa.get("effective_width") or sa.get("selected_module_width")
+        sa_height = sa.get("effective_height") or sa.get("selected_module_height")
+        if sa_width and sa_height:
+            # Apply to tags that don't have dimensions yet
+            for tag_id, tag in technical_state.tags.items():
+                if not tag.housing_width or not tag.housing_height:
+                    technical_state.merge_tag(
+                        tag_id,
+                        housing_width=int(sa_width),
+                        housing_height=int(sa_height),
+                        filter_width=int(sa_width),
+                        filter_height=int(sa_height),
+                    )
+                    print(
+                        f"📏 [SIZING] Applied module {sa_width}×{sa_height}mm "
+                        f"to tag {tag_id} (from graph sizing)"
+                    )
+
+        # Propagate modules_needed to all tags for multi-module aggregation (v3.0b)
+        modules = sa.get("modules_needed", 1)
+        if modules > 1:
+            for tag_id, tag in technical_state.tags.items():
+                tag.modules_needed = modules
+            print(f"📏 [SIZING] Propagated modules_needed={modules} to all tags")
+
+        # v3.8: Propagate rated airflow per module from sizing arrangement
+        ref_per_module = sa.get("reference_airflow_per_module")
+        if ref_per_module:
+            for tag_id, tag in technical_state.tags.items():
+                tag.rated_airflow_m3h = int(ref_per_module)
+            print(f"📏 [SIZING] Set rated_airflow_m3h={int(ref_per_module)} on all tags")
+
+    # =========================================================================
+    # PER-STAGE SIZING: Graph-driven DimensionModule selection for assemblies (v2.7)
+    # =========================================================================
+    # When assembly exists and stages still lack dimensions (engine sizing may have
+    # used a different product family), compute sizing per-stage using each stage's
+    # own product family and the graph's DimensionModule data. Domain-agnostic.
+    if technical_state.assembly_group and technical_state.assembly_group.get("stages"):
+        _any_unsized = any(
+            technical_state.tags.get(s["tag_id"]) and
+            not technical_state.tags[s["tag_id"]].housing_width
+            for s in technical_state.assembly_group["stages"]
+            if s["tag_id"] in technical_state.tags
+        )
+        if _any_unsized:
+            try:
+                _sizing_engine = _get_trait_engine()
+                for stage in technical_state.assembly_group["stages"]:
+                    tag = technical_state.tags.get(stage["tag_id"])
+                    if not tag or (tag.housing_width and tag.housing_height):
+                        continue  # Already has dimensions
+                    pf = stage.get("product_family", "")
+                    pf_id = f"FAM_{pf}" if pf and not pf.startswith("FAM_") else pf
+                    if not pf_id:
+                        continue
+                    sa = _sizing_engine.compute_sizing_arrangement(pf_id, resolved_context)
+                    # Use effective dimensions (v2.8) which account for stacking
+                    eff_w = sa.get("effective_width") or sa.get("selected_module_width") if sa else None
+                    eff_h = sa.get("effective_height") or sa.get("selected_module_height") if sa else None
+                    if eff_w and eff_h:
+                        technical_state.merge_tag(
+                            stage["tag_id"],
+                            housing_width=int(eff_w),
+                            housing_height=int(eff_h),
+                            filter_width=int(eff_w),
+                            filter_height=int(eff_h),
+                        )
+                        logger.info(
+                            f"[ASSEMBLY] Graph-driven sizing: {eff_w}x"
+                            f"{eff_h}mm for {stage['tag_id']}"
+                        )
+                        break  # Same duct — _sync_assembly_params() propagates to siblings
+            except Exception as e:
+                logger.warning(f"[ASSEMBLY] Per-stage sizing failed: {e}")
+
+    # =========================================================================
+    # POST-ASSEMBLY: Enrich weights + pre-build product codes (v3.0b)
+    # Must run AFTER constraints + sizing so housing_length is finalized
+    # =========================================================================
+    if technical_state.all_tags_complete():
+        technical_state.enrich_with_weights(db)
+
+    # Resolve connection_type offset before building product codes
+    # If connection_type was auto-resolved by engine or set by Scribe, query the length offset
+    _conn_type = technical_state.resolved_params.get("connection_type")
+    if not _conn_type:
+        # Engine auto-resolves connection_type=PG in its context, mirror to resolved_params
+        technical_state.resolved_params["connection_type"] = "PG"
+        _conn_type = "PG"
+    if "connection_length_offset" not in technical_state.resolved_params:
+        _fam_for_conn = technical_state.detected_family or ""
+        _fam_id_for_conn = f"FAM_{_fam_for_conn}" if _fam_for_conn and not _fam_for_conn.startswith("FAM_") else _fam_for_conn
+        if _fam_id_for_conn:
+            _offset = db.get_connection_length_offset(_fam_id_for_conn, _conn_type)
+            if _offset:
+                technical_state.resolved_params["connection_length_offset"] = str(_offset)
+                print(f"🔌 [CONNECTION] {_conn_type} offset: +{_offset}mm")
+
+    # =========================================================================
+    # POST-ENGINE MATERIAL RE-VALIDATION: After product pivot or assembly
+    # creation, verify locked_material is available for each tag's product
+    # family. If not, select the first available material for that tag.
+    # This handles pivots (e.g., GDC→GDMI where FZ is not available).
+    # =========================================================================
+    _mat_code = technical_state.locked_material.value if technical_state.locked_material else None
+    _material_overrides_applied = []
+    if _mat_code:
+        for _tag_id, _tag in technical_state.tags.items():
+            if not _tag.product_family:
+                continue
+            _fam = _tag.product_family
+            _fam_id = f"FAM_{_fam}" if not _fam.startswith("FAM_") else _fam
+            _available_mats = db.get_available_materials(_fam_id)
+            if not _available_mats:
+                continue
+            _mat_ids = [m["id"] for m in _available_mats]
+            if f"MAT_{_mat_code}" not in _mat_ids:
+                # Locked material not available for this tag's product family
+                _fallback_code = _available_mats[0]["code"]
+                _tag.material_override = _fallback_code
+                _available_codes = [m["code"] for m in _available_mats]
+                _material_overrides_applied.append(
+                    f"{_fam} ({_tag_id}): {_mat_code} not available, using {_fallback_code}. "
+                    f"Available: {', '.join(_available_codes)}"
+                )
+                print(f"⚠️ [MATERIAL] {_mat_code} not available for {_fam}, "
+                      f"using {_fallback_code} for {_tag_id}")
+
+    # Pre-build product codes for ALL tags — always rebuild to reflect constraint overrides
+    # Runs after constraints so GDC gets housing_length=750 before code is built
+    for _tag_id, _tag in technical_state.tags.items():
+        if _tag.product_family and _tag.housing_width and _tag.housing_height:
+            _fam = _tag.product_family or technical_state.detected_family or ""
+            _fam_id = f"FAM_{_fam}" if _fam and not _fam.startswith("FAM_") else _fam
+            _code_fmt = db.get_product_family_code_format(_fam_id) if _fam_id else None
+            _new_code = technical_state.build_product_code(_tag, code_format=_code_fmt)
+            if _new_code and _new_code != _tag.product_code:
+                print(f"🏷️ [CODE] {'Rebuilt' if _tag.product_code else 'Pre-built'}: {_tag_id} → {_new_code}")
+                _tag.product_code = _new_code
+
+    # =========================================================================
+    # Build LOCKED CONTEXT for injection using TechnicalState
+    # MUST run AFTER product code rebuild so LLM receives final codes
+    # (e.g., GDC-600x600-750-R-PG-FZ, not GDC-600x600-R-PG-FZ)
+    # =========================================================================
+    if technical_state.tags or locked_material or locked_project:
+        locked_context = technical_state.to_prompt_context()
+
+        # If all tags are complete, add the B2B response format
+        if technical_state.all_tags_complete():
+            locked_context += "\n\n## 🎯 READY FOR FINAL RESPONSE - OUTPUT NOW\n"
+            locked_context += "**ALL PARAMETERS KNOWN - DO NOT ASK ANY QUESTIONS**\n\n"
+            locked_context += "Generate the structured B2B response IMMEDIATELY:\n"
+            locked_context += "- One header per Tag with product code and weight\n"
+            locked_context += "- Use the EXACT data from the pre-filled table below\n"
+            locked_context += "- FORBIDDEN: Asking for dimensions, airflow, or material (all known)\n"
+            locked_context += "- FORBIDDEN: Filler phrases like 'let me confirm' or 'I understand you need'\n"
+            locked_context += "\n### PRE-COMPUTED ANSWER (USE THIS):\n"
+            locked_context += technical_state.generate_b2b_response()
+
+    # Build context message
+    context_parts = []
+    if detected_product_family:
+        context_parts.append(detected_product_family)
+    if graph_reasoning_report.application:
+        context_parts.append(graph_reasoning_report.application.name)
+
+    context_msg = " + ".join(context_parts) if context_parts else "General inquiry"
+    yield {"type": "inference", "step": "context", "status": "done",
+           "detail": f"🔍 {context_msg}"}
+
+    # STEP 2: GUARDIAN CHECK — Engine handles technology mismatch via stressor→trait→veto→pivot
+    if graph_reasoning_report.suitability.warnings:
+        # Material/compliance risk
+        warning = graph_reasoning_report.suitability.warnings[0]
+        mitigation = getattr(warning, 'mitigation', '')
+        yield {"type": "inference", "step": "guardian", "status": "done",
+               "detail": f"🛡️ Risk: {mitigation}" if mitigation else "🛡️ Material risk detected"}
+    else:
+        yield {"type": "inference", "step": "guardian", "status": "done",
+               "detail": "🛡️ OK"}
+
+    # ============================================================
+    # HOLISTIC VALIDATION: Collect ALL conflicts BEFORE suggestions
+    # ============================================================
+    # This prevents "sequential disappointment" where we suggest fixing
+    # a minor issue when a CRITICAL incompatibility makes it pointless.
+
+    all_conflicts = []  # Collect all conflicts with severity
+
+    # CHECK 1: Accessory Compatibility (HIGHEST PRIORITY)
+    # If GDC + Polis is impossible, don't suggest "increase space"
+    incompatible_accessories = [
+        c for c in graph_reasoning_report.accessory_compatibility
+        if not c.is_compatible
+    ]
+    for compat in incompatible_accessories:
+        all_conflicts.append({
+            "type": "COMPATIBILITY",
+            "severity": "CRITICAL",
+            "option": compat.accessory_name,
+            "product": compat.product_family,
+            "reason": compat.reason,
+            "status": compat.status,
+            "alternatives": compat.compatible_alternatives,
+            "detail": f"❌ {compat.accessory_name} is NOT compatible with {compat.product_family}"
+        })
+        yield {"type": "inference", "step": "compatibility", "status": "done",
+               "detail": f"❌ INCOMPATIBLE: {compat.accessory_name} + {compat.product_family}"}
+
+    # ============================================================
+    # GEOMETRIC CONSTRAINT VALIDATION (Physical Space Check)
+    # ============================================================
+
+    # ============================================================
+    # STEP 0: DETECT RESOLUTION ACTIONS (Context Update Handling)
+    # ============================================================
+    # Check if this is a follow-up that resolves a previous conflict
+    resolution_action = None
+    resolution_context = ""
+
+    # Parse Context Update if present
+    context_update_match = re.search(r'context update[:\s]+(\w+)\s+is\s+(\w+)', query_lower)
+    if context_update_match:
+        update_key = context_update_match.group(1)
+        update_value = context_update_match.group(2)
+
+        # Handle space increase resolution
+        if update_value in ['increase_space', 'increase', '900mm', '900']:
+            resolution_action = 'SPACE_INCREASED'
+            yield {"type": "inference", "step": "resolution", "status": "done",
+                   "detail": "✅ Space constraint updated to 900mm"}
+
+        # Handle Polis removal resolution
+        elif update_value in ['no_polis', 'without_polis', 'remove_polis', 'remove']:
+            resolution_action = 'POLIS_REMOVED'
+            yield {"type": "inference", "step": "resolution", "status": "done",
+                   "detail": "✅ Polis option removed from configuration"}
+
+    # (Dimension constraint extraction moved to BEFORE engine call — v2.8)
+    # user_max_width_mm and user_max_length_mm already set above.
+
+    # CONSTRAINT OVERWRITER: Apply resolution actions
+    if resolution_action == 'SPACE_INCREASED':
+        # User agreed to increase space - remove the constraint or set to 900
+        user_max_length_mm = None  # No longer constrained
+        resolution_context = """
+## ✅ CONSTRAINT RESOLVED: Space Increased
+The user has confirmed they can accommodate the required housing length for the selected accessory.
+
+**YOU MUST:**
+1. DO NOT repeat the geometric conflict warning - it has been resolved
+2. Acknowledge the resolution positively and confirm compatibility
+3. PROCEED immediately to the next missing parameter
+4. Recommend the longer housing variant with the accessory
+"""
+
+    elif resolution_action == 'POLIS_REMOVED':
+        # User chose to remove Polis - clear it from selected options later
+        resolution_context = """
+## ✅ CONSTRAINT RESOLVED: Accessory Removed
+The user has chosen to remove the accessory option to fit within their space constraint.
+
+**YOU MUST:**
+1. DO NOT repeat the geometric conflict warning - it has been resolved
+2. Acknowledge the removal and confirm the shorter housing variant fits
+3. PROCEED immediately to sizing
+4. Ask for the next missing parameter
+"""
+
+    # Extract option requests (e.g., "Polis", "after-filter rail", "polishing")
+    # Use ordered list to check longest patterns first, avoiding partial matches
+    OPTION_PATTERNS = [
+        ('after-filter rail', 'Polis'),
+        ('after-filter', 'Polis'),
+        ('polis', 'Polis'),
+        # Add more option patterns here as needed
+    ]
+    selected_options = set()  # Use set to avoid duplicates
+    for pattern, opt_name in OPTION_PATTERNS:
+        if pattern in query_lower:
+            selected_options.add(opt_name)
+    selected_options = list(selected_options)
+
+    # CONSTRAINT OVERWRITER: Remove Polis if user chose that resolution
+    if resolution_action == 'POLIS_REMOVED' and 'Polis' in selected_options:
+        selected_options.remove('Polis')
+
+    # Check geometric constraints if we have both options and space limits
+    # SKIP if a resolution action was just taken (constraint already resolved)
+    geometric_conflicts = []
+    if selected_options and detected_product_family and not resolution_action:
+        geometric_conflicts = get_graph_reasoning_engine().check_geometric_constraints(
+            product_family=detected_product_family,
+            selected_options=selected_options,
+            user_max_length_mm=user_max_length_mm,
+            housing_length_mm=750 if '750' in user_query else (900 if '900' in user_query else None)
+        )
+
+    # CHECK 2: Geometric Constraints (add to all_conflicts)
+    geometric_conflict_context = ""
+    if geometric_conflicts:
+        for conflict in geometric_conflicts:
+            all_conflicts.append({
+                "type": "GEOMETRIC",
+                "severity": "HIGH",  # Not CRITICAL - can be resolved
+                "option": conflict.option_name,
+                "required_mm": conflict.required_length_mm,
+                "user_limit_mm": conflict.user_max_length_mm,
+                "reason": conflict.physics_explanation,
+                "detail": f"🛑 {conflict.option_name} requires {conflict.required_length_mm}mm, user has {conflict.user_max_length_mm}mm"
+            })
+            yield {"type": "inference", "step": "geometry", "status": "done",
+                   "detail": f"🛑 GEOMETRIC: '{conflict.option_name}' requires {conflict.required_length_mm}mm"}
+
+    # ============================================================
+    # HOLISTIC CONFLICT RESOLUTION: Present ALL issues together
+    # ============================================================
+    # Rule: Don't suggest "increase space" if there's also a compatibility block
+    has_compatibility_block = any(c["type"] == "COMPATIBILITY" for c in all_conflicts)
+    has_geometric_block = any(c["type"] == "GEOMETRIC" for c in all_conflicts)
+
+    if all_conflicts:
+        # Build combined conflict context for LLM
+        conflict_parts = ["## 🛑 MULTIPLE CONFLICTS DETECTED (HOLISTIC VALIDATION)"]
+        conflict_parts.append("")
+
+        for i, conflict in enumerate(all_conflicts, 1):
+            if conflict["type"] == "COMPATIBILITY":
+                conflict_parts.append(f"### Conflict {i}: Mechanical Incompatibility (CRITICAL)")
+                conflict_parts.append(f"- **Issue:** {conflict['option']} is NOT compatible with {conflict['product']}")
+                conflict_parts.append(f"- **Reason:** {conflict['reason']}")
+                if conflict.get('alternatives'):
+                    conflict_parts.append(f"- **Compatible products for {conflict['option']}:** {', '.join(conflict['alternatives'])}")
+                conflict_parts.append("")
+
+            elif conflict["type"] == "GEOMETRIC":
+                conflict_parts.append(f"### Conflict {i}: Geometric Constraint")
+                conflict_parts.append(f"- **Issue:** {conflict['option']} requires {conflict['required_mm']}mm, user limit is {conflict['user_limit_mm']}mm")
+                conflict_parts.append(f"- **Reason:** {conflict['reason']}")
+                conflict_parts.append("")
+
+        # Generate VALID suggestions only
+        conflict_parts.append("## VALID RESOLUTION OPTIONS:")
+        if has_compatibility_block:
+            # If there's a compatibility block, "increase space" is a FALSE suggestion
+            compat_conflict = next(c for c in all_conflicts if c["type"] == "COMPATIBILITY")
+            conflict_parts.append(f"1. **Remove '{compat_conflict['option']}'** - This option is fundamentally incompatible with {compat_conflict['product']}")
+            conflict_parts.append(f"2. **Change product family** - Use a product that supports {compat_conflict['option']}")
+            conflict_parts.append("")
+            conflict_parts.append("⚠️ **DO NOT suggest 'increase space'** - even with more space, the compatibility issue remains.")
+        elif has_geometric_block:
+            # Only geometric conflict - both options are valid
+            geo_conflict = next(c for c in all_conflicts if c["type"] == "GEOMETRIC")
+            conflict_parts.append(f"1. **Remove '{geo_conflict['option']}'** to fit within {geo_conflict['user_limit_mm']}mm")
+            conflict_parts.append(f"2. **Increase available space** to at least {geo_conflict['required_mm']}mm")
+
+        conflict_parts.append("")
+        conflict_parts.append("**YOU MUST present ALL conflicts in your FIRST response. Do not reveal issues one at a time.**")
+
+        geometric_conflict_context = "\n".join(conflict_parts)
+
+    # STEP 3: PRODUCT SEARCH
+    yield {"type": "inference", "step": "products", "status": "active",
+           "detail": "📦 Searching products..."}
+
+    t1 = time.time()
+    config_results = {"variants": [], "cartridges": [], "filters": [], "materials": [], "option_matches": []}
+
+    for code in entity_codes:
+        exact_match = db.get_variant_by_name(code)
+        if exact_match:
+            config_results["variants"].append(exact_match)
+        else:
+            fuzzy_results = db.search_product_variants(code)
+            for fr in fuzzy_results:
+                if fr not in config_results["variants"]:
+                    config_results["variants"].append(fr)
+
+    all_keywords = config.get_all_search_keywords()
+    matching_keywords = [kw for kw in all_keywords if kw.lower() in user_query.lower()]
+    for kw in matching_keywords:
+        general_config = db.configuration_graph_search(kw)
+        for key in config_results.keys():
+            for item in general_config.get(key, []):
+                if item not in config_results[key]:
+                    config_results[key].append(item)
+
+    timings["config_search"] = time.time() - t1
+    variant_count = len(config_results["variants"])
+
+    yield {"type": "inference", "step": "products", "status": "done",
+           "detail": f"📦 {variant_count} products found"}
+
+    # STEP 4: CLARIFICATION CHECK (only if needed)
+    # CRITICAL: Check technical state first - if all data is known, skip clarification
+    variance_analysis = analyze_entity_variance(config_results.get("variants", []))
+
+    # Filter out variable features that are already resolved in context OR in technical_state
+    # BUGFIX: Also check technical_state tags for resolved parameters
+    truly_unresolved_features = []
+    for feat in (graph_reasoning_report.variable_features or []):
+        param_name = feat.parameter_name.lower() if feat.parameter_name else ""
+
+        is_resolved = False
+
+        # Check resolved_context first (from query parsing)
+        if 'length' in param_name or 'długość' in param_name:
+            if resolved_context.get('housing_length') or resolved_context.get('length') or resolved_context.get('filter_depth') or resolved_context.get('depth'):
+                is_resolved = True
+        elif 'airflow' in param_name:
+            if resolved_context.get('airflow') or resolved_context.get('airflow_m3h'):
+                is_resolved = True
+        elif 'material' in param_name:
+            if resolved_context.get('material'):
+                is_resolved = True
+        elif 'dimension' in param_name or 'wymiar' in param_name or 'size' in param_name:
+            if resolved_context.get('housing_size') or resolved_context.get('dimensions'):
+                is_resolved = True
+
+        # BUGFIX: Also check technical_state tags for ANY tag having this parameter
+        if not is_resolved and technical_state.tags:
+            for tag in technical_state.tags.values():
+                if 'length' in param_name and (tag.housing_length or tag.filter_depth):
+                    is_resolved = True
+                    break
+                elif 'airflow' in param_name and tag.airflow_m3h:
+                    is_resolved = True
+                    break
+                elif 'depth' in param_name and tag.filter_depth:
+                    is_resolved = True
+                    break
+                elif ('dimension' in param_name or 'size' in param_name) and tag.housing_width and tag.housing_height:
+                    is_resolved = True
+                    break
+
+        if not is_resolved:
+            truly_unresolved_features.append(feat)
+        else:
+            print(f"🔇 [CLARIFICATION] Skipping '{param_name}' - already resolved in state")
+
+    # Check if all tags in technical state are complete
+    all_tags_complete = technical_state.all_tags_complete() if technical_state.tags else False
+
+    # v4.0: Derive has_specific_constraint from Scribe data instead of regex intent
+    _has_specific_constraint = bool(
+        technical_state.resolved_params
+        or (scribe_intent and scribe_intent.parameters)
+        or "context update:" in user_query.lower()
+    )
+    needs_clarification = (
+        (variance_analysis["has_variance"] and not _has_specific_constraint) or
+        bool(truly_unresolved_features)
+    ) and not all_tags_complete
+
+    # Installation block overrides clarifications — don't ask for params when BLOCKED
+    if graph_reasoning_report.suitability and not graph_reasoning_report.suitability.is_suitable:
+        needs_clarification = False
+
+    if needs_clarification:
+        yield {"type": "inference", "step": "clarify", "status": "done",
+               "detail": "♟️ Additional info needed"}
+    elif all_tags_complete:
+        yield {"type": "inference", "step": "clarify", "status": "done",
+               "detail": "✅ All parameters resolved"}
+
+    # STEP 5: GENERATE RECOMMENDATION
+    yield {"type": "inference", "step": "thinking", "status": "active",
+           "detail": "👔 Generating recommendation..."}
+
+    # Now run the actual LLM synthesis (reusing existing logic)
+    t1 = time.time()
+
+    # Format contexts
+    config_context = format_configuration_context(config_results)
+
+    # Get retrieval results and similar cases (simplified for streaming)
+    query_embedding = generate_embedding(user_query)
+    retrieval_results = db.hybrid_retrieval(query_embedding, top_k=3, min_score=0.7)
+    similar_cases = db.get_similar_cases(query_embedding, top_k=2)
+    graph_context = format_retrieval_context(retrieval_results, similar_cases, config_context)
+
+    # Build prompts
+    graph_reasoning_context = graph_reasoning_report.to_prompt_injection()
+
+    # v3.8.1: Inject housing corrosion class into reasoning context
+    if technical_state.detected_family:
+        try:
+            _pf_id = f"FAM_{technical_state.detected_family}" if not technical_state.detected_family.startswith("FAM_") else technical_state.detected_family
+            _pf_rec = db.driver.execute_query(
+                "MATCH (pf:ProductFamily {id: $pf_id}) RETURN pf.corrosion_class AS cc, pf.indoor_only AS io",
+                pf_id=_pf_id
+            )
+            if _pf_rec and _pf_rec.records:
+                _cc = _pf_rec.records[0].get("cc")
+                _io = _pf_rec.records[0].get("io")
+                if _cc:
+                    graph_reasoning_context += (
+                        f"\n\n## HOUSING SPECIFICATION\n"
+                        f"- Housing corrosion class: **{_cc}** (the housing itself, regardless of material)\n"
+                        f"- Indoor only: {'Yes' if _io else 'No'}\n"
+                        f"- You MUST state the housing corrosion class ({_cc}) when discussing environmental suitability.\n"
+                    )
+        except Exception as e:
+            logger.warning(f"Failed to fetch housing corrosion class: {e}")
+
+    # Combine all constraint contexts (resolution > geometric > graph policies)
+    constraint_contexts = []
+    if resolution_context:
+        constraint_contexts.append(resolution_context)
+    if locked_context:
+        constraint_contexts.append(locked_context)
+    if multi_entity_context:
+        constraint_contexts.append(multi_entity_context)
+    if additional_data_context:
+        constraint_contexts.append(additional_data_context)
+    if geometric_conflict_context:
+        constraint_contexts.append(geometric_conflict_context)
+    if graph_reasoning_context:
+        constraint_contexts.append(f"**Graph-Based Policy Evaluation:**\n{graph_reasoning_context}")
+    if material_availability_warning:
+        constraint_contexts.append(
+            f"**⚠️ CRITICAL MATERIAL RESTRICTION:**\n{material_availability_warning}\n"
+            f"You MUST inform the customer that this material is not available for this product. "
+            f"Suggest the available alternatives listed above. Do NOT proceed with the unavailable material."
+        )
+    if _material_overrides_applied:
+        _override_text = "\n".join(f"  - {o}" for o in _material_overrides_applied)
+        constraint_contexts.append(
+            f"**⚠️ MATERIAL OVERRIDE (post-pivot):**\n{_override_text}\n"
+            f"The user's requested material is NOT available for the recommended product. "
+            f"Product codes have been corrected to use an available material. "
+            f"Inform the customer about the available material options."
+        )
+
+    combined_policies = "\n".join(constraint_contexts) if constraint_contexts else "No additional context."
+
+    # Inject material availability warning into system prompt active_policies
+    _active_policies = graph_reasoning_context or ""
+    if material_availability_warning:
+        _active_policies += f"\n\n⚠️ CRITICAL MATERIAL RESTRICTION:\n{material_availability_warning}\nYou MUST warn the customer and suggest available alternatives."
+        print(f"📢 [PROMPT] Material warning injected into active_policies and combined_policies")
+    if _material_overrides_applied:
+        _override_text = "\n".join(f"  - {o}" for o in _material_overrides_applied)
+        _active_policies += f"\n\n⚠️ MATERIAL OVERRIDE (post-pivot):\n{_override_text}\nThe user's requested material is NOT available for the recommended product. Suggest available alternatives."
+        print(f"📢 [PROMPT] Post-pivot material override injected: {len(_material_overrides_applied)} tag(s)")
+    if os.getenv("REASONING_ENGINE", "trait_based") != "legacy":
+        system_prompt = DEEP_EXPLAINABLE_SYSTEM_PROMPT_GENERIC.format(active_policies=_active_policies)
+    else:
+        system_prompt = DEEP_EXPLAINABLE_SYSTEM_PROMPT.format(active_policies=_active_policies)
+    synthesis_prompt = DEEP_EXPLAINABLE_SYNTHESIS_PROMPT.format(
+        context=graph_context,
+        query=user_query,
+        policies=combined_policies
+    )
+
+    # Call LLM
+    try:
+        response = client.models.generate_content(
+            model=LLM_MODEL,
+            contents=synthesis_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type="application/json",
+                temperature=0.0,
+                max_output_tokens=4096,
+            ),
+        )
+        raw_text = response.text
+
+        # Detect silent truncation: Gemini with response_mime_type="application/json"
+        # auto-closes JSON at token limit, producing valid but incomplete content.
+        usage = getattr(response, 'usage_metadata', None)
+        output_tokens = getattr(usage, 'candidates_token_count', 0) if usage else 0
+        if output_tokens >= 4000:
+            print(f"⚠️ [TRUNCATION RISK] Output used {output_tokens} tokens (near 4096 limit)")
+
+        try:
+            llm_response = json.loads(raw_text)
+        except json.JSONDecodeError as je:
+            # JSON truncation safety net — attempt repair
+            print(f"⚠️ JSON parse failed ({je}), attempting repair on {len(raw_text)} chars")
+            llm_response = _repair_truncated_json(raw_text)
+    except Exception as e:
+        llm_response = {
+            "content_segments": [{"text": f"Error generating response: {str(e)}", "type": "GENERAL"}],
+            "response_type": "FINAL_ANSWER"
+        }
+
+    timings["llm"] = time.time() - t1
+    timings["total"] = time.time() - total_start
+
+    yield {"type": "inference", "step": "thinking", "status": "done",
+           "detail": "👔 Done"}
+
+    # ============================================================
+    # FINAL: Transform LLM response to match frontend expectations
+    # ============================================================
+    # First, determine if clarification is needed (needed for validation check)
+    response_type = llm_response.get("response_type", "FINAL_ANSWER")
+    clarification_needed = response_type == "CLARIFICATION_NEEDED" or llm_response.get("clarification_needed", False)
+
+    # ============================================================
+    # MULTI-TAG VALIDATION LOOP: Verify material and weights before sending
+    # ============================================================
+    # This catches cases where the LLM reverted to FZ or used wrong weights
+
+    if technical_state.locked_material and not clarification_needed:
+        expected_suffix = f"-{technical_state.locked_material.value}"
+
+        # Check each content segment for product codes with wrong material
+        for segment in llm_response.get("content_segments", []):
+            text = segment.get("text", "")
+
+            # Look for product codes that might have wrong suffix
+            product_codes = re.findall(r'(GD[BCPMI]+-\d+x\d+-\d+[A-Z\-]+)', text)
+
+            for code in product_codes:
+                if not code.endswith(expected_suffix):
+                    # FZ DEFAULT DETECTED - Fix it
+                    old_suffix = "-FZ" if "-FZ" in code else "-ZM" if "-ZM" in code else "-SF" if "-SF" in code else ""
+                    if old_suffix:
+                        fixed_code = code.replace(old_suffix, expected_suffix)
+                        segment["text"] = text.replace(code, fixed_code)
+                        print(f"🔧 [VALIDATION] Fixed material suffix: {code} → {fixed_code}")
+                    elif not code.endswith(("-RF", "-FZ", "-ZM", "-SF")):
+                        # No material suffix - add one
+                        fixed_code = code + expected_suffix
+                        segment["text"] = text.replace(code, fixed_code)
+                        print(f"🔧 [VALIDATION] Added material suffix: {code} → {fixed_code}")
+
+        # Verify material warnings list doesn't have conflicts
+        material_warnings = technical_state.verify_material_codes()
+        if material_warnings:
+            print(f"⚠️ [VALIDATION] Material code warnings: {material_warnings}")
+            # Add to policy warnings
+            existing_warnings = llm_response.get("policy_warnings", [])
+            existing_warnings.extend(material_warnings)
+            llm_response["policy_warnings"] = existing_warnings
+
+    # Inject material availability warning into response
+    if material_availability_warning and _unavailable_material_code:
+        existing_warnings = llm_response.get("policy_warnings", [])
+        # Only add if no similar warning about this material already exists
+        _has_similar = any(
+            _unavailable_material_code in str(w) and ("not available" in str(w).lower() or "NOT AVAILABLE" in str(w))
+            for w in existing_warnings
+        )
+        if not _has_similar:
+            existing_warnings.append(material_availability_warning)
+        llm_response["policy_warnings"] = existing_warnings
+        # Also prepend warning to the response content if LLM missed it
+        segments = llm_response.get("content_segments", [])
+        has_material_warning = any(
+            "not available" in s.get("text", "").lower() and _unavailable_material_code.lower() in s.get("text", "").lower()
+            for s in segments
+        ) if _unavailable_material_code else False
+        if not has_material_warning and _unavailable_material_code:
+            warning_text = (
+                f"**Important:** {_unavailable_material_code} (stainless steel) is **not available** "
+                f"for {detected_product_family}. "
+                f"Available material options: {', '.join(_available_material_names)}. "
+                f"Please select an available material to proceed."
+            )
+            segments.insert(0, {"text": warning_text, "type": "GENERAL"})
+            llm_response["content_segments"] = segments
+            print(f"📢 [VALIDATION] Injected material warning into response segments")
+
+    # v3.9: Inject capacity overload warning (same pattern as material warning)
+    # Ensures capacity risk is visible even if LLM doesn't surface it.
+    _verdict = getattr(graph_reasoning_report, '_verdict', None)
+    if _verdict and _verdict.capacity_calculation:
+        cap = _verdict.capacity_calculation
+        if cap.get("input_value", 0) > cap.get("output_rating", 0):
+            # v3.9: Include single-module alternatives in warning if available
+            sa = _verdict.sizing_arrangement or {}
+            alt_text = ""
+            sma = sa.get("single_module_alternatives", [])
+            if sma:
+                best_alt = sma[0]
+                alt_text = (
+                    f" Alternative: single {best_alt['label']} module "
+                    f"({best_alt['reference_airflow_m3h']:.0f} m³/h capacity)."
+                )
+            cap_warning = (
+                f"⚠️ CAPACITY NOTE: Requested {cap['input_value']:.0f} "
+                f"{cap.get('input_requirement', '')} exceeds the recommended flow of "
+                f"{cap['output_rating']:.0f} for a single module. Modules needed: {cap.get('modules_needed')}.{alt_text}"
+            )
+            existing_warnings = llm_response.get("policy_warnings", [])
+            if not any("CAPACITY" in str(w) for w in existing_warnings):
+                existing_warnings.append(cap_warning)
+                llm_response["policy_warnings"] = existing_warnings
+            # Also inject into content if LLM missed it
+            segments = llm_response.get("content_segments", [])
+            has_capacity_mention = any(
+                "capacity" in s.get("text", "").lower() and "exceed" in s.get("text", "").lower()
+                for s in segments
+            )
+            # v3.8: Only inject capacity segment on the first turn — suppress on follow-ups
+            # to avoid verbatim repetition of the same warning
+            if not has_capacity_mention and technical_state.turn_count <= 1:
+                alt_segment = ""
+                if sma:
+                    best_alt = sma[0]
+                    alt_segment = (
+                        f" Alternatively, a single {best_alt['label']} module "
+                        f"can handle {best_alt['reference_airflow_m3h']:.0f} m³/h."
+                    )
+                segments.append({
+                    "text": (
+                        f"Additionally, the requested {cap['input_value']:.0f} "
+                        f"{cap.get('input_requirement', '')} exceeds the recommended flow of "
+                        f"{cap['output_rating']:.0f} for a single {cap.get('module_descriptor', '')} "
+                        f"module. {cap.get('modules_needed')} parallel units are required.{alt_segment}"
+                    ),
+                    "type": "GENERAL",
+                })
+                llm_response["content_segments"] = segments
+                print(f"📢 [VALIDATION] Injected capacity note into response segments")
+
+    # v3.10: Inject oversizing warning when module is massively oversized
+    if _verdict and _verdict.sizing_arrangement:
+        ow = _verdict.sizing_arrangement.get("oversizing_warning")
+        if ow:
+            util_pct = ow.get("utilization_pct", 100)
+            mod_cap = ow.get("module_capacity", 0)
+            req_air = ow.get("required_airflow", 0)
+            smaller_alts = ow.get("smaller_alternatives", [])
+            alt_text = ""
+            if smaller_alts:
+                best_sm = smaller_alts[0]
+                alt_text = (
+                    f" A more appropriate option would be a {best_sm['label']} module "
+                    f"({best_sm['reference_airflow_m3h']:.0f} m³/h capacity)."
+                )
+            ow_warning = (
+                f"⚠️ OVERSIZING WARNING: The selected module has {mod_cap:.0f} m³/h "
+                f"capacity but only {req_air:.0f} m³/h is required "
+                f"({util_pct:.0f}% utilization). This extreme oversizing can cause "
+                f"uneven air distribution and reduced efficiency.{alt_text}"
+            )
+            existing_warnings = llm_response.get("policy_warnings", [])
+            if not any("OVERSIZ" in str(w).upper() for w in existing_warnings):
+                existing_warnings.append(ow_warning)
+                llm_response["policy_warnings"] = existing_warnings
+            # Also inject into content segments
+            segments = llm_response.get("content_segments", [])
+            has_oversize_mention = any(
+                "oversize" in s.get("text", "").lower() or "oversized" in s.get("text", "").lower()
+                for s in segments
+            )
+            if not has_oversize_mention:
+                segments.append({
+                    "text": (
+                        f"The selected module ({mod_cap:.0f} m³/h capacity) is significantly "
+                        f"oversized for the requested {req_air:.0f} m³/h "
+                        f"({util_pct:.0f}% utilization). This can lead to uneven air distribution "
+                        f"and reduced efficiency.{alt_text}"
+                    ),
+                    "type": "GENERAL",
+                })
+                llm_response["content_segments"] = segments
+                print(f"📢 [VALIDATION] Injected oversizing warning into response segments")
+
+    # v3.11: Inject WARNING-level trait neutralization warnings (e.g., humidity degrades carbon)
+    # The engine detects these but LLM sometimes ignores them during clarification.
+    # Inject into policy_warnings so they always surface to the user.
+    if _verdict and _verdict.active_causal_rules:
+        for rule in _verdict.active_causal_rules:
+            if rule.rule_type == "NEUTRALIZED_BY" and rule.severity == "WARNING":
+                warning_text = (
+                    f"⚠️ {rule.explanation} "
+                    f"(Stressor: {rule.stressor_name}, affects: {rule.trait_name})"
+                )
+                existing_warnings = llm_response.get("policy_warnings", [])
+                # Avoid duplicate injection
+                if not any(rule.stressor_name.lower() in str(w).lower() for w in existing_warnings):
+                    existing_warnings.append(warning_text)
+                    llm_response["policy_warnings"] = existing_warnings
+                    # Also inject into content segments
+                    segments = llm_response.get("content_segments", [])
+                    has_mention = any(
+                        rule.stressor_name.lower() in s.get("text", "").lower()
+                        for s in segments
+                    )
+                    if not has_mention:
+                        segments.append({
+                            "text": rule.explanation,
+                            "type": "GENERAL",
+                        })
+                        llm_response["content_segments"] = segments
+                    print(f"📢 [VALIDATION] Injected WARNING neutralization: {rule.stressor_name} → {rule.trait_name}")
+
+    # ============================================================
+    # CLARIFICATION SUPPRESSION: Don't ask for data we already have
+    # ============================================================
+    # BUGFIX: Per-tag suppression.  Only suppress when the SPECIFIC tag
+    # the LLM is asking about already has the parameter.  If no tag_id
+    # is specified in the clarification, only suppress when ALL tags
+    # have the parameter (conservative — avoids hiding valid questions).
+    clar_data = llm_response.get("clarification_data") or llm_response.get("clarification")
+
+    if clarification_needed and clar_data:
+        missing_attr = clar_data.get("missing_attribute", "").lower()
+
+        # Try to identify which tag the clarification targets
+        clar_tag_id = clar_data.get("tag_id", "").lower() or clar_data.get("for_tag", "").lower()
+        # Also check the question text for a tag reference like "Tag 5684"
+        clar_question = clar_data.get("question", "")
+        tag_ref_match = re.search(r'tag\s*(\d+)', clar_question, re.IGNORECASE)
+        if not clar_tag_id and tag_ref_match:
+            clar_tag_id = tag_ref_match.group(1)
+
+        # Build the set of tags to check (specific tag or all tags)
+        if clar_tag_id and clar_tag_id in technical_state.tags:
+            tags_to_check = [technical_state.tags[clar_tag_id]]
+            check_mode = "specific"
+        else:
+            tags_to_check = list(technical_state.tags.values())
+            check_mode = "all"  # must be True for ALL tags to suppress
+
+        suppress_clarification = False
+
+        # Material is project-wide, not per-tag
+        if 'material' in missing_attr:
+            if technical_state.locked_material:
+                suppress_clarification = True
+                print(f"🔇 [SUPPRESS] Skipping clarification for material - locked to {technical_state.locked_material}")
+
+        # Per-tag parameter checks
+        elif tags_to_check:
+            def _tag_has_attr(tag, attr: str) -> bool:
+                """Check if a specific tag has the requested attribute."""
+                if any(term in attr for term in ['length', 'długość', 'depth']):
+                    return bool(tag.housing_length or tag.filter_depth)
+                elif 'airflow' in attr or 'przepływ' in attr:
+                    return bool(tag.airflow_m3h)
+                elif any(term in attr for term in ['dimension', 'wymiar', 'size']):
+                    return bool(tag.housing_width and tag.housing_height)
+                return False
+
+            if check_mode == "specific":
+                # Only suppress if the SPECIFIC tag already has the data
+                if _tag_has_attr(tags_to_check[0], missing_attr):
+                    suppress_clarification = True
+                    print(f"🔇 [SUPPRESS] Tag '{clar_tag_id}' already has '{missing_attr}'")
+            else:
+                # No specific tag targeted — suppress only if ALL tags have it
+                if tags_to_check and all(_tag_has_attr(t, missing_attr) for t in tags_to_check):
+                    suppress_clarification = True
+                    print(f"🔇 [SUPPRESS] All {len(tags_to_check)} tag(s) already have '{missing_attr}'")
+
+        # resolved_params check: suppress if missing_attr is already answered
+        # (catches gate parameters like atex_zone, chlorine_ppm, etc.)
+        if not suppress_clarification and missing_attr:
+            normalized_attr = missing_attr.replace(" ", "_").lower()
+            if normalized_attr in technical_state.resolved_params:
+                suppress_clarification = True
+                print(f"🔇 [SUPPRESS] Skipping clarification for '{missing_attr}' "
+                      f"- already in resolved_params: "
+                      f"{technical_state.resolved_params[normalized_attr]}")
+
+        if suppress_clarification:
+            # Convert to final answer - we have all the data
+            clarification_needed = False
+            clar_data = None
+            response_type = "FINAL_ANSWER"
+            print(f"✅ [SUPPRESS] Clarification suppressed - data available in state")
+
+    # Convert clarification_data to clarification format
+    clarification = None
+    if clarification_needed and clar_data:
+        # Enrich airflow clarification with graph-derived options if empty
+        missing_attr_lower = (clar_data.get("missing_attribute") or "").lower()
+        if ('airflow' in missing_attr_lower or 'przepływ' in missing_attr_lower) and not clar_data.get("options"):
+            airflow_opts = _generate_airflow_options_from_graph(technical_state, db)
+            if airflow_opts:
+                clar_data["options"] = airflow_opts
+                print(f"🎯 [ENRICHMENT] Added {len(airflow_opts)} airflow options from DimensionModule graph data")
+
+        # Deduplicate options by value (case-insensitive)
+        raw_options = clar_data.get("options", [])
+        if raw_options:
+            seen = set()
+            deduped = []
+            for opt in raw_options:
+                val = opt if isinstance(opt, str) else opt.get("value", opt.get("label", str(opt)))
+                key = str(val).lower().strip()
+                if key not in seen:
+                    seen.add(key)
+                    deduped.append(opt)
+            raw_options = deduped
+
+        clarification = {
+            "missing_info": clar_data.get("missing_attribute") or clar_data.get("missing_info", "Missing information"),
+            "why_needed": clar_data.get("why_needed", "Information required"),
+            "options": raw_options,
+            "question": clar_data.get("question", "Please provide additional information")
+        }
+
+        # Enrich LLM-generated options with display_labels from graph FeatureOption nodes
+        if clarification and graph_reasoning_report and graph_reasoning_report.variable_features:
+            label_map = {}
+            for feat in graph_reasoning_report.variable_features:
+                for opt_data in feat.options:
+                    val = str(opt_data.get('value', '')).strip().lower()
+                    dl = opt_data.get('display_label') or opt_data.get('name', '')
+                    if val and dl:
+                        label_map[val] = dl
+            if label_map:
+                for opt in clarification.get("options", []):
+                    if isinstance(opt, dict) and not opt.get("display_label"):
+                        opt["display_label"] = label_map.get(
+                            str(opt.get("value", "")).strip().lower()
+                        )
+
+    # Handle entity_card (supports both single dict and multi-card array for assemblies)
+    entity_card_data = llm_response.get("entity_card") or llm_response.get("product_card")
+    product_card_dict = None
+    product_cards_list = []
+    is_assembly = bool(technical_state.assembly_group and technical_state.assembly_group.get("stages"))
+
+    # Defense-in-depth: suppress product cards when engine says product is NOT suitable
+    _is_blocked = (
+        graph_reasoning_report.suitability
+        and not graph_reasoning_report.suitability.is_suitable
+    )
+    if _is_blocked:
+        print(f"🚫 [BLOCK GUARD] Product cards suppressed: is_suitable=False")
+
+    if entity_card_data and not clarification_needed and not _is_blocked:
+        cards = entity_card_data if isinstance(entity_card_data, list) else [entity_card_data]
+        for cd in cards:
+            if isinstance(cd, dict):
+                # Assembly cards are always "high" confidence — the assembly IS the recommendation
+                raw_confidence = cd.get("confidence", "medium")
+                confidence = "high" if is_assembly else raw_confidence
+                # Strip null/None values from specs (LLM sometimes emits "weight": null)
+                raw_specs = cd.get("specs", {})
+                clean_specs = {
+                    k: v for k, v in raw_specs.items()
+                    if v is not None and str(v).lower() != "null"
+                } if isinstance(raw_specs, dict) else raw_specs
+                product_cards_list.append({
+                    "title": cd.get("title", ""),
+                    "specs": clean_specs,
+                    "warning": cd.get("warning"),
+                    "confidence": confidence,
+                    "actions": cd.get("actions", ["Add to Quote"])
+                })
+        product_card_dict = product_cards_list[0] if product_cards_list else None
+
+    # Installation block overrides clarifications in final response (defense-in-depth)
+    if graph_reasoning_report.suitability and not graph_reasoning_report.suitability.is_suitable:
+        clarification_needed = False
+        clarification = None
+
+    # Cap risk_severity based on engine verdict: if the product is suitable
+    # (no veto, no installation block), the LLM should not mark it CRITICAL.
+    # CRITICAL = UNSUITABLE badge in the UI, reserved for truly blocked products.
+    llm_risk_severity = llm_response.get("risk_severity")
+    if (
+        llm_risk_severity == "CRITICAL"
+        and graph_reasoning_report.suitability
+        and graph_reasoning_report.suitability.is_suitable
+    ):
+        llm_risk_severity = "WARNING"
+        print(f"🔇 [RISK CAP] LLM said CRITICAL but engine says is_suitable=True → capped to WARNING")
+
+    # Promote risk to CRITICAL when engine says product is NOT suitable
+    # (defense-in-depth: LLM might say WARNING or None, but engine verdict overrides)
+    if _is_blocked and llm_risk_severity != "CRITICAL":
+        llm_risk_severity = "CRITICAL"
+        print(f"🚫 [RISK PROMOTE] is_suitable=False → forced CRITICAL")
+
+    # Build transformed response
+    transformed_response = {
+        "content_segments": llm_response.get("content_segments", []),
+        "clarification_needed": clarification_needed,
+        "clarification": clarification,
+        "risk_detected": True if _is_blocked else llm_response.get("risk_detected", False),
+        "risk_severity": llm_risk_severity,
+        "risk_resolved": False if _is_blocked else llm_response.get("risk_resolved", False),
+        "status_badges": [{"type": "WARNING", "text": "Blocked"}] if _is_blocked else llm_response.get("status_badges", []),
+    }
+
+    # Defense-in-depth: Override COMPLETE badge if tags are actually incomplete
+    if not _is_blocked and technical_state and not technical_state.all_tags_complete():
+        badges = transformed_response["status_badges"]
+        has_false_complete = any(
+            b.get("type") == "SUCCESS" and "COMPLETE" in (b.get("text") or "").upper()
+            for b in badges
+        )
+        if has_false_complete:
+            incomplete_tags = [
+                tid for tid, t in technical_state.tags.items()
+                if not t.is_complete
+            ]
+            print(f"⚠️ [BADGE OVERRIDE] LLM said COMPLETE but tags incomplete: {incomplete_tags}")
+            transformed_response["status_badges"] = [
+                b for b in badges
+                if not (b.get("type") == "SUCCESS" and "COMPLETE" in (b.get("text") or "").upper())
+            ]
+
+    transformed_response.update({
+        "policy_warnings": list(dict.fromkeys(
+            w if isinstance(w, str) else (w.get("message") if isinstance(w, dict) else str(w))
+            for w in llm_response.get("policy_warnings", [])
+            if w is not None
+        )),
+        "product_card": product_card_dict,
+        "product_cards": product_cards_list,
+        "timings": timings
+    })
+
+    # Build locked_context for frontend to persist across turns (simple format)
+    session_locked = {}
+    if locked_material:
+        session_locked["material"] = locked_material
+    if locked_project:
+        session_locked["project"] = locked_project
+    if locked_depths:
+        session_locked["filter_depths"] = locked_depths
+    # Also extract from dimension mappings if present
+    if dimension_mappings:
+        session_locked["dimension_mappings"] = dimension_mappings
+
+    # BUGFIX: Also build dimension_mappings from technical state tags if not already populated
+    if not dimension_mappings and technical_state.tags:
+        state_dimension_mappings = []
+        for tag_id, tag in technical_state.tags.items():
+            if tag.filter_width and tag.filter_height:
+                state_dimension_mappings.append({
+                    "width": tag.filter_width,
+                    "height": tag.filter_height,
+                    "depth": tag.filter_depth
+                })
+        if state_dimension_mappings:
+            session_locked["dimension_mappings"] = state_dimension_mappings
+
+    # Track what clarification we're asking so next turn can interpret bare answers
+    if clarification_needed and clar_data:
+        technical_state.pending_clarification = (
+            clar_data.get("missing_attribute") or clar_data.get("missing_info") or ""
+        ).lower()
+    else:
+        technical_state.pending_clarification = None
+
+    # Include full technical state for advanced persistence
+    # This allows complete tag-by-tag tracking across turns
+    technical_state_dict = technical_state.to_dict()
+
+    # Layer 4: Persist state to graph after processing
+    if session_graph_mgr and session_id:
+        try:
+            technical_state.persist_to_graph(session_graph_mgr, session_id)
+            print(f"💾 [GRAPH STATE] Persisted {len(technical_state.tags)} tags to Layer 4")
+        except Exception as e:
+            logger.warning(f"Graph state persist failed (non-fatal): {e}")
+
+        # v3.0: Store assistant turn summary for Scribe conversation history
+        try:
+            clar_flag = "clarification" if clarification_needed else "answer"
+            fam = detected_product_family or technical_state.detected_family or "TBD"
+            assistant_summary = f"Recommended: {fam}, type={clar_flag}, tags={len(technical_state.tags)}"
+            session_graph_mgr.store_turn(
+                session_id, "assistant", assistant_summary, technical_state.turn_count
+            )
+        except Exception as e:
+            logger.warning(f"Failed to store assistant turn (non-fatal): {e}")
+
+    yield {"type": "complete", "response": transformed_response, "timings": timings,
+           "locked_context": session_locked,
+           "technical_state": technical_state_dict,
+           "graph_report": {
+               "application": graph_reasoning_report.application.name if graph_reasoning_report.application else None,
+               "warnings_count": len(graph_reasoning_report.suitability.warnings) if graph_reasoning_report.suitability else 0,
+               "variable_features": len(graph_reasoning_report.variable_features) if graph_reasoning_report.variable_features else 0,
+               "tags_complete": technical_state.all_tags_complete(),
+               "tags_count": len(technical_state.tags)
+           }}
+
+    # Layer 4: Emit session graph state for frontend visualization
+    if session_graph_mgr and session_id:
+        try:
+            session_state = session_graph_mgr.get_project_state(session_id)
+            reasoning_paths = session_graph_mgr.get_reasoning_path(session_id)
+            session_state["reasoning_paths"] = reasoning_paths
+            yield {"type": "session_state", "data": session_state}
+        except Exception as e:
+            logger.warning(f"Session state emit failed (non-fatal): {e}")
 
 
 # Backwards compatibility exports

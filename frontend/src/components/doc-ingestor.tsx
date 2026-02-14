@@ -24,6 +24,7 @@ import {
   File,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiUrl, authFetch } from "@/lib/api";
 
 type WizardStep = "upload" | "schema" | "processing" | "result";
 
@@ -143,10 +144,10 @@ export function DocIngestor() {
         formData.append("document_hint", documentHint.trim());
       }
 
-      const response = await fetch("http://localhost:8000/ingest/doc/analyze", {
+      const response = await fetch(apiUrl("/ingest/doc/analyze"), authFetch({
         method: "POST",
         body: formData,
-      });
+      }));
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -176,10 +177,10 @@ export function DocIngestor() {
       formData.append("schema", JSON.stringify(schema));
       formData.append("source_name", file.name);
 
-      const response = await fetch("http://localhost:8000/ingest/doc/execute", {
+      const response = await fetch(apiUrl("/ingest/doc/execute"), authFetch({
         method: "POST",
         body: formData,
-      });
+      }));
 
       if (!response.ok) {
         const errorData = await response.json();

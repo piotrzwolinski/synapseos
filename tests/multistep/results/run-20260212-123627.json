@@ -1,0 +1,155 @@
+{
+  "timestamp": "2026-02-12T11:36:27Z",
+  "target": "http://localhost:8000",
+  "summary": {
+    "total_tests": 1,
+    "passed": 1,
+    "failed": 0,
+    "errors": 0,
+    "total_assertions": 10,
+    "assertions_passed": 10,
+    "assertions_failed": 0,
+    "duration_s": 30.2
+  },
+  "tests": [
+    {
+      "test_name": "rooftop_insulation_pivot",
+      "status": "PASS",
+      "category": "environment",
+      "total_assertions": 10,
+      "total_passed": 10,
+      "total_failed": 0,
+      "duration_s": 30.228120803833008,
+      "steps": [
+        {
+          "step_index": 0,
+          "description": "GDB non-insulated \u2192 rooftop condensation risk \u2192 suggest GDMI",
+          "status": "PASS",
+          "query": "I need a GDB 600x600 FZ housing for rooftop installation. Airflow 3000 m\u00b3/h.",
+          "response_text": "the gdb filter housing is not suitable for outdoor rooftop installation due to condensation risk on non-insulated metal surfaces. outdoor environments require double-wall insulated housings to maintain the surface above the dew point. i recommend the gdmi modulfiltersk\u00e5p, which is specifically designed for outdoor use. to finalize the configuration, i need two details: what is the minimum expected ambient temperature at the installation site? high humidity reduces carbon adsorption efficiency. keep relative humidity below 70% for optimal performance.",
+          "assertions_total": 5,
+          "assertions_passed": 5,
+          "duration_s": 15.209868907928467,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "detect_gdb",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdb",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for outdoor rooftop installation due to condensation risk on non-insulated metal surfaces. outdoor environments require double-wall insulated housings to maintain the surface above the dew point. i recommend the gdmi modulfiltersk\u00e5p, which is specifically desig",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "detect_rooftop",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "rooftop|outdoor|roof|exterior|outside",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for outdoor rooftop installation due to condensation risk on non-insulated metal surfaces. outdoor environments require double-wall insulated housings to maintain the surface above the dew point. i recommend the gdmi modulfiltersk\u00e5p, which is specifically desig",
+              "message": "",
+              "group": "1. Input Recognition"
+            },
+            {
+              "name": "block_reason",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "not suitable|not rated|condensation|insulation|non-insulated|single-wall|indoor|not approved|outdoor|temperature|environment",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for outdoor rooftop installation due to condensation risk on non-insulated metal surfaces. outdoor environments require double-wall insulated housings to maintain the surface above the dew point. i recommend the gdmi modulfiltersk\u00e5p, which is specifically desig",
+              "message": "",
+              "group": "2. Block Reason"
+            },
+            {
+              "name": "gdmi_suggested",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "gdmi",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for outdoor rooftop installation due to condensation risk on non-insulated metal surfaces. outdoor environments require double-wall insulated housings to maintain the surface above the dew point. i recommend the gdmi modulfiltersk\u00e5p, which is specifically desig",
+              "message": "",
+              "group": "3. GDMI Pivot"
+            },
+            {
+              "name": "no_length_question",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "550mm or 750mm|which length for gdb|gdb housing length",
+              "passed": true,
+              "actual": "the gdb filter housing is not suitable for outdoor rooftop installation due to condensation risk on non-insulated metal surfaces. outdoor environments require double-wall insulated housings to maintain the surface above the dew point. i recommend the gdmi modulfiltersk\u00e5p, which is specifically desig",
+              "message": "",
+              "group": "4. No Premature Length"
+            }
+          ],
+          "failures": []
+        },
+        {
+          "step_index": 1,
+          "description": "GDMI 600x600 AZ capacity 3400 \u2265 3000 \u2192 OK, ask length (600 or 850)",
+          "status": "PASS",
+          "query": "Switch to GDMI. Use Aluzink (AZ) material instead of FZ.",
+          "response_text": "for the rooftop project, we're switching to the gdmi housing. unfortunately, fz material is not available for gdmi housings. given the outdoor/rooftop environment, which exposes the system to outdoor condensation and high humidity, i recommend using aluzink (az) or zinkmagnesium (zm) for better corrosion resistance. to finalize the configuration, i need two details: what is the minimum expected ambient temperature at the installation site?",
+          "assertions_total": 5,
+          "assertions_passed": 5,
+          "duration_s": 15.016039848327637,
+          "error_message": "",
+          "assertions": [
+            {
+              "name": "capacity_ok",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "3400|capacity|sufficient|handle|suitable|meets|within|ok|gdmi|configure|configuration|rooftop|housing",
+              "passed": true,
+              "actual": "for the rooftop project, we're switching to the gdmi housing. unfortunately, fz material is not available for gdmi housings. given the outdoor/rooftop environment, which exposes the system to outdoor condensation and high humidity, i recommend using aluzink (az) or zinkmagnesium (zm) for better corr",
+              "message": "",
+              "group": "1. Capacity Confirmed"
+            },
+            {
+              "name": "material_resolution",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "az|aluzink|zm|zinkmagnesium|material|c4|c5",
+              "passed": true,
+              "actual": "for the rooftop project, we're switching to the gdmi housing. unfortunately, fz material is not available for gdmi housings. given the outdoor/rooftop environment, which exposes the system to outdoor condensation and high humidity, i recommend using aluzink (az) or zinkmagnesium (zm) for better corr",
+              "message": "",
+              "group": "2. Material Resolution"
+            },
+            {
+              "name": "material_not_fz",
+              "check": "response.content_text",
+              "condition": "not_contains_any",
+              "expected": "we will use fz|material: fz|gdmi-.*-fz",
+              "passed": true,
+              "actual": "for the rooftop project, we're switching to the gdmi housing. unfortunately, fz material is not available for gdmi housings. given the outdoor/rooftop environment, which exposes the system to outdoor condensation and high humidity, i recommend using aluzink (az) or zinkmagnesium (zm) for better corr",
+              "message": "",
+              "group": "2. Material Resolution"
+            },
+            {
+              "name": "next_step_present",
+              "check": "response.content_text",
+              "condition": "contains_any",
+              "expected": "600|850|housing length|length|temperature|humidity|configuration|finalize|proceed|select",
+              "passed": true,
+              "actual": "for the rooftop project, we're switching to the gdmi housing. unfortunately, fz material is not available for gdmi housings. given the outdoor/rooftop environment, which exposes the system to outdoor condensation and high humidity, i recommend using aluzink (az) or zinkmagnesium (zm) for better corr",
+              "message": "",
+              "group": "3. Next Step"
+            },
+            {
+              "name": "family_gdmi",
+              "check": "technical_state.detected_family",
+              "condition": "contains_any",
+              "expected": "GDMI|GDB",
+              "passed": true,
+              "actual": "GDMI",
+              "message": "",
+              "group": "4. State Tracking"
+            }
+          ],
+          "failures": []
+        }
+      ]
+    }
+  ]
+}

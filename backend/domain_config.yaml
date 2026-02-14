@@ -43,7 +43,7 @@ entity_patterns:
 
   # Product families - broader categories
   product_families:
-    values: ["GDC", "GDP", "GDR", "GDF", "GDMI", "GDB", "PFF", "BFF"]
+    values: ["GDC-FLEX", "GDC", "GDP", "GDR", "GDF", "GDMI", "GDB", "PFF", "BFF"]
     description: "Product family prefixes that trigger catalog search"
 
   # Material codes
@@ -443,7 +443,7 @@ material_environment_rules:
 
     - code: "SF"
       full_name: "Stainless Steel (1.4404/316L)"
-      corrosion_class: "C5-M"
+      corrosion_class: "C5.1"
       description: "Extreme: marine, high chloride, aggressive chemicals"
       suitable_for: ["marine", "coastal", "offshore", "chemical plant", "chlorine exposure"]
 
@@ -469,7 +469,7 @@ material_environment_rules:
 
     - name: "marine"
       aliases: ["coastal", "offshore", "ship", "port", "morski"]
-      min_corrosion_class: "C5-M"
+      min_corrosion_class: "C5.1"
       required_materials: ["SF"]
       concern: "salt spray, extreme corrosion conditions"
 
@@ -601,26 +601,283 @@ safety_detection:
 # CLARIFICATION RULES
 # =============================================================================
 # What parameters are required before making product recommendations.
+# The LLM uses this as guidance for what questions to ask.
 
 clarification_rules:
+  # Decision tree for filter housing selection - ask in this order
+  decision_flow:
+    description: "Step-by-step parameter collection for filter housing recommendation"
+    steps:
+      - step: 1
+        parameter: "filtration_purpose"
+        question: "What do you need to filter?"
+        why_needed: "Determines the correct product family (particles vs gases/odors)"
+        options:
+          - value: "particles"
+            description: "Dust, particulates, solid aerosols"
+            leads_to: ["GDB", "GDMI", "GDP"]
+          - value: "gases_odors"
+            description: "Gases, odors, VOC, fumes"
+            leads_to: ["GDC", "GDC-FLEX", "GDMI-FLEX"]
+          - value: "both"
+            description: "Both particles and gases (multi-stage)"
+            leads_to: ["GDB+GDC combination"]
+        skip_if: "product family already specified (e.g., user said 'GDB housing')"
+
+      - step: 2
+        parameter: "installation_location"
+        question: "Where will the housing be installed?"
+        why_needed: "Determines insulation requirements and material grade"
+        options:
+          - value: "indoor"
+            description: "Inside building, climate controlled"
+            implications: ["no insulation required", "standard material OK"]
+          - value: "outdoor"
+            description: "Outside, exposed to weather"
+            implications: ["insulation recommended (GDMI)", "higher corrosion class"]
+          - value: "rooftop"
+            description: "Rooftop installation"
+            implications: ["insulation MANDATORY (GDMI)", "weather sealing needed"]
+        skip_if: "GDMI already specified (implies insulation needed)"
+
+      - step: 3
+        parameter: "airflow"
+        question: "What is the required airflow capacity (m³/h)?"
+        why_needed: "Determines housing size (Width × Height)"
+        options:
+          - value: "850"
+            description: "Small room/office (~300×300)"
+          - value: "3400"
+            description: "Standard office unit (~600×600)"
+          - value: "5000"
+            description: "Large office/commercial (~900×600)"
+          - value: "10000"
+            description: "Industrial/large commercial"
+          - value: "other"
+            description: "Specify exact value"
+        skip_if: "specific product code with size mentioned (e.g., GDB-600x600)"
+        reference: "3400 m³/h per 1/1 module (592×592mm) at 1.5 m/s"
+
+      - step: 4
+        parameter: "filter_type"
+        question: "What type of filter will be used?"
+        why_needed: "Determines housing length and locking mechanism"
+        applies_to: ["GDB", "GDMI"]
+        options:
+          - value: "bag_filter_short"
+            description: "Short bag filter (påsfilter) up to 450mm"
+            housing_length: "550/600mm"
+          - value: "bag_filter_long"
+            description: "Long bag filter (påsfilter) up to 650mm"
+            housing_length: "750/800mm"
+          - value: "compact_filter"
+            description: "Compact filter with 25mm frame"
+            housing_length: "550/600mm or 750/800mm depending on depth"
+          - value: "panel_filter"
+            description: "Panel/flat filter (planfilter)"
+            alternative_product: "GDP (250mm length)"
+
+      - step: 5
+        parameter: "filter_class"
+        question: "What filter efficiency class is required?"
+        why_needed: "Affects filter selection and may impact housing features"
+        options:
+          - value: "coarse"
+            description: "COARSE (pre-filter, G4)"
+          - value: "ePM10"
+            description: "ePM10 (medium efficiency, M5-M6)"
+          - value: "ePM1"
+            description: "ePM1 (fine filter, F7-F9)"
+          - value: "hepa"
+            description: "HEPA (H13-H14, cleanroom)"
+            note: "May require special housing features"
+        skip_if: "general ventilation without specific requirements"
+
+      - step: 6
+        parameter: "housing_length"
+        question: "Which housing length is needed?"
+        why_needed: "Must accommodate filter depth + any accessories"
+        applies_to: ["GDB", "GDMI"]
+        options:
+          - value: "550"
+            description: "Short (550/600mm) - for filters up to 450mm"
+          - value: "750"
+            description: "Long (750/800mm) - for filters up to 650mm"
+        skip_if: "filter_type already specified (can derive length)"
+        default_suggestion: "For office and commercial applications, 750mm (long housing) is most commonly used as it accommodates standard bag filters."
+        proactive_hint: "💡 750mm is the most popular choice for general ventilation"
+
+      - step: 7
+        parameter: "connection_type"
+        question: "What duct connection type is needed?"
+        why_needed: "Affects how housing connects to ductwork"
+        options:
+          - value: "PG"
+            description: "PG 20mm slip-in connection (standard)"
+          - value: "F"
+            description: "Flange 40mm connection"
+        default: "PG"
+        skip_if: "not explicitly required by customer"
+
+      - step: 8
+        parameter: "door_orientation"
+        question: "Which side should the service door open?"
+        why_needed: "Must match installation space constraints"
+        options:
+          - value: "R"
+            description: "Right-hinged (standard)"
+          - value: "L"
+            description: "Left-hinged"
+        default: "R"
+        skip_if: "not explicitly required by customer"
+
+  # Legacy format for backward compatibility
   required_parameters:
+    - name: "filtration_purpose"
+      aliases: ["filter type", "what to filter", "particles", "gases", "odors"]
+      applies_to: ["all"]
+      prompt: "What do you need to filter - particles (dust) or gases/odors?"
+      priority: 1
+
+    - name: "installation_location"
+      aliases: ["location", "indoor", "outdoor", "rooftop", "installation"]
+      applies_to: ["all"]
+      prompt: "Where will the housing be installed (indoor/outdoor/rooftop)?"
+      priority: 2
+
     - name: "airflow"
       aliases: ["capacity", "flow rate", "volume", "przepływ", "wydatek", "wydajność"]
       units: ["m³/h", "cfm", "l/s"]
       applies_to: ["GDB", "GDC", "GDMI", "GDP", "GDF"]
       prompt: "What is the required airflow capacity?"
+      priority: 3
+
+    - name: "filter_type"
+      aliases: ["bag filter", "compact filter", "påsfilter", "kompaktfilter"]
+      applies_to: ["GDB", "GDMI"]
+      prompt: "What type of filter will be used (bag filter short/long, compact filter)?"
+      priority: 4
 
     - name: "dimensions"
       aliases: ["size", "duct size", "wymiary", "rozmiar"]
       units: ["mm", "inches"]
       applies_to: ["all"]
       prompt: "What are the duct connection dimensions (W×H)?"
+      priority: 5
 
   # When to skip clarification
   skip_clarification_when:
     - "specific product code mentioned (e.g., GDB-600x600)"
     - "competitor mapping exists in context"
     - "safety issue detected (handle safety first)"
+
+  # Product family determination rules
+  product_family_selection:
+    particles_indoor: "GDB"
+    particles_outdoor: "GDMI"
+    particles_rooftop: "GDMI"
+    gases_odors_indoor: "GDC"
+    gases_odors_outdoor: "GDMI-FLEX"
+    panel_filters: "GDP"
+
+  # Housing length selection rules
+  housing_length_rules:
+    GDB:
+      - condition: "short bag filter OR compact filter up to 450mm"
+        length: "550/600mm"
+      - condition: "long bag filter OR compact filter up to 650mm"
+        length: "750/800mm"
+    GDMI:
+      - condition: "short bag filter OR compact filter up to 450mm"
+        length: "600/650mm"
+      - condition: "long bag filter OR compact filter up to 650mm"
+        length: "850/900mm"
+    GDC:
+      - condition: "450mm carbon cylinders"
+        length: "750/800mm"
+      - condition: "450mm cylinders + polishing filter OR 600mm cylinders"
+        length: "900/950mm"
+
+  # Cross-selling categories (suggest after final recommendation)
+  cross_selling_categories:
+    description: "Accessory categories to suggest based on selected product"
+    rules:
+      - trigger: ["GDB", "GDMI"]
+        suggest:
+          - category: "Pre-filter"
+            description: "G4 or M5 class - extends main filter life"
+            reason: "Protects main filters by capturing coarse particles"
+          - category: "Mounting frame (PFF)"
+            description: "Required for filter installation"
+            reason: "Provides secure filter mounting"
+          - category: "Replacement filters"
+            description: "Consumables for maintenance"
+            reason: "Plan periodic filter changes"
+
+      - trigger: ["ePM1", "F7", "F8", "F9"]
+        suggest:
+          - category: "Coarse pre-filter"
+            description: "G4 class minimum"
+            reason: "Fine filters require upstream protection"
+
+      - trigger: ["HEPA", "H13", "H14"]
+        suggest:
+          - category: "Pre-filter"
+            description: "G4 class"
+            reason: "First stage protection"
+          - category: "Fine filter"
+            description: "F7-F9 class"
+            reason: "Second stage protection before HEPA"
+
+      - trigger: ["GDC", "carbon"]
+        suggest:
+          - category: "Pre-filter"
+            description: "Minimum M5 class"
+            reason: "Protects expensive carbon media from clogging"
+
+  # Product code construction rules
+  product_code_format:
+    description: "How to construct full product codes"
+    pattern: "{Family}-{Width}x{Height}-{Length}-{Door}-{Connection}-{Material}"
+    components:
+      family:
+        description: "Product family"
+        values: ["GDB", "GDMI", "GDC", "GDP"]
+      size:
+        description: "Housing width × height in mm"
+        values: ["300x300", "600x600", "900x600"]
+      length:
+        description: "Housing depth in mm"
+        values: ["550", "600", "750", "800", "850"]
+      door:
+        description: "Service door orientation"
+        values:
+          - code: "R"
+            description: "Right-hinged (standard)"
+          - code: "L"
+            description: "Left-hinged"
+        default: "R"
+      connection:
+        description: "Duct connection type"
+        values:
+          - code: "PG"
+            description: "Slip-in 20mm (standard)"
+          - code: "F"
+            description: "Flange 40mm"
+        default: "PG"
+      material:
+        description: "Material grade"
+        values:
+          - code: "FZ"
+            description: "Galvanized steel (C3)"
+            default_for: ["indoor", "office", "warehouse"]
+          - code: "ZM"
+            description: "Zinc-magnesium (C5)"
+            default_for: ["outdoor", "coastal"]
+          - code: "RF"
+            description: "Stainless steel (C5)"
+            default_for: ["hospital", "medical", "food", "cleanroom"]
+        default: "FZ"
 
 # =============================================================================
 # SAMPLE QUESTIONS (for UI)
@@ -672,3 +929,41 @@ prompt_templates:
 
   accessory_incompatibility: |
     ⚠️ Compatibility Issue: {accessory} not compatible with {product}. {reason}
+
+# =============================================================================
+# ASSEMBLY CONFIGURATION (v2.7)
+# =============================================================================
+# Defines how multi-unit assemblies share properties.
+# Python reads this list — no property names hardcoded in code.
+
+assembly:
+  # Properties automatically synced across all units in the same assembly group.
+  # Same duct = same dimensions/capacity. Remove a property to stop syncing it.
+  # housing_length is intentionally NOT here — each stage has its own from graph auto-resolve.
+  shared_properties:
+    - "filter_width"
+    - "filter_height"
+    - "housing_width"
+    - "housing_height"
+    - "airflow_m3h"
+
+# =============================================================================
+# SCOPE OF DELIVERY (v3.6)
+# =============================================================================
+# Defines what is included/excluded in standard housing delivery.
+# Used by LLM prompt to correctly scope recommendations.
+
+scope_of_delivery:
+  included:
+    - "Filter housing with service door (right-hinged standard, left-hinged option)"
+    - "Pressure measurement nipples"
+    - "JHL lock on service door"
+    - "EXL eccentric locking mechanism (GDB, GDMI standard)"
+    - "Filter rail with spring seal (GDP standard)"
+    - "Bayonet mount plate for cartridges (GDC, GDC FLEX standard)"
+  excluded:
+    - "Transition pieces (PT flat, TT conical) for rectangular-to-round duct — order separately"
+    - "Filters, filter elements, and carbon cartridges"
+    - "Mounting brackets and support structures"
+    - "On-site insulation (for non-GDMI housings)"
+  note: "Standard connection is PG 20mm slip-in. Flange 40mm available as option (surcharge, adds ~50mm to housing length)."

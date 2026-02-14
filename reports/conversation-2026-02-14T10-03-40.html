@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conversation Test — 2026-02-14 10:03</title>
+<style>
+:root {
+  --blue-600: #2563eb;
+  --violet-600: #7c3aed;
+  --green-500: #22c55e;
+  --red-500: #ef4444;
+  --yellow-500: #eab308;
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-400: #94a3b8;
+  --slate-600: #475569;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, var(--slate-50), #eff6ff, #f5f3ff);
+  min-height: 100vh;
+  color: var(--slate-800);
+}
+.header {
+  background: white;
+  border-bottom: 1px solid var(--slate-200);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-logo {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, var(--blue-600), var(--violet-600));
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 20px;
+}
+.header-title { font-weight: 700; font-size: 18px; color: var(--slate-900); }
+.header-meta { margin-left: auto; color: var(--slate-400); font-size: 13px; }
+.chat-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+.message {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  align-items: flex-start;
+}
+.user-message {
+  justify-content: flex-end;
+}
+.avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.user-avatar {
+  background: linear-gradient(135deg, var(--blue-600), var(--violet-600));
+  order: 2;
+}
+.assistant-avatar {
+  background: var(--slate-100);
+  border: 1px solid var(--slate-200);
+}
+.bubble {
+  max-width: 75%;
+  padding: 14px 18px;
+  border-radius: 18px;
+  line-height: 1.55;
+  font-size: 15px;
+}
+.user-bubble {
+  background: linear-gradient(135deg, var(--blue-600), var(--violet-600));
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+.assistant-bubble {
+  background: white;
+  border: 1px solid var(--slate-200);
+  border-bottom-left-radius: 4px;
+  max-width: 85%;
+}
+.content { margin-bottom: 8px; }
+
+/* Clarification */
+.clarification {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--slate-100);
+}
+.clar-bar {
+  width: 3px;
+  background: var(--blue-600);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.clar-content { flex: 1; }
+.clar-content strong { font-size: 15px; display: block; margin-bottom: 4px; }
+.clar-why { color: var(--slate-400); font-size: 13px; margin-bottom: 10px; }
+.clar-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.clar-btn {
+  padding: 8px 20px;
+  border: 1px solid var(--slate-200);
+  border-radius: 20px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--slate-800);
+}
+.clar-other {
+  border-style: dashed;
+  color: var(--slate-400);
+}
+
+/* Product Card */
+.product-card {
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: 12px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+.card-header {
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 15px;
+  border-bottom: 1px solid var(--slate-200);
+}
+.card-specs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--slate-200);
+}
+.spec {
+  background: white;
+  padding: 10px 16px;
+}
+.spec-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--slate-400);
+  margin-bottom: 2px;
+}
+.spec-value {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Status badges */
+.status-badges { margin-bottom: 8px; }
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.status-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+.status-warning { background: #fefce8; border: 1px solid #fef08a; color: #854d0e; }
+.status-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+
+/* Judge badges */
+.judge-badges {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--slate-100);
+  flex-wrap: wrap;
+}
+.judge-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.badge-pass {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+.badge-fail {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+}
+.badge-label {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.badge-pass .badge-label { background: #22c55e; color: white; }
+.badge-fail .badge-label { background: #ef4444; color: white; }
+
+/* Judge details */
+.judge-details {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.judge-card {
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+.judge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.judge-time { color: var(--slate-400); font-size: 12px; }
+.judge-explanation {
+  font-size: 13px;
+  color: var(--slate-600);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+.dim-scores {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.dim-badge {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.dim-green { background: #dcfce7; color: #166534; }
+.dim-yellow { background: #fef9c3; color: #854d0e; }
+.dim-red { background: #fee2e2; color: #991b1b; }
+.pdf-citations {
+  font-size: 12px;
+  color: var(--slate-600);
+  margin-top: 6px;
+}
+.pdf-citations ul { margin-left: 16px; margin-top: 4px; }
+.pdf-citations li { margin-bottom: 2px; }
+.judge-usage {
+  font-size: 11px;
+  color: var(--slate-400);
+  margin-top: 6px;
+  font-family: monospace;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 24px;
+  color: var(--slate-400);
+  font-size: 12px;
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-logo">🧠</div>
+  <div>
+    <div class="header-title">AI Sales Consultant — Automated Test</div>
+  </div>
+  <div class="header-meta">2026-02-14 10:03 · Graph Reasoning Mode</div>
+</div>
+<div class="chat-container">
+
+            <div class="message user-message">
+                <div class="bubble user-bubble">Rooftop kitchen exhaust for a hospital. Marine climate. 3000 m³/h. We want GDC-FLEX RF 600x600.</div>
+                <div class="avatar user-avatar">👤</div>
+            </div>
+            <div class="message assistant-message">
+                <div class="avatar assistant-avatar">🤖</div>
+                <div class="bubble assistant-bubble">
+                    <div class="status-badges"><div class="status-badge status-warning">⚠ Blocked</div></div>
+                    <div class="content">This configuration for the rooftop kitchen exhaust at the hospital is blocked. The GDC-FLEX family is not rated for marine environments due to its RAIL_MOUNTED construction, which does not meet the leakage class and hygiene requirements for marine (ENV_MARINE) installations. Additionally, the requested airflow of 3000 m³/h exceeds the maximum capacity of 1750 m³/h for a single 600x600 module, requiring 2 modules.The system is exposed to several stressors:- High Humidity- Chemical Vapor Exposure- Outdoor Condensation- Grease/Oil Exposure- Salt Spray- Hygiene RequirementsA solution would need to be rated for ENV_MARINE installation and provide sufficient airflow capacity. Since no standard catalog product currently satisfies all requirements simultaneously, I recommend contacting our Custom Engineering or Technical Support team with these specific technical requirements.</div>
+                    
+                    
+                    
+                    <div class="judge-badges"><span class="judge-badge badge-pass">✦ Gemini 5.0/5 <span class="badge-label">PASS</span></span><span class="judge-badge badge-fail">⚙ GPT-5.2 2.75/5 <span class="badge-label">FAIL</span></span><span class="judge-badge badge-fail">◈ Claude 0.0/5 <span class="badge-label">FAIL</span></span></div>
+                    <div class="judge-details"><div class="judge-card"><div class="judge-header"><strong>Gemini</strong><span class="judge-time">23.8s</span></div><p class="judge-explanation">The system correctly identifies two critical blockers: the airflow capacity exceeds the limit for the requested size, and the product family is not rated for the requested environment. It verifies these constraints against the catalog data and safely directs the user to custom engineering.</p><div class="dim-scores"><span class="dim-badge dim-green">COR:5</span><span class="dim-badge dim-green">COM:5</span><span class="dim-badge dim-green">SAF:5</span><span class="dim-badge dim-green">TON:5</span><span class="dim-badge dim-green">REA:5</span><span class="dim-badge dim-green">CON:5</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>GDC FLEX 600x600: Rek. flöde = 1750 m³/h (PDF p.16)</li><li>GDC FLEX Användning: 'För inomhusbruk' (PDF p.16)</li></ul></div><div class="judge-usage">in:15,250 cached:15,467 out:493</div></div><div class="judge-card"><div class="judge-header"><strong>GPT-5.2</strong><span class="judge-time">14.4s</span></div><p class="judge-explanation">The system correctly flags that the requested airflow cannot be met by a single GDC FLEX 600×600 module and that the application has demanding stressors, but it makes multiple unverifiable/hallucinated claims about “marine ratings,” “RAIL_MOUNTED construction,” and specific leakage/hygiene non-compliance that are not supported by the provided catalog pages. It also blocks without offering a catalog-verified alternative that could meet 3000 m³/h (e.g., upsizing within GDC/GDB/GDMI families) or asking clarifying questions about filter type and actual environment constraints.</p><div class="dim-scores"><span class="dim-badge dim-red">COR:2</span><span class="dim-badge dim-red">COM:2</span><span class="dim-badge dim-yellow">SAF:3</span><span class="dim-badge dim-green">TON:4</span><span class="dim-badge dim-yellow">REA:3</span><span class="dim-badge dim-yellow">CON:3</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>GDC FLEX 600×600: Rek. flöde = 1750 m³/h (from the GDC FLEX table shown in the provided PDF images).</li><li>GDC (non-FLEX) 900×600: Rek. flöde = 3000 m³/h (from the GDC table shown in the provided PDF images), indicating at least one standard catalog configuration can meet 3000 m³/h by upsizing.</li></ul></div><div class="judge-usage">in:36,644 cached:13,824 out:768</div></div><div class="judge-card"><div class="judge-header"><strong>Claude</strong><span class="judge-time">0.0s</span></div><p class="judge-explanation">Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans &amp; Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CY7h5SyKTiDZbgQS3Mcxg'}</p><div class="dim-scores"><span class="dim-badge dim-red">COR:0</span><span class="dim-badge dim-red">COM:0</span><span class="dim-badge dim-red">SAF:0</span><span class="dim-badge dim-red">TON:0</span><span class="dim-badge dim-red">REA:0</span><span class="dim-badge dim-red">CON:0</span></div></div></div>
+                </div>
+            </div>
+</div>
+<div class="footer">
+  Auto-generated conversation test · SynapseOS · 2 messages · 1 assistant turns
+</div>
+</body>
+</html>

@@ -22,6 +22,7 @@ import {
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiUrl, authFetch } from "@/lib/api";
 
 interface ThreadSummary {
   name: string;
@@ -77,7 +78,7 @@ export function ThreadExplorer() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://localhost:8000/threads");
+      const response = await fetch(apiUrl("/threads"), authFetch());
       if (!response.ok) throw new Error("Failed to fetch threads");
       const data = await response.json();
       setThreads(data.threads || []);
@@ -92,7 +93,8 @@ export function ThreadExplorer() {
     setLoadingDetail(true);
     try {
       const response = await fetch(
-        `http://localhost:8000/threads/${encodeURIComponent(projectName)}`
+        apiUrl(`/threads/${encodeURIComponent(projectName)}`),
+        authFetch()
       );
       if (!response.ok) throw new Error("Failed to fetch thread details");
       const data = await response.json();
@@ -113,8 +115,8 @@ export function ThreadExplorer() {
     setDeleting(projectName);
     try {
       const response = await fetch(
-        `http://localhost:8000/threads/${encodeURIComponent(projectName)}`,
-        { method: "DELETE" }
+        apiUrl(`/threads/${encodeURIComponent(projectName)}`),
+        authFetch({ method: "DELETE" })
       );
       if (!response.ok) throw new Error("Failed to delete thread");
 

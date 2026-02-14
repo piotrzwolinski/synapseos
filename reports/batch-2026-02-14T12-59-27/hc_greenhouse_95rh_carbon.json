@@ -1,0 +1,352 @@
+{
+  "name": "hc_greenhouse_95rh_carbon",
+  "description": "[HC] Greenhouse 95% RH + GDC → carbon humidity degradation warning",
+  "query": "We are installing a GDC-600x600 carbon housing in a greenhouse. Temperature: 30°C. Humidity: 95% RH. Airflow: 2000 m³/h. The goal is VOC removal.",
+  "session_id": "f1477311-e8b4-4b2a-bbd7-ef704900543a",
+  "duration_s": 38.8,
+  "error": "Missing key inputs argument! To use the Google AI API, provide (`api_key`) arguments. To use the Google Cloud API, provide (`vertexai`, `project` & `location`) arguments.",
+  "turns": [
+    {
+      "role": "user",
+      "content": "We are installing a GDC-600x600 carbon housing in a greenhouse. Temperature: 30°C. Humidity: 95% RH. Airflow: 2000 m³/h. The goal is VOC removal.",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T11:56:08.412161+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "For the greenhouse VOC removal project, the GDC-600x600 housing is suitable for the specified 2000 m³/h airflow and 600x600mm duct dimensions.However, the application exposes the system to both Chemical Vapor Exposure and High Humidity. To proceed with the configuration, I need to know the filter depth to determine the appropriate housing length.Which housing length do you need?",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T11:56:20.915491+00:00",
+      "clarification": {
+        "missing_info": "housing_length",
+        "why_needed": "To determine the appropriate housing length.",
+        "options": [
+          {
+            "value": "750mm",
+            "description": "750mm",
+            "display_label": null
+          },
+          {
+            "value": "900mm",
+            "description": "900mm",
+            "display_label": null
+          }
+        ],
+        "question": "Which housing length do you need?"
+      },
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 5.0,
+          "explanation": "The system correctly verified the airflow capacity for the GDC 600x600 against the catalog and identified that the housing length was missing, which is a necessary parameter for this product family. It also correctly flagged the high humidity environment, which is critical for future material selection steps.",
+          "dimension_explanations": {
+            "correctness": "The system correctly identifies that GDC 600x600 is rated for 2000 m³/h (verified against PDF p.14 table 'MÅTT').",
+            "completeness": "The system correctly pauses to request the housing length/filter depth, which determines the physical dimensions (750/800mm vs 900/950mm).",
+            "safety": "The system acknowledges the 'High Humidity' (95% RH) and chemical exposure, which are critical factors for this application.",
+            "tone": "Professional and direct.",
+            "reasoning_quality": "The logic is sound: verify airflow capacity -> identify missing configuration parameter -> request clarification.",
+            "constraint_adherence": "Respects the catalog logic that GDC housings come in multiple lengths based on filter cylinder depth."
+          },
+          "strengths": [
+            "Accurate verification of airflow capacity against catalog data",
+            "Correct identification of variable housing length options for GDC family"
+          ],
+          "weaknesses": [],
+          "pdf_citations": [
+            "GDC 600x600: Rek. flöde = 2000 m³/h (PDF p.14)",
+            "GDC housing lengths: 750/800 mm or 900/950 mm depending on filter depth (PDF p.14)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 20.94,
+            "prompt_tokens": 15475,
+            "cached_tokens": 15822,
+            "output_tokens": 485
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 3,
+            "completeness": 3,
+            "safety": 3,
+            "tone": 4,
+            "reasoning_quality": 4,
+            "constraint_adherence": 4
+          },
+          "overall_score": 3.35,
+          "explanation": "The system correctly recognized that a GDC 600x600 can match 2000 m³/h per the catalog and appropriately requested a missing selection parameter (housing length/filter depth) before issuing product cards. However, it did not address the key greenhouse constraint (very high RH/condensation risk) and gave an overconfident suitability statement without discussing media selection and corrosion/material implications.",
+          "dimension_explanations": {
+            "correctness": "PDF confirms GDC 600x600 has Rek. flöde 2000 m³/h and 16 patroner (GDC table), so the airflow claim is consistent; but the blanket statement that it is 'suitable' in 95% RH/chemical vapor exposure is not substantiated and should have been qualified by material/media and condensation risk.",
+            "completeness": "It asked for housing length (good) but did not ask for or mention critical inputs for VOC carbon design (VOC type/concentration, required outlet level, contact time, prefiltration/particle stage, condensate control).",
+            "safety": "It flagged high humidity/chemical exposure but did not warn about condensation/wet carbon leading to loss of adsorption, microbial growth risk, or corrosion implications—important for 95% RH greenhouse duty.",
+            "tone": "Professional and appropriately concise for a technical sales/engineering dialogue.",
+            "reasoning_quality": "Reasoning was structured (environment flags → need filter depth/length) and aligned with sizing workflow, but it lacked the key causal link between 95% RH and carbon performance/condensation management.",
+            "constraint_adherence": "Did not violate catalog constraints and correctly withheld product cards until missing parameters were provided; it did not invent non-catalog lengths."
+          },
+          "strengths": [
+            "Correctly aligns stated airflow (2000 m³/h) with the GDC-600x600 recommended flow in the catalog and maintains the W x H convention.",
+            "Appropriate clarification behavior by requesting housing length/filter depth prior to final configuration/product card output."
+          ],
+          "weaknesses": [
+            "Overconfident suitability statement for a 95% RH application without qualifying condensation risk, media selection, and corrosion/material requirements.",
+            "Misses key VOC design questions (compound mix, target ppm/odor threshold, residence time, prefilter/polishing filter need) that materially affect housing and media choice."
+          ],
+          "pdf_citations": [
+            "GDC size 600x600: Rek. flöde = 2000 m³/h, antal patroner = 16 (GDC 'MÅTT' table, catalog page showing GDC dimensions/performance).",
+            "GDC available lengths: 750/800 mm and 900/950 mm (GDC product description/options section)."
+          ],
+          "recommendation": "BORDERLINE",
+          "usage": {
+            "duration_s": 13.36,
+            "prompt_tokens": 36845,
+            "cached_tokens": 16896,
+            "output_tokens": 670
+          }
+        },
+        "anthropic": {
+          "scores": {
+            "correctness": 4,
+            "completeness": 3,
+            "safety": 2,
+            "tone": 4,
+            "reasoning_quality": 3,
+            "constraint_adherence": 3
+          },
+          "overall_score": 3.05,
+          "explanation": "The system correctly identifies the GDC-600x600 as suitable for 2000 m³/h (matching PDF: Rek. flöde = 2000 m³/h for GDC 600x600) and appropriately asks for housing length. However, it critically fails to address the 95% RH humidity concern — at near-saturation humidity, activated carbon adsorption efficiency drops dramatically, and the system should have flagged this as a major risk. The material question (FZ default is C2, inadequate for a humid greenhouse) was also not raised.",
+          "dimension_explanations": {
+            "correctness": "GDC 600x600 Rek. flöde = 2000 m³/h (PDF p.14) matches the stated airflow; the system correctly identifies this size as suitable. The mention of chemical vapor exposure and high humidity is directionally correct.",
+            "completeness": "The system asks about housing length (valid clarification) but fails to address material selection for the high-humidity environment, does not mention the severe impact of 95% RH on activated carbon performance, and does not discuss pre-filtration or condensation management.",
+            "safety": "At 95% RH and 30°C, activated carbon adsorption capacity is severely degraded — this is a critical safety/performance concern that the system failed to explicitly warn about. Additionally, standard galvanized (FZ, C2) housing in a 95% RH greenhouse environment is a corrosion risk that was not flagged.",
+            "tone": "Professional and consultative tone appropriate for a technical sales context.",
+            "reasoning_quality": "The system mentions 'Chemical Vapor Exposure and High Humidity' as concerns but does not explain the engineering implications (carbon moisture loading, corrosion risk, condensation), leaving the reasoning incomplete.",
+            "constraint_adherence": "The system does not flag that the default FZ material (C2) is likely inadequate for a 95% RH greenhouse environment, nor does it enforce any humidity-related constraints on carbon filtration performance."
+          },
+          "strengths": [
+            "Correctly matches GDC-600x600 to the 2000 m³/h airflow requirement per catalog specifications",
+            "Appropriately asks for housing length clarification before finalizing the recommendation"
+          ],
+          "weaknesses": [
+            "Fails to warn about the critical impact of 95% RH on activated carbon adsorption efficiency — this is a well-established filtration science concern that should be prominently flagged",
+            "Does not address material suitability for a high-humidity greenhouse environment (FZ/C2 default is insufficient; should recommend at least AZ/C4 or RF/C5)",
+            "No mention of condensation risk, pre-conditioning of air, or need for humidity control upstream of the carbon stage"
+          ],
+          "pdf_citations": [
+            "GDC 600x600: Rek. flöde = 2000 m³/h, 16 patroner, Vikt 32 kg (750/800), Vikt 40 kg (900/950) (PDF p.14)",
+            "GDC standard material is FZ (förzinkat), Korrosivitetsklass C2 (PDF p.14)",
+            "GDC housing lengths: 750/800mm for 450mm cylinders, 900/950mm for 450mm + polisfilter or 600mm cylinders (PDF p.14)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 26.26,
+            "prompt_tokens": 352,
+            "cached_tokens": 53610,
+            "output_tokens": 909
+          }
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDC",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Consider alternative technology",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 9 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "♟️ Additional info needed",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDC",
+        "accessories": [],
+        "pending_clarification": "housing_length",
+        "resolved_params": {
+          "installation_environment": "ENV_INDOOR",
+          "airflow_m3h": "2000",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": 2000,
+            "product_family": "GDC",
+            "product_code": "GDC-600x600-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 2,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "f1477311-e8b4-4b2a-bbd7-ef704900543a",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDC",
+          "locked_material": null,
+          "name": null,
+          "pending_clarification": "housing_length",
+          "resolved_params": "{\"installation_environment\": \"ENV_INDOOR\", \"airflow_m3h\": \"2000\", \"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDC",
+            "quantity": 1,
+            "airflow_m3h": 2000,
+            "session_id": "f1477311-e8b4-4b2a-bbd7-ef704900543a",
+            "filter_height": 600,
+            "product_code": "GDC-600x600-R-PG-FZ",
+            "housing_width": 600,
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_f1477311-e8b4-4b2a-bbd7-ef704900543a_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Filter 600x600mm -> Sized to 600x600 -> Code: GDC-600x600-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "For the greenhouse VOC removal project, the GDC-600x600 housing is suitable for the specified 2000 m³/h airflow and 600x600mm duct dimensions.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "However, the application exposes the system to both ",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Chemical Vapor Exposure",
+          "type": "INFERENCE",
+          "inference_logic": [
+            "Stressor: Chemical Vapor Exposure | Required trait: Porous Adsorption"
+          ]
+        },
+        {
+          "text": " and ",
+          "type": "GENERAL"
+        },
+        {
+          "text": "High Humidity",
+          "type": "INFERENCE",
+          "inference_logic": [
+            "Stressor: High Humidity | Relevant trait: Porous Adsorption",
+            "Stressor: High Humidity | Relevant trait: Corrosion Resistance C3"
+          ]
+        },
+        {
+          "text": ". To proceed with the configuration, I need to know the filter depth to determine the appropriate housing length.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Which housing length do you need?",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

@@ -30,6 +30,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY *.py ./
 COPY *.yaml ./
 COPY domain_config*.yaml ./
+COPY logic/ ./logic/
+COPY static/ ./static/
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash appuser && \

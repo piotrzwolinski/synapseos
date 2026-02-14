@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Database, GitBranch, CheckCircle, XCircle } from "lucide-react";
+import { apiUrl, authFetch } from "@/lib/api";
 
 interface GraphStats {
   nodes: number;
@@ -17,7 +18,7 @@ export function GraphStats() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch("http://localhost:8000/graph/stats");
+        const response = await fetch(apiUrl("/graph/stats"), authFetch());
         if (!response.ok) {
           throw new Error("Failed to fetch graph stats");
         }

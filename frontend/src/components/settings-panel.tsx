@@ -23,6 +23,7 @@ import {
   Copy,
   Check,
 } from "lucide-react";
+import { apiUrl, authFetch } from "@/lib/api";
 
 interface DomainInfo {
   id: string;
@@ -160,7 +161,7 @@ export function SettingsPanel() {
 
   const fetchDomains = async () => {
     try {
-      const res = await fetch("http://localhost:8000/config/domains");
+      const res = await fetch(apiUrl("/config/domains"), authFetch());
       const data = await res.json();
       setDomains(data);
     } catch (error) {
@@ -170,7 +171,7 @@ export function SettingsPanel() {
 
   const fetchConfig = async () => {
     try {
-      const res = await fetch("http://localhost:8000/config/domain");
+      const res = await fetch(apiUrl("/config/domain"), authFetch());
       const data = await res.json();
       setConfig(data);
     } catch (error) {
@@ -181,9 +182,9 @@ export function SettingsPanel() {
   const switchDomain = async (domainId: string) => {
     setSwitching(true);
     try {
-      const res = await fetch(`http://localhost:8000/config/domain/${domainId}`, {
+      const res = await fetch(apiUrl(`/config/domain/${domainId}`), authFetch({
         method: "POST",
-      });
+      }));
       if (res.ok) {
         await fetchDomains();
         await fetchConfig();
@@ -200,9 +201,9 @@ export function SettingsPanel() {
     try {
       const currentDomain = domains?.current_domain;
       if (currentDomain) {
-        await fetch(`http://localhost:8000/config/domain/${currentDomain}/reload`, {
+        await fetch(apiUrl(`/config/domain/${currentDomain}/reload`), authFetch({
           method: "POST",
-        });
+        }));
       }
       await fetchConfig();
     } catch (error) {
@@ -653,6 +654,7 @@ export function SettingsPanel() {
               )}
             </>
           )}
+
         </div>
       </ScrollArea>
     </div>

@@ -1,0 +1,166 @@
+# Ground Truth — Graph Data for Multi-Step Tests
+# Verified via Neo4j MCP queries on 2026-02-12
+# Cross-referenced with PDF: filter_housings_sweden.pdf (01-09-2025)
+#
+# This file documents the exact graph state that test assertions depend on.
+# If graph data changes, update this file AND the corresponding test assertions.
+
+products:
+
+  FAM_GDC:
+    name: "GDC Patronfilterskåp"
+    type: "Carbon Housing"
+    construction_type: BOLTED
+    allowed_environments: [ENV_INDOOR, ENV_ATEX]
+    available_materials: [FZ, AZ, RF, SF, ZM]  # all 5
+    capacity_600x600:
+      rule_id: CAP_GDC_600
+      output_rating: 2000  # m3/h per 600x600 module
+      cartridge_count: 16
+    capacity_900x600:
+      rule_id: CAP_GDC_900
+      output_rating: 3000  # m3/h per 900x600 module (PDF p.14)
+      cartridge_count: 24
+    available_sizes:
+      - DIM_300x300
+      - DIM_300x600
+      - DIM_600x300
+      - DIM_600x600
+      - DIM_600x900
+      - DIM_900x600
+      - DIM_600x1200
+      - DIM_1200x600
+      - DIM_900x900
+      - DIM_900x1200
+    housing_lengths: [750, 900]  # from LEN_GDC_750, LEN_GDC_900
+    housing_depth_limits:
+      LEN_GDC_750: { mm: 750, max_filter_depth: 450 }  # max 450mm carbon cylinder
+      LEN_GDC_900: { mm: 900, max_filter_depth: 600 }  # max 600mm carbon cylinder
+    installation_constraints:
+      - IC_MATERIAL_CHLORINE
+      - IC_SERVICE_CLEARANCE
+      - IC_ENVIRONMENT_WHITELIST
+
+  FAM_GDC_FLEX:
+    name: "GDC FLEX"
+    type: "Carbon Housing with Rail"
+    construction_type: RAIL_MOUNTED
+    allowed_environments: [ENV_INDOOR, ENV_ATEX]
+    available_materials: [FZ, AZ, RF, SF, ZM]  # all 5
+    capacity_600x600:
+      rule_id: CAP_GDC_FLEX_600
+      output_rating: 1750  # m3/h per 600x600 module
+      theoretical_max: 2100
+      cartridge_count: 14
+    capacity_900x600:
+      rule_id: CAP_GDC_FLEX_900
+      output_rating: 2500  # m3/h per 900x600 module (PDF p.16)
+      cartridge_count: 20
+    housing_lengths: [750, 900]  # PDF p.15: "750 mm och 900 mm"
+    housing_depth_limits:
+      LEN_GDC_FLEX_750: { mm: 750, max_filter_depth: 450 }  # 450mm cylinder
+      LEN_GDC_FLEX_900: { mm: 900, max_filter_depth: 600 }  # 600mm cylinder
+    traits:
+      - TRAIT_POROUS_ADSORPTION
+      - TRAIT_EXTRACTABLE_RAIL
+    variable_features:
+      - FEAT_HOUSING_LENGTH_GDC  # Housing Length
+      - FEAT_AIRFLOW_GDC_FLEX    # Airflow
+      - FEAT_CONNECTION_GDC_FLEX  # Connection Type
+    installation_constraints:
+      - IC_MATERIAL_CHLORINE       # CROSS_NODE_THRESHOLD
+      - IC_SERVICE_CLEARANCE       # COMPUTED_FORMULA
+      - IC_ENVIRONMENT_WHITELIST   # SET_MEMBERSHIP
+    selection_priority: 22
+
+  FAM_GDMI:
+    name: "GDMI Modulfilterskåp"
+    type: "Insulated Module Housing"
+    construction_type: DOUBLE_WALL  # värme- och kondensisolerat (thermal + condensation insulated)
+    # NOTE: PDF says "för inomhusbruk" but graph allows ENV_OUTDOOR
+    # based on engineering properties (double-wall insulation prevents condensation)
+    allowed_environments: [ENV_INDOOR, ENV_OUTDOOR, ENV_ATEX, ENV_HOSPITAL, ENV_PHARMACEUTICAL]
+    available_materials: [AZ, ZM]  # NO FZ, NO RF, NO SF — PDF p.10 shows only AZ+ZM icons
+    capacity_600x600:
+      rule_id: CAP_GDMI_600
+      output_rating: 3400  # m3/h per 600x600 module
+    housing_lengths: [600, 850]  # from VF_GDMI_LENGTH (PG standard; F40: 650/900)
+    installation_constraints:
+      - IC_MATERIAL_CHLORINE
+      - IC_SERVICE_CLEARANCE
+      - IC_ENVIRONMENT_WHITELIST
+
+  FAM_GDB:
+    name: "GDB Kanalfilterskåp"
+    type: "Bag Filter Housing"
+    construction_type: BOLTED
+    insulation: NONE  # single-wall, non-insulated — condensation risk on rooftop
+    allowed_environments: [ENV_INDOOR, ENV_ATEX]
+    available_materials: [FZ, AZ, RF, SF, ZM]  # all 5
+    capacity_600x600:
+      rule_id: CAP_GDB_600
+      output_rating: 3400  # m3/h per 600x600 module (1.5 m/s face velocity)
+    housing_lengths: [550, 750]  # from LEN_GDB_550, LEN_GDB_750
+    length_variants:
+      LEN_GDB_550: { mm: 550, max_filter_depth: 450, desc: "For short bag filters (max 450mm bag)" }
+      LEN_GDB_750: { mm: 750, max_filter_depth: 650, desc: "For long bag filters (max 650mm bag)" }
+    installation_constraints:
+      - IC_MATERIAL_CHLORINE
+      - IC_SERVICE_CLEARANCE
+      - IC_ENVIRONMENT_WHITELIST
+
+  FAM_GDP:
+    name: "GDP Planfilterskåp"
+    allowed_environments: [ENV_INDOOR, ENV_ATEX]
+    available_materials: [FZ, AZ, RF, SF, ZM]  # all 5 (PDF p.5 shows all icons)
+    housing_lengths: [250]  # ALL GDP models have fixed length 250mm (PDF p.5)
+    capacity_600x600:
+      rule_id: CAP_GDP_600
+      output_rating: 2000  # m3/h per 600x600 module at 1.5 m/s (PDF p.6)
+    traits:
+      - TRAIT_MECHANICAL_FILTRATION
+      - TRAIT_MODULAR_ASSEMBLY
+    installation_constraints:
+      - IC_MATERIAL_CHLORINE
+      - IC_SERVICE_CLEARANCE
+      - IC_ENVIRONMENT_WHITELIST
+
+stressors:
+
+  STRESSOR_GREASE_EXPOSURE:
+    name: "Grease/Oil Exposure"
+    demands_trait: TRAIT_MECHANICAL_FILTRATION
+    # GDP has TRAIT_MECHANICAL_FILTRATION → GDP is the pre-filter
+    # GDC-FLEX does NOT have it → triggers assembly
+
+  STRESSOR_OUTDOOR_CONDENSATION:
+    name: "Outdoor Condensation"
+
+  STRESSOR_SALT_SPRAY:
+    name: "Salt Spray"
+    # Marine/C5 environment
+
+  STRESSOR_HYGIENE_REQUIREMENTS:
+    name: "Hygiene Requirements"
+    # Hospital environment
+
+environments:
+  ENV_OUTDOOR:
+    name: "Outdoor/Rooftop"
+  ENV_HOSPITAL:
+    name: "Hospital/Healthcare"
+  ENV_KITCHEN:
+    name: "Commercial Kitchen"
+  ENV_MARINE:
+    name: "Marine/Offshore"
+  ENV_INDOOR:
+    name: "Indoor"
+  ENV_ATEX:
+    name: "ATEX"
+
+materials:
+  MAT_FZ: { code: FZ, name: "Förzinkat (Ocynk)", corrosion_class: C3 }
+  MAT_AZ: { code: AZ, name: "Aluzink", corrosion_class: C4 }          # PDF p.4: C4 (was incorrectly C3)
+  MAT_RF: { code: RF, name: "Rostfri (Nierdzewna)", corrosion_class: C5 }
+  MAT_SF: { code: SF, name: "Syrafast (Kwasoodporna)", corrosion_class: C5.1 }  # PDF p.4: C5.I
+  MAT_ZM: { code: ZM, name: "Zinkmagnesium", corrosion_class: C5 }    # PDF p.4: C5 (was incorrectly C4)

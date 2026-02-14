@@ -1,0 +1,317 @@
+{
+  "name": "hc_shaft_service_access",
+  "description": "[HC] Shaft exactly 1200x1500 → service door clearance warning",
+  "query": "I have a shaft opening exactly 1200x1500 mm. I want GDB-1200x1500. Airflow: 17,000 m³/h.",
+  "session_id": "7e51f489-0d44-46e2-8953-bd6b13bbe3c1",
+  "duration_s": 63.0,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "I have a shaft opening exactly 1200x1500 mm. I want GDB-1200x1500. Airflow: 17,000 m³/h.",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T11:04:14.590827+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "The GDB-1200x1500 housing configuration is blocked due to insufficient service clearance. This unit requires a total width of 2400mm for servicing, but only 1500mm is available. The door hinge requires side clearance equal to the housing width.A verified alternative is the PFF Planfilterram, which requires only 1200mm of frontal space and fits within the available 1500mm.",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T11:04:28.367016+00:00",
+      "clarification": null,
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [
+        {
+          "type": "WARNING",
+          "text": "Blocked"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 4,
+            "tone": 5,
+            "reasoning_quality": 2,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.75,
+          "explanation": "The system correctly identified a critical installation constraint (side access blocked in a tight shaft) but failed significantly on the alternative recommendation. It suggested a PFF (flat filter frame) for a 17,000 m³/h application; PDF data shows PFF capacity is roughly 4x lower than required. The correct alternative for front-access high-flow would be BFF (Bag Filter Frame).",
+          "dimension_explanations": {
+            "correctness": "The system correctly blocked the GDB due to side access ('Lucksida = Höjdsida', PDF p.6), but the PFF recommendation is factually wrong for 17,000 m³/h (PFF max flows are ~3000-4000 m³/h per PDF p.21).",
+            "completeness": "The response failed to provide a viable solution for the user's airflow requirement and missed the correct product alternative (BFF) which allows front access and bag filters.",
+            "safety": "The system correctly identified the maintenance access risk, preventing an unusable installation.",
+            "tone": "Professional and clear.",
+            "reasoning_quality": "The logic for the block was sound (geometry), but the logic for the alternative was flawed (ignored physics/capacity).",
+            "constraint_adherence": "The system ignored the user's explicit airflow constraint (17,000 m³/h) when selecting the alternative product."
+          },
+          "strengths": [
+            "Correctly identified geometric constraint (side access blocked in shaft)",
+            "Professional tone"
+          ],
+          "weaknesses": [
+            "Recommended alternative (PFF) is incapable of handling requested airflow (17,000 m³/h)",
+            "Failed to identify the correct front-access high-flow product (BFF)"
+          ],
+          "pdf_citations": [
+            "GDB 1200x1500: Flöde=17,000 m³/h (PDF p.9)",
+            "GDB Access: 'Lucksida = Höjdsida' implies side access (PDF p.6)",
+            "PFF Capacity: PFF 1200x1200 rated ~3076 m³/h, far below 17,000 m³/h (PDF p.21)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 49.21,
+            "prompt_tokens": 15739,
+            "cached_tokens": 16023,
+            "output_tokens": 617
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 1,
+            "completeness": 2,
+            "safety": 3,
+            "tone": 4,
+            "reasoning_quality": 1,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.3,
+          "explanation": "The system blocks GDB-1200x1500 using fabricated clearance/hinge rules that are not present in the PDF, and it recommends PFF (a planfilter frame for GDP) as an alternative for a request explicitly for a GDB kanalfilterskåp. It also fails to validate the requested airflow against the PDF table and does not provide a correct alternative GDB/GDMI sizing path.",
+          "dimension_explanations": {
+            "correctness": "PDF lists GDB size 1200×1500 with Flöde=17 000 m³/h, so the user’s target size/flow is valid, contradicting the system’s “blocked due to insufficient service clearance” claim (GDB MÅTT table).",
+            "completeness": "It neither confirms the GDB-1200×1500 airflow/availability nor offers a correct alternative within the GDB/GDMI families when allegedly blocked.",
+            "safety": "It attempted to prevent a potentially unserviceable installation, but the stated clearance requirements are unverifiable in the PDF and may incorrectly block a valid configuration.",
+            "tone": "Professional and clear warning language appropriate for technical sales.",
+            "reasoning_quality": "The logic relies on invented mechanisms (e.g., 'requires total width 2400mm' and hinge clearance equal to housing width) not supported by the PDF, making the reasoning unreliable.",
+            "constraint_adherence": "It violates catalog-based selection logic by steering to PFF (a planfilterram intended for GDP) instead of a kanalfilterskåp solution matching the user’s requested GDB application."
+          },
+          "strengths": [
+            "Communicates a block/warning clearly and concisely.",
+            "Tries to consider serviceability/maintenance access as part of selection."
+          ],
+          "weaknesses": [
+            "Hallucinated clearance/hinge constraints not found in the PDF; incorrectly blocks a catalog-valid GDB size/flow.",
+            "Recommends PFF (GDP accessory) as an alternative to a GDB housing, which does not satisfy the user’s product intent."
+          ],
+          "pdf_citations": [
+            "GDB 1200×1500: Flöde = 17 000 m³/h (GDB MÅTT table in the provided PDF images).",
+            "PFF: 'Passar till planfilterskåp GDP' (PFF PLANFILTERRAM page in the provided PDF images), indicating it is not an alternative to a GDB kanalfilterskåp."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 11.38,
+            "prompt_tokens": 37114,
+            "cached_tokens": 15872,
+            "output_tokens": 617
+          }
+        },
+        "anthropic": {
+          "scores": {
+            "correctness": 1,
+            "completeness": 2,
+            "safety": 2,
+            "tone": 3,
+            "reasoning_quality": 1,
+            "constraint_adherence": 1
+          },
+          "overall_score": 1.55,
+          "explanation": "The system incorrectly blocked a valid GDB-1200×1500 configuration (which exists in the PDF at exactly 17,000 m³/h) based on a fabricated 'service clearance' rule not found anywhere in the catalog. It then recommended PFF Planfilterram, which is designed for filter mats in GDP cabinets and cannot handle anywhere near 17,000 m³/h, making this a fundamentally wrong recommendation.",
+          "dimension_explanations": {
+            "correctness": "PDF p.9 confirms GDB 1200×1500 exists with Flöde=17,000 m³/h, exactly matching the user's request; the system's blocking reason ('2400mm service clearance', 'door hinge requires side clearance equal to housing width') is fabricated and not found in the PDF.",
+            "completeness": "The system fails to deliver the requested product and instead offers an inappropriate alternative (PFF) that cannot meet the airflow requirement; no housing length or material discussion occurs.",
+            "safety": "The system blocks a valid, catalog-listed configuration and steers the user toward a product (PFF) that is completely inadequate for 17,000 m³/h, creating a risk of undersized filtration.",
+            "tone": "Professional tone but the content is misleading; the warning formatting is appropriate.",
+            "reasoning_quality": "The reasoning chain is based entirely on a fabricated service clearance rule not present in the PDF; the '2400mm total width' claim and 'door hinge clearance' mechanism are hallucinated.",
+            "constraint_adherence": "Applies a non-existent constraint to block a valid product, then violates airflow capacity requirements by recommending PFF which maxes out at ~3,870 m³/h."
+          },
+          "strengths": [
+            "Professional warning formatting",
+            "Acknowledges the user's specific airflow requirement"
+          ],
+          "weaknesses": [
+            "Fabricates a 'service clearance' blocking rule not found in the PDF catalog",
+            "Recommends PFF Planfilterram which is entirely inappropriate for 17,000 m³/h bag/compact filter applications",
+            "Blocks a valid catalog product (GDB 1200×1500 = 17,000 m³/h) that perfectly matches the user's requirements",
+            "Uses hallucinated technical claims about door hinge clearance requirements"
+          ],
+          "pdf_citations": [
+            "GDB 1200×1500: Flöde=17,000 m³/h, Bredd=1200, Höjd=1500 (PDF p.9)",
+            "PFF largest size 1500×600: Flöde=3,870 m³/h (PDF p.21)",
+            "PDF states 'Lucksida = Höjdsida' for GDB but mentions no service clearance blocking rules (PDF p.9)",
+            "No mention of '2400mm service clearance' or 'door hinge side clearance equal to housing width' anywhere in PDF"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 34.55,
+            "prompt_tokens": 397,
+            "cached_tokens": 53780,
+            "output_tokens": 1412
+          }
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Verified alternatives: PFF Planfilterram",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 8 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 1200,
+            "height": 1500,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "available_space_mm": "1500",
+          "airflow_m3h": "17000",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 1200,
+            "filter_height": 1500,
+            "filter_depth": null,
+            "housing_width": 1200,
+            "housing_height": 1500,
+            "housing_length": null,
+            "airflow_m3h": 17000,
+            "product_family": "GDB",
+            "product_code": "GDB-1200x1500-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 1,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "7e51f489-0d44-46e2-8953-bd6b13bbe3c1",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDB",
+          "locked_material": null,
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"available_space_mm\": \"1500\", \"airflow_m3h\": \"17000\", \"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "quantity": 1,
+            "airflow_m3h": 17000,
+            "session_id": "7e51f489-0d44-46e2-8953-bd6b13bbe3c1",
+            "filter_height": 1500,
+            "product_code": "GDB-1200x1500-R-PG-FZ",
+            "housing_width": 1200,
+            "filter_width": 1200,
+            "housing_height": 1500,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_7e51f489-0d44-46e2-8953-bd6b13bbe3c1_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Filter 1200x1500mm -> Sized to 1200x1500 -> Code: GDB-1200x1500-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "The GDB-1200x1500 housing configuration is blocked due to insufficient service clearance. This unit requires a total width of 2400mm for servicing, but only 1500mm is available. The door hinge requires side clearance equal to the housing width.",
+          "type": "GENERAL",
+          "inference_logic": [
+            "INSTALLATION_CONSTRAINT_VIOLATION"
+          ]
+        },
+        {
+          "text": "A verified alternative is the PFF Planfilterram, which requires only 1200mm of frontal space and fits within the available 1500mm.",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

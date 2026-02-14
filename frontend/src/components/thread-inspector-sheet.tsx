@@ -20,6 +20,7 @@ import {
   FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiUrl, authFetch } from "@/lib/api";
 
 interface LogicNode {
   node_type: "Observation" | "Action";
@@ -70,7 +71,8 @@ export function ThreadInspectorSheet({
     setError(null);
     try {
       const response = await fetch(
-        `http://localhost:8000/knowledge/timeline?project_name=${encodeURIComponent(name)}`
+        apiUrl(`/knowledge/timeline?project_name=${encodeURIComponent(name)}`),
+        authFetch()
       );
       if (!response.ok) {
         if (response.status === 404) {

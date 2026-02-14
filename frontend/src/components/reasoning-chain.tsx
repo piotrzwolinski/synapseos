@@ -1,18 +1,32 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, Database, Brain, Shield, Filter, CheckCircle2, Package, AlertTriangle, FileText } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ChevronDown, Database, Brain, Shield, Filter, CheckCircle2, Package, AlertTriangle, FileText, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import { TraversalGraphPlayer } from "./traversal-graph-player";
+import { GlobalGraphViewer } from "./global-graph-viewer";
 
 // =============================================================================
 // TYPES - Matching backend DeepExplainableResponse
 // =============================================================================
 
+export interface GraphTraversal {
+  layer: number;           // 1=Inventory, 2=Physics/Rules, 3=Playbook
+  layer_name: string;      // Human-readable layer name
+  operation: string;       // What was queried
+  cypher_pattern?: string; // Cypher pattern used
+  nodes_visited: string[]; // Nodes traversed
+  relationships: string[]; // Relationships traversed
+  result_summary?: string; // Summary of what was found
+  path_description?: string; // Full reasoning chain like "GDB → FZ → VulnerableTo → Corrosion"
+}
+
 export interface ReasoningSummaryStep {
   step: string;
   icon: string;
   description: string;
+  graph_traversals?: GraphTraversal[];
 }
 
 export interface ContentSegment {
@@ -40,6 +54,7 @@ export interface ProductCard {
 export interface ClarificationOption {
   value: string;
   description: string;
+  display_label?: string;
 }
 
 export interface ClarificationRequest {
@@ -49,10 +64,19 @@ export interface ClarificationRequest {
   question: string;
 }
 
+// Status badge for resolved risks or confirmed states
+export interface StatusBadge {
+  type: "SUCCESS" | "INFO" | "WARNING";
+  text: string;
+}
+
 export interface DeepExplainableResponseData {
   reasoning_summary: ReasoningSummaryStep[];
   content_segments: ContentSegment[];
   product_card?: ProductCard;
+  product_cards?: ProductCard[];
+  // Status badges - shown at top for resolved states
+  status_badges?: StatusBadge[];
   // Autonomous Guardian - Risk Detection
   risk_detected?: boolean;
   risk_severity?: "CRITICAL" | "WARNING" | "INFO" | null;
@@ -65,6 +89,8 @@ export interface DeepExplainableResponseData {
   policy_warnings: string[];
   graph_facts_count: number;
   inference_count: number;
+  // Performance timings
+  timings?: Record<string, number>;
 }
 
 // Type for selected detail in the side panel
@@ -112,6 +138,156 @@ export interface ExplainableResponseData {
 // UI COMPONENT 1: THINKING TIMELINE
 // =============================================================================
 
+// Layer colors and icons
+const LAYER_CONFIG = {
+  1: { name: "Inventory", color: "bg-blue-500", textColor: "text-blue-600", bgLight: "bg-blue-50", borderColor: "border-blue-200" },
+  2: { name: "Physics", color: "bg-amber-500", textColor: "text-amber-600", bgLight: "bg-amber-50", borderColor: "border-amber-200" },
+  3: { name: "Playbook", color: "bg-violet-500", textColor: "text-violet-600", bgLight: "bg-violet-50", borderColor: "border-violet-200" },
+} as const;
+
+interface GraphTraversalItemProps {
+  traversal: GraphTraversal;
+}
+
+function GraphTraversalItem({ traversal }: GraphTraversalItemProps) {
+  const [expanded, setExpanded] = useState(false);
+  const config = LAYER_CONFIG[traversal.layer as keyof typeof LAYER_CONFIG] || LAYER_CONFIG[1];
+
+  // Check if this is a violation/warning
+  const isViolation = traversal.operation.toLowerCase().includes('violation') ||
+                      traversal.operation.toLowerCase().includes('mismatch') ||
+                      traversal.result_summary?.includes('MISMATCH') ||
+                      traversal.result_summary?.includes('fail');
+
+  return (
+    <div className={cn(
+      "mt-2 rounded-lg border",
+      isViolation ? "border-red-300 bg-red-50" : config.borderColor,
+      !isViolation && config.bgLight
+    )}>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left"
+      >
+        {/* Layer badge */}
+        <span className={cn(
+          "flex-shrink-0 w-5 h-5 rounded text-[10px] font-bold text-white flex items-center justify-center",
+          isViolation ? "bg-red-500" : config.color
+        )}>
+          {traversal.layer}
+        </span>
+        {/* Operation name */}
+        <span className={cn(
+          "flex-1 text-xs font-medium truncate",
+          isViolation ? "text-red-700" : "text-slate-700"
+        )}>
+          {isViolation && "⚠️ "}{traversal.operation}
+        </span>
+        {/* Node count */}
+        {traversal.nodes_visited.length > 0 && (
+          <span className="text-[10px] text-slate-400">
+            {traversal.nodes_visited.length} node{traversal.nodes_visited.length !== 1 ? 's' : ''}
+          </span>
+        )}
+        <ChevronDown className={cn("w-3 h-3 text-slate-400 transition-transform", expanded ? "" : "-rotate-90")} />
+      </button>
+
+      {expanded && (
+        <div className="px-2.5 pb-2.5 space-y-2">
+          {/* PATH DESCRIPTION - The "Critical Path" visualization */}
+          {traversal.path_description && (
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wide">Reasoning Chain</span>
+              <div className={cn(
+                "mt-1 px-3 py-2 rounded-lg font-mono text-[11px] overflow-x-auto whitespace-nowrap",
+                isViolation ? "bg-red-100 text-red-800 border border-red-200" : "bg-slate-800 text-emerald-400"
+              )}>
+                {traversal.path_description.split('──').map((part, i) => (
+                  <span key={i}>
+                    {i > 0 && <span className={isViolation ? "text-red-400" : "text-amber-400"}>→</span>}
+                    <span className={
+                      part.includes('✓') ? 'text-emerald-400' :
+                      part.includes('✗') ? 'text-red-400' :
+                      part.includes('VIOLATION') || part.includes('⛔') ? 'text-red-400 font-bold' :
+                      ''
+                    }>{part.replace(/▶/g, '')}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Result summary - prominent display */}
+          {traversal.result_summary && (
+            <div className={cn(
+              "px-3 py-2 rounded-lg text-xs",
+              isViolation ? "bg-red-100 border border-red-200 text-red-800" : "bg-slate-50 border border-slate-200 text-slate-700"
+            )}>
+              <span className="font-semibold">{isViolation ? "⚠️ Finding: " : "✓ Result: "}</span>
+              {traversal.result_summary}
+            </div>
+          )}
+
+          {/* Cypher pattern - collapsible detail */}
+          {traversal.cypher_pattern && (
+            <details className="group">
+              <summary className="text-[10px] text-slate-400 uppercase tracking-wide cursor-pointer hover:text-slate-600">
+                Cypher Query <span className="text-slate-300">▸</span>
+              </summary>
+              <code className="block mt-1 px-2 py-1 bg-slate-800 text-emerald-400 text-[10px] rounded font-mono overflow-x-auto">
+                {traversal.cypher_pattern}
+              </code>
+            </details>
+          )}
+
+          {/* Nodes visited - visual chain */}
+          {traversal.nodes_visited.length > 0 && (
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wide">Nodes Traversed</span>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {traversal.nodes_visited.map((node, i) => {
+                  const isPass = node.includes('✓');
+                  const isFail = node.includes('✗') || node.includes('vulnerable');
+                  return (
+                    <span
+                      key={i}
+                      className={cn(
+                        "px-1.5 py-0.5 text-[10px] font-medium rounded border",
+                        isPass ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                        isFail ? "bg-red-50 text-red-700 border-red-200" :
+                        `${config.bgLight} ${config.textColor} ${config.borderColor}`
+                      )}
+                    >
+                      {node}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Relationships - with arrows */}
+          {traversal.relationships.length > 0 && (
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wide">Relationships Used</span>
+              <div className="mt-1 flex flex-wrap items-center gap-1">
+                {traversal.relationships.map((rel, i) => (
+                  <span key={i} className="flex items-center gap-0.5">
+                    {i > 0 && <span className="text-slate-300 text-[10px]">•</span>}
+                    <span className="px-1.5 py-0.5 text-[10px] font-mono text-violet-600 bg-violet-50 rounded border border-violet-200">
+                      :{rel}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface ThinkingTimelineProps {
   steps: ReasoningSummaryStep[];
   defaultCollapsed?: boolean;
@@ -119,8 +295,31 @@ interface ThinkingTimelineProps {
 
 export function ThinkingTimeline({ steps, defaultCollapsed = true }: ThinkingTimelineProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
+  const [showGlobalMap, setShowGlobalMap] = useState(false);
+
+  // Collect all traversals from all steps for the graph player
+  const allTraversals = useMemo(() => {
+    if (!steps) return [];
+    return steps.flatMap(step => step.graph_traversals || []);
+  }, [steps]);
 
   if (!steps || steps.length === 0) return null;
+
+  // Count total traversals across all steps
+  const totalTraversals = steps.reduce((sum, step) => sum + (step.graph_traversals?.length || 0), 0);
+
+  const toggleStepExpansion = (idx: number) => {
+    setExpandedSteps(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) {
+        next.delete(idx);
+      } else {
+        next.add(idx);
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="mb-4">
@@ -134,6 +333,12 @@ export function ThinkingTimeline({ steps, defaultCollapsed = true }: ThinkingTim
           <span className="font-medium">AI Process</span>
           <span className="text-slate-400">·</span>
           <span>{steps.length} steps</span>
+          {totalTraversals > 0 && (
+            <>
+              <span className="text-slate-400">·</span>
+              <span className="text-emerald-600">{totalTraversals} graph ops</span>
+            </>
+          )}
         </div>
         <ChevronDown
           className={cn(
@@ -143,25 +348,54 @@ export function ThinkingTimeline({ steps, defaultCollapsed = true }: ThinkingTim
         />
       </button>
 
+      {/* Global Knowledge Map Toggle */}
       {/* Collapsible Timeline */}
       {!collapsed && (
-        <div className="mt-3 ml-1 pl-4 border-l-2 border-slate-100 space-y-3">
-          {steps.map((step, idx) => (
-            <div key={idx} className="relative">
-              {/* Step indicator dot */}
-              <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-white border-2 border-slate-300" />
+        <>
+          {/* Step-by-step Timeline */}
+          <div className="mt-3 ml-1 pl-4 border-l-2 border-slate-100 space-y-3">
+            {steps.map((step, idx) => {
+              const hasTraversals = step.graph_traversals && step.graph_traversals.length > 0;
+              const isExpanded = expandedSteps.has(idx);
 
-              {/* Content */}
-              <div className="text-xs text-slate-500 font-medium uppercase tracking-wide flex items-center gap-1.5">
-                <span>{step.icon}</span>
-                <span>{step.step}</span>
-              </div>
-              <p className="mt-0.5 text-sm text-slate-600 leading-relaxed">
-                {step.description}
-              </p>
-            </div>
-          ))}
-        </div>
+              return (
+                <div key={idx} className="relative">
+                  {/* Step indicator dot */}
+                  <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-white border-2 border-slate-300" />
+
+                  {/* Content */}
+                  <div className="text-xs text-slate-500 font-medium uppercase tracking-wide flex items-center gap-1.5">
+                    <span>{step.icon}</span>
+                    <span>{step.step}</span>
+                    {/* Graph traversals badge */}
+                    {hasTraversals && (
+                      <button
+                        onClick={() => toggleStepExpansion(idx)}
+                        className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                      >
+                        <Database className="w-2.5 h-2.5" />
+                        {step.graph_traversals!.length} traversal{step.graph_traversals!.length !== 1 ? 's' : ''}
+                        <ChevronDown className={cn("w-2.5 h-2.5 transition-transform", isExpanded ? "" : "-rotate-90")} />
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-sm text-slate-600 leading-relaxed">
+                    {step.description}
+                  </p>
+
+                  {/* Graph Traversals - Expanded */}
+                  {hasTraversals && isExpanded && (
+                    <div className="mt-2 space-y-1">
+                      {step.graph_traversals!.map((traversal, tIdx) => (
+                        <GraphTraversalItem key={tIdx} traversal={traversal} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );
@@ -281,45 +515,105 @@ function InferenceBadge({
 }
 
 // Helper to render text with inline markdown formatting (bold, newlines, bullets)
+function renderInlineFormatting(line: string, keyPrefix: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  let k = 0;
+
+  const boldParts = line.split(/(\*\*[^*]+\*\*)/g);
+  boldParts.forEach((part) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      parts.push(
+        <strong key={`${keyPrefix}-b-${k++}`} className="font-semibold text-slate-900">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    } else if (part) {
+      if (part.startsWith('• ') || part.startsWith('- ')) {
+        parts.push(
+          <span key={`${keyPrefix}-bl-${k++}`} className="block pl-4 relative before:content-['•'] before:absolute before:left-1 before:text-slate-400">
+            {part.replace(/^[•\-]\s*/, '')}
+          </span>
+        );
+      } else {
+        parts.push(<span key={`${keyPrefix}-t-${k++}`}>{part}</span>);
+      }
+    }
+  });
+
+  return parts;
+}
+
 function renderFormattedText(text: string): React.ReactNode[] {
+  if (!text) return [];
   const parts: React.ReactNode[] = [];
   let key = 0;
 
-  // Split by newlines first
-  const lines = text.split('\n');
+  // Split by double newlines into paragraphs, then single newlines into lines
+  const paragraphs = text.split(/\n\n+/);
 
-  lines.forEach((line, lineIdx) => {
-    if (lineIdx > 0) {
-      // Add line break between lines
-      parts.push(<br key={`br-${key++}`} />);
+  paragraphs.forEach((paragraph, pIdx) => {
+    if (!paragraph.trim()) return;
+
+    if (pIdx > 0) {
+      // Paragraph break - visual gap
+      parts.push(<span key={`pgap-${key++}`} className="block h-3" />);
     }
 
-    // Handle bold text **text**
-    const boldParts = line.split(/(\*\*[^*]+\*\*)/g);
-    boldParts.forEach((part) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        // Bold text
-        parts.push(
-          <strong key={`b-${key++}`} className="font-semibold text-slate-900">
-            {part.slice(2, -2)}
-          </strong>
-        );
-      } else if (part) {
-        // Check for bullet points
-        if (part.startsWith('• ') || part.startsWith('- ')) {
-          parts.push(
-            <span key={`bullet-${key++}`} className="inline-block ml-2">
-              {part}
-            </span>
-          );
-        } else {
-          parts.push(<span key={`t-${key++}`}>{part}</span>);
-        }
+    const lines = paragraph.split('\n');
+    lines.forEach((line, lineIdx) => {
+      if (lineIdx > 0) {
+        parts.push(<br key={`br-${key++}`} />);
       }
+      parts.push(...renderInlineFormatting(line, `p${pIdx}l${lineIdx}`));
     });
   });
 
   return parts;
+}
+
+// Pre-compute paragraph break points for segment stream
+// Returns a Set of segment indices where a paragraph break should appear BEFORE that segment
+function computeParagraphBreaks(segments: ContentSegment[]): Set<number> {
+  const breaks = new Set<number>();
+  let charsSinceBreak = 0;
+
+  // Transition phrases that signal a new topic
+  const TOPIC_STARTERS = /^(Additionally|Furthermore|To address|To finalize|To proceed|However|Therefore|Stage \d|For this|The system|Given |In summary|Regarding)/i;
+
+  for (let i = 0; i < segments.length; i++) {
+    const text = segments[i].text || '';
+    const prevText = i > 0 ? (segments[i - 1].text || '') : '';
+
+    // Explicit \n\n in text = always break
+    if (text.includes('\n\n')) {
+      breaks.add(i);
+      charsSinceBreak = 0;
+      continue;
+    }
+
+    // Topic starters always break (even with short preceding paragraph)
+    if (i > 0 && TOPIC_STARTERS.test(text.trimStart())) {
+      breaks.add(i);
+      charsSinceBreak = 0;
+      continue;
+    }
+
+    // After enough text, break at sentence boundaries
+    if (i > 0 && charsSinceBreak > 180) {
+      const prevEndsSentence = /[.!?]\s*$/.test(prevText.trimEnd());
+      const startsNewSentence = /^[A-Z]/.test(text.trimStart());
+
+      if (prevEndsSentence && startsNewSentence) {
+        breaks.add(i);
+        charsSinceBreak = 0;
+        continue;
+      }
+    }
+
+    charsSinceBreak += text.length;
+  }
+
+  return breaks;
 }
 
 export function ExplainableChatBubble({
@@ -334,9 +628,9 @@ export function ExplainableChatBubble({
 
   // Check if content has complex markdown (headers, code blocks)
   const hasComplexMarkdown = segments.some(seg =>
-    seg.text.includes('##') ||
-    seg.text.includes('```') ||
-    seg.text.includes('|') // tables
+    seg.text?.includes('##') ||
+    seg.text?.includes('```') ||
+    seg.text?.includes('|') // tables
   );
 
   // For complex markdown without expert mode, use full ReactMarkdown
@@ -352,145 +646,163 @@ export function ExplainableChatBubble({
   // Helper to add space before segment if needed
   const needsSpaceBefore = (text: string, prevText?: string): boolean => {
     if (!prevText) return false;
+    const startsWithWhitespace = /^\s/.test(text);
+    if (startsWithWhitespace) return false;
     const startsWithPunctuation = /^[.,;:!?)}\]'"»\n•\-]/.test(text);
+    if (startsWithPunctuation) return false;
     const prevEndsWithSpace = /\s$/.test(prevText);
+    if (prevEndsWithSpace) return false;
     const prevEndsWithOpenBracket = /[(\[{«'"']$/.test(prevText);
+    if (prevEndsWithOpenBracket) return false;
     const prevEndsWithNewline = /\n$/.test(prevText);
-    return !startsWithPunctuation && !prevEndsWithSpace && !prevEndsWithOpenBracket && !prevEndsWithNewline;
+    if (prevEndsWithNewline) return false;
+    return true;
   };
 
-  return (
-    <div
-      className="text-sm text-gray-800"
-      style={{
-        lineHeight: '1.75',        // Line height for readability
-        whiteSpace: 'pre-wrap',    // Preserve newlines from backend
-      }}
-    >
-      {segments.map((segment, idx) => {
-        const isSelected = selectedDetailIdx === idx;
-        const prevSegment = idx > 0 ? segments[idx - 1] : null;
-        const addSpace = needsSpaceBefore(segment.text, prevSegment?.text);
+  const paragraphBreaks = computeParagraphBreaks(segments);
 
-        // GRAPH_FACT: Solid emerald underline - clickable text
-        if (segment.type === "GRAPH_FACT" && expertMode) {
-          return (
-            <span key={idx}>
-              {addSpace && ' '}
-              <span
-                onClick={() => onSelectDetail?.({
-                  type: "source",
-                  sourceId: segment.source_id,
-                  sourceText: segment.source_text,
-                  nodeType: segment.node_type,
-                  evidenceSnippet: segment.evidence_snippet,
-                  sourceDocument: segment.source_document,
-                  pageNumber: segment.page_number,
-                  keySpecs: segment.key_specs,
-                }, idx)}
-                className={cn(
-                  "cursor-pointer transition-colors pb-0.5",
-                  isSelected
-                    ? "bg-emerald-100"
-                    : "hover:bg-emerald-50"
-                )}
-                style={{
-                  textDecoration: "underline",
-                  textDecorationStyle: "solid",
-                  textDecorationColor: isSelected ? "#059669" : "#10b981",
-                  textDecorationThickness: "2px",
-                  textUnderlineOffset: "4px",
-                  textDecorationSkipInk: "none",
-                }}
-              >
-                {renderFormattedText(segment.text)}
-              </span>
-            </span>
-          );
-        }
+  // Render a single segment's content (shared across all segment types)
+  const renderSegmentContent = (segment: ContentSegment, idx: number) => {
+    const isSelected = selectedDetailIdx === idx;
+    const prevSegment = idx > 0 ? segments[idx - 1] : null;
+    const addSpace = !paragraphBreaks.has(idx) && needsSpaceBefore(segment.text, prevSegment?.text);
 
-        // INFERENCE: Dashed amber underline - clickable text (green solid if confirmed)
-        if (segment.type === "INFERENCE" && expertMode) {
-          const isConfirmed = confirmedInferences.has(idx);
-
-          // Get surrounding context for the rule
-          const getContextText = () => {
-            // Get previous GENERAL segments for context
-            const contextParts: string[] = [];
-            for (let i = Math.max(0, idx - 3); i < idx; i++) {
-              if (segments[i]?.type === "GENERAL") {
-                contextParts.push(segments[i].text.trim());
-              }
-            }
-            return contextParts.join(" ").slice(-100) || "General context";
-          };
-
-          return (
-            <span key={idx}>
-              {addSpace && ' '}
-              <span
-                onClick={() => onSelectDetail?.({
-                  type: "inference",
-                  inferenceLogic: segment.inference_logic,
-                }, idx)}
-                className={cn(
-                  "cursor-pointer transition-colors",
-                  isConfirmed
-                    ? "bg-emerald-50"
-                    : isSelected
-                      ? "bg-amber-100"
-                      : "hover:bg-amber-50"
-                )}
-                style={{
-                  textDecoration: "underline",
-                  textDecorationStyle: isConfirmed ? "solid" : "dashed",
-                  textDecorationColor: isConfirmed
-                    ? "#10b981"
-                    : isSelected
-                      ? "#d97706"
-                      : "#fbbf24",
-                  textDecorationThickness: "2px",
-                  textUnderlineOffset: "3px",
-                  textDecorationSkipInk: "none",
-                }}
-              >
-                {renderFormattedText(segment.text)}
-              </span>
-              {/* Confirm button - only show if not yet confirmed */}
-              {!isConfirmed && onConfirmInference && segment.inference_logic && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onConfirmInference(segment.inference_logic!, getContextText());
-                  }}
-                  className="inline-flex items-center justify-center w-4 h-4 ml-0.5 align-baseline text-amber-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
-                  title="Confirm this inference as a rule"
-                >
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </button>
-              )}
-              {/* Show confirmed badge */}
-              {isConfirmed && (
-                <span className="inline-flex items-center justify-center w-4 h-4 ml-0.5 align-baseline text-emerald-600" title="Rule confirmed">
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                </span>
-              )}
-            </span>
-          );
-        }
-
-        // GENERAL or non-expert mode: Plain text with formatting
-        return (
-          <span key={idx}>
-            {addSpace && ' '}
+    // GRAPH_FACT: Solid emerald underline - clickable text
+    if (segment.type === "GRAPH_FACT" && expertMode) {
+      return (
+        <span key={idx}>
+          {addSpace && ' '}
+          <span
+            onClick={() => onSelectDetail?.({
+              type: "source",
+              sourceId: segment.source_id,
+              sourceText: segment.source_text,
+              nodeType: segment.node_type,
+              evidenceSnippet: segment.evidence_snippet,
+              sourceDocument: segment.source_document,
+              pageNumber: segment.page_number,
+              keySpecs: segment.key_specs,
+            }, idx)}
+            className={cn(
+              "cursor-pointer transition-colors pb-0.5",
+              isSelected
+                ? "bg-emerald-100"
+                : "hover:bg-emerald-50"
+            )}
+            style={{
+              textDecoration: "underline",
+              textDecorationStyle: "solid",
+              textDecorationColor: isSelected ? "#059669" : "#10b981",
+              textDecorationThickness: "2px",
+              textUnderlineOffset: "4px",
+              textDecorationSkipInk: "none",
+            }}
+          >
             {renderFormattedText(segment.text)}
           </span>
-        );
-      })}
+        </span>
+      );
+    }
+
+    // INFERENCE: Dashed amber underline - clickable text (green solid if confirmed)
+    if (segment.type === "INFERENCE" && expertMode) {
+      const isConfirmed = confirmedInferences.has(idx);
+
+      const getContextText = () => {
+        const contextParts: string[] = [];
+        for (let i = Math.max(0, idx - 3); i < idx; i++) {
+          if (segments[i]?.type === "GENERAL") {
+            contextParts.push(segments[i].text.trim());
+          }
+        }
+        return contextParts.join(" ").slice(-100) || "General context";
+      };
+
+      return (
+        <span key={idx}>
+          {addSpace && ' '}
+          <span
+            onClick={() => onSelectDetail?.({
+              type: "inference",
+              inferenceLogic: segment.inference_logic,
+            }, idx)}
+            className={cn(
+              "cursor-pointer transition-colors",
+              isConfirmed
+                ? "bg-emerald-50"
+                : isSelected
+                  ? "bg-amber-100"
+                  : "hover:bg-amber-50"
+            )}
+            style={{
+              textDecoration: "underline",
+              textDecorationStyle: isConfirmed ? "solid" : "dashed",
+              textDecorationColor: isConfirmed
+                ? "#10b981"
+                : isSelected
+                  ? "#d97706"
+                  : "#fbbf24",
+              textDecorationThickness: "2px",
+              textUnderlineOffset: "3px",
+              textDecorationSkipInk: "none",
+            }}
+          >
+            {renderFormattedText(segment.text)}
+          </span>
+          {!isConfirmed && onConfirmInference && segment.inference_logic && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onConfirmInference(segment.inference_logic!, getContextText());
+              }}
+              className="inline-flex items-center justify-center w-4 h-4 ml-0.5 align-baseline text-amber-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+              title="Confirm this inference as a rule"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </button>
+          )}
+          {isConfirmed && (
+            <span className="inline-flex items-center justify-center w-4 h-4 ml-0.5 align-baseline text-emerald-600" title="Rule confirmed">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </span>
+          )}
+        </span>
+      );
+    }
+
+    // GENERAL or non-expert mode: Plain text with formatting
+    return (
+      <span key={idx}>
+        {addSpace && ' '}
+        {renderFormattedText(segment.text)}
+      </span>
+    );
+  };
+
+  // Group segments into paragraphs
+  const paragraphs: { startIdx: number; endIdx: number }[] = [];
+  let currentStart = 0;
+  for (let i = 0; i < segments.length; i++) {
+    if (paragraphBreaks.has(i) && i > currentStart) {
+      paragraphs.push({ startIdx: currentStart, endIdx: i });
+      currentStart = i;
+    }
+  }
+  paragraphs.push({ startIdx: currentStart, endIdx: segments.length });
+
+  return (
+    <div className="text-[13.5px] text-gray-800 leading-[1.8] max-w-[72ch] space-y-4">
+      {paragraphs.map((para, pIdx) => (
+        <p key={pIdx} className="m-0">
+          {segments.slice(para.startIdx, para.endIdx).map((seg, relIdx) =>
+            renderSegmentContent(seg, para.startIdx + relIdx)
+          )}
+        </p>
+      ))}
     </div>
   );
 }
@@ -578,7 +890,11 @@ export function ProductCardComponent({ card, onAction, riskSeverity }: ProductCa
           {Object.entries(card.specs).map(([key, value]) => (
             <div key={key}>
               <span className="text-[11px] text-slate-400 uppercase tracking-wide">{key}</span>
-              <p className="text-sm text-slate-700 font-medium mt-0.5">{value}</p>
+              <p className="text-sm text-slate-700 font-medium mt-0.5">
+                {typeof value === 'object' && value !== null
+                  ? (value as Record<string, unknown>).value as string ?? JSON.stringify(value)
+                  : String(value)}
+              </p>
             </div>
           ))}
         </div>
@@ -592,41 +908,6 @@ export function ProductCardComponent({ card, onAction, riskSeverity }: ProductCa
             <p className="text-xs text-slate-600 leading-relaxed">{card.warning}</p>
           </div>
         )}
-
-        {/* Actions - Different for CRITICAL risks */}
-        <div className="mt-4 flex gap-2">
-          {isCritical ? (
-            <>
-              <button
-                onClick={() => onAction?.("View Safer Alternative")}
-                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-all"
-              >
-                🛡️ View Safer Alternative
-              </button>
-              <button
-                onClick={() => onAction?.("Acknowledge Risk")}
-                className="px-4 py-2.5 rounded-lg text-sm font-medium bg-white text-red-600 border-2 border-red-300 hover:bg-red-50 transition-all"
-              >
-                I Accept Risk
-              </button>
-            </>
-          ) : card.actions && card.actions.length > 0 ? (
-            card.actions.map((action, idx) => (
-              <button
-                key={idx}
-                onClick={() => onAction?.(action)}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                  idx === 0
-                    ? "bg-slate-900 text-white hover:bg-slate-800"
-                    : "bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                )}
-              >
-                {action}
-              </button>
-            ))
-          ) : null}
-        </div>
       </div>
     </div>
   );
@@ -677,7 +958,40 @@ interface ConfidenceIndicatorProps {
 }
 
 // =============================================================================
-// COMPLIANCE CONFIRMATION BADGE (Risk Resolved)
+// STATUS BADGES (Top of message - for resolved states)
+// =============================================================================
+
+interface StatusBadgesProps {
+  badges: StatusBadge[];
+}
+
+export function StatusBadges({ badges }: StatusBadgesProps) {
+  if (!badges || badges.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2 mb-3">
+      {badges.map((badge, idx) => (
+        <span
+          key={idx}
+          className={cn(
+            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
+            badge.type === "SUCCESS" && "bg-emerald-50 text-emerald-700 border border-emerald-200",
+            badge.type === "INFO" && "bg-blue-50 text-blue-700 border border-blue-200",
+            badge.type === "WARNING" && "bg-amber-50 text-amber-700 border border-amber-200"
+          )}
+        >
+          {badge.type === "SUCCESS" && <CheckCircle2 className="w-3 h-3" />}
+          {badge.type === "INFO" && <Info className="w-3 h-3" />}
+          {badge.type === "WARNING" && <AlertTriangle className="w-3 h-3" />}
+          {badge.text}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// =============================================================================
+// COMPLIANCE CONFIRMATION BADGE (Risk Resolved) - Legacy, kept for backwards compat
 // =============================================================================
 
 export function ComplianceBadge() {
@@ -734,12 +1048,13 @@ interface PolicyWarningProps {
 }
 
 export function PolicyWarning({ warning }: PolicyWarningProps) {
+  if (!warning || warning === "null" || warning === "None") return null;
   return (
     <div className="flex items-start gap-2.5 px-3 py-2.5 border border-amber-200 bg-amber-50/50 rounded-lg mt-3">
       <div className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
         <AlertTriangle className="w-3 h-3 text-amber-600" />
       </div>
-      <p className="text-xs text-slate-600 leading-relaxed">{warning}</p>
+      <p className="text-xs text-slate-600 leading-relaxed">{typeof warning === 'string' ? warning : ((warning as any)?.message || (warning as any)?.description || JSON.stringify(warning))}</p>
     </div>
   );
 }
@@ -756,44 +1071,31 @@ interface RiskDetectedBannerProps {
 export function RiskDetectedBanner({ warnings, severity }: RiskDetectedBannerProps) {
   if (!warnings || warnings.length === 0) return null;
 
+  const filtered = warnings
+    .filter(w => w && w !== "null" && w !== "None")
+    .map(w => typeof w === 'string' ? w : ((w as any)?.message || (w as any)?.description || JSON.stringify(w)));
+
+  if (filtered.length === 0) return null;
+
   const isCritical = severity === "CRITICAL";
   const isWarning = severity === "WARNING";
 
   return (
     <div className={cn(
-      "mb-4 border rounded-lg px-4 py-3",
+      "rounded-lg border-l-3 overflow-hidden",
       isCritical
-        ? "border-red-300 border-l-4 border-l-red-600 bg-red-50"
+        ? "bg-red-50/60 border-l-red-500 text-red-700"
         : isWarning
-          ? "border-amber-200 border-l-4 border-l-amber-500 bg-amber-50/50"
-          : "border-red-200 border-l-4 border-l-red-500 bg-red-50/50"
+          ? "bg-amber-50/60 border-l-amber-500 text-amber-700"
+          : "bg-red-50/50 border-l-red-400 text-red-600"
     )}>
-      <div className={cn(
-        "flex items-start gap-2.5",
-        isCritical ? "text-red-900" : isWarning ? "text-amber-800" : "text-red-800"
-      )}>
-        <AlertTriangle className={cn(
-          "w-5 h-5 flex-shrink-0 mt-0.5",
-          isCritical && "text-red-600"
-        )} />
-        <div className="flex-1">
-          {isCritical && (
-            <div className="font-bold text-red-700 mb-1 text-sm uppercase tracking-wide">
-              ⛔ Critical Engineering Risk
-            </div>
-          )}
-          <p className="text-sm leading-relaxed">{warnings.join(" ")}</p>
-          {isCritical && (
-            <div className="mt-3 flex gap-2">
-              <button className="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-md hover:bg-red-700 transition-colors">
-                View Safer Alternative
-              </button>
-              <button className="px-3 py-1.5 bg-white text-red-700 text-xs font-semibold rounded-md border border-red-300 hover:bg-red-50 transition-colors">
-                I Acknowledge the Risk
-              </button>
-            </div>
-          )}
-        </div>
+      <div className="px-3.5 py-3 space-y-2">
+        {filtered.map((w, idx) => (
+          <div key={idx} className="flex items-start gap-2.5">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 opacity-70" />
+            <p className="text-[13px] leading-relaxed">{w}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -830,17 +1132,21 @@ export function ClarificationCard({ clarification, onOptionSelect }: Clarificati
 
       {/* Horizontal Action Chips */}
       <div className="flex flex-wrap gap-2">
-        {clarification.options && clarification.options.map((option, idx) => (
-          <button
-            key={idx}
-            onClick={() => onOptionSelect?.(option.value, option.description)}
-            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-full hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 active:bg-blue-100 transition-all shadow-sm"
-            title={option.description}
-          >
-            {option.value}
-            {option.description && <span className="text-slate-400 font-normal"> · {option.description}</span>}
-          </button>
-        ))}
+        {clarification.options && clarification.options.map((option, idx) => {
+          const pillLabel = option.display_label || option.description || option.value;
+          const secondaryText = option.description && option.description !== pillLabel ? option.description : null;
+          return (
+            <button
+              key={idx}
+              onClick={() => onOptionSelect?.(option.value, option.description)}
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-full hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 active:bg-blue-100 transition-all shadow-sm"
+              title={option.description}
+            >
+              {pillLabel}
+              {secondaryText && <span className="text-slate-400 font-normal"> · {secondaryText}</span>}
+            </button>
+          );
+        })}
 
         {/* Custom Input Toggle */}
         {!showCustomInput ? (

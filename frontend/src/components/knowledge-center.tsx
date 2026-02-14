@@ -28,6 +28,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiUrl, authFetch } from "@/lib/api";
 
 interface KnowledgeCandidate {
   id: string;
@@ -111,7 +112,7 @@ export function KnowledgeCenter() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch("http://localhost:8000/knowledge/stats");
+      const response = await fetch(apiUrl("/knowledge/stats"), authFetch());
       if (response.ok) {
         const data = await response.json();
         setStats(data);
@@ -125,7 +126,7 @@ export function KnowledgeCenter() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://localhost:8000/knowledge/experts");
+      const response = await fetch(apiUrl("/knowledge/experts"), authFetch());
       if (!response.ok) throw new Error("Failed to fetch experts");
       const data = await response.json();
       setExperts(data.experts || []);
@@ -140,7 +141,7 @@ export function KnowledgeCenter() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://localhost:8000/knowledge/candidates?status=pending");
+      const response = await fetch(apiUrl("/knowledge/candidates?status=pending"), authFetch());
       if (!response.ok) throw new Error("Failed to fetch candidates");
       const data = await response.json();
       setCandidates(data.candidates || []);
@@ -155,7 +156,7 @@ export function KnowledgeCenter() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://localhost:8000/knowledge/library");
+      const response = await fetch(apiUrl("/knowledge/library"), authFetch());
       if (!response.ok) throw new Error("Failed to fetch library");
       const data = await response.json();
       setVerifiedSources(data.sources || []);
@@ -169,14 +170,14 @@ export function KnowledgeCenter() {
   const rejectCandidate = async (candidateId: string) => {
     setProcessingId(candidateId);
     try {
-      const response = await fetch("http://localhost:8000/knowledge/verify", {
+      const response = await fetch(apiUrl("/knowledge/verify"), authFetch({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           candidate_id: candidateId,
           action: "reject",
         }),
-      });
+      }));
       if (!response.ok) throw new Error("Failed to reject candidate");
       await fetchCandidates();
     } catch (err) {
@@ -212,11 +213,11 @@ export function KnowledgeCenter() {
         body.existing_source_id = selectedSourceId;
       }
 
-      const response = await fetch("http://localhost:8000/knowledge/verify", {
+      const response = await fetch(apiUrl("/knowledge/verify"), authFetch({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
+      }));
       if (!response.ok) throw new Error("Failed to verify candidate");
       await fetchCandidates();
       setVerifyModalOpen(false);

@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>70-Test Judge Analysis & Fix Report — 2026-02-14</title>
+<style>
+  :root { --bg:#0f1117; --card:#1a1d27; --border:#2a2d3a; --text:#e0e0e8; --muted:#8888a0; --accent:#7c5cff; --green:#22c55e; --yellow:#eab308; --red:#ef4444; --blue:#3b82f6; --orange:#f97316; --pink:#ec4899; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; padding:24px; max-width:1200px; margin:0 auto; }
+  h1 { font-size:28px; font-weight:700; margin-bottom:8px; }
+  h2 { font-size:22px; font-weight:600; margin:36px 0 16px; color:var(--accent); border-bottom:1px solid var(--border); padding-bottom:8px; }
+  h3 { font-size:17px; font-weight:600; margin:16px 0 8px; }
+  .subtitle { color:var(--muted); margin-bottom:24px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px; }
+  .card.critical { border-left:4px solid var(--red); }
+  .card.high { border-left:4px solid var(--orange); }
+  .card.medium { border-left:4px solid var(--yellow); }
+  .card.low { border-left:4px solid var(--blue); }
+  .card.infra { border-left:4px solid var(--pink); }
+  .badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+  .badge.critical { background:rgba(239,68,68,0.15); color:var(--red); }
+  .badge.high { background:rgba(249,115,22,0.15); color:var(--orange); }
+  .badge.medium { background:rgba(234,179,8,0.15); color:var(--yellow); }
+  .badge.low { background:rgba(59,130,246,0.15); color:var(--blue); }
+  .badge.infra { background:rgba(236,72,153,0.15); color:var(--pink); }
+  table { width:100%; border-collapse:collapse; margin:12px 0; font-size:14px; }
+  th,td { padding:8px 12px; text-align:left; border:1px solid var(--border); }
+  th { background:rgba(124,92,255,0.1); font-weight:600; }
+  td { background:var(--card); }
+  code { background:rgba(124,92,255,0.1); padding:2px 6px; border-radius:4px; font-size:13px; }
+  pre { background:#12141c; padding:16px; border-radius:8px; overflow-x:auto; font-size:13px; margin:12px 0; }
+  .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:16px 0; }
+  .summary-stat { text-align:center; }
+  .summary-stat .value { font-size:32px; font-weight:700; }
+  .summary-stat .label { color:var(--muted); font-size:13px; }
+  .arrow { color:var(--green); font-weight:700; }
+  .test-list { font-size:12px; margin-top:6px; }
+  .test-list span { display:inline-block; background:rgba(124,92,255,0.08); padding:1px 6px; border-radius:8px; margin:2px 3px 2px 0; }
+  .impact { font-size:13px; color:var(--muted); margin-top:10px; }
+  .impact strong { color:var(--text); }
+  ul { margin:8px 0 0 20px; font-size:14px; }
+  .bar-chart { margin:12px 0; }
+  .bar-row { display:flex; align-items:center; margin:4px 0; font-size:13px; }
+  .bar-label { width:180px; text-align:right; padding-right:12px; }
+  .bar-track { flex:1; height:20px; background:var(--border); border-radius:4px; overflow:hidden; position:relative; }
+  .bar-fill { height:100%; border-radius:4px; display:flex; align-items:center; padding-left:8px; font-size:11px; font-weight:600; color:white; }
+  .bar-value { width:50px; text-align:right; padding-left:8px; font-weight:600; }
+</style>
+</head>
+<body>
+
+<h1>70-Test Judge Analysis & Fix Report</h1>
+<p class="subtitle">Full test suite &middot; 2026-02-14 &middot; 3 LLM judges &times; 70 tests = 181 evaluations</p>
+
+<!-- ============ EXECUTIVE SUMMARY ============ -->
+<h2>Executive Summary</h2>
+
+<div class="summary-grid">
+  <div class="card"><div class="summary-stat">
+    <div class="value">70</div><div class="label">Tests Run</div>
+  </div></div>
+  <div class="card"><div class="summary-stat">
+    <div class="value" style="color:var(--green)">3.39</div><div class="label">Gemini Avg (70/70)</div>
+  </div></div>
+  <div class="card"><div class="summary-stat">
+    <div class="value" style="color:var(--red)">2.66</div><div class="label">GPT Avg (48/70)</div>
+  </div></div>
+  <div class="card"><div class="summary-stat">
+    <div class="value" style="color:var(--yellow)">2.87</div><div class="label">Claude Avg (63/70)</div>
+  </div></div>
+  <div class="card"><div class="summary-stat">
+    <div class="value" style="color:var(--orange)">3.01</div><div class="label">Combined Avg</div>
+  </div></div>
+</div>
+
+<div class="card">
+  <h3>Scores by Test Category</h3>
+  <div class="bar-chart">
+    <div class="bar-row">
+      <div class="bar-label">Sizing (20 tests)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:73%;background:var(--green)">3.65</div></div>
+      <div class="bar-value">3.65</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Hard Corner (20 tests)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:62%;background:var(--yellow)">3.08</div></div>
+      <div class="bar-value">3.08</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Production (10 tests)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:58%;background:var(--orange)">2.88</div></div>
+      <div class="bar-value">2.88</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Environment (20 tests)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:39%;background:var(--red)">1.94</div></div>
+      <div class="bar-value" style="color:var(--red)">1.94</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Issue Frequency Across All 70 Tests</h3>
+  <div class="bar-chart">
+    <div class="bar-row">
+      <div class="bar-label">Hallucination</div>
+      <div class="bar-track"><div class="bar-fill" style="width:49%;background:var(--red)">34 tests</div></div>
+      <div class="bar-value" style="color:var(--red)">34/70</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Duplicate Cards</div>
+      <div class="bar-track"><div class="bar-fill" style="width:43%;background:var(--orange)">30 tests</div></div>
+      <div class="bar-value">30/70</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Missing Alternatives</div>
+      <div class="bar-track"><div class="bar-fill" style="width:41%;background:var(--orange)">29 tests</div></div>
+      <div class="bar-value">29/70</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Wrong Weight</div>
+      <div class="bar-track"><div class="bar-fill" style="width:21%;background:var(--yellow)">15 tests</div></div>
+      <div class="bar-value">15/70</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Empty Response (DNS)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:19%;background:var(--pink)">13 tests</div></div>
+      <div class="bar-value">13/70</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Material Errors</div>
+      <div class="bar-track"><div class="bar-fill" style="width:19%;background:var(--yellow)">13 tests</div></div>
+      <div class="bar-value">13/70</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Fabricated ATEX Claims</div>
+      <div class="bar-track"><div class="bar-fill" style="width:11%;background:var(--yellow)">8 tests</div></div>
+      <div class="bar-value">8/70</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ #1 HALLUCINATION ============ -->
+<h2>Bug #1: Graph Jargon Leaking as Hallucination (34/70 tests)</h2>
+<div class="card critical">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3>System exposes internal graph terminology that judges flag as fabricated</h3>
+    <span class="badge critical">CRITICAL &mdash; #1 score killer</span>
+  </div>
+
+  <p style="margin:12px 0"><strong>Root cause:</strong> The system's responses contain terminology from the Neo4j graph that <strong>does not appear anywhere in the PDF catalog</strong>. The LLM judges have the PDF as their ground truth and rightfully penalize claims they can't verify.</p>
+
+  <h3>What the system says vs. what the PDF says:</h3>
+  <table>
+    <thead><tr><th>System Claims (from Graph)</th><th>PDF Reality</th><th>Impact</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>ENV_INDOOR</code>, <code>ENV_HOSPITAL</code>, <code>ENV_MARINE</code>, <code>ENV_ATEX</code></td>
+        <td>PDF has NO environment classification system. Products are described as "F&ouml;r inomhusbruk" (indoor use) in product descriptions, not as environment codes.</td>
+        <td style="color:var(--red)">All 3 judges flag as fabricated</td>
+      </tr>
+      <tr>
+        <td>"Bolted construction does not meet leakage class and hygiene requirements"</td>
+        <td>PDF mentions NO leakage classes, NO hygiene ratings, NO construction type restrictions per environment. This text comes from <code>IC_ENVIRONMENT_WHITELIST.error_msg</code> template.</td>
+        <td style="color:var(--red)">Flagged as hallucination in 15+ tests</td>
+      </tr>
+      <tr>
+        <td>"RAIL_MOUNTED construction"</td>
+        <td>PDF says "Enkelväggsutf&ouml;rande" (single-wall design) for FLEX products. No mention of "rail-mounted".</td>
+        <td style="color:var(--red)">Flagged in all GDC-FLEX env tests</td>
+      </tr>
+      <tr>
+        <td>"Approved for ENV_HOSPITAL", "VDI 6022 compliance"</td>
+        <td>PDF has NO hospital approval claims, NO VDI 6022 references. GDMI is described as "Modulfiltersk&aring;p" with insulated double-wall construction, nothing about hospital approval.</td>
+        <td style="color:var(--red)">Flagged in all hospital tests</td>
+      </tr>
+      <tr>
+        <td>"ATEX Zone 22 rated", "anti-static grounding"</td>
+        <td>PDF has ZERO ATEX references, no explosion protection claims, no grounding requirements.</td>
+        <td style="color:var(--red)">Flagged in all 8 ATEX tests</td>
+      </tr>
+      <tr>
+        <td>"C2-rated housing", "C5.1 marine-grade required"</td>
+        <td>PDF shows corrosion classes per material (FZ=C3, AZ=C4, ZM=C5, RF=C5, SF=C5.1) but does NOT assign corrosion classes to housings or require specific classes per environment.</td>
+        <td style="color:var(--orange)">Partially correct but overstated</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Root Cause Analysis:</h3>
+  <p style="margin:8px 0">The graph encodes a rich domain model with environment whitelists (<code>ProductFamily.allowed_environments</code>), construction types, and constraint templates — all valid engineering logic. BUT the LLM system prompt instructs the model to present these as factual product specifications. Since judges only have the PDF catalog, all of this appears fabricated.</p>
+
+  <p>Three specific sources:</p>
+  <ol>
+    <li><strong><code>IC_ENVIRONMENT_WHITELIST.error_msg</code></strong>: Template contains "does not meet the leakage class and hygiene requirements for this environment" — this phrasing is injected verbatim into the LLM context and repeated in the response.</li>
+    <li><strong><code>ProductFamily.allowed_environments</code></strong>: Arrays like <code>["ENV_INDOOR", "ENV_ATEX"]</code> get exposed as raw labels. The LLM then says "only rated for ENV_INDOOR and ENV_ATEX" instead of "designed for indoor use."</li>
+    <li><strong>LLM interpolation</strong>: Given graph labels like ENV_HOSPITAL and ENV_ATEX, the LLM confabulates details like "VDI 6022 compliance" and "anti-static grounding" from its training data, not from the graph or PDF.</li>
+  </ol>
+
+  <h3>Proposed Fix (3 parts):</h3>
+
+  <p><strong>Fix 1A — Rewrite constraint error templates (Graph):</strong></p>
+  <pre>
+// Current:
+IC_ENVIRONMENT_WHITELIST.error_msg = "Product not rated for {input_value}
+installation... does not meet the leakage class and hygiene requirements"
+
+// Fixed:
+IC_ENVIRONMENT_WHITELIST.error_msg = "This product is designed for indoor
+use only (see catalog description). For {input_value} installation,
+consider products with insulated double-wall construction."</pre>
+
+  <p><strong>Fix 1B — Add prompt guardrail (retriever.py system prompt):</strong></p>
+  <pre>
+"IMPORTANT: Only cite technical claims that appear in the product catalog.
+Do NOT invent standards (VDI 6022, ISO, EN), certifications (ATEX, CE),
+or environment ratings (ENV_HOSPITAL, ENV_MARINE) unless the catalog
+explicitly states them. If the graph says a product is blocked for an
+environment, explain WHY using catalog-visible properties (single-wall
+vs double-wall, material corrosion class) without fabricating standards."</pre>
+
+  <p><strong>Fix 1C — Translate graph labels to catalog language (verdict_adapter.py):</strong></p>
+  <pre>
+ENV_LABEL_MAP = {
+    "ENV_INDOOR": "indoor installation",
+    "ENV_OUTDOOR": "outdoor/rooftop installation",
+    "ENV_MARINE": "marine/offshore environments",
+    "ENV_HOSPITAL": "healthcare/cleanroom environments",
+    "ENV_ATEX": "potentially explosive atmospheres",
+    "ENV_KITCHEN": "commercial kitchen exhaust",
+}
+# Use in prompt injection: never expose raw ENV_ codes</pre>
+
+  <div class="impact">
+    <strong>Score impact estimate:</strong> This is the single biggest fix. Eliminates hallucination penalties on 34 tests.<br>
+    <strong>Gemini:</strong> +0.8 avg &nbsp; <strong>GPT:</strong> +0.7 avg &nbsp; <strong>Claude:</strong> +0.7 avg
+  </div>
+</div>
+
+<!-- ============ #2 EMPTY RESPONSES ============ -->
+<h2>Bug #2: Empty Responses from Transient Infrastructure Failures (13/70 tests)</h2>
+<div class="card infra">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3>Neo4j Aura DNS resolution failures cause silent pipeline crashes</h3>
+    <span class="badge infra">INFRA &mdash; not a code bug</span>
+  </div>
+
+  <p style="margin:12px 0"><strong>Root cause:</strong> During the batch run with 5 concurrent tests, Neo4j Aura's DNS resolution intermittently failed: <code>"Failed to DNS resolve address si-fd859df7-60d6.production-orch-0054.neo4j.io:7687"</code>. When this happens mid-pipeline (after Scribe but before LLM), the backend crashes without sending the <code>complete</code> SSE event. The test script receives inference steps but no response data.</p>
+
+  <p><strong>Evidence:</strong> When I re-tested the "pool" query manually (single request, no concurrency), it worked perfectly — returning a detailed response about FZ material being unsuitable for chlorinated environments.</p>
+
+  <p><strong>All 13 affected tests are <code>chatgpt_env_*</code></strong> — they ran during a window of DNS instability.</p>
+
+  <h3>Fix (2 parts):</h3>
+  <ul>
+    <li><strong>Backend resilience:</strong> Add retry logic with exponential backoff on Neo4j driver's DNS resolution errors in <code>database.py</code>. The driver should reconnect on transient failures.</li>
+    <li><strong>Test script resilience:</strong> Add retry logic in <code>auto_conversation_test.py</code> — if the response is empty, retry the test up to 2 times before marking as failed.</li>
+    <li><strong>Immediate action:</strong> <strong>Rerun these 13 tests</strong> to get valid scores. Current scores for this category (1.94 avg) are artificially low because 13/20 env tests returned empty.</li>
+  </ul>
+
+  <div class="test-list"><strong>Affected:</strong>
+    <span>env_airport_gdcflex_rf</span> <span>env_atex21_gdcflex</span> <span>env_atex22_gdb_fz</span>
+    <span>env_cement_gdc</span> <span>env_datacenter_gdmi_rf</span> <span>env_hospital_gdmi_rf</span>
+    <span>env_kitchen_gdcflex_rf</span> <span>env_office_gdc_fz</span> <span>env_outdoor_gdb_fz</span>
+    <span>env_outdoor_gdmi_zm</span> <span>env_pool_gdb_fz</span> <span>env_pool_gdc_fz</span>
+    <span>env_wastewater_h2s_fz</span>
+  </div>
+
+  <div class="impact">
+    <strong>Score impact (rerun only):</strong> These 13 tests currently score 1.0 (empty). With content, expect ~2.5-3.5 avg (still affected by Bug #1 hallucination). Env category would improve from 1.94 to ~2.8.<br>
+    <strong>Combined avg improvement:</strong> +0.25
+  </div>
+</div>
+
+<!-- ============ #3 DUPLICATE CARDS ============ -->
+<h2>Bug #3: Duplicate Product Cards (30/70 tests)</h2>
+<div class="card high">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3>LLM repeats product specifications in narrative text</h3>
+    <span class="badge high">HIGH &mdash; consistent -0.3 penalty</span>
+  </div>
+
+  <p style="margin:12px 0"><strong>Root cause:</strong> The Gemini LLM duplicates the product specification table in its narrative response text, even though the structured <code>entity_card</code> JSON already contains the same data. Judges interpret the text-based spec table as a "duplicate card."</p>
+
+  <p>The backend's card dedup only checks the structured <code>product_cards</code> array (which is correct — no actual duplication there). The duplication is in the <strong>free-text response</strong> where the LLM writes something like:</p>
+  <pre>
+"Here is the specification:
+- Product Code: GDB-600x600-750-R-PG-FZ
+- Weight: 34 kg
+- Airflow: 3400 m³/h
+..."
+
+// AND ALSO generates:
+entity_card: { title: "GDB Housing", specs: { "Product Code": "GDB-600x600-750-R-PG-FZ", ... } }</pre>
+
+  <h3>Fix:</h3>
+  <p>Add explicit prompt instruction in <code>retriever.py</code>:</p>
+  <pre>
+"NEVER repeat product specifications (code, weight, size, airflow) in your
+text response. The entity_card JSON handles that — the UI renders it as
+a structured card. Your text should ONLY contain reasoning, warnings,
+and explanations."</pre>
+
+  <div class="impact">
+    <strong>Score impact:</strong> Removes -0.3 penalty on 30 tests.<br>
+    <strong>GPT:</strong> +0.3 avg &nbsp; <strong>Claude:</strong> +0.3 avg &nbsp; <strong>Gemini:</strong> +0.1 avg
+  </div>
+</div>
+
+<!-- ============ #4 MISSING ALTERNATIVES ============ -->
+<h2>Bug #4: No Upsizing / Alternative Suggestions (29/70 tests)</h2>
+<div class="card high">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3>System blocks/multi-modules without suggesting catalog alternatives</h3>
+    <span class="badge high">HIGH &mdash; affects completeness scores</span>
+  </div>
+
+  <p style="margin:12px 0"><strong>Root cause:</strong> When a configuration is blocked (undersized, wrong material, wrong environment), the system either:</p>
+  <ul>
+    <li>Suggests multi-module parallel arrangement instead of a single larger housing</li>
+    <li>Says "contact custom engineering" without suggesting any catalog alternatives</li>
+    <li>Blocks without offering alternative product families or material upgrades</li>
+  </ul>
+
+  <p><strong>Examples:</strong></p>
+  <table>
+    <thead><tr><th>Scenario</th><th>System Does</th><th>Should Do</th></tr></thead>
+    <tbody>
+      <tr><td>GDB 600x600, 3800 m&sup3;/h</td><td>2&times; 600x600 (6800 m&sup3;/h, 79% overkill)</td><td>GDB 600x900 (5100 m&sup3;/h, single unit)</td></tr>
+      <tr><td>GDC 600x600, 2800 m&sup3;/h</td><td>2&times; 600x600 (4000 m&sup3;/h)</td><td>GDC 900x600 (3000 m&sup3;/h, single unit)</td></tr>
+      <tr><td>GDB FZ for hospital</td><td>"Blocked. Contact engineering."</td><td>"Blocked for FZ. GDMI in ZM meets hospital reqs. GDB in RF also viable."</td></tr>
+      <tr><td>GDC-FLEX for marine</td><td>"Not rated. No alternative."</td><td>"GDC FLEX is indoor-only. GDC (bolted, insulated option) in RF may work."</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Fix:</h3>
+  <ul>
+    <li><strong>Upsizing query:</strong> Before multi-module, query for single larger housing: <code>WHERE sp.recommended_airflow >= $required AND sp.family = $family ORDER BY airflow ASC LIMIT 3</code></li>
+    <li><strong>Cross-family alternatives:</strong> The alternatives system already exists (Prong 1/2 in <code>database.py</code>) but needs to be surfaced for environment blocks, not just material threshold blocks.</li>
+    <li><strong>Prompt instruction:</strong> "When blocking a configuration, ALWAYS suggest at least one catalog alternative."</li>
+  </ul>
+
+  <div class="impact">
+    <strong>Score impact:</strong> +0.4 completeness improvement on 29 tests.<br>
+    <strong>GPT:</strong> +0.4 avg &nbsp; <strong>Claude:</strong> +0.3 avg &nbsp; <strong>Gemini:</strong> +0.1 avg
+  </div>
+</div>
+
+<!-- ============ #5 WRONG WEIGHT ============ -->
+<h2>Bug #5: Incorrect Weights (15/70 tests)</h2>
+<div class="card medium">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3>DimensionModule parametric model produces wrong weights for non-GDB families</h3>
+    <span class="badge medium">MEDIUM</span>
+  </div>
+
+  <p style="margin:12px 0"><strong>Root cause:</strong> When no <code>ProductVariant</code> node exists for a specific family+size+length combination, the system falls back to <code>DimensionModule</code> parametric weights. These are calibrated for GDB only and produce wrong values for GDC, GDC-FLEX, GDMI, and large GDB sizes.</p>
+
+  <table>
+    <thead><tr><th>Test</th><th>System Weight</th><th>PDF Weight</th><th>Error</th></tr></thead>
+    <tbody>
+      <tr><td>GDB 1500x1200-750</td><td>77 kg</td><td><strong>90 kg</strong></td><td>-13 kg (no ProductVariant)</td></tr>
+      <tr><td>GDC-FLEX 600x600-750</td><td>34 kg</td><td><strong>32 kg</strong></td><td>+2 kg (no ProductVariant)</td></tr>
+      <tr><td>GDC-FLEX 900x600-750</td><td>41 kg</td><td><strong>40 kg</strong></td><td>+1 kg (no ProductVariant)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Fix:</h3>
+  <p>Create missing <code>ProductVariant</code> nodes with exact PDF weights. ~100+ nodes needed covering all families and all sizes from the PDF MATT tables. Use <code>/graph-builder</code> skill.</p>
+
+  <div class="impact"><strong>Score impact:</strong> +0.2 avg on 15 affected tests.</div>
+</div>
+
+<!-- ============ #6 MATERIAL ERRORS ============ -->
+<h2>Bug #6: Material Validation Errors (13/70 tests)</h2>
+<div class="card medium">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3>Material claims contradict PDF or graph, alternative materials missing</h3>
+    <span class="badge medium">MEDIUM</span>
+  </div>
+
+  <p style="margin:12px 0"><strong>Issues found:</strong></p>
+  <ul>
+    <li><strong>GDMI RF claim:</strong> System sometimes suggests GDMI in RF (stainless steel), but PDF p.11 explicitly says "Ej i Rostfritt" (not in stainless). Graph correctly has <code>FAM_GDMI &rarr; [AZ, ZM]</code> only, but some code paths still suggest RF for GDMI.</li>
+    <li><strong>ProductVariant.available_materials mismatch:</strong> e.g., <code>GDB-600x600-550</code> has <code>["FZ","ZM"]</code> but family has <code>["FZ","AZ","RF","SF","ZM"]</code>. These variant-level lists are incomplete.</li>
+    <li><strong>GDP frame depth in code:</strong> GDP product code uses <code>{frame_depth}</code> (25/50/100mm) but sometimes gets housing length (550/750) injected instead, producing invalid codes like <code>GDP-600x600-550-R-PG-FZ</code>.</li>
+  </ul>
+
+  <h3>Fix:</h3>
+  <ul>
+    <li>Clean up <code>ProductVariant.available_materials</code> to match family-level <code>AVAILABLE_IN_MATERIAL</code> edges (or remove variant-level materials entirely since the family check is authoritative).</li>
+    <li>Add defense in <code>retriever.py</code> alternative suggestions to never suggest RF/SF for GDMI family.</li>
+    <li>Fix GDP code builder to use <code>frame_depth</code> not <code>housing_length</code>.</li>
+  </ul>
+
+  <div class="impact"><strong>Score impact:</strong> +0.2 avg on 13 affected tests.</div>
+</div>
+
+<!-- ============ #7 FAKE ATEX ============ -->
+<h2>Bug #7: Fabricated ATEX Compliance Claims (8/70 tests)</h2>
+<div class="card medium">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3>System claims ATEX compliance with no PDF basis</h3>
+    <span class="badge medium">MEDIUM &mdash; safety concern</span>
+  </div>
+
+  <p style="margin:12px 0"><strong>Root cause:</strong> The graph has <code>ENV_ATEX</code> in <code>allowed_environments</code> for GDB, GDC, GDC-FLEX, GDMI, GDP. This makes the system say products are "rated for ATEX Zone 22". But the <strong>PDF catalog has ZERO ATEX references</strong>. The LLM then confabulates details about "anti-static grounding" and "explosion-proof media" from its training data.</p>
+
+  <p>This is a <strong>safety concern</strong>: claiming ATEX compliance for non-ATEX-certified equipment could lead to use in explosive environments.</p>
+
+  <h3>Fix:</h3>
+  <ul>
+    <li><strong>Remove <code>ENV_ATEX</code> from all <code>ProductFamily.allowed_environments</code></strong> unless actual ATEX certification is documented.</li>
+    <li>Add a prompt guardrail: "NEVER claim ATEX, explosion-proof, or zone compliance unless the catalog explicitly certifies it."</li>
+    <li>The <code>ENV_ATEX</code> environment node can remain for future use if ATEX data is added to the catalog.</li>
+  </ul>
+
+  <pre>
+// Cypher fix: Remove ATEX from allowed environments
+MATCH (pf:ProductFamily)
+WHERE 'ENV_ATEX' IN pf.allowed_environments
+SET pf.allowed_environments = [e IN pf.allowed_environments WHERE e &lt;&gt; 'ENV_ATEX']</pre>
+
+  <div class="impact"><strong>Score impact:</strong> +0.5 avg on 8 ATEX tests. Also prevents safety liability.</div>
+</div>
+
+<!-- ============ PROJECTED SCORES ============ -->
+<h2>Projected Scores After All Fixes</h2>
+
+<table>
+  <thead>
+    <tr><th>Category</th><th>Tests</th><th colspan="2">Gemini</th><th colspan="2">GPT</th><th colspan="2">Claude</th><th colspan="2">Avg</th></tr>
+    <tr><th></th><th></th><th>Now</th><th>Est.</th><th>Now</th><th>Est.</th><th>Now</th><th>Est.</th><th>Now</th><th>Est.</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Sizing</td><td>20</td>
+      <td>4.83</td><td style="color:var(--green)">5.00</td>
+      <td>3.32</td><td style="color:var(--green)">4.30</td>
+      <td>3.61</td><td style="color:var(--green)">4.40</td>
+      <td>3.92</td><td style="color:var(--green)"><strong>4.57</strong></td>
+    </tr>
+    <tr>
+      <td>Environment</td><td>20</td>
+      <td>1.89</td><td style="color:var(--green)">3.80</td>
+      <td>1.75</td><td style="color:var(--green)">3.20</td>
+      <td>1.86</td><td style="color:var(--green)">3.40</td>
+      <td>1.94</td><td style="color:var(--green)"><strong>3.47</strong></td>
+    </tr>
+    <tr>
+      <td>Production</td><td>10</td>
+      <td>3.40</td><td style="color:var(--green)">4.20</td>
+      <td>2.28</td><td style="color:var(--green)">3.50</td>
+      <td>2.62</td><td style="color:var(--green)">3.60</td>
+      <td>2.88</td><td style="color:var(--green)"><strong>3.77</strong></td>
+    </tr>
+    <tr>
+      <td>Hard Corner</td><td>20</td>
+      <td>3.56</td><td style="color:var(--green)">4.20</td>
+      <td>2.74</td><td style="color:var(--green)">3.50</td>
+      <td>2.87</td><td style="color:var(--green)">3.50</td>
+      <td>3.08</td><td style="color:var(--green)"><strong>3.73</strong></td>
+    </tr>
+  </tbody>
+  <tfoot>
+    <tr style="font-weight:700;background:rgba(124,92,255,0.08)">
+      <td colspan="2">OVERALL</td>
+      <td>3.39</td><td style="color:var(--green)">4.30</td>
+      <td>2.66</td><td style="color:var(--green)">3.63</td>
+      <td>2.87</td><td style="color:var(--green)">3.73</td>
+      <td>3.01</td><td style="color:var(--green)"><strong>3.88</strong></td>
+    </tr>
+  </tfoot>
+</table>
+
+<div class="card" style="margin-top:20px">
+  <h3>Projected Improvement Summary</h3>
+  <div class="summary-grid">
+    <div class="summary-stat">
+      <div class="value" style="color:var(--green)">+0.91</div>
+      <div class="label">Gemini (3.39 <span class="arrow">&rarr;</span> 4.30)</div>
+    </div>
+    <div class="summary-stat">
+      <div class="value" style="color:var(--green)">+0.97</div>
+      <div class="label">GPT (2.66 <span class="arrow">&rarr;</span> 3.63)</div>
+    </div>
+    <div class="summary-stat">
+      <div class="value" style="color:var(--green)">+0.86</div>
+      <div class="label">Claude (2.87 <span class="arrow">&rarr;</span> 3.73)</div>
+    </div>
+    <div class="summary-stat">
+      <div class="value" style="color:var(--green)">+0.87</div>
+      <div class="label">Combined (3.01 <span class="arrow">&rarr;</span> 3.88)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PRIORITY TABLE ============ -->
+<h2>Implementation Priority</h2>
+
+<table>
+  <thead><tr><th>#</th><th>Fix</th><th>Type</th><th>Effort</th><th>Tests Affected</th><th>Score Impact</th><th>Priority</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><strong>Bug #1:</strong> Hallucination — rewrite constraint templates + prompt guardrails + label translation</td>
+      <td>Graph + Code</td>
+      <td>3-4 hours</td>
+      <td>34</td>
+      <td><strong>+0.7 avg</strong></td>
+      <td><span class="badge critical">P0</span></td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><strong>Bug #2:</strong> Rerun 13 empty-response tests (infrastructure fix + retry logic)</td>
+      <td>Infra + Code</td>
+      <td>1 hour</td>
+      <td>13</td>
+      <td>+0.25 avg</td>
+      <td><span class="badge critical">P0</span></td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><strong>Bug #7:</strong> Remove ATEX from allowed_environments</td>
+      <td>Graph</td>
+      <td>15 min</td>
+      <td>8</td>
+      <td>+0.5 on ATEX tests</td>
+      <td><span class="badge critical">P0</span> (safety)</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><strong>Bug #3:</strong> Duplicate cards — prompt instruction</td>
+      <td>Code</td>
+      <td>30 min</td>
+      <td>30</td>
+      <td>+0.3 avg</td>
+      <td><span class="badge high">P1</span></td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td><strong>Bug #4:</strong> Missing alternatives — upsizing logic + cross-family suggestions</td>
+      <td>Code</td>
+      <td>3-4 hours</td>
+      <td>29</td>
+      <td>+0.4 avg</td>
+      <td><span class="badge high">P1</span></td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td><strong>Bug #5:</strong> Wrong weights — add ~100 ProductVariant nodes</td>
+      <td>Graph</td>
+      <td>2-3 hours</td>
+      <td>15</td>
+      <td>+0.2 avg</td>
+      <td><span class="badge medium">P2</span></td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td><strong>Bug #6:</strong> Material validation — clean up variant materials, fix GDP codes</td>
+      <td>Graph + Code</td>
+      <td>1-2 hours</td>
+      <td>13</td>
+      <td>+0.2 avg</td>
+      <td><span class="badge medium">P2</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ============ KEY INSIGHT ============ -->
+<h2>Key Insight</h2>
+<div class="card" style="border-left:4px solid var(--accent)">
+  <h3>The #1 problem is not technical accuracy — it's vocabulary</h3>
+  <p style="margin:12px 0">The graph's engineering logic is largely correct. Products ARE blocked for the right reasons. But the system speaks in <strong>graph jargon</strong> (ENV_HOSPITAL, RAIL_MOUNTED, leakage class) instead of <strong>catalog language</strong> (indoor use only, single-wall design, insulated double-wall).</p>
+  <p>Fixing Bug #1 (hallucination/vocabulary) alone would raise the combined average from <strong>3.01 to ~3.70</strong> — a larger improvement than all other fixes combined. The engineering reasoning is sound; it just needs to be expressed in terms the judges can verify against the PDF.</p>
+</div>
+
+<!-- ============ METHODOLOGY ============ -->
+<h2>Methodology</h2>
+<div class="card">
+  <ol style="margin:8px 0 0 20px; font-size:14px">
+    <li>Ran 70 tests across 2 batches (10 + 60) with <code>auto_conversation_test.py --batch N --concurrency 5</code></li>
+    <li>181 judge evaluations (Gemini: 70/70, GPT: 48/70, Claude: 63/70)</li>
+    <li>Extracted and categorized all weakness flags from judge results</li>
+    <li>Cross-referenced against: PDF catalog pages, Neo4j graph data (ProductVariant weights, Environment nodes, InstallationConstraints, ProductFamily.allowed_environments), and backend code paths</li>
+    <li>Manually reproduced empty responses to confirm they're DNS-related, not code bugs</li>
+    <li>Verified weight errors by computing DimensionModule parametric output vs ProductVariant lookup vs PDF ground truth</li>
+  </ol>
+</div>
+
+<p style="color:var(--muted);text-align:center;margin:32px 0;font-size:13px">
+  Generated 2026-02-14 &middot; SynapseOS 70-Test Judge Analysis &middot; 181 evaluations across 3 judges
+</p>
+
+</body>
+</html>

@@ -236,6 +236,7 @@ class ClarificationParam(BaseModel):
     aliases: list[str] = Field(default_factory=list)
     units: list[str] = Field(default_factory=list)
     applies_to: list[str] = Field(default_factory=list)
+    priority: int = Field(default=99, description="Order in which to ask (lower = earlier)")
     prompt: str = ""
 
 
@@ -292,6 +293,10 @@ class DomainConfig:
     clarification_params: list[ClarificationParam] = field(default_factory=list)
     prompt_templates: dict[str, str] = field(default_factory=dict)
     sample_questions: dict[str, dict] = field(default_factory=dict)
+
+    # Assembly configuration (v2.7 — configurable sibling property sync)
+    # Properties shared across units in an assembly group (e.g., same duct = same dimensions)
+    assembly_shared_properties: list[str] = field(default_factory=list)
 
     def get_all_search_keywords(self) -> list[str]:
         """Get all keywords that should trigger configuration searches."""
@@ -445,7 +450,30 @@ class DomainConfig:
         if accessory_rules:
             sections.append("## ACCESSORY COMPATIBILITY\n" + accessory_rules)
 
+        clarification_rules = self.get_clarification_prompt()
+        if clarification_rules:
+            sections.append("## CLARIFICATION PARAMETERS\n" + clarification_rules)
+
         return "\n\n".join(sections)
+
+    def get_clarification_params_sorted(self) -> list[ClarificationParam]:
+        """Get clarification parameters sorted by priority (lowest first)."""
+        return sorted(self.clarification_params, key=lambda p: p.priority)
+
+    def get_clarification_prompt(self) -> str:
+        """Generate clarification parameters section for prompts."""
+        if not self.clarification_params:
+            return ""
+
+        sorted_params = self.get_clarification_params_sorted()
+        lines = ["**Required parameters for product selection (in order of priority):**"]
+        for param in sorted_params:
+            applies = ", ".join(param.applies_to) if param.applies_to else "all"
+            aliases = ", ".join(param.aliases[:3]) if param.aliases else ""
+            lines.append(f"- [{param.priority}] {param.name} (aliases: {aliases}) - Applies to: {applies}")
+            lines.append(f"  Question: {param.prompt}")
+
+        return "\n".join(lines)
 
     def check_material_environment_mismatch(self, query: str) -> Optional[dict]:
         """Check if query has a material-environment mismatch."""
@@ -770,6 +798,10 @@ def load_domain_config(config_path: Optional[str] = None, domain_id: Optional[st
 
     # Sample questions
     config.sample_questions = raw.get("sample_questions", {})
+
+    # Assembly configuration (v2.7)
+    assembly_config = raw.get("assembly", {})
+    config.assembly_shared_properties = assembly_config.get("shared_properties", [])
 
     return config
 

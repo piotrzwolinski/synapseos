@@ -1,0 +1,314 @@
+# Expected Behavior — Test Specifications
+# Maps user scenarios to expected system behavior (the "oracle")
+#
+# Each test documents:
+#   - Input (what the user asks)
+#   - Expected reasoning chain (what the system SHOULD do)
+#   - Known bugs (where current behavior deviates)
+
+tests:
+
+  kitchen_rooftop_hospital_marine:
+    input:
+      query: "Rooftop kitchen exhaust on hospital near sea. 3000 m³/h. 600x600. GDC-FLEX RF."
+      stressors: [GREASE, OUTDOOR, HOSPITAL, MARINE]
+      requested_product: GDC-FLEX
+      requested_material: RF
+      requested_size: "600x600"
+      airflow: 3000
+
+    expected_reasoning_chain:
+
+      step_1_stressor_detection:
+        description: "System detects all 4 environment/application stressors"
+        expected:
+          - "kitchen → STRESSOR_GREASE_EXPOSURE detected"
+          - "rooftop → STRESSOR_OUTDOOR_CONDENSATION detected"
+          - "hospital → STRESSOR_HYGIENE_REQUIREMENTS detected"
+          - "near sea → STRESSOR_SALT_SPRAY (marine/C5) detected"
+
+      step_2_material_validation:
+        description: "RF is valid for GDC-FLEX (edge exists in graph)"
+        expected:
+          - "GDC-FLEX AVAILABLE_IN_MATERIAL → MAT_RF exists"
+          - "No material block should fire"
+        note: "This is NOT the blocker — environment is"
+
+      step_3_environment_block:
+        description: "PRIMARY BLOCKER — GDC-FLEX not rated for outdoor/hospital"
+        expected:
+          - "GDC-FLEX.allowed_environments = [ENV_INDOOR, ENV_ATEX]"
+          - "ENV_OUTDOOR not in whitelist → IC_ENVIRONMENT_WHITELIST fires"
+          - "ENV_HOSPITAL not in whitelist → IC_ENVIRONMENT_WHITELIST fires"
+          - "System must clearly state GDC-FLEX is blocked for this environment"
+
+      step_4_capacity_validation:
+        description: "3000 m³/h exceeds GDC-FLEX 600x600 limit of 1750"
+        expected:
+          - "CAP_GDC_FLEX_600.output_rating = 1750"
+          - "3000 / 1750 = ceil → 2 modules needed"
+          - "System should mention capacity limitation"
+        note: "Secondary issue (env block is primary)"
+
+      step_5_grease_assembly:
+        description: "Kitchen → grease → GDP pre-filter required"
+        expected:
+          - "STRESSOR_GREASE_EXPOSURE → DEMANDS_TRAIT → TRAIT_MECHANICAL_FILTRATION"
+          - "GDC-FLEX lacks TRAIT_MECHANICAL_FILTRATION → assembly triggered"
+          - "GDP has TRAIT_MECHANICAL_FILTRATION → GDP becomes Stage 1 (PROTECTOR)"
+          - "Assembly group created: GDP (stage 1) + target housing (stage 2)"
+        structural:
+          - "technical_state.assembly_group.stages[0].product_family == GDP"
+          - "technical_state.assembly_group.stages[1].product_family == GDMI (after pivot)"
+
+      step_6_gdmi_pivot:
+        description: "System pivots from GDC-FLEX to GDMI"
+        expected:
+          - "GDMI is the ONLY product rated for both ENV_OUTDOOR and ENV_HOSPITAL"
+          - "System recommends GDMI as alternative"
+          - "detected_family may remain GDC_FLEX (original request) but assembly target becomes GDMI"
+
+      step_7_gdmi_sizing:
+        description: "GDMI 600x600 handles 3400 m³/h → single module sufficient"
+        expected:
+          - "CAP_GDMI_600.output_rating = 3400"
+          - "3000 ≤ 3400 → single GDMI module is enough"
+          - "Response should mention GDMI 600x600 sizing"
+
+      step_8_marine_material:
+        description: "Marine/C5 environment → ZM material for GDMI"
+        expected:
+          - "GDMI.available_materials = [AZ, ZM] — NO RF/SF"
+          - "Marine/C5 corrosion class → ZM (zinkmagnesium) is the best option"
+          - "System should NOT suggest RF/SF for GDMI (they don't exist)"
+          - "Product code should be GDMI-600x600-...-ZM, not ...-RF"
+
+      step_9_final_recommendation:
+        description: "Complete 2-stage assembly with correct products and materials"
+        expected_config:
+          stage_1:
+            product: GDP
+            role: PROTECTOR
+            size: "600x600"
+            purpose: "Grease pre-filtration (mechanical)"
+          stage_2:
+            product: GDMI
+            role: TARGET
+            size: "600x600"
+            material: ZM
+            purpose: "Main filtration (porous adsorption), rated for outdoor+hospital"
+          housing_length_options: [600, 850]
+          insulation: "Required (outdoor rooftop installation)"
+
+      step_10_no_zombie_flow:
+        description: "No lingering GDC-FLEX configuration in the final answer"
+        expected:
+          - "No 'carbon cylinders in bag housing' cross-domain bleed"
+          - "No 'recommend GDC-FLEX' in final configuration"
+          - "No housing length question for the blocked product"
+
+  # ---------------------------------------------------------------------------
+  # TEST 6: GDC Undersize → Upsize → Final Selection (2-step)
+  # ---------------------------------------------------------------------------
+  gdc_undersize_upsize:
+    input:
+      step_1:
+        query: "I need a GDC 600x600 carbon housing for 2800 m³/h. Indoor warehouse installation."
+        requested_product: GDC
+        requested_size: "600x600"
+        airflow: 2800
+        environment: INDOOR
+      step_2:
+        query: "OK, use 900x600 instead."
+
+    expected_reasoning_chain:
+
+      step_1_capacity_block:
+        description: "GDC 600x600 capacity 2000 m³/h < 2800 → undersized"
+        expected:
+          - "CAP_GDC_600.output_rating = 2000"
+          - "16 cartridges × 125 m³/h = 2000"
+          - "2800 > 2000 → CAPACITY_BLOCK"
+          - "Suggest 900x600 (24 cartridges × 125 = 3000 m³/h)"
+          - "Do NOT ask housing length yet (capacity unresolved)"
+
+      step_1_no_false_blocks:
+        description: "Indoor environment is allowed for GDC"
+        expected:
+          - "ENV_INDOOR in GDC.allowed_environments → no env block"
+
+      step_2_capacity_ok:
+        description: "GDC 900x600 capacity 3000 ≥ 2800 → OK"
+        expected:
+          - "CAP_GDC_900.output_rating = 3000"
+          - "3000 ≥ 2800 → capacity sufficient"
+
+      step_2_housing_length:
+        description: "Now ask housing length — two options from PDF"
+        expected:
+          - "750mm (max cylinder 450mm) — LEN_GDC_750"
+          - "900mm (max cylinder 600mm) — LEN_GDC_900"
+          - "System asks user to choose between 750 and 900"
+
+      final_product:
+        product: GDC
+        size: "900x600"
+        material: FZ  # default for GDC
+        housing_length: "750 or 900 (user choice)"
+
+  # ---------------------------------------------------------------------------
+  # TEST 7: Kitchen Grease → Assembly GDP + GDC-FLEX (2-step)
+  # ---------------------------------------------------------------------------
+  kitchen_grease_assembly_flex:
+    input:
+      step_1:
+        query: "I need a GDC-FLEX 600x600 carbon housing for 1500 m³/h. Commercial kitchen exhaust."
+        requested_product: GDC-FLEX
+        requested_size: "600x600"
+        airflow: 1500
+        application: KITCHEN
+      step_2:
+        query: "OK, add the required pre-filter."
+
+    expected_reasoning_chain:
+
+      step_1_capacity_ok:
+        description: "GDC-FLEX 600x600 capacity 1750 ≥ 1500 → no block"
+        expected:
+          - "CAP_GDC_FLEX_600.output_rating = 1750"
+          - "14 cartridges × 125 m³/h = 1750"
+          - "1500 ≤ 1750 → capacity OK"
+
+      step_1_grease_assembly:
+        description: "Kitchen → grease stressor → GDP pre-filter assembly"
+        expected:
+          - "STRESSOR_GREASE_EXPOSURE → DEMANDS_TRAIT → TRAIT_MECHANICAL_FILTRATION"
+          - "GDC-FLEX lacks TRAIT_MECHANICAL_FILTRATION → assembly triggered"
+          - "GDP has TRAIT_MECHANICAL_FILTRATION → GDP = Stage 1 (PROTECTOR)"
+          - "GDC-FLEX = Stage 2 (TARGET)"
+        structural:
+          - "technical_state.assembly_group exists"
+          - "technical_state.tags.item_1_stage_1.product_family == GDP"
+          - "technical_state.tags.item_1_stage_2.product_family == GDC_FLEX"
+
+      step_2_gdp_confirmed:
+        description: "GDP 600x600 — fixed length 250mm, no choice needed"
+        expected:
+          - "GDP.housing_lengths = [250] — single option"
+          - "System INFORMS about 250mm (not asks)"
+          - "GDP length should NOT be presented as a question"
+
+      step_2_flex_length:
+        description: "GDC-FLEX length — two options, user must choose"
+        expected:
+          - "750mm or 900mm housing length for GDC-FLEX"
+          - "System asks user to choose"
+
+      final_config:
+        stage_1:
+          product: GDP
+          size: "600x600"
+          material: FZ
+          length: 250  # fixed, no alternative
+          role: PROTECTOR
+        stage_2:
+          product: GDC-FLEX
+          size: "600x600"
+          material: FZ
+          length: "750 or 900 (user choice)"
+          role: TARGET
+
+  # ---------------------------------------------------------------------------
+  # TEST 8: Rooftop → Insulation Pivot to GDMI (2-step)
+  # ---------------------------------------------------------------------------
+  rooftop_insulation_pivot:
+    input:
+      step_1:
+        query: "I need a GDB 600x600 FZ housing for rooftop installation. Airflow 3000 m³/h."
+        requested_product: GDB
+        requested_material: FZ
+        requested_size: "600x600"
+        airflow: 3000
+        environment: OUTDOOR
+      step_2:
+        query: "OK, use GDMI."
+
+    expected_reasoning_chain:
+
+      step_1_block_reason:
+        description: "GDB not suitable for rooftop — engineering reasoning"
+        expected:
+          - "GDB is single-wall, non-insulated (construction_type=BOLTED, insulation=NONE)"
+          - "Rooftop → temperature variation → condensation risk"
+          - "GDB.allowed_environments = [ENV_INDOOR, ENV_ATEX] — outdoor NOT in whitelist"
+        note: |
+          Both GDB and GDMI PDFs say "för inomhusbruk". The block reason should be
+          based on engineering properties (insulation/condensation), not just a label.
+          The graph overrides PDF by allowing GDMI for ENV_OUTDOOR because of its
+          double-wall insulated construction.
+
+      step_1_gdmi_pivot:
+        description: "System suggests GDMI as insulated alternative"
+        expected:
+          - "GDMI has DOUBLE_WALL construction, thermal+condensation insulated"
+          - "GDMI.allowed_environments includes ENV_OUTDOOR"
+          - "System recommends GDMI"
+
+      step_2_capacity_ok:
+        description: "GDMI 600x600 capacity 3400 ≥ 3000 → OK"
+        expected:
+          - "CAP_GDMI_600.output_rating = 3400"
+          - "3400 ≥ 3000 → sufficient"
+
+      step_2_housing_length:
+        description: "GDMI lengths — PG standard values"
+        expected:
+          - "600mm (short bags) — PG connection"
+          - "850mm (long bags) — PG connection"
+          - "System asks user to choose"
+        note: |
+          PDF has internal inconsistency: text says 550/600 and 800/850,
+          table shows 600/650 and 850/900 (PG/F40). Test uses PG standard: 600/850.
+
+      step_2_material:
+        description: "GDMI material — AZ for non-marine rooftop"
+        expected:
+          - "GDMI.available_materials = [AZ, ZM] — NO FZ"
+          - "Non-marine rooftop → AZ (C4) sufficient"
+          - "System should NOT assign FZ to GDMI"
+
+      final_product:
+        product: GDMI
+        size: "600x600"
+        material: AZ  # C4, appropriate for non-marine outdoor
+        housing_length: "600 or 850 (user choice)"
+
+    known_bugs: []  # New test — no known bugs yet
+
+  # ---------------------------------------------------------------------------
+  # (original test below)
+  # ---------------------------------------------------------------------------
+
+    known_bugs:
+      - id: BUG_GDMI_RF_PRODUCT_CODE
+        severity: HIGH
+        description: "System generates product_code 'GDMI-600x600-R-PG-RF' but GDMI is not available in RF (only AZ/ZM)"
+        where: "technical_state.tags.item_1_stage_2.product_code"
+        expected: "GDMI-600x600-...-ZM"
+        actual: "GDMI-600x600-R-PG-RF"
+        root_cause: "Material inheritance from user request (RF) is applied to GDMI without checking AVAILABLE_IN_MATERIAL edges"
+
+      - id: BUG_STAINLESS_SUGGESTION
+        severity: MEDIUM
+        description: "System says 'upgrade to C5 (stainless)' but GDMI doesn't come in stainless"
+        where: "response.content_text"
+        expected: "Suggest ZM (zinkmagnesium) for marine/C5"
+        actual: "Says 'upgrade to stainless' which is not available for GDMI"
+        root_cause: "Material upgrade logic doesn't check per-product material availability"
+
+      - id: BUG_GDMI_SIZE_NOT_EXPLICIT
+        severity: LOW
+        description: "System recommends GDMI but doesn't explicitly state 'GDMI 600x600' with dimensions"
+        where: "response.content_text"
+        expected: "Explicit GDMI 600x600 mention with capacity 3400"
+        actual: "Says 'GDMI Modulfilterskåp' without explicit sizing"

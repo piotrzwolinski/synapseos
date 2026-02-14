@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Loader2, AlertCircle, Network, ChevronDown, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiUrl, authFetch } from "@/lib/api";
 
 // Dynamic import for react-force-graph-2d (it uses canvas and needs client-side only)
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
@@ -208,7 +209,7 @@ export function GraphWidget({
   useEffect(() => {
     async function fetchConfig() {
       try {
-        const response = await fetch("http://localhost:8000/config/ui");
+        const response = await fetch(apiUrl("/config/ui"), authFetch());
         if (response.ok) {
           const config = await response.json();
           setUIConfig(config);
@@ -234,7 +235,8 @@ export function GraphWidget({
 
       try {
         const response = await fetch(
-          `http://localhost:8000/graph/neighborhood/${encodeURIComponent(nodeId!)}?depth=1&max_nodes=30`
+          apiUrl(`/graph/neighborhood/${encodeURIComponent(nodeId!)}?depth=1&max_nodes=30`),
+          authFetch()
         );
 
         if (!response.ok) {

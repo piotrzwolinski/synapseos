@@ -170,6 +170,7 @@ class IngestRequest(BaseModel):
 class ConsultRequest(BaseModel):
     """Request to consult the knowledge graph."""
     query: str = Field(..., description="The sales question or scenario")
+    session_id: Optional[str] = Field(None, description="Session ID for Layer 4 graph state persistence")
 
 
 class ConsultResponse(BaseModel):
@@ -269,11 +270,28 @@ class ReasoningStep(BaseModel):
 # DEEP EXPLAINABILITY SCHEMA (Enterprise UI)
 # =============================================================================
 
+class GraphTraversal(BaseModel):
+    """Details of a graph traversal operation."""
+    layer: int = Field(..., description="Graph layer: 1=Inventory, 2=Physics/Rules, 3=Playbook")
+    layer_name: str = Field(..., description="Human-readable layer name")
+    operation: str = Field(..., description="What was queried (e.g., 'Application Detection')")
+    cypher_pattern: Optional[str] = Field(None, description="Cypher pattern used")
+    nodes_visited: list[str] = Field(default_factory=list, description="Nodes traversed")
+    relationships: list[str] = Field(default_factory=list, description="Relationships traversed")
+    result_summary: Optional[str] = Field(None, description="Summary of what was found")
+    path_description: Optional[str] = Field(None, description="Full reasoning chain like 'GDB → FZ → VulnerableTo → Corrosion'")
+
+
 class ReasoningSummaryStep(BaseModel):
-    """A high-level reasoning step for the UI timeline."""
+    """A high-level reasoning step for the UI timeline with graph traversal details."""
     step: str = Field(..., description="Step label (e.g., 'Analysis', 'Guardian Check')")
     icon: str = Field(default="🔍", description="Emoji icon for the step")
-    description: str = Field(..., description="Polish description of what happened")
+    description: str = Field(..., description="Description of what happened")
+    # Graph traversal details for transparency
+    graph_traversals: list[GraphTraversal] = Field(
+        default_factory=list,
+        description="Graph operations performed in this step"
+    )
 
 
 class ContentSegment(BaseModel):
@@ -306,6 +324,7 @@ class ClarificationOption(BaseModel):
     """An option presented to the user for clarification."""
     value: str = Field(..., description="The value to use if selected")
     description: str = Field(..., description="Human-readable description of this option")
+    display_label: Optional[str] = Field(None, description="Short user-facing label for the pill button (e.g., '550mm (Short Housing)')")
 
 
 class ClarificationRequest(BaseModel):
@@ -319,6 +338,21 @@ class ClarificationRequest(BaseModel):
     question: str = Field(..., description="The question to ask the user")
 
 
+class ProductPivotInfo(BaseModel):
+    """Information about automatic product substitution due to physics constraints.
+
+    When a CRITICAL physics risk is detected and the selected product lacks
+    the required mitigation, the system automatically pivots to a safe product.
+    This is displayed as a prominent banner in the UI.
+    """
+    original_product: str = Field(..., description="Product the user originally requested")
+    pivoted_to: str = Field(..., description="Product the system auto-selected")
+    reason: str = Field(..., description="Risk that triggered the pivot")
+    physics_explanation: str = Field(..., description="Why this is non-negotiable (physics)")
+    user_misconception: Optional[str] = Field(None, description="Counter to user's wrong argument")
+    required_feature: str = Field(..., description="Feature the safe product has")
+
+
 class DeepExplainableResponse(BaseModel):
     """Enterprise-grade explainable response with segmented content.
 
@@ -327,6 +361,7 @@ class DeepExplainableResponse(BaseModel):
     - Content broken into attributed segments (GRAPH_FACT, INFERENCE, GENERAL)
     - Structured product cards
     - Autonomous risk detection via LLM engineering knowledge
+    - Automatic product pivot for physics violations
     """
     # Reasoning timeline for "Thinking" UI
     reasoning_summary: list[ReasoningSummaryStep] = Field(
@@ -343,7 +378,11 @@ class DeepExplainableResponse(BaseModel):
     # Product recommendation (optional)
     product_card: Optional[ProductCard] = Field(
         None,
-        description="Structured product recommendation"
+        description="Structured product recommendation (backward compat, first card)"
+    )
+    product_cards: list[ProductCard] = Field(
+        default_factory=list,
+        description="Multiple product cards (for assembly/multi-stage systems)"
     )
 
     # Autonomous Guardian - Risk Detection
@@ -358,6 +397,12 @@ class DeepExplainableResponse(BaseModel):
     risk_resolved: bool = Field(
         default=False,
         description="True if a previously detected risk was mitigated by the final recommendation"
+    )
+
+    # Physics Override - Automatic Product Pivot
+    product_pivot: Optional[ProductPivotInfo] = Field(
+        default=None,
+        description="Set when system auto-switched product due to CRITICAL physics risk"
     )
 
     # Clarification Mode - Missing critical parameters
@@ -378,6 +423,9 @@ class DeepExplainableResponse(BaseModel):
     # Stats for UI
     graph_facts_count: int = Field(default=0, description="Number of GRAPH_FACT segments")
     inference_count: int = Field(default=0, description="Number of INFERENCE segments")
+
+    # Performance timing (for dev mode)
+    timings: Optional[dict] = Field(default=None, description="Operation timings in seconds")
 
 
 class ExplainableResponse(BaseModel):
@@ -448,6 +496,49 @@ class GraphNeighborhoodResponse(BaseModel):
     nodes: list[GraphNode] = Field(default_factory=list, description="All nodes in the neighborhood including center")
     relationships: list[GraphRelationship] = Field(default_factory=list, description="Relationships between nodes")
     truncated: bool = Field(default=False, description="True if max_nodes limit was reached")
+
+
+# =============================================================================
+# LAYER 4: SESSION GRAPH STATE
+# =============================================================================
+
+class TagUnitState(BaseModel):
+    """State of a single tag/item in the active project."""
+    tag_id: str = Field(..., description="Tag identifier (e.g., '5684')")
+    filter_width: Optional[int] = Field(None, description="Filter width in mm")
+    filter_height: Optional[int] = Field(None, description="Filter height in mm")
+    filter_depth: Optional[int] = Field(None, description="Filter depth in mm")
+    housing_width: Optional[int] = Field(None, description="Housing width in mm (derived)")
+    housing_height: Optional[int] = Field(None, description="Housing height in mm (derived)")
+    housing_length: Optional[int] = Field(None, description="Housing length in mm (derived)")
+    airflow_m3h: Optional[int] = Field(None, description="Airflow capacity")
+    product_family: Optional[str] = Field(None, description="Product family (GDB, GDC, etc.)")
+    product_code: Optional[str] = Field(None, description="Full product code")
+    weight_kg: Optional[float] = Field(None, description="Weight in kg")
+    is_complete: bool = Field(default=False, description="All required specs present")
+
+
+class ActiveProjectState(BaseModel):
+    """State of the active project configuration."""
+    name: Optional[str] = Field(None, description="Project name")
+    customer: Optional[str] = Field(None, description="Customer name")
+    locked_material: Optional[str] = Field(None, description="Locked material code")
+    detected_family: Optional[str] = Field(None, description="Detected product family")
+
+
+class SessionGraphState(BaseModel):
+    """Complete session state from the graph database (Layer 4)."""
+    session_id: str = Field(..., description="Session identifier")
+    project: Optional[ActiveProjectState] = Field(None, description="Active project")
+    tags: list[TagUnitState] = Field(default_factory=list, description="Tag unit specs")
+    tag_count: int = Field(default=0, description="Number of tag units")
+    reasoning_paths: list[dict] = Field(default_factory=list, description="Per-tag reasoning audit trail")
+
+
+class SessionGraphVisualization(BaseModel):
+    """Session graph nodes and relationships for ForceGraph2D visualization."""
+    nodes: list[GraphNode] = Field(default_factory=list, description="Graph nodes")
+    relationships: list[GraphRelationship] = Field(default_factory=list, description="Graph relationships")
 
 
 # Backwards-compatible alias

@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Judge Analysis & Fix Report — 2026-02-14</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e0e0e8;
+    --muted: #8888a0;
+    --accent: #7c5cff;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --orange: #f97316;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 24px; max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  h2 { font-size: 22px; font-weight: 600; margin: 32px 0 16px; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  h3 { font-size: 17px; font-weight: 600; margin: 20px 0 10px; }
+  .subtitle { color: var(--muted); margin-bottom: 24px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card.critical { border-left: 4px solid var(--red); }
+  .card.high { border-left: 4px solid var(--orange); }
+  .card.medium { border-left: 4px solid var(--yellow); }
+  .card.low { border-left: 4px solid var(--blue); }
+  .card.info { border-left: 4px solid var(--muted); }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+  .badge.critical { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge.high { background: rgba(249,115,22,0.15); color: var(--orange); }
+  .badge.medium { background: rgba(234,179,8,0.15); color: var(--yellow); }
+  .badge.low { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .badge.fixed { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge.judge-error { background: rgba(136,136,160,0.15); color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { padding: 8px 12px; text-align: left; border: 1px solid var(--border); }
+  th { background: rgba(124,92,255,0.1); font-weight: 600; }
+  td { background: var(--card); }
+  code { background: rgba(124,92,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+  pre { background: #12141c; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; margin: 12px 0; font-family: 'JetBrains Mono', monospace; }
+  .score-row { display: flex; gap: 12px; margin: 8px 0; align-items: center; }
+  .score-bar { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 4px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 16px 0; }
+  .summary-stat { text-align: center; }
+  .summary-stat .value { font-size: 36px; font-weight: 700; }
+  .summary-stat .label { color: var(--muted); font-size: 14px; }
+  .impact { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .impact strong { color: var(--text); }
+  .arrow { color: var(--green); font-weight: 700; }
+  .test-affected { font-size: 13px; margin-top: 6px; }
+  .test-affected span { display: inline-block; background: rgba(124,92,255,0.08); padding: 1px 8px; border-radius: 8px; margin: 2px 4px 2px 0; font-size: 12px; }
+  .fix-type { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .fix-type.graph { color: var(--blue); }
+  .fix-type.code { color: var(--accent); }
+  .fix-type.none { color: var(--muted); }
+  .section-intro { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+  .projected { margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<h1>Judge Analysis & Fix Report</h1>
+<p class="subtitle">10-test batch run &middot; 2026-02-14 &middot; Cross-referenced against PDF catalog + Neo4j graph</p>
+
+<!-- ============ EXECUTIVE SUMMARY ============ -->
+<h2>Executive Summary</h2>
+
+<div class="summary-grid">
+  <div class="card">
+    <div class="summary-stat">
+      <div class="value" style="color:var(--green)">4.83</div>
+      <div class="label">Gemini Avg (current)</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="summary-stat">
+      <div class="value" style="color:var(--red)">3.32</div>
+      <div class="label">GPT-5.2 Avg (current)</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="summary-stat">
+      <div class="value" style="color:var(--yellow)">3.62</div>
+      <div class="label">Claude Avg (current)</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="summary-stat">
+      <div class="value" style="color:var(--green)">3.92</div>
+      <div class="label">Combined Avg (current)</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <p>Across 10 batch tests, <strong>7 distinct issue categories</strong> were identified. After cross-referencing judge complaints against the PDF catalog and Neo4j graph data, the issues break down as:</p>
+  <ul style="margin: 12px 0 0 20px; font-size: 14px;">
+    <li><strong>4 real bugs</strong> requiring code or graph fixes (weight errors, duplicate cards, missing upsizing, missing variants)</li>
+    <li><strong>2 enhancement opportunities</strong> (missing catalog details, material code defense)</li>
+    <li><strong>1 category of judge errors</strong> (judges making wrong claims about PDF data)</li>
+  </ul>
+</div>
+
+<!-- ============ CURRENT SCORES ============ -->
+<h2>Current Scores (Pre-Fix Baseline)</h2>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Gemini</th><th>GPT</th><th>Claude</th><th>Avg</th><th>Key Issues</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>GDB 600x600 2500 OK</td><td style="color:var(--green)">5.0</td><td>4.0</td><td>3.9</td><td>4.30</td><td>Duplicate card</td></tr>
+    <tr><td>GDB 600x600 3800 Undersized</td><td style="color:var(--green)">5.0</td><td style="color:var(--red)">2.7</td><td>3.3</td><td>3.67</td><td>No upsizing to 600x900, dup cards</td></tr>
+    <tr><td>GDB 15000 Height Constraint</td><td style="color:var(--green)">5.0</td><td>3.6</td><td>3.3</td><td>3.97</td><td>Weight inaccuracy, dup card</td></tr>
+    <tr><td>GDB 1500x1200 16000 OK</td><td>4.5</td><td>3.5</td><td>3.9</td><td>3.97</td><td><strong>Weight 77kg vs PDF 90kg</strong>, dup cards</td></tr>
+    <tr><td>GDC 600x600 2000 OK</td><td style="color:var(--green)">5.0</td><td>3.4</td><td>3.9</td><td>4.10</td><td>Dup card, missing catalog detail</td></tr>
+    <tr><td>GDC 600x600 2800 Undersized</td><td style="color:var(--green)">5.0</td><td>3.3</td><td>3.6</td><td>3.97</td><td>No single 900x600 alt, dup card</td></tr>
+    <tr><td>GDC-FLEX 600x600 3000 Undersized</td><td>4.8</td><td>3.2</td><td>3.3</td><td>3.77</td><td><strong>Weight 34kg vs PDF 32kg</strong>, dup card</td></tr>
+    <tr><td>GDC-FLEX 900x600 2500 OK</td><td>4.8</td><td>3.4</td><td>3.3</td><td>3.83</td><td><strong>Weight 41kg vs PDF 40kg</strong>, dup card</td></tr>
+    <tr><td>GDMI 600x600 3400 OK</td><td>4.4</td><td>3.2</td><td>3.7</td><td>3.77</td><td>Weight correct but judges confused, dup card</td></tr>
+    <tr><td>GDMI 600x600 4000 Undersized</td><td>4.9</td><td style="color:var(--red)">2.9</td><td>4.0</td><td>3.93</td><td>Dup card, ZM material code confusion</td></tr>
+  </tbody>
+</table>
+
+<!-- ============ BUG #1: DUPLICATE PRODUCT CARDS ============ -->
+<h2>Bug #1: Duplicate Product Cards</h2>
+<div class="card critical">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3>LLM generates duplicate entity_card entries</h3>
+    <span class="badge critical">CRITICAL &mdash; affects 10/10 tests</span>
+  </div>
+  <div class="fix-type code">CODE FIX</div>
+
+  <p style="margin:12px 0"><strong>Root cause:</strong> The LLM (Gemini) sometimes returns the same entity card twice in its JSON <code>entity_card</code> field (as a 2-element array with identical content). The backend passes these through without deduplication. The backend also populates both <code>product_card</code> (singular, backward compat) and <code>product_cards</code> (array), but the frontend correctly prefers the array. The real issue is the LLM duplicating cards.</p>
+
+  <p><strong>Evidence:</strong></p>
+  <ul style="margin:8px 0 0 20px; font-size:14px">
+    <li>GDB 600x600 3800: 2 cards (Unit 1, Unit 2) &mdash; expected for multi-module, NOT a bug</li>
+    <li>All single-product tests: judges report "duplicate card" but <code>product_cards</code> has count=1. The duplication is in the <strong>LLM text response</strong>, not in the structured card data.</li>
+    <li>The LLM's narrative text sometimes repeats the product specification table, which judges interpret as "duplicate card"</li>
+  </ul>
+
+  <p style="margin:12px 0"><strong>Fix (retriever.py, ~line 5449):</strong></p>
+  <pre>
+# After building product_cards_list, deduplicate by title+product_code
+if product_cards_list:
+    seen = set()
+    deduped = []
+    for card in product_cards_list:
+        key = (card.get("title", ""),
+               card.get("specs", {}).get("Product Code", ""))
+        if key not in seen:
+            seen.add(key)
+            deduped.append(card)
+    product_cards_list = deduped
+    product_card_dict = product_cards_list[0] if product_cards_list else None</pre>
+
+  <p style="margin:12px 0">Additionally, add a prompt instruction to prevent the LLM from repeating the product specification in the narrative text (retriever.py system prompt):</p>
+  <pre>
+"Do NOT repeat the product specifications in your text response.
+The entity_card JSON block handles that. Your text should explain
+the reasoning, not duplicate the card."</pre>
+
+  <div class="impact">
+    <strong>Score impact estimate:</strong> GPT and Claude penalize 0.3-0.5 points per test for this.
+    Fixing removes the penalty on all 10 tests.<br>
+    <strong>GPT:</strong> +0.3 avg &nbsp; <strong>Claude:</strong> +0.3 avg &nbsp; <strong>Gemini:</strong> +0.1 avg
+  </div>
+</div>
+
+<!-- ============ BUG #2: WEIGHT ERRORS ============ -->
+<h2>Bug #2: Incorrect Weights (DimensionModule Fallback)</h2>
+<div class="card critical">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3>DimensionModule parametric model produces wrong weights for non-GDB families and large sizes</h3>
+    <span class="badge critical">CRITICAL &mdash; affects 3/10 tests</span>
+  </div>
+  <div class="fix-type graph">GRAPH FIX</div>
+
+  <p style="margin:12px 0"><strong>Root cause:</strong> When no <code>ProductVariant</code> node exists for an exact family+size+length, the system falls back to <code>DimensionModule</code> parametric calculation: <code>base + (length - ref) &times; weight_per_mm</code>. This parametric model is calibrated for GDB only and produces wrong values for other families and large sizes.</p>
+
+  <table>
+    <thead>
+      <tr><th>Test Case</th><th>Parametric Weight</th><th>PDF Weight</th><th>Error</th><th>ProductVariant Exists?</th></tr>
+    </thead>
+    <tbody>
+      <tr style="color:var(--red)"><td>GDB 1500x1200-750</td><td>77.0 kg</td><td><strong>90 kg</strong></td><td>-13 kg</td><td>NO</td></tr>
+      <tr style="color:var(--red)"><td>GDC-FLEX 600x600-750</td><td>34.0 kg</td><td><strong>32 kg</strong></td><td>+2 kg</td><td>NO</td></tr>
+      <tr style="color:var(--red)"><td>GDC-FLEX 900x600-750</td><td>41.0 kg</td><td><strong>40 kg</strong></td><td>+1 kg</td><td>NO</td></tr>
+      <tr style="color:var(--green)"><td>GDB 600x600-550</td><td>27.0 kg</td><td>27 kg</td><td>0</td><td>YES (27 kg)</td></tr>
+      <tr style="color:var(--green)"><td>GDB 600x600-750</td><td>34.0 kg</td><td>34 kg</td><td>0</td><td>YES (34 kg)</td></tr>
+      <tr style="color:var(--green)"><td>GDMI 600x600-600</td><td>28.8 kg</td><td>34 kg</td><td>0</td><td>YES (34 kg)</td></tr>
+      <tr style="color:var(--green)"><td>GDC 600x600-750</td><td>34.0 kg</td><td>32 kg</td><td>0</td><td>YES (32 kg)</td></tr>
+    </tbody>
+  </table>
+
+  <p style="margin:12px 0"><strong>Fix:</strong> Create missing <code>ProductVariant</code> nodes with exact PDF weights. The parametric fallback should never be needed for catalog sizes.</p>
+
+  <pre>
+// Cypher: Add missing GDC-FLEX length variants
+CREATE (v1:ProductVariant {name: 'GDC-FLEX-600x600-750', weight_kg: 32,
+  available_materials: ['FZ','AZ','RF','SF','ZM']})
+CREATE (v2:ProductVariant {name: 'GDC-FLEX-600x600-800', weight_kg: 32,
+  available_materials: ['FZ','AZ','RF','SF','ZM']})
+CREATE (v3:ProductVariant {name: 'GDC-FLEX-900x600-750', weight_kg: 40,
+  available_materials: ['FZ','AZ','RF','SF','ZM']})
+CREATE (v4:ProductVariant {name: 'GDC-FLEX-900x600-800', weight_kg: 40,
+  available_materials: ['FZ','AZ','RF','SF','ZM']})
+
+// Cypher: Add missing GDB large-size variants (from PDF MÅTT table)
+CREATE (v5:ProductVariant {name: 'GDB-1500x1200-550', weight_kg: 62,
+  available_materials: ['FZ','AZ','RF','SF','ZM']})
+CREATE (v6:ProductVariant {name: 'GDB-1500x1200-750', weight_kg: 90,
+  available_materials: ['FZ','AZ','RF','SF','ZM']})
+
+// Add all other large GDB sizes from PDF table...
+// GDB-600x900, GDB-600x1200, GDB-600x1500, GDB-600x1800
+// GDB-900x900, GDB-900x1200, GDB-900x1500, GDB-900x1800
+// GDB-1200x600, GDB-1200x900, ... through GDB-1800x1800</pre>
+
+  <div class="impact">
+    <strong>Score impact estimate:</strong> Weight errors cause 0.5-1.0 penalty from Gemini &amp; Claude.<br>
+    <strong>Gemini:</strong> +0.2 avg &nbsp; <strong>GPT:</strong> +0.2 avg &nbsp; <strong>Claude:</strong> +0.2 avg
+  </div>
+
+  <div class="test-affected">
+    <strong>Affected tests:</strong>
+    <span>GDB 1500x1200 16000 OK</span>
+    <span>GDC-FLEX 600x600 3000</span>
+    <span>GDC-FLEX 900x600 2500</span>
+  </div>
+</div>
+
+<!-- ============ BUG #3: MISSING UPSIZING ============ -->
+<h2>Bug #3: No Single-Unit Upsizing Alternatives</h2>
+<div class="card high">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3>System prefers multi-module over single larger housing</h3>
+    <span class="badge high">HIGH &mdash; affects 3/10 tests</span>
+  </div>
+  <div class="fix-type code">CODE FIX</div>
+
+  <p style="margin:12px 0"><strong>Root cause:</strong> When a requested size is undersized, the engine defaults to a <strong>parallel multi-module arrangement</strong> (e.g., 2&times;600x600 = 6800 m&sup3;/h for 3800 m&sup3;/h need) instead of suggesting a single larger housing that fits perfectly.</p>
+
+  <p><strong>Evidence from PDF:</strong></p>
+  <table>
+    <thead>
+      <tr><th>Requested</th><th>System Recommends</th><th>Better Alternative (PDF)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>GDB 600x600, 3800 m&sup3;/h</td>
+        <td>2&times; GDB 600x600 (6800 m&sup3;/h total, 79% overkill)</td>
+        <td><strong>GDB 600x900</strong> (5100 m&sup3;/h, single unit)</td>
+      </tr>
+      <tr>
+        <td>GDC 600x600, 2800 m&sup3;/h</td>
+        <td>2&times; GDC 600x600 (4000 m&sup3;/h total, 43% overkill)</td>
+        <td><strong>GDC 900x600</strong> (3000 m&sup3;/h, single unit)</td>
+      </tr>
+      <tr>
+        <td>GDC-FLEX 600x600, 3000 m&sup3;/h</td>
+        <td>2&times; GDC-FLEX 600x600 (3500 m&sup3;/h)</td>
+        <td><strong>GDC-FLEX 900x600</strong> (2500 m&sup3;/h &mdash; still undersized, but GDC-FLEX 1200x600 = 3500 m&sup3;/h)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:12px 0"><strong>Fix (compute_sizing_arrangement in state.py):</strong> Before defaulting to multi-module, check if a single larger housing within the <strong>same product family</strong> meets the airflow requirement. Present it as a primary alternative, with multi-module as secondary.</p>
+
+  <pre>
+# In the alternatives section of the response, query:
+MATCH (pf:ProductFamily {id: $family_id})-[:HAS_SIZE]->(sp:SizeProperty)
+WHERE sp.recommended_airflow_m3h >= $required_airflow
+RETURN sp.width_mm, sp.height_mm, sp.recommended_airflow_m3h
+ORDER BY sp.recommended_airflow_m3h ASC
+LIMIT 3</pre>
+
+  <p style="margin:12px 0">Note: GDC-FLEX 900x600 variant doesn't exist in the graph yet. Need to also add the missing size variants (see Bug #4).</p>
+
+  <div class="impact">
+    <strong>Score impact estimate:</strong> GPT specifically penalizes 0.5-1.0 for not offering upsizing.<br>
+    <strong>Gemini:</strong> +0.0 (already scores 5) &nbsp; <strong>GPT:</strong> +0.5 avg &nbsp; <strong>Claude:</strong> +0.3 avg
+  </div>
+
+  <div class="test-affected">
+    <strong>Affected tests:</strong>
+    <span>GDB 600x600 3800</span>
+    <span>GDC 600x600 2800</span>
+    <span>GDC-FLEX 600x600 3000</span>
+  </div>
+</div>
+
+<!-- ============ BUG #4: MISSING GRAPH VARIANTS ============ -->
+<h2>Bug #4: Missing ProductVariant &amp; SizeProperty Nodes</h2>
+<div class="card high">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3>Graph is incomplete for large sizes and non-GDB families</h3>
+    <span class="badge high">HIGH &mdash; affects 4/10 tests</span>
+  </div>
+  <div class="fix-type graph">GRAPH FIX</div>
+
+  <p style="margin:12px 0"><strong>Root cause:</strong> The graph only has ProductVariant nodes for a subset of sizes. Many PDF-documented sizes are missing, which means the system can't suggest them as alternatives.</p>
+
+  <h3>Missing data inventory:</h3>
+  <table>
+    <thead>
+      <tr><th>Family</th><th>Missing Variants</th><th>Impact</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>GDB</td>
+        <td>All sizes beyond 900x600 (1200x600, 600x900, 600x1200, 900x900, 1200x1200, 1500x1200, 1500x1500, 1800x900, 1800x1200, etc. &mdash; ~24 sizes from PDF MATT table)</td>
+        <td>Cannot suggest upsizing for large airflows. Falls back to DimensionModule parametric weights.</td>
+      </tr>
+      <tr>
+        <td>GDC-FLEX</td>
+        <td>900x600, 1200x600 (only 600x600 exists)</td>
+        <td>Cannot suggest GDC-FLEX 900x600 or 1200x600 as alternatives</td>
+      </tr>
+      <tr>
+        <td>GDC</td>
+        <td>Length-specific variants incomplete (only 750 and 900 for some sizes)</td>
+        <td>Weight lookup may fall back to parametric for some lengths</td>
+      </tr>
+      <tr>
+        <td>GDMI</td>
+        <td>Only 600x600 exists. Missing 900x600, 1200x600, etc.</td>
+        <td>Cannot suggest larger GDMI housings</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:12px 0"><strong>Fix:</strong> Populate all sizes from the PDF MATT tables for each family. This is a large graph data task (~100+ new ProductVariant nodes). Use the <code>/graph-builder</code> skill with PDF data.</p>
+
+  <div class="impact">
+    <strong>Score impact estimate:</strong> Enables Bug #3 fix and provides accurate weights for Bug #2.<br>
+    <strong>Combined improvement when paired with Bug #2 + #3:</strong> +0.3 GPT, +0.2 Claude
+  </div>
+</div>
+
+<!-- ============ ENHANCEMENT #1: MISSING DETAILS ============ -->
+<h2>Enhancement #1: Missing Catalog Details in Response</h2>
+<div class="card medium">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3>Judges want more catalog information in the response</h3>
+    <span class="badge medium">MEDIUM &mdash; affects 7/10 tests</span>
+  </div>
+  <div class="fix-type code">CODE + GRAPH</div>
+
+  <p style="margin:12px 0"><strong>What judges request:</strong></p>
+  <ul style="margin:8px 0 0 20px; font-size:14px">
+    <li><strong>Connection type (PG/F40):</strong> Product code includes PG but response doesn't explain it. Judges want a note like "Standard slip-in PG connection (20mm). Flange F40 also available."</li>
+    <li><strong>Door hinge side (R/L):</strong> Code defaults to R (right). GPT/Claude want the system to mention this can be configured.</li>
+    <li><strong>Filter patron count &amp; cylinder length:</strong> For GDC/GDC-FLEX, judges want to know how many patrons fit (e.g., 16 for 600x600) and cylinder length options (350mm for 550/600, 450mm for 750/800).</li>
+    <li><strong>Accessories:</strong> Polisfilter, Scandsorb cylinders, etc. mentioned in PDF but not in response.</li>
+  </ul>
+
+  <p style="margin:12px 0"><strong>Fix:</strong> Add these details to the <code>TechnicalState.to_prompt_injection()</code> context so the LLM can include them. Store patron count and cylinder lengths on ProductFamily or SizeProperty nodes.</p>
+
+  <div class="impact">
+    <strong>Score impact estimate:</strong> These are "nice to have" for GPT/Claude completeness scores.<br>
+    <strong>GPT:</strong> +0.2 avg &nbsp; <strong>Claude:</strong> +0.2 avg &nbsp; <strong>Gemini:</strong> +0.0
+  </div>
+</div>
+
+<!-- ============ ENHANCEMENT #2: MATERIAL CODE DEFENSE ============ -->
+<h2>Enhancement #2: GDMI ZM Material Code Confusion</h2>
+<div class="card low">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3>GPT judges question ZM material on GDMI product codes</h3>
+    <span class="badge low">LOW &mdash; affects 2/10 tests</span>
+  </div>
+  <div class="fix-type code">PROMPT FIX</div>
+
+  <p style="margin:12px 0"><strong>Situation:</strong> The PDF example shows GDMI order code with AZ material. The user explicitly requested ZM. The system correctly uses ZM in the code (ZM IS a valid GDMI material per graph: <code>FAM_GDMI &rarr; [AZ, ZM]</code>). But GPT judges flag this as "invented/unverified" because the PDF example uses AZ.</p>
+
+  <p><strong>Analysis:</strong> This is partially a <strong>judge error</strong> (ZM is valid) but the system could defend itself better by explaining: "ZM (Zink-Magnesium, corrosion class C5) is a valid material option for GDMI, though the catalog example shows AZ."</p>
+
+  <p style="margin:12px 0"><strong>Fix:</strong> Add a prompt instruction to include material validation context when a non-default material is used:</p>
+  <pre>
+"When the selected material is not the product family's default, briefly note
+that the material has been validated as available for this product family."</pre>
+
+  <div class="impact">
+    <strong>Score impact estimate:</strong> Minor. <br>
+    <strong>GPT:</strong> +0.1 avg &nbsp; <strong>Claude:</strong> +0.0 &nbsp; <strong>Gemini:</strong> +0.0
+  </div>
+</div>
+
+<!-- ============ JUDGE ERRORS ============ -->
+<h2>Category: Judge Errors (Not System Bugs)</h2>
+<div class="card info">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h3>Judges making incorrect claims about PDF data</h3>
+    <span class="badge judge-error">INFO &mdash; 5 instances across 3 tests</span>
+  </div>
+  <div class="fix-type none">NO ACTION NEEDED</div>
+
+  <p style="margin:12px 0">These are cases where the <strong>judge</strong> is wrong, not the system:</p>
+
+  <table>
+    <thead>
+      <tr><th>Judge</th><th>Test</th><th>Judge's Claim</th><th>Reality</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Gemini</td>
+        <td>GDMI 600x600 3400</td>
+        <td>"Weight 34kg wrong, should be 43kg"</td>
+        <td>34kg is correct for 600mm length. 43kg is for 850mm. System selected 600mm. <span class="badge fixed">System correct</span></td>
+      </tr>
+      <tr>
+        <td>GPT</td>
+        <td>GDMI 600x600 3400</td>
+        <td>"Weight should be 21kg for 600mm"</td>
+        <td>21kg is not a valid weight for any GDMI 600x600 variant. GPT is reading the wrong table. <span class="badge fixed">System correct</span></td>
+      </tr>
+      <tr>
+        <td>GPT</td>
+        <td>GDMI 600x600 3400/4000</td>
+        <td>"ZM material code is invented/unverified"</td>
+        <td>ZM is valid for GDMI per graph (FAM_GDMI &rarr; [AZ, ZM]). User explicitly requested ZM. <span class="badge fixed">System correct</span></td>
+      </tr>
+      <tr>
+        <td>GPT</td>
+        <td>GDC-FLEX 600x600 3000</td>
+        <td>"GDB/GDMI can handle 3000 m&sup3;/h is incorrect"</td>
+        <td>GDB 600x600 has 3400 m&sup3;/h capacity, GDMI has 3400 m&sup3;/h. Both CAN handle 3000 m&sup3;/h. <span class="badge fixed">System correct</span></td>
+      </tr>
+      <tr>
+        <td>Claude</td>
+        <td>GDMI 600x600 4000</td>
+        <td>"C4 on card is wrong, ZM is C5"</td>
+        <td>C4 is the housing corrosion class, not the material's. GDMI housing body is C4 rated regardless of ZM material. <span class="badge fixed">System correct</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:12px 0"><strong>Implication:</strong> These judge errors artificially lower scores by ~0.2-0.5 points in affected tests. The system is actually correct but judges penalize based on their own misreadings of the PDF.</p>
+
+  <p><strong>Potential improvement:</strong> Enhance the judge prompt to explicitly state "Do not penalize if the user-requested material is valid for the product family" and "Verify weight against the correct housing length, not default to 750mm".</p>
+</div>
+
+<!-- ============ PROJECTED SCORES ============ -->
+<h2 class="projected">Projected Scores After All Fixes</h2>
+
+<p class="section-intro">Estimated improvement assumes Bugs #1-#4 fixed, Enhancements #1-#2 applied, and judge errors accounted for.</p>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th colspan="2">Gemini</th><th colspan="2">GPT</th><th colspan="2">Claude</th><th colspan="2">Avg</th></tr>
+    <tr><th></th><th>Now</th><th>Est.</th><th>Now</th><th>Est.</th><th>Now</th><th>Est.</th><th>Now</th><th>Est.</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>GDB 600x600 2500 OK</td>
+      <td>5.0</td><td style="color:var(--green)">5.0</td>
+      <td>4.0</td><td style="color:var(--green)">4.6</td>
+      <td>3.9</td><td style="color:var(--green)">4.5</td>
+      <td>4.30</td><td style="color:var(--green)"><strong>4.70</strong></td>
+    </tr>
+    <tr>
+      <td>GDB 600x600 3800 Undersized</td>
+      <td>5.0</td><td style="color:var(--green)">5.0</td>
+      <td>2.7</td><td style="color:var(--green)">4.2</td>
+      <td>3.3</td><td style="color:var(--green)">4.3</td>
+      <td>3.67</td><td style="color:var(--green)"><strong>4.50</strong></td>
+    </tr>
+    <tr>
+      <td>GDB 15000 Height Constraint</td>
+      <td>5.0</td><td style="color:var(--green)">5.0</td>
+      <td>3.6</td><td style="color:var(--green)">4.3</td>
+      <td>3.3</td><td style="color:var(--green)">4.0</td>
+      <td>3.97</td><td style="color:var(--green)"><strong>4.43</strong></td>
+    </tr>
+    <tr>
+      <td>GDB 1500x1200 16000 OK</td>
+      <td>4.5</td><td style="color:var(--green)">5.0</td>
+      <td>3.5</td><td style="color:var(--green)">4.5</td>
+      <td>3.9</td><td style="color:var(--green)">4.5</td>
+      <td>3.97</td><td style="color:var(--green)"><strong>4.67</strong></td>
+    </tr>
+    <tr>
+      <td>GDC 600x600 2000 OK</td>
+      <td>5.0</td><td style="color:var(--green)">5.0</td>
+      <td>3.4</td><td style="color:var(--green)">4.3</td>
+      <td>3.9</td><td style="color:var(--green)">4.5</td>
+      <td>4.10</td><td style="color:var(--green)"><strong>4.60</strong></td>
+    </tr>
+    <tr>
+      <td>GDC 600x600 2800 Undersized</td>
+      <td>5.0</td><td style="color:var(--green)">5.0</td>
+      <td>3.3</td><td style="color:var(--green)">4.3</td>
+      <td>3.6</td><td style="color:var(--green)">4.3</td>
+      <td>3.97</td><td style="color:var(--green)"><strong>4.53</strong></td>
+    </tr>
+    <tr>
+      <td>GDC-FLEX 600x600 3000 Undersized</td>
+      <td>4.8</td><td style="color:var(--green)">5.0</td>
+      <td>3.2</td><td style="color:var(--green)">4.0</td>
+      <td>3.3</td><td style="color:var(--green)">4.0</td>
+      <td>3.77</td><td style="color:var(--green)"><strong>4.33</strong></td>
+    </tr>
+    <tr>
+      <td>GDC-FLEX 900x600 2500 OK</td>
+      <td>4.8</td><td style="color:var(--green)">5.0</td>
+      <td>3.4</td><td style="color:var(--green)">4.3</td>
+      <td>3.3</td><td style="color:var(--green)">4.2</td>
+      <td>3.83</td><td style="color:var(--green)"><strong>4.50</strong></td>
+    </tr>
+    <tr>
+      <td>GDMI 600x600 3400 OK</td>
+      <td>4.4</td><td style="color:var(--green)">5.0</td>
+      <td>3.2</td><td style="color:var(--green)">4.2</td>
+      <td>3.7</td><td style="color:var(--green)">4.3</td>
+      <td>3.77</td><td style="color:var(--green)"><strong>4.50</strong></td>
+    </tr>
+    <tr>
+      <td>GDMI 600x600 4000 Undersized</td>
+      <td>4.9</td><td style="color:var(--green)">5.0</td>
+      <td>2.9</td><td style="color:var(--green)">4.0</td>
+      <td>4.0</td><td style="color:var(--green)">4.5</td>
+      <td>3.93</td><td style="color:var(--green)"><strong>4.50</strong></td>
+    </tr>
+  </tbody>
+  <tfoot>
+    <tr style="font-weight:700; background:rgba(124,92,255,0.08)">
+      <td>AVERAGE</td>
+      <td>4.83</td><td style="color:var(--green)">5.00</td>
+      <td>3.32</td><td style="color:var(--green)">4.27</td>
+      <td>3.62</td><td style="color:var(--green)">4.31</td>
+      <td>3.92</td><td style="color:var(--green)"><strong>4.53</strong></td>
+    </tr>
+  </tfoot>
+</table>
+
+<div class="card" style="margin-top:20px">
+  <h3>Projected Improvement Summary</h3>
+  <div class="summary-grid">
+    <div class="summary-stat">
+      <div class="value" style="color:var(--green)">+0.17</div>
+      <div class="label">Gemini (4.83 <span class="arrow">&rarr;</span> 5.00)</div>
+    </div>
+    <div class="summary-stat">
+      <div class="value" style="color:var(--green)">+0.95</div>
+      <div class="label">GPT (3.32 <span class="arrow">&rarr;</span> 4.27)</div>
+    </div>
+    <div class="summary-stat">
+      <div class="value" style="color:var(--green)">+0.69</div>
+      <div class="label">Claude (3.62 <span class="arrow">&rarr;</span> 4.31)</div>
+    </div>
+    <div class="summary-stat">
+      <div class="value" style="color:var(--green)">+0.61</div>
+      <div class="label">Combined (3.92 <span class="arrow">&rarr;</span> 4.53)</div>
+    </div>
+  </div>
+  <p style="color:var(--muted);font-size:13px;margin-top:8px">
+    <em>Estimates are conservative. Actual scores may vary based on LLM response quality and judge variability.
+    The biggest single-fix improvement comes from Bug #1 (duplicate cards, +0.3 across GPT/Claude on all tests).
+    The biggest per-test improvement comes from Bug #3 (upsizing alternatives, +1.0-1.5 on GPT for undersized tests).</em>
+  </p>
+</div>
+
+<!-- ============ PRIORITY ============ -->
+<h2>Implementation Priority</h2>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Fix</th><th>Type</th><th>Effort</th><th>Impact</th><th>Priority</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><strong>Bug #1:</strong> Dedup product cards + prompt instruction</td>
+      <td><span class="badge" style="background:rgba(124,92,255,0.15);color:var(--accent)">Code</span></td>
+      <td>30 min</td>
+      <td>+0.3 avg (all tests)</td>
+      <td><span class="badge critical">P0</span></td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><strong>Bug #4:</strong> Add missing ProductVariant nodes</td>
+      <td><span class="badge" style="background:rgba(59,130,246,0.15);color:var(--blue)">Graph</span></td>
+      <td>2-3 hours</td>
+      <td>Enables Bug #2 + #3 fixes</td>
+      <td><span class="badge critical">P0</span></td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><strong>Bug #2:</strong> Weight errors resolved by Bug #4</td>
+      <td><span class="badge" style="background:rgba(59,130,246,0.15);color:var(--blue)">Graph</span></td>
+      <td>Included in #2</td>
+      <td>+0.2 avg (3 tests)</td>
+      <td><span class="badge high">P1</span></td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><strong>Bug #3:</strong> Single-unit upsizing logic</td>
+      <td><span class="badge" style="background:rgba(124,92,255,0.15);color:var(--accent)">Code</span></td>
+      <td>2-4 hours</td>
+      <td>+0.5 GPT avg (3 tests)</td>
+      <td><span class="badge high">P1</span></td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td><strong>Enh #1:</strong> Add catalog details to context</td>
+      <td><span class="badge" style="background:rgba(124,92,255,0.15);color:var(--accent)">Code+Graph</span></td>
+      <td>1-2 hours</td>
+      <td>+0.2 avg</td>
+      <td><span class="badge medium">P2</span></td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td><strong>Enh #2:</strong> Material validation context in prompt</td>
+      <td><span class="badge" style="background:rgba(124,92,255,0.15);color:var(--accent)">Prompt</span></td>
+      <td>15 min</td>
+      <td>+0.1 avg</td>
+      <td><span class="badge low">P3</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ============ METHODOLOGY ============ -->
+<h2>Methodology</h2>
+<div class="card">
+  <p style="font-size:14px">This analysis was performed by:</p>
+  <ol style="margin:8px 0 0 20px; font-size:14px">
+    <li>Running 10 tests via <code>auto_conversation_test.py --batch 10 --concurrency 5</code></li>
+    <li>Evaluating each response with 3 judges: Gemini 2.5 Pro, GPT-5.2, Claude Opus</li>
+    <li>Extracting all weakness complaints from all 30 judge evaluations</li>
+    <li>Cross-referencing each complaint against:
+      <ul>
+        <li>PDF catalog pages (GDB, GDC, GDC-FLEX, GDMI MATT tables)</li>
+        <li>Neo4j graph data (ProductVariant weights, DimensionModule parametric model, material edges)</li>
+        <li>Backend code paths (weight lookup in state.py, card generation in retriever.py, sizing in engine)</li>
+      </ul>
+    </li>
+    <li>Classifying each complaint as: real bug, enhancement opportunity, or judge error</li>
+    <li>Estimating score improvement based on which penalty categories each fix eliminates</li>
+  </ol>
+</div>
+
+<p style="color:var(--muted);text-align:center;margin:32px 0;font-size:13px">
+  Generated 2026-02-14 &middot; SynapseOS Judge Analysis Report &middot; 10-test batch
+</p>
+
+</body>
+</html>

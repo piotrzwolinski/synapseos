@@ -1,0 +1,313 @@
+{
+  "name": "hc_tight_maintenance_shaft",
+  "description": "[HC] 650mm shaft + GDB-600x600 side door → service clearance warning",
+  "query": "We have a 650 mm wide shaft. We want GDB-600x600 with side access door.",
+  "session_id": "33899fd2-9659-466b-8353-a5cb29cb0c50",
+  "duration_s": 51.5,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "We have a 650 mm wide shaft. We want GDB-600x600 with side access door.",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T11:56:59.098461+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "The GDB-600x600 configuration is blocked due to insufficient service clearance. The unit requires 1200mm of side clearance, but only 650mm is available. This is because the side access door requires space equal to the housing width for maintenance and filter changes.A verified alternative is the PFF Planfilterram, which requires only 600mm of frontal access, fitting within the available space.",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T11:57:10.663778+00:00",
+      "clarification": null,
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [
+        {
+          "type": "WARNING",
+          "text": "Blocked"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 4,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 4.85,
+          "explanation": "The system correctly identifies a critical physical installation constraint: a side-access filter housing cannot be serviced in a shaft that lacks the necessary width for filter withdrawal. It appropriately blocks the request and suggests a front-access alternative (PFF) that fits the spatial constraints.",
+          "dimension_explanations": {
+            "correctness": "Correctly identifies GDB 600x600 dimensions (PDF p.9) and the side-access nature of the housing (PDF p.8), leading to a valid blocking decision.",
+            "completeness": "Good coverage of the blocking reason and alternative, though suggesting the BFF (Bag Filter Frame) might have been a closer functional equivalent to the GDB than the PFF (Mat Filter Frame).",
+            "safety": "Excellent risk avoidance; prevents the installation of a unit that would be impossible to service.",
+            "tone": "Professional and clear.",
+            "reasoning_quality": "The logic regarding service clearance (housing width + filter withdrawal space) is sound and clearly explained.",
+            "constraint_adherence": "Strictly adheres to physical installation constraints."
+          },
+          "strengths": [
+            "Accurate physical constraint reasoning (service clearance)",
+            "Proactive blocking of unserviceable configurations",
+            "Correct identification of front-access alternatives"
+          ],
+          "weaknesses": [
+            "Could have offered BFF (Påsfilterram) as an alternative, which matches the GDB's typical filter type (bag filters) better than PFF (mats)"
+          ],
+          "pdf_citations": [
+            "GDB 600x600 dimensions: Width 600mm, Height 600mm (PDF p.9)",
+            "GDB Side Access: 'Serviceluckan är högerhängd' (PDF p.8)",
+            "PFF Description: 'Planfilterram' for front mounting (PDF p.21)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 39.85,
+            "prompt_tokens": 15460,
+            "cached_tokens": 15822,
+            "output_tokens": 520
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 4,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 3.05,
+          "explanation": "The system correctly recognized that side-access service clearance can be a hard spatial constraint, but it asserted an unverified specific requirement (\"1200 mm side clearance\") not supported by the provided PDF and then recommended an incompatible alternative (PFF planfilter frame is not a housing and is intended for GDP). The response is also incomplete because it does not pursue viable options (e.g., left/right hinging choice, access direction, switching to flange connection, changing housing type, or reorienting access) before blocking the request.",
+          "dimension_explanations": {
+            "correctness": "PDF confirms GDB exists and size 600x600 has recommended flow 3400 m³/h (GDB table), but the claimed fixed 1200 mm side-clearance requirement and the statement that PFF is a verified alternative for this need are not supported and are technically mismatched.",
+            "completeness": "It blocks without asking key clarifications (door hinging vs access side, filter length 550/600 vs 750/800, service strategy) and without proposing a correct housing-based alternative.",
+            "safety": "Conservatively blocking for inadequate service access is appropriate to avoid unsafe/unsuccessful maintenance and bypass risks, though the numeric clearance basis is not evidenced.",
+            "tone": "Professional and clear technical communication with an explicit warning.",
+            "reasoning_quality": "Cause-effect logic (side door needs clearance for filter change-out) is reasonable, but the argument relies on an unexplained and likely over-specific clearance number and then jumps to an unsuitable alternative.",
+            "constraint_adherence": "It enforces a space constraint, but violates product/application constraints by recommending PFF (a planfilter frame) instead of a GDB/GDP/GDMI housing solution."
+          },
+          "strengths": [
+            "Flags serviceability/maintenance clearance as a gating constraint for side-access housings",
+            "Keeps a professional, decisive technical-sales tone with a clear block status"
+          ],
+          "weaknesses": [
+            "Introduces an unsupported specific clearance requirement (1200 mm) not documented in the catalog excerpt",
+            "Recommends an incorrect alternative (PFF is an accessory frame for GDP, not a replacement for a GDB housing)"
+          ],
+          "pdf_citations": [
+            "GDB 600x600: Rek. flöde/Flöde = 3400 m³/h; available in lengths 550/600 and 750/800 (PDF GDB 'MÅTT' table).",
+            "PFF planfilterram: 'Passar till planfilterskåp GDP' (PDF PFF section), i.e., it is not a GDB housing alternative."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 13.03,
+            "prompt_tokens": 36829,
+            "cached_tokens": 17920,
+            "output_tokens": 648
+          }
+        },
+        "anthropic": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 3,
+            "tone": 4,
+            "reasoning_quality": 2,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.4,
+          "explanation": "The system incorrectly blocks the GDB-600x600 configuration based on a fabricated '1200mm side clearance' rule that has no basis in the product catalog. The GDB-600x600 has a width of 600mm (PDF p.9), and while service door swing space is a real consideration, the system's claim of needing 1200mm clearance is unsupported and overly conservative. The alternative recommendation of PFF (a filter frame, not a housing) is not a valid substitute for a GDB duct filter housing.",
+          "dimension_explanations": {
+            "correctness": "GDB 600x600 exists in the PDF (p.9) with width=600mm, height=600mm, and airflow=3400 m³/h; the claim that 1200mm side clearance is required is fabricated — the door opens on the height side (Lucksida = Höjdsida = 600mm), so ~600mm swing clearance would be needed, which is close to the 650mm available.",
+            "completeness": "The system fails to explore viable solutions — it doesn't ask about housing length, material, or whether the door could be left-hinged, and the PFF alternative is a filter frame not a filter housing, making it a non-equivalent recommendation.",
+            "safety": "The concern about service access clearance is a legitimate safety/maintenance consideration, but the specific threshold cited is incorrect and the blocking is overly aggressive.",
+            "tone": "Professional and consultative tone with clear warning formatting, appropriate for technical sales context.",
+            "reasoning_quality": "The reasoning chain is flawed — it claims 1200mm clearance is needed (double the width) without justification, and the logic for recommending PFF as an alternative to a duct filter housing is not sound since they serve different functions.",
+            "constraint_adherence": "The system applies a fabricated constraint (1200mm clearance requirement) that doesn't exist in the product documentation, effectively blocking a configuration that should be feasible with ~600mm door swing into a 650mm shaft."
+          },
+          "strengths": [
+            "Correctly identifies that service access clearance is an important installation consideration",
+            "Professional warning format and clear communication style"
+          ],
+          "weaknesses": [
+            "Fabricates a 1200mm clearance requirement that has no basis in the catalog — the door side is the height side (600mm), and 650mm available space likely provides adequate clearance",
+            "Recommends PFF (a filter frame for filter mats) as an alternative to GDB (a duct filter housing for bag/compact filters), which are fundamentally different product categories serving different purposes",
+            "Does not ask clarifying questions about housing length, material, or explore workarounds like left-hinged door orientation"
+          ],
+          "pdf_citations": [
+            "GDB 600x600: Bredd=600, Höjd=600, Flöde=3400 m³/h (PDF p.9)",
+            "GDB: 'Lucksida = Höjdsida' — door opens on the height side, which is 600mm for 600x600 (PDF p.9)",
+            "PFF is described as 'Planfilterram avsedd för filtermatta' — a filter mat frame for GDP housings, not a duct filter housing (PDF p.21)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 26.7,
+            "prompt_tokens": 328,
+            "cached_tokens": 53610,
+            "output_tokens": 879
+          }
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Verified alternatives: PFF Planfilterram",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 10 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "available_space_mm": "650",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": null,
+            "product_family": "GDB",
+            "product_code": "GDB-600x600-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth",
+              "airflow"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 1,
+        "variable_features": 3,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "33899fd2-9659-466b-8353-a5cb29cb0c50",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDB",
+          "locked_material": null,
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"available_space_mm\": \"650\", \"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "housing_width": 600,
+            "product_family": "GDB",
+            "quantity": 1,
+            "filter_width": 600,
+            "housing_height": 600,
+            "session_id": "33899fd2-9659-466b-8353-a5cb29cb0c50",
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_33899fd2-9659-466b-8353-a5cb29cb0c50_item_1",
+            "is_complete": false,
+            "filter_height": 600,
+            "product_code": "GDB-600x600-R-PG-FZ"
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Filter 600x600mm -> Sized to 600x600 -> Code: GDB-600x600-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "The GDB-600x600 configuration is blocked due to insufficient service clearance. The unit requires 1200mm of side clearance, but only 650mm is available. This is because the side access door requires space equal to the housing width for maintenance and filter changes.",
+          "type": "GENERAL",
+          "inference_logic": "Service clearance insufficient. Unit requires 1200mm total but only 650mm available. Requires side clearance equal to housing width."
+        },
+        {
+          "text": "A verified alternative is the PFF Planfilterram, which requires only 600mm of frontal access, fitting within the available space.",
+          "type": "GENERAL",
+          "inference_logic": "Requires 600mm (FRONT), fits within 650mm available"
+        }
+      ]
+    }
+  ]
+}

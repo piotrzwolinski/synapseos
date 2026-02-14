@@ -18,6 +18,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiUrl, authFetch } from "@/lib/api";
 
 // Tab configuration with colors matching the graph visualization
 const TABS = [
@@ -109,7 +110,7 @@ export function DataExplorer() {
     setError(null);
     try {
       const endpoint = tab === "products" ? "/products" : `/explorer/${tab}`;
-      const response = await fetch(`http://localhost:8000${endpoint}`);
+      const response = await fetch(apiUrl(`${endpoint}`), authFetch());
       if (!response.ok) throw new Error(`Failed to fetch ${tab}`);
       const result = await response.json();
 

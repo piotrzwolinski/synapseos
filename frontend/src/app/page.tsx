@@ -1,19 +1,24 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Chat } from "@/components/chat";
+import { resetSessionId } from "@/lib/api";
 import { ThreadIngestor } from "@/components/thread-ingestor";
 import { DocIngestor } from "@/components/doc-ingestor";
 import { ThreadExplorer } from "@/components/thread-explorer";
-import { KnowledgeCenter } from "@/components/knowledge-center";
+import { KnowledgeRefinery } from "@/components/knowledge-refinery";
 import { SettingsPanel } from "@/components/settings-panel";
+import { TestLab } from "@/components/test-lab";
+import { TestGenerator } from "@/components/test-generator";
+import { CapabilitiesShowcase } from "@/components/capabilities-showcase";
+import { ExpertReview } from "@/components/expert-review";
+import { GraphAudit } from "@/components/graph-audit";
 import {
   MessageSquare,
   Upload,
   Settings,
   Activity,
   Brain,
-  Sparkles,
   ChevronLeft,
   ChevronRight,
   Users,
@@ -27,27 +32,21 @@ import {
   Loader2,
   FolderSearch,
   BookOpen,
-  Eye,
-  Database,
-  FlaskConical,
   Trash2,
+  FlaskConical,
+  Compass,
+  Wand2,
+  LogOut,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiUrl, authFetch } from "@/lib/api";
+import { AuthGuard } from "@/components/auth-guard";
+import { clearToken } from "@/lib/auth";
 
-type ThinkingLevel = "low" | "high";
-type ModelType = "gemini-3-pro-preview" | "gemini-3-flash-preview";
+type ChatMode = "llm-driven" | "graphrag" | "graph-reasoning" | "neuro-symbolic";
 
-const THINKING_LEVELS: { value: ThinkingLevel; label: string; description: string }[] = [
-  { value: "low", label: "Low", description: "Quick responses, less reasoning" },
-  { value: "high", label: "High", description: "Deep reasoning, thorough analysis" },
-];
-
-const MODELS: { value: ModelType; label: string; description: string }[] = [
-  { value: "gemini-3-pro-preview", label: "Intelligent", description: "Deep reasoning, best for complex queries" },
-  { value: "gemini-3-flash-preview", label: "Fast", description: "Quick responses, good for simple queries" },
-];
-
-type TabType = "chat" | "ingest" | "explore" | "knowledge" | "analytics" | "workflows" | "users" | "integrations" | "audit" | "settings";
+type TabType = "chat" | "ingest" | "explore" | "knowledge" | "testlab" | "testgen" | "capabilities" | "expert-review" | "analytics" | "workflows" | "users" | "integrations" | "audit" | "settings";
 type IngestSubTab = "threads" | "docs";
 
 interface NavItem {
@@ -58,79 +57,8 @@ interface NavItem {
   section?: "main" | "enterprise" | "admin";
 }
 
-// Sample questions for dev mode - grouped by knowledge source
-const SAMPLE_QUESTIONS = {
-  // Email Thread: Knittel (Technical Problem)
-  knittel: [
-    "I have a project where the intake grid is blocking the installation and I can't remove it. What are my options?",
-    "What was the technical solution proposed by Milad Alzaghari for the Knittel project?",
-    "What filter stages were requested in the Knittel project?",
-  ],
-  // Email Thread: Huddinge Hospital (Pricing/Calculation)
-  huddinge: [
-    "We are calculating a new variation for the Huddinge Hospital project (Building C1). What discount level was applied to the filter cabinets in the previous calculation?",
-    "What is the price of a GDR Nano 1/1 filter cabinet from the Huddinge project?",
-    "Which Camfil products were specified in the Huddinge tender that we need to match?",
-  ],
-  // Email Thread: Nordic Furniture (Safety/ATEX)
-  nordic: [
-    "I have a customer with a wood joinery shop. They need F7 bag filters for their sanding line dust collector. They want the cheapest standard option.",
-    "Why can't I sell standard polyester bag filters for a wood sanding application?",
-    "What is the ATEX compliance requirement for filters in Zone 22?",
-  ],
-  // Document: Filter Cabinet Catalog
-  catalog: [
-    "Which filter cabinet family is specifically designed for Scandsorb carbon cartridges?",
-    "I need to handle an airflow of 3400 m³/h. Which cabinet size corresponds to a single 1/1 module?",
-    "What is the difference in insulation between the GDB and the GDMI series?",
-    "If I have a depth limitation of 300 mm, which cabinet series is the only viable option?",
-    "Which cabinet model features a pull-out filter plate for easier maintenance?",
-    "What is the corrosion class of Zinkmagnesium (ZM) material?",
-    "Can I install a bag filter inside a GDP series cabinet?",
-    "Which material provides the highest corrosion resistance (Class C5.1)?",
-    "What are the net dimensions of a PFF-600x600 planfilter frame?",
-    "Which EN standards were used to test the leakage and strength of the filter cabinets?",
-  ],
-  // Complex Housing Selection (First Principles Testing)
-  housing: [
-    "I need a carbon filter housing for a commercial kitchen. Airflow is 4500 m³/h, but I only have 700mm of installation space for the length. Budget is limited.",
-    "Looking for the cheapest GDC housing for odor filtration from a paint booth. Standard galvanized should be fine. Airflow around 2000 m³/h.",
-    "I have an auto repair shop - dust from body sanding in the workshop, and exhaust fumes at the entrance. Can one housing handle both? Total airflow around 3000 m³/h.",
-    "We're replacing an old filter in an existing installation. The duct opening is 580x580mm (flange). We need carbon filtration for food service odors. What fits?",
-    "I'm designing ventilation for a cold storage facility (-25°C) with frequent door opening (large temperature differences). I need dust filtration. Which housing model would be best?",
-  ],
-  // Maritime / Offshore (Corrosion Resistance Testing)
-  maritime: [
-    "We need filter housings for a cargo ship engine room. Salt spray exposure is constant. What material options do you have for C5-M marine corrosion class?",
-    "Offshore oil platform - need air filtration for the control room. Must withstand North Sea salt fog. Standard galvanized won't last. What do you recommend?",
-    "Ferry operator here. Our current filter cabinets are rusting through after 2 years. Looking for a long-term solution that can handle maritime environment. Airflow 5000 m³/h.",
-    "Designing HVAC for a coastal chemical plant, 50 meters from the waterline. Need C5-M rated housings. Do you have stainless steel options?",
-    "Shipyard workshop filtration - welding fumes plus salt air from the open dock. Need something that won't corrode but also handles the fume extraction. Budget is secondary to durability.",
-  ],
-  // Guardian Tests - Traps to test system reasoning
-  guardian: [
-    // 1. Dust vs Gas Trap
-    "We have an exhaust fume smell problem in the parking garage. Select a GDB bag filter housing to filter this out.",
-    // 2. Corrosion Trap (Pool)
-    "I need a cheap housing for pool ventilation. Please quote a standard GDB model in galvanized (FZ).",
-    // 3. Thermal Trap (Condensation)
-    "Looking for a GDB housing for rooftop installation. Budget is tight, so no insulation.",
-    // 4. Geometric Trap (Option in too small housing)
-    "I'm ordering a GDC carbon housing with 750mm length. It must have the police filter rail mounted.",
-    // 5. Ambiguity Trap (Missing Data)
-    "Select a GDB housing for an office building. Indoor installation.",
-    // 6. Hygiene Trap (Hospital)
-    "Project: Regional Hospital. Client wants to save money and asks for GDB housings in galvanized. Can I quote this?",
-    // 7. Terminology Trap (Product vs Component)
-    "I want to build a filter wall in a masonry duct. I need 20 GDP-600x600 housings, but without the sheet metal, just frames.",
-    // 8. Compatibility Trap (Wrong accessory)
-    "Can I order the EXL clamping mechanism for a GDC (Carbon) housing?",
-    // 9. Mounting Trap (Zero tolerance)
-    "I have an 800mm deep recess. Will a GDB-Long (750mm) plus a pre-filter frame (50mm) fit?",
-    // 10. Application Trap (Grease)
-    "I need carbon filters (GDC) for a hood in a french fry shop.",
-  ],
-};
+// Sample questions for dev mode - cleared for production
+const SAMPLE_QUESTIONS: Record<string, string[]> = {};
 
 // Sample case data for dev mode
 const SAMPLE_CASES = {
@@ -521,14 +449,19 @@ Nordic Furniture Group`
 
 const NAV_ITEMS: NavItem[] = [
   { id: "chat", label: "AI Consultant", icon: MessageSquare, section: "main" },
-  { id: "ingest", label: "Ingest Data", icon: Upload, section: "main" },
-  { id: "explore", label: "Thread Explorer", icon: FolderSearch, section: "main" },
-  { id: "knowledge", label: "Knowledge Center", icon: BookOpen, section: "main" },
+  // Hidden for now:
+  // { id: "ingest", label: "Ingest Data", icon: Upload, section: "main" },
+  // { id: "explore", label: "Thread Explorer", icon: FolderSearch, section: "main" },
+  // { id: "knowledge", label: "Knowledge Refinery", icon: BookOpen, section: "main" },
+  { id: "testlab", label: "Test Lab", icon: FlaskConical, section: "main" },
+  // { id: "testgen", label: "Test Generator", icon: Wand2, section: "main" },
+  { id: "capabilities", label: "Capabilities", icon: Compass, section: "main" },
+  { id: "expert-review", label: "Expert Review", icon: ClipboardCheck, section: "main" },
   { id: "analytics", label: "Analytics", icon: BarChart3, disabled: true, section: "enterprise" },
   { id: "workflows", label: "Workflows", icon: Workflow, disabled: true, section: "enterprise" },
   { id: "users", label: "User Management", icon: Users, disabled: true, section: "admin" },
   { id: "integrations", label: "Integrations", icon: Plug, disabled: true, section: "admin" },
-  { id: "audit", label: "Audit Log", icon: Shield, disabled: true, section: "admin" },
+  { id: "audit", label: "Graph Audit", icon: Shield, section: "main" },
   { id: "settings", label: "Settings", icon: Settings, section: "admin" },
 ];
 
@@ -621,85 +554,32 @@ function LockedModule({ title, description, icon: Icon }: { title: string; descr
   );
 }
 
-export default function Home() {
+function MainApp() {
   const [activeTab, setActiveTab] = useState<TabType>("chat");
   const [ingestSubTab, setIngestSubTab] = useState<IngestSubTab>("threads");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [devMode, setDevMode] = useState(false);
-  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  // Read ?q= synchronously during init — MUST happen before Chat mounts
+  // and loads history with the (potentially copied) parent session ID.
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get("q");
+    if (q) {
+      resetSessionId();
+      window.history.replaceState({}, "", window.location.pathname);
+      return q;
+    }
+    return null;
+  });
+  const [autoSubmit, setAutoSubmit] = useState(() => !!pendingQuestion);
   const [pendingSampleText, setPendingSampleText] = useState<string | null>(null);
 
   // Chat settings (lifted from Chat component)
-  const [explainableMode] = useState(true);  // Always on
-  const [expertMode, setExpertMode] = useState(true);
-  const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>("high");
-  const [currentModel, setCurrentModel] = useState<ModelType>("gemini-3-pro-preview");
-  const [showThinkingMenu, setShowThinkingMenu] = useState(false);
-  const [showModelMenu, setShowModelMenu] = useState(false);
-  const thinkingMenuRef = useRef<HTMLDivElement>(null);
-  const modelMenuRef = useRef<HTMLDivElement>(null);
+  const [explainableMode] = useState(false);  // Use regular chat with widgets
+  const expertMode = true;
+  const chatMode: ChatMode = "graph-reasoning";
   const chatRef = useRef<{ clearChat: () => void; testWidgets: () => void } | null>(null);
-
-  // Load initial model info from backend
-  useEffect(() => {
-    const loadModelInfo = async () => {
-      try {
-        const response = await fetch("http://localhost:8000/chat/model");
-        if (response.ok) {
-          const data = await response.json();
-          if (data.thinking_level) setThinkingLevel(data.thinking_level);
-          if (data.model) setCurrentModel(data.model as ModelType);
-        }
-      } catch (error) {
-        console.error("Failed to load model info:", error);
-      }
-    };
-    loadModelInfo();
-  }, []);
-
-  const changeThinkingLevel = async (level: ThinkingLevel) => {
-    try {
-      const response = await fetch("http://localhost:8000/chat/thinking", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ level }),
-      });
-      if (response.ok) setThinkingLevel(level);
-    } catch (error) {
-      console.error("Failed to change thinking level:", error);
-    }
-    setShowThinkingMenu(false);
-  };
-
-  const changeModel = async (model: ModelType) => {
-    try {
-      const response = await fetch("http://localhost:8000/chat/model", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model }),
-      });
-      if (response.ok) setCurrentModel(model);
-    } catch (error) {
-      console.error("Failed to change model:", error);
-    }
-    setShowModelMenu(false);
-  };
-
-  // Close menus when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (thinkingMenuRef.current && !thinkingMenuRef.current.contains(event.target as Node)) {
-        setShowThinkingMenu(false);
-      }
-      if (modelMenuRef.current && !modelMenuRef.current.contains(event.target as Node)) {
-        setShowModelMenu(false);
-      }
-    };
-    if (showThinkingMenu || showModelMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showThinkingMenu, showModelMenu]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-violet-50/20 flex">
@@ -802,6 +682,18 @@ export default function Home() {
               </div>
             )}
           </button>
+
+          {/* Logout Button */}
+          <button
+            onClick={() => {
+              clearToken();
+              window.location.href = "/login";
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 mt-2 rounded-lg text-xs font-medium text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
+          >
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+            {!sidebarCollapsed && <span>Logout</span>}
+          </button>
         </div>
 
         {/* Collapse Toggle */}
@@ -826,24 +718,32 @@ export default function Home() {
               {activeTab === "chat" && "AI Sales Consultant"}
               {activeTab === "ingest" && "Data Ingestion"}
               {activeTab === "explore" && "Thread Explorer"}
-              {activeTab === "knowledge" && "Knowledge Center"}
+              {activeTab === "knowledge" && "Knowledge Refinery"}
+              {activeTab === "testlab" && "Test Lab"}
+              {activeTab === "testgen" && "Test Generator"}
+              {activeTab === "capabilities" && "Expert Capabilities"}
+              {activeTab === "expert-review" && "Expert Review"}
               {activeTab === "analytics" && "Analytics & Reports"}
               {activeTab === "workflows" && "Automation Workflows"}
               {activeTab === "users" && "User Management"}
               {activeTab === "integrations" && "Integrations"}
-              {activeTab === "audit" && "Audit Log"}
+              {activeTab === "audit" && "Graph Audit"}
               {activeTab === "settings" && "Settings"}
             </h2>
             <p className="text-xs text-slate-500">
               {activeTab === "chat" && ""}
               {activeTab === "ingest" && "Add email threads and documents to the knowledge base"}
               {activeTab === "explore" && "Browse and manage ingested email threads"}
-              {activeTab === "knowledge" && "Verify discovered tools, data sources, and external references"}
+              {activeTab === "knowledge" && "Review and refine AI-discovered knowledge"}
+              {activeTab === "testlab" && "Review regression test results and assertion details"}
+              {activeTab === "testgen" && "Multi-LLM debate to generate new test cases from product catalogs"}
+              {activeTab === "capabilities" && "Expert modules, sub-components, and example scenarios"}
+              {activeTab === "expert-review" && "Browse conversations, review responses, and score judge evaluations"}
               {activeTab === "analytics" && "Track performance metrics and generate reports"}
               {activeTab === "workflows" && "Automate repetitive tasks and processes"}
               {activeTab === "users" && "Manage team members and permissions"}
               {activeTab === "integrations" && "Connect with CRM, ERP and other systems"}
-              {activeTab === "audit" && "Review system activity and compliance logs"}
+              {activeTab === "audit" && "Multi-LLM debate to verify knowledge graph integrity against product catalog"}
               {activeTab === "settings" && "Configure system preferences and policies"}
             </p>
           </div>
@@ -851,116 +751,14 @@ export default function Home() {
           {/* Chat Controls - Only show on chat tab */}
           {activeTab === "chat" && (
             <div className="flex items-center gap-1">
-              {/* Model Selector */}
-              <div className="relative" ref={modelMenuRef}>
-                <button
-                  onClick={() => setShowModelMenu(!showModelMenu)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    {MODELS.find(m => m.value === currentModel)?.label || "Pro"}
-                  </span>
-                  <ChevronRight className={cn("h-3 w-3 transition-transform", showModelMenu && "rotate-90")} />
-                </button>
-                {showModelMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
-                    <div className="px-3 py-1.5 text-[10px] font-medium text-slate-400 uppercase tracking-wide">
-                      Select Model
-                    </div>
-                    {MODELS.map((model) => (
-                      <button
-                        key={model.value}
-                        onClick={() => changeModel(model.value)}
-                        className={cn(
-                          "w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center justify-between",
-                          currentModel === model.value && "bg-blue-50"
-                        )}
-                      >
-                        <div>
-                          <div className={cn("text-sm font-medium", currentModel === model.value ? "text-blue-700" : "text-slate-700")}>
-                            {model.label}
-                          </div>
-                          <div className="text-[10px] text-slate-400">{model.description}</div>
-                        </div>
-                        {currentModel === model.value && <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Thinking Level */}
-              <div className="relative" ref={thinkingMenuRef}>
-                <button
-                  onClick={() => setShowThinkingMenu(!showThinkingMenu)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  <Brain className="h-4 w-4" />
-                  <span className="text-sm font-medium capitalize">{thinkingLevel}</span>
-                  <ChevronRight className={cn("h-3 w-3 transition-transform", showThinkingMenu && "rotate-90")} />
-                </button>
-                {showThinkingMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
-                    <div className="px-3 py-1.5 text-[10px] font-medium text-slate-400 uppercase tracking-wide">
-                      Thinking Level
-                    </div>
-                    {THINKING_LEVELS.map((level) => (
-                      <button
-                        key={level.value}
-                        onClick={() => changeThinkingLevel(level.value)}
-                        className={cn(
-                          "w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center justify-between",
-                          thinkingLevel === level.value && "bg-violet-50"
-                        )}
-                      >
-                        <div>
-                          <div className={cn("text-sm font-medium", thinkingLevel === level.value ? "text-violet-700" : "text-slate-700")}>
-                            {level.label}
-                          </div>
-                          <div className="text-[10px] text-slate-400">{level.description}</div>
-                        </div>
-                        {thinkingLevel === level.value && <div className="w-1.5 h-1.5 rounded-full bg-violet-600" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="w-px h-6 bg-slate-200 mx-1" />
-
-              {/* Expert Mode Toggle */}
-              <button
-                onClick={() => setExpertMode(!expertMode)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-                  expertMode
-                    ? "text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
-                    : "text-slate-500 hover:bg-slate-100"
-                )}
-              >
-                <Eye className="h-4 w-4" />
-                <span>Expert</span>
-              </button>
-
-              <div className="w-px h-6 bg-slate-200 mx-1" />
-
-              {/* Test Widgets */}
-              <button
-                onClick={() => chatRef.current?.testWidgets()}
-                className="p-2 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-slate-100 transition-colors"
-                title="Test Widget UI"
-              >
-                <FlaskConical className="h-4 w-4" />
-              </button>
-
-              {/* Clear Chat */}
+              {/* New Session */}
               <button
                 onClick={() => chatRef.current?.clearChat()}
-                className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                title="Clear chat"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                title="Clear session and start fresh"
               >
                 <Trash2 className="h-4 w-4" />
+                <span>New Session</span>
               </button>
             </div>
           )}
@@ -978,10 +776,12 @@ export default function Home() {
                 devMode={devMode}
                 sampleQuestions={SAMPLE_QUESTIONS}
                 externalQuestion={pendingQuestion || undefined}
-                onQuestionConsumed={() => setPendingQuestion(null)}
+                autoSubmit={autoSubmit}
+                onQuestionConsumed={() => { setPendingQuestion(null); setAutoSubmit(false); }}
                 explainableMode={explainableMode}
                 expertMode={expertMode}
-                onExpertModeChange={setExpertMode}
+                onExpertModeChange={() => {}}
+                chatMode={chatMode}
               />
             )}
             {activeTab === "ingest" && (
@@ -1027,7 +827,11 @@ export default function Home() {
               </div>
             )}
             {activeTab === "explore" && <ThreadExplorer />}
-            {activeTab === "knowledge" && <KnowledgeCenter />}
+            {activeTab === "knowledge" && <KnowledgeRefinery />}
+            {activeTab === "testlab" && <TestLab />}
+            {activeTab === "testgen" && <TestGenerator />}
+            {activeTab === "capabilities" && <CapabilitiesShowcase />}
+            {activeTab === "expert-review" && <ExpertReview />}
             {activeTab === "analytics" && (
               <LockedModule
                 title="Analytics & Reports"
@@ -1056,17 +860,19 @@ export default function Home() {
                 icon={Plug}
               />
             )}
-            {activeTab === "audit" && (
-              <LockedModule
-                title="Audit Log"
-                description="Complete activity tracking, compliance reporting, data lineage, and forensic analysis tools for enterprise governance requirements."
-                icon={Shield}
-              />
-            )}
+            {activeTab === "audit" && <GraphAudit />}
             {activeTab === "settings" && <SettingsPanel />}
           </div>
         </div>
       </main>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <AuthGuard>
+      <MainApp />
+    </AuthGuard>
   );
 }

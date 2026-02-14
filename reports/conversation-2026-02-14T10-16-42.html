@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conversation Test — 2026-02-14 10:16</title>
+<style>
+:root {
+  --blue-600: #2563eb;
+  --violet-600: #7c3aed;
+  --green-500: #22c55e;
+  --red-500: #ef4444;
+  --yellow-500: #eab308;
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-400: #94a3b8;
+  --slate-600: #475569;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, var(--slate-50), #eff6ff, #f5f3ff);
+  min-height: 100vh;
+  color: var(--slate-800);
+}
+.header {
+  background: white;
+  border-bottom: 1px solid var(--slate-200);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-logo {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, var(--blue-600), var(--violet-600));
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 20px;
+}
+.header-title { font-weight: 700; font-size: 18px; color: var(--slate-900); }
+.header-meta { margin-left: auto; color: var(--slate-400); font-size: 13px; }
+.chat-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+.message {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  align-items: flex-start;
+}
+.user-message {
+  justify-content: flex-end;
+}
+.avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.user-avatar {
+  background: linear-gradient(135deg, var(--blue-600), var(--violet-600));
+  order: 2;
+}
+.assistant-avatar {
+  background: var(--slate-100);
+  border: 1px solid var(--slate-200);
+}
+.bubble {
+  max-width: 75%;
+  padding: 14px 18px;
+  border-radius: 18px;
+  line-height: 1.55;
+  font-size: 15px;
+}
+.user-bubble {
+  background: linear-gradient(135deg, var(--blue-600), var(--violet-600));
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+.assistant-bubble {
+  background: white;
+  border: 1px solid var(--slate-200);
+  border-bottom-left-radius: 4px;
+  max-width: 85%;
+}
+.content { margin-bottom: 8px; }
+
+/* Clarification */
+.clarification {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--slate-100);
+}
+.clar-bar {
+  width: 3px;
+  background: var(--blue-600);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.clar-content { flex: 1; }
+.clar-content strong { font-size: 15px; display: block; margin-bottom: 4px; }
+.clar-why { color: var(--slate-400); font-size: 13px; margin-bottom: 10px; }
+.clar-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.clar-btn {
+  padding: 8px 20px;
+  border: 1px solid var(--slate-200);
+  border-radius: 20px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--slate-800);
+}
+.clar-other {
+  border-style: dashed;
+  color: var(--slate-400);
+}
+
+/* Product Card */
+.product-card {
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: 12px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+.card-header {
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 15px;
+  border-bottom: 1px solid var(--slate-200);
+}
+.card-specs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--slate-200);
+}
+.spec {
+  background: white;
+  padding: 10px 16px;
+}
+.spec-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--slate-400);
+  margin-bottom: 2px;
+}
+.spec-value {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Status badges */
+.status-badges { margin-bottom: 8px; }
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.status-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+.status-warning { background: #fefce8; border: 1px solid #fef08a; color: #854d0e; }
+.status-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+
+/* Judge badges */
+.judge-badges {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--slate-100);
+  flex-wrap: wrap;
+}
+.judge-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.badge-pass {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+.badge-fail {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+}
+.badge-label {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.badge-pass .badge-label { background: #22c55e; color: white; }
+.badge-fail .badge-label { background: #ef4444; color: white; }
+
+/* Judge details */
+.judge-details {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.judge-card {
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+.judge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.judge-time { color: var(--slate-400); font-size: 12px; }
+.judge-explanation {
+  font-size: 13px;
+  color: var(--slate-600);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+.dim-scores {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.dim-badge {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.dim-green { background: #dcfce7; color: #166534; }
+.dim-yellow { background: #fef9c3; color: #854d0e; }
+.dim-red { background: #fee2e2; color: #991b1b; }
+.pdf-citations {
+  font-size: 12px;
+  color: var(--slate-600);
+  margin-top: 6px;
+}
+.pdf-citations ul { margin-left: 16px; margin-top: 4px; }
+.pdf-citations li { margin-bottom: 2px; }
+.judge-usage {
+  font-size: 11px;
+  color: var(--slate-400);
+  margin-top: 6px;
+  font-family: monospace;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 24px;
+  color: var(--slate-400);
+  font-size: 12px;
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-logo">🧠</div>
+  <div>
+    <div class="header-title">AI Sales Consultant — Automated Test</div>
+  </div>
+  <div class="header-meta">2026-02-14 10:16 · Graph Reasoning Mode</div>
+</div>
+<div class="chat-container">
+
+            <div class="message user-message">
+                <div class="bubble user-bubble">I need a GDB housing, size 600×600, Galvanized FZ, airflow 2500 m³/h.</div>
+                <div class="avatar user-avatar">👤</div>
+            </div>
+            <div class="message assistant-message">
+                <div class="avatar assistant-avatar">🤖</div>
+                <div class="bubble assistant-bubble">
+                    
+                    <div class="content">We have a GDB housing sized at 600x600mm, designed for an airflow of 2500 m³/h and constructed from Galvanized FZ.To finalize the configuration, I need to know the housing length.</div>
+                    <div class="clarification"><div class="clar-bar"></div><div class="clar-content"><strong>Which housing length is required?</strong><p class="clar-why">The housing length determines the overall size and capacity of the unit.</p><div class="clar-options"><button class="clar-btn">550mm</button><button class="clar-btn">750mm</button><button class="clar-btn clar-other">Other...</button></div></div></div>
+                    
+                    
+                    <div class="judge-badges"><span class="judge-badge badge-pass">✦ Gemini 5.0/5 <span class="badge-label">PASS</span></span><span class="judge-badge badge-fail">⚙ GPT-5.2 3.1/5 <span class="badge-label">FAIL</span></span><span class="judge-badge badge-pass">◈ Claude 4.0/5 <span class="badge-label">PASS</span></span></div>
+                    <div class="judge-details"><div class="judge-card"><div class="judge-header"><strong>Gemini</strong><span class="judge-time">27.0s</span></div><p class="judge-explanation">The system correctly identified the product (GDB) and validated the user's parameters against the catalog. It appropriately paused to ask for the missing 'housing length' parameter, which is required to distinguish between the standard 550mm and 750mm versions listed in the PDF, rather than guessing or providing a premature recommendation.</p><div class="dim-scores"><span class="dim-badge dim-green">COR:5</span><span class="dim-badge dim-green">COM:5</span><span class="dim-badge dim-green">SAF:5</span><span class="dim-badge dim-green">TON:5</span><span class="dim-badge dim-green">REA:5</span><span class="dim-badge dim-green">CON:5</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>GDB 600x600 Max Airflow: 3400 m³/h (PDF p. 9)</li><li>GDB Standard Lengths: 550mm and 750mm (PDF p. 8)</li></ul></div><div class="judge-usage">in:15,115 cached:15,467 out:511</div></div><div class="judge-card"><div class="judge-header"><strong>GPT-5.2</strong><span class="judge-time">14.1s</span></div><p class="judge-explanation">The system appropriately asked a critical clarifying question (housing length) before issuing a final product card, but it made an incorrect factual claim about the GDB 600×600 airflow capacity. Aside from that, the interaction was professional and directionally aligned with the catalog (GDB exists and 600×600 is a valid size).</p><div class="dim-scores"><span class="dim-badge dim-red">COR:2</span><span class="dim-badge dim-yellow">COM:3</span><span class="dim-badge dim-green">SAF:4</span><span class="dim-badge dim-green">TON:5</span><span class="dim-badge dim-yellow">REA:3</span><span class="dim-badge dim-yellow">CON:3</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>GDB size 600×600: Flöde = 3400 m³/h (GDB MÅTT table in provided PDF images, page showing 'Storlek GDB' with 600x600 row).</li><li>GDB standard lengths: 550/600 mm and 750/800 mm (GDB description text 'Finns som standard i två längder, 550 mm... och 750 mm...' in provided PDF images).</li></ul></div><div class="judge-usage">in:36,510 cached:13,824 out:607</div></div><div class="judge-card"><div class="judge-header"><strong>Claude</strong><span class="judge-time">40.5s</span></div><p class="judge-explanation">The system correctly identified the GDB 600×600 product and appropriately asked for the missing housing length parameter before finalizing. The system's statement that the housing is 'designed for an airflow of 2500 m³/h' is slightly misleading since the PDF shows GDB 600×600 has a rated capacity of 3400 m³/h — the user requested 2500 m³/h which is within capacity, but the system phrased it as if the housing is designed for that specific flow. The clarification request for housing length is correct and expected behavior.</p><div class="dim-scores"><span class="dim-badge dim-green">COR:4</span><span class="dim-badge dim-green">COM:4</span><span class="dim-badge dim-green">SAF:4</span><span class="dim-badge dim-green">TON:5</span><span class="dim-badge dim-yellow">REA:3</span><span class="dim-badge dim-green">CON:4</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>GDB 600×600: Flöde = 3400 m³/h (PDF p.9, MÅTT table)</li><li>GDB available in FZ (Förzinkat) material, standard material per PDF p.8</li><li>GDB standard lengths: 550/600mm and 750/800mm (PDF p.8-9)</li></ul></div><div class="judge-usage">in:53,513 out:869</div></div></div>
+                </div>
+            </div>
+            <div class="message user-message">
+                <div class="bubble user-bubble">750mm</div>
+                <div class="avatar user-avatar">👤</div>
+            </div>
+            <div class="message assistant-message">
+                <div class="avatar assistant-avatar">🤖</div>
+                <div class="bubble assistant-bubble">
+                    <div class="status-badges"><div class="status-badge status-success">✓ COMPLETE</div></div>
+                    <div class="content">Here is the specification for the GDB housing:</div>
+                    
+                    <div class="product-card"><div class="card-header">⊙ Tag item_1</div><div class="card-specs"><div class="spec"><span class="spec-label">PRODUCT CODE</span><span class="spec-value">GDB-600x600-750-R-PG-FZ</span></div><div class="spec"><span class="spec-label">HOUSING SIZE</span><span class="spec-value">600x600mm</span></div><div class="spec"><span class="spec-label">HOUSING LENGTH</span><span class="spec-value">750mm</span></div><div class="spec"><span class="spec-label">RATED AIRFLOW</span><span class="spec-value">3400 m³/h per module (requested: 2500 m³/h)</span></div><div class="spec"><span class="spec-label">WEIGHT</span><span class="spec-value">~34 kg</span></div><div class="spec"><span class="spec-label">HOUSING CORROSION CLASS</span><span class="spec-value">C2</span></div><div class="spec"><span class="spec-label">INDOOR ONLY</span><span class="spec-value">Yes</span></div></div></div>
+                    <div class="product-card"><div class="card-header">⊙ Tag item_1</div><div class="card-specs"><div class="spec"><span class="spec-label">PRODUCT CODE</span><span class="spec-value">GDB-600x600-750-R-PG-FZ</span></div><div class="spec"><span class="spec-label">HOUSING SIZE</span><span class="spec-value">600x600mm</span></div><div class="spec"><span class="spec-label">HOUSING LENGTH</span><span class="spec-value">750mm</span></div><div class="spec"><span class="spec-label">RATED AIRFLOW</span><span class="spec-value">3400 m³/h per module (requested: 2500 m³/h)</span></div><div class="spec"><span class="spec-label">WEIGHT</span><span class="spec-value">~34 kg</span></div><div class="spec"><span class="spec-label">HOUSING CORROSION CLASS</span><span class="spec-value">C2</span></div><div class="spec"><span class="spec-label">INDOOR ONLY</span><span class="spec-value">Yes</span></div></div></div>
+                    <div class="judge-badges"><span class="judge-badge badge-pass">✦ Gemini 5.0/5 <span class="badge-label">PASS</span></span><span class="judge-badge badge-pass">⚙ GPT-5.2 4.25/5 <span class="badge-label">PASS</span></span><span class="judge-badge badge-pass">◈ Claude 3.7/5 <span class="badge-label">PASS</span></span></div>
+                    <div class="judge-details"><div class="judge-card"><div class="judge-header"><strong>Gemini</strong><span class="judge-time">26.5s</span></div><p class="judge-explanation">The system performed perfectly. It correctly identified that the housing length was missing and asked for clarification. Once provided, it generated a product card with specifications (weight, airflow, corrosion class) that exactly match the GDB product table in the PDF.</p><div class="dim-scores"><span class="dim-badge dim-green">COR:5</span><span class="dim-badge dim-green">COM:5</span><span class="dim-badge dim-green">SAF:5</span><span class="dim-badge dim-green">TON:5</span><span class="dim-badge dim-green">REA:5</span><span class="dim-badge dim-green">CON:5</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>GDB 600x600 (750 length) Weight: 34 kg (PDF Page 9 table)</li><li>GDB 600x600 Rated Airflow: 3400 m³/h (PDF Page 9 table)</li><li>GDB Corrosion Class: C2 (PDF Page 8 'UTFÖRANDE')</li></ul></div><div class="judge-usage">in:15,629 cached:15,467 out:591</div></div><div class="judge-card"><div class="judge-header"><strong>GPT-5.2</strong><span class="judge-time">12.3s</span></div><p class="judge-explanation">The system selected an existing product family (GDB) and the exact code/size/length aligns with the catalog table, and the rated airflow matches the PDF for 600×600. Minor inaccuracies include the quoted weight (~34 kg) not matching the 750-length weight in the PDF and the initial statement implying the unit is “designed for 2500 m³/h” rather than being rated higher and operated at 2500.</p><div class="dim-scores"><span class="dim-badge dim-green">COR:4</span><span class="dim-badge dim-green">COM:4</span><span class="dim-badge dim-green">SAF:4</span><span class="dim-badge dim-green">TON:5</span><span class="dim-badge dim-green">REA:4</span><span class="dim-badge dim-green">CON:5</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>GDB 600×600: Flöde = 3400 m³/h (GDB MÅTT table, PDF section 'GDB', row 600×600).</li><li>GDB 600×600: Vikt = 34 kg (750/800) and 27 kg (550/600) (GDB MÅTT table, PDF section 'GDB', row 600×600).</li></ul></div><div class="judge-usage">in:36,934 cached:13,824 out:710</div></div><div class="judge-card"><div class="judge-header"><strong>Claude</strong><span class="judge-time">27.8s</span></div><p class="judge-explanation">The system correctly identified the GDB 600×600 product with accurate airflow (3400 m³/h) and weight (~34 kg) per the PDF. However, it produced a duplicate product card which is a presentation flaw, and the conversation could have been more informative about why the rated capacity exceeds the requested airflow. The clarification for housing length was appropriate.</p><div class="dim-scores"><span class="dim-badge dim-green">COR:4</span><span class="dim-badge dim-yellow">COM:3</span><span class="dim-badge dim-green">SAF:4</span><span class="dim-badge dim-yellow">TON:3</span><span class="dim-badge dim-yellow">REA:3</span><span class="dim-badge dim-green">CON:5</span></div><div class="pdf-citations"><strong>PDF Citations</strong><ul><li>GDB 600×600: Flöde=3400 m³/h, Vikt kg 750/800=34 kg (PDF p.9)</li><li>GDB is available in FZ material, corrosion class C2, for indoor use (PDF p.8)</li><li>GDB standard lengths: 550/600mm and 750/800mm (PDF p.8-9)</li></ul></div><div class="judge-usage">in:54,004 out:750</div></div></div>
+                </div>
+            </div>
+</div>
+<div class="footer">
+  Auto-generated conversation test · SynapseOS · 4 messages · 2 assistant turns
+</div>
+</body>
+</html>
