@@ -23,13 +23,13 @@ interface GenericTechnicalCardProps {
 const getConfidenceColor = (level: string) => {
   switch (level) {
     case "High":
-      return "text-emerald-600 bg-emerald-50";
+      return "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30";
     case "Medium":
-      return "text-amber-600 bg-amber-50";
+      return "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30";
     case "Low":
-      return "text-red-600 bg-red-50";
+      return "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30";
     default:
-      return "text-slate-600 bg-slate-50";
+      return "text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800";
   }
 };
 
@@ -61,13 +61,13 @@ export function GenericTechnicalCard({ data, onProjectClick }: GenericTechnicalC
   return (
     <Card className="overflow-hidden border-l-4 border-l-emerald-500 shadow-sm">
       {/* Header with Title */}
-      <div className="px-4 pt-3 pb-2 border-b border-slate-100">
-        <h3 className="text-sm font-semibold text-slate-900">{data.title}</h3>
+      <div className="px-4 pt-3 pb-2 border-b border-slate-100 dark:border-slate-700">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{data.title}</h3>
       </div>
 
       {/* Provenance Chain - Only show if reasoning data exists */}
       {data.reasoning && (
-        <div className="px-4 py-2 bg-slate-50/80 border-b border-slate-100">
+        <div className="px-4 py-2 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-1 text-[10px] flex-wrap">
             {/* Project Reference - Clickable for Deep Dive */}
             {data.reasoning?.project_ref && (
@@ -85,24 +85,24 @@ export function GenericTechnicalCard({ data, onProjectClick }: GenericTechnicalC
                   <History className="w-3 h-3" />
                   <span className="font-medium">{data.reasoning?.project_ref}</span>
                 </button>
-                <ChevronRight className="w-3 h-3 text-slate-300" />
+                <ChevronRight className="w-3 h-3 text-slate-300 dark:text-slate-600" />
               </>
             )}
 
             {/* Constraint */}
             {data.reasoning?.constraint && (
               <>
-                <div className="flex items-center gap-1 text-amber-700">
+                <div className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
                   <AlertTriangle className="w-3 h-3" />
                   <span>{data.reasoning?.constraint}</span>
                 </div>
-                <ChevronRight className="w-3 h-3 text-slate-300" />
+                <ChevronRight className="w-3 h-3 text-slate-300 dark:text-slate-600" />
               </>
             )}
 
             {/* Author */}
             {data.reasoning?.author && (
-              <div className="flex items-center gap-1 text-slate-600">
+              <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
                 <User className="w-3 h-3" />
                 <span>{data.reasoning?.author}</span>
               </div>
@@ -128,19 +128,19 @@ export function GenericTechnicalCard({ data, onProjectClick }: GenericTechnicalC
         <div className="grid grid-cols-2 md:grid-cols-3 gap-y-2 gap-x-4">
           {data.properties.map((prop, index) => (
             <div key={index} className="min-w-0">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-0.5 truncate">
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-0.5 truncate">
                 {prop.label}
               </p>
               <div className="flex items-center gap-1">
                 <p
                   className={cn(
                     "text-sm font-semibold truncate",
-                    prop.is_estimate ? "text-amber-700" : "text-slate-900"
+                    prop.is_estimate ? "text-amber-700 dark:text-amber-400" : "text-slate-900 dark:text-slate-100"
                   )}
                 >
                   {prop.value}
                   {prop.unit && (
-                    <span className="text-xs font-normal text-slate-500 ml-0.5">
+                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400 ml-0.5">
                       {prop.unit}
                     </span>
                   )}
@@ -158,7 +158,7 @@ export function GenericTechnicalCard({ data, onProjectClick }: GenericTechnicalC
 
       {/* Actions */}
       {data.actions && data.actions.length > 0 && (
-        <div className="px-4 py-2 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2">
+        <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex justify-end gap-2">
           {data.actions.map((action, index) => (
             <Button
               key={index}
@@ -168,7 +168,7 @@ export function GenericTechnicalCard({ data, onProjectClick }: GenericTechnicalC
                 "h-7 text-xs px-3",
                 action.variant === "primary"
                   ? "bg-emerald-600 hover:bg-emerald-700"
-                  : "border-slate-200 text-slate-600 hover:bg-slate-100"
+                  : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               )}
               onClick={() => handleAction(action.action_id)}
             >

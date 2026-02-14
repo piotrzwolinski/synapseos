@@ -81,17 +81,17 @@ const JUDGE_DIM_LABELS: Record<string, string> = {
 const PROVIDER_LABELS: Record<string, string> = { gemini: "Gemini", openai: "GPT-5.2", anthropic: "Claude" };
 
 function recColor(rec: string) {
-  return rec === "PASS"       ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100" :
-         rec === "BORDERLINE" ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" :
-         rec === "FAIL"       ? "bg-red-50 border-red-200 text-red-700 hover:bg-red-100" :
-                                "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100";
+  return rec === "PASS"       ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50" :
+         rec === "BORDERLINE" ? "bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50" :
+         rec === "FAIL"       ? "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50" :
+                                "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700";
 }
 
 function recBadgeColor(rec: string) {
-  return rec === "PASS" ? "bg-emerald-200 text-emerald-800" :
-         rec === "BORDERLINE" ? "bg-amber-200 text-amber-800" :
-         rec === "FAIL" ? "bg-red-200 text-red-800" :
-         "bg-slate-200 text-slate-800";
+  return rec === "PASS" ? "bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200" :
+         rec === "BORDERLINE" ? "bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200" :
+         rec === "FAIL" ? "bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200" :
+         "bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200";
 }
 
 function JudgeBadge({
@@ -159,7 +159,7 @@ function JudgeBadge({
         </button>
       </div>
       {expanded && (
-        <div className="mt-1.5 rounded-lg border border-slate-200 bg-white p-3 text-xs space-y-3 max-w-xl">
+        <div className="mt-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-xs space-y-3 max-w-xl">
           {providers.map((prov) => {
             const r = result[prov];
             const u = r.usage;
@@ -631,19 +631,19 @@ function LlmDiagnosticsPanel({ promptPreview, diagnostics }: { promptPreview?: s
   };
 
   return (
-    <div className="mt-3 rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-blue-50/30 overflow-hidden">
+    <div className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-50 to-blue-50/30 dark:from-slate-800 dark:to-blue-900/20 overflow-hidden">
       {/* Header with diagnostics summary */}
-      <div className="flex items-center justify-between px-3 py-2 bg-white/60 border-b border-slate-100">
+      <div className="flex items-center justify-between px-3 py-2 bg-white/60 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-700">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-md bg-blue-100 flex items-center justify-center">
-            <Cpu className="w-3 h-3 text-blue-600" />
+          <div className="w-5 h-5 rounded-md bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+            <Cpu className="w-3 h-3 text-blue-600 dark:text-blue-400" />
           </div>
-          <span className="text-[11px] font-semibold text-slate-700">LLM Diagnostics</span>
+          <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">LLM Diagnostics</span>
         </div>
         {diagnostics && (
-          <div className="flex items-center gap-3 text-[10px] text-slate-500">
+          <div className="flex items-center gap-3 text-[10px] text-slate-500 dark:text-slate-400">
             {diagnostics.model && (
-              <span className="px-1.5 py-0.5 rounded bg-slate-100 font-mono">{diagnostics.model}</span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 font-mono">{diagnostics.model}</span>
             )}
             {diagnostics.llm_time_s != null && (
               <span className="flex items-center gap-1">
@@ -662,16 +662,16 @@ function LlmDiagnosticsPanel({ promptPreview, diagnostics }: { promptPreview?: s
 
       {/* Diagnostics details */}
       {diagnostics && (
-        <div className="px-3 py-2 flex flex-wrap gap-3 text-[10px] border-b border-slate-100/50">
+        <div className="px-3 py-2 flex flex-wrap gap-3 text-[10px] border-b border-slate-100/50 dark:border-slate-700/50">
           {diagnostics.history_turns != null && (
-            <div className="flex items-center gap-1.5 text-slate-600">
-              <span className="font-medium text-slate-500">History:</span>
+            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+              <span className="font-medium text-slate-500 dark:text-slate-400">History:</span>
               <span>{diagnostics.history_turns} turns</span>
             </div>
           )}
           {diagnostics.variant_count != null && (
-            <div className="flex items-center gap-1.5 text-slate-600">
-              <span className="font-medium text-slate-500">Variants loaded:</span>
+            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+              <span className="font-medium text-slate-500 dark:text-slate-400">Variants loaded:</span>
               <span>{diagnostics.variant_count}</span>
             </div>
           )}
@@ -1830,7 +1830,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     <div className="flex gap-4">
       {/* Main Chat Panel */}
       <div className={cn(
-        "bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/60 overflow-hidden transition-all duration-300",
+        "bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden transition-all duration-300",
         explainableMode && expertMode ? "flex-1" : "w-full"
       )}>
       {/* Messages */}
@@ -1838,19 +1838,19 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         <div className="p-6 space-y-6">
           {messages.length === 0 && (
             <div className="text-center py-16">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-100 to-violet-100 flex items-center justify-center">
-                <Bot className="w-8 h-8 text-blue-600" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-100 to-violet-100 dark:from-blue-900/50 dark:to-violet-900/50 flex items-center justify-center">
+                <Bot className="w-8 h-8 text-blue-600 dark:text-blue-400" />
               </div>
-              <h3 className="font-semibold text-slate-900 mb-2">
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
                 How can I help you today?
               </h3>
-              <p className="text-sm text-slate-500 max-w-md mx-auto mb-4">
+              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-4">
                 Ask me about past engineering cases, product recommendations, or
                 technical decisions from our knowledge base.
               </p>
               <button
                 onClick={() => { setInput("I need a GDB housing, size 600x600, Galvanized FZ, airflow 2500 m\u00B3/h."); inputRef.current?.focus(); }}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all shadow-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700 hover:text-blue-700 dark:hover:text-blue-400 transition-all shadow-sm"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
                 I need a GDB housing, size 600x600, Galvanized FZ, airflow 2500 m&sup3;/h.
@@ -1880,13 +1880,13 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                   "flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center",
                   message.role === "user"
                     ? "bg-gradient-to-br from-blue-600 to-blue-700"
-                    : "bg-gradient-to-br from-slate-100 to-slate-200"
+                    : "bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800"
                 )}
               >
                 {message.role === "user" ? (
                   <User className="w-4 h-4 text-white" />
                 ) : (
-                  <Bot className="w-4 h-4 text-slate-600" />
+                  <Bot className="w-4 h-4 text-slate-600 dark:text-slate-300" />
                 )}
               </div>
 
@@ -1940,8 +1940,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                       message.role === "user"
                         ? "rounded-2xl px-4 py-3 bg-gradient-to-br from-blue-600 to-blue-700 text-white"
                         : message.deepExplainableData
-                          ? "rounded-xl px-4 py-3 bg-slate-50/80" // Subtle background for text bubble
-                          : "rounded-2xl px-4 py-3 bg-slate-50 border border-slate-100"
+                          ? "rounded-xl px-4 py-3 bg-slate-50/80 dark:bg-slate-800/80"
+                          : "rounded-2xl px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700"
                     )}
                   >
                     {message.role === "assistant" ? (
@@ -2102,8 +2102,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
               <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
                 <Brain className="w-4 h-4 text-white animate-pulse" />
               </div>
-              <div className="bg-gradient-to-br from-slate-50 to-blue-50/30 border border-blue-100/50 rounded-2xl px-4 py-3 min-w-[320px] max-w-[420px]">
-                <div className="text-xs font-medium text-blue-600 mb-3 flex items-center gap-1.5">
+              <div className="bg-gradient-to-br from-slate-50 to-blue-50/30 dark:from-slate-800 dark:to-blue-900/20 border border-blue-100/50 dark:border-blue-800/50 rounded-2xl px-4 py-3 min-w-[320px] max-w-[420px]">
+                <div className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-1.5">
                   {chatMode === "llm-driven" && <><Cpu className="w-3 h-3" /> LLM Processing...</>}
                   {chatMode === "graphrag" && <><Database className="w-3 h-3" /> LLM + Graph Data Analysis...</>}
                   {chatMode === "graph-reasoning" && <><Network className="w-3 h-3" /> Graph Reasoning Engine...</>}
@@ -2118,16 +2118,16 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                         ) : step.status === "active" ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
                         ) : (
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
                         )}
                       </span>
                       <div className="flex-1 min-w-0">
                         <div
                           className={cn(
                             "text-sm transition-all duration-300",
-                            step.status === "active" && "text-blue-700 font-medium",
-                            step.status === "done" && "text-slate-700",
-                            step.status === "pending" && "text-slate-400"
+                            step.status === "active" && "text-blue-700 dark:text-blue-400 font-medium",
+                            step.status === "done" && "text-slate-700 dark:text-slate-300",
+                            step.status === "pending" && "text-slate-400 dark:text-slate-500"
                           )}
                         >
                           {step.label}
@@ -2136,7 +2136,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                         {step.status === "done" && step.data?.concepts && step.data.concepts.length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {step.data.concepts.map((concept, i) => (
-                              <span key={i} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium">
+                              <span key={i} className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded text-[10px] font-medium">
                                 {concept}
                               </span>
                             ))}
@@ -2146,8 +2146,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                         {step.status === "done" && step.data?.actions && step.data.actions.length > 0 && (
                           <div className="mt-1.5 space-y-1">
                             {step.data.actions.slice(0, 2).map((action, i) => (
-                              <div key={i} className="text-[11px] text-slate-600 flex items-start gap-1">
-                                <span className="text-slate-400">→</span>
+                              <div key={i} className="text-[11px] text-slate-600 dark:text-slate-400 flex items-start gap-1">
+                                <span className="text-slate-400 dark:text-slate-500">→</span>
                                 <span>{action}</span>
                               </div>
                             ))}
@@ -2155,7 +2155,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                         )}
                         {/* Show citation as key evidence */}
                         {step.status === "done" && step.data?.citations && step.data.citations.length > 0 && (
-                          <div className="mt-1.5 px-2 py-1.5 bg-amber-50 border-l-2 border-amber-400 rounded text-[11px] text-amber-800 italic">
+                          <div className="mt-1.5 px-2 py-1.5 bg-amber-50 dark:bg-amber-900/20 border-l-2 border-amber-400 dark:border-amber-600 rounded text-[11px] text-amber-800 dark:text-amber-300 italic">
                             &quot;{step.data.citations[0]}&quot;
                           </div>
                         )}
@@ -2165,7 +2165,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                 </div>
                 {/* Total time summary when all steps done */}
                 {reasoningSteps.every(s => s.status === "done") && (
-                  <div className="mt-3 pt-2 border-t border-slate-200/50 flex items-center justify-between text-[10px] text-slate-500">
+                  <div className="mt-3 pt-2 border-t border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
                     <span>Total pipeline time</span>
                     <span className="font-mono">
                       {(() => {
@@ -2201,7 +2201,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       )}
 
       {/* Input */}
-      <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+      <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
         {/* Dev Mode: Sample Questions - Collapsible Dropdowns */}
         {devMode && sampleQuestions && (
           <DevModeQuestions
@@ -2218,17 +2218,17 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             onKeyDown={handleKeyDown}
             placeholder="Ask about past cases, products, or decisions..."
             rows={1}
-            className="flex-1 px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 placeholder:text-slate-400"
+            className="flex-1 px-4 py-3 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 dark:focus:border-blue-500 placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:text-slate-100"
             disabled={isLoading}
           />
           {messages.length > 0 && (
             <Button
               onClick={exportConversation}
               variant="outline"
-              className="h-[42px] w-[42px] p-0 flex-shrink-0 rounded-xl border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+              className="h-[42px] w-[42px] p-0 flex-shrink-0 rounded-xl border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600"
               title="Export conversation (JSON)"
             >
-              <Download className="w-4 h-4 text-slate-500" />
+              <Download className="w-4 h-4 text-slate-500 dark:text-slate-400" />
             </Button>
           )}
           <Button
@@ -2243,7 +2243,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             )}
           </Button>
         </div>
-        <p className="mt-2 text-[10px] text-center text-slate-400">
+        <p className="mt-2 text-[10px] text-center text-slate-400 dark:text-slate-500">
           Press Enter to send, Shift+Enter for new line
         </p>
       </div>
@@ -2258,7 +2258,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
 
       {/* Detail Panel - Right Side (only in explainable + expert mode) */}
       {explainableMode && expertMode && (
-        <div className="w-[320px] flex-shrink-0 bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/60 overflow-hidden">
+        <div className="w-[320px] flex-shrink-0 bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
           <DetailPanel
             detail={selectedDetail}
             onClose={handleCloseDetail}

@@ -38,7 +38,10 @@ import {
   Wand2,
   LogOut,
   ClipboardCheck,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { apiUrl, authFetch } from "@/lib/api";
 import { AuthGuard } from "@/components/auth-guard";
@@ -469,58 +472,55 @@ function LockedModule({ title, description, icon: Icon }: { title: string; descr
   return (
     <div className="relative h-full">
       {/* Fake grayed-out UI background */}
-      <div className="absolute inset-0 bg-white rounded-2xl border border-slate-200/60 overflow-hidden opacity-40 pointer-events-none">
+      <div className="absolute inset-0 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden opacity-40 pointer-events-none">
         {/* Fake header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-200" />
+            <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700" />
             <div>
-              <div className="h-4 w-32 bg-slate-200 rounded" />
-              <div className="h-3 w-24 bg-slate-100 rounded mt-1" />
+              <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded" />
+              <div className="h-3 w-24 bg-slate-100 dark:bg-slate-800 rounded mt-1" />
             </div>
           </div>
           <div className="flex gap-2">
-            <div className="h-9 w-24 bg-slate-100 rounded-lg" />
-            <div className="h-9 w-9 bg-slate-100 rounded-lg" />
+            <div className="h-9 w-24 bg-slate-100 dark:bg-slate-800 rounded-lg" />
+            <div className="h-9 w-9 bg-slate-100 dark:bg-slate-800 rounded-lg" />
           </div>
         </div>
 
         {/* Fake content */}
         <div className="p-6 space-y-4">
-          {/* Fake stats row */}
           <div className="grid grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                <div className="h-8 w-16 bg-slate-200 rounded mb-2" />
-                <div className="h-3 w-20 bg-slate-100 rounded" />
+              <div key={i} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
+                <div className="h-8 w-16 bg-slate-200 dark:bg-slate-700 rounded mb-2" />
+                <div className="h-3 w-20 bg-slate-100 dark:bg-slate-800 rounded" />
               </div>
             ))}
           </div>
 
-          {/* Fake table */}
-          <div className="rounded-xl border border-slate-100 overflow-hidden">
-            <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
+          <div className="rounded-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <div className="bg-slate-50 dark:bg-slate-800 px-4 py-3 border-b border-slate-100 dark:border-slate-700">
               <div className="flex gap-4">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="h-3 w-20 bg-slate-200 rounded" />
+                  <div key={i} className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
                 ))}
               </div>
             </div>
             {[1, 2, 3, 4, 5].map((row) => (
-              <div key={row} className="px-4 py-3 border-b border-slate-50 flex gap-4">
+              <div key={row} className="px-4 py-3 border-b border-slate-50 dark:border-slate-800 flex gap-4">
                 {[1, 2, 3, 4, 5].map((col) => (
-                  <div key={col} className="h-3 w-20 bg-slate-100 rounded" />
+                  <div key={col} className="h-3 w-20 bg-slate-100 dark:bg-slate-800 rounded" />
                 ))}
               </div>
             ))}
           </div>
 
-          {/* Fake chart */}
-          <div className="rounded-xl border border-slate-100 p-4">
-            <div className="h-3 w-32 bg-slate-200 rounded mb-4" />
+          <div className="rounded-xl border border-slate-100 dark:border-slate-700 p-4">
+            <div className="h-3 w-32 bg-slate-200 dark:bg-slate-700 rounded mb-4" />
             <div className="flex items-end gap-2 h-32">
               {[40, 65, 45, 80, 55, 70, 60, 75, 50, 85, 65, 70].map((h, i) => (
-                <div key={i} className="flex-1 bg-slate-100 rounded-t" style={{ height: `${h}%` }} />
+                <div key={i} className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-t" style={{ height: `${h}%` }} />
               ))}
             </div>
           </div>
@@ -528,24 +528,24 @@ function LockedModule({ title, description, icon: Icon }: { title: string; descr
       </div>
 
       {/* Overlay with lock message */}
-      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-white/80 via-white/90 to-white/80 backdrop-blur-[2px] rounded-2xl">
+      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-white/80 via-white/90 to-white/80 dark:from-slate-950/80 dark:via-slate-950/90 dark:to-slate-950/80 backdrop-blur-[2px] rounded-2xl">
         <div className="text-center max-w-md mx-auto p-8">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center relative shadow-lg">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center relative shadow-lg">
             <Icon className="w-10 h-10 text-slate-400" />
-            <div className="absolute -bottom-2 -right-2 w-9 h-9 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center shadow-lg border-2 border-white">
+            <div className="absolute -bottom-2 -right-2 w-9 h-9 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-800">
               <Lock className="w-4 h-4 text-white" />
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-slate-700 mb-2">{title}</h2>
-          <p className="text-slate-500 mb-6 leading-relaxed">{description}</p>
-          <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-50 border border-amber-200 shadow-sm">
+          <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-2">{title}</h2>
+          <p className="text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">{description}</p>
+          <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 shadow-sm">
             <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            <span className="text-sm font-semibold text-amber-700">Module not rolled out</span>
+            <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">Module not rolled out</span>
           </div>
           <p className="mt-6 text-sm text-slate-400">
             Contact your account manager to enable this module
           </p>
-          <button className="mt-4 px-6 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors shadow-lg">
+          <button className="mt-4 px-6 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm font-medium hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors shadow-lg">
             Request Access
           </button>
         </div>
@@ -559,6 +559,7 @@ function MainApp() {
   const [ingestSubTab, setIngestSubTab] = useState<IngestSubTab>("threads");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [devMode, setDevMode] = useState(false);
+  const { theme, setTheme } = useTheme();
   // Read ?q= synchronously during init — MUST happen before Chat mounts
   // and loads history with the (potentially copied) parent session ID.
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(() => {
@@ -582,23 +583,23 @@ function MainApp() {
   const chatRef = useRef<{ clearChat: () => void; testWidgets: () => void } | null>(null);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-violet-50/20 flex">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-violet-50/20 dark:from-slate-950 dark:via-blue-950/30 dark:to-violet-950/20 flex">
       {/* Sidebar */}
       <aside
         className={cn(
-          "h-screen sticky top-0 bg-white/70 backdrop-blur-xl border-r border-slate-200/60 flex flex-col transition-all duration-300",
+          "h-screen sticky top-0 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-r border-slate-200/60 dark:border-slate-700/60 flex flex-col transition-all duration-300",
           sidebarCollapsed ? "w-[72px]" : "w-64"
         )}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center px-4 border-b border-slate-200/60">
+        <div className="h-16 flex items-center px-4 border-b border-slate-200/60 dark:border-slate-700/60">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
               <Brain className="w-5 h-5 text-white" />
             </div>
             {!sidebarCollapsed && (
               <div className="animate-fade-in">
-                <h1 className="font-bold text-slate-900">AI Sales Consultant</h1>
+                <h1 className="font-bold text-slate-900 dark:text-slate-100">AI Sales Consultant</h1>
               </div>
             )}
           </div>
@@ -609,7 +610,7 @@ function MainApp() {
           {/* Main Section */}
           {!sidebarCollapsed && (
             <div className="px-3 py-2">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                 Main
               </span>
             </div>
@@ -622,7 +623,7 @@ function MainApp() {
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
                 activeTab === item.id
                   ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25"
-                  : "text-slate-600 hover:bg-slate-100"
+                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               )}
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -631,10 +632,10 @@ function MainApp() {
           ))}
 
           {/* Admin Section - Settings */}
-          <div className="mt-4 pt-4 border-t border-slate-200">
+          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
             {!sidebarCollapsed && (
               <div className="px-3 py-2">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                   Admin
                 </span>
               </div>
@@ -645,7 +646,7 @@ function MainApp() {
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
                 activeTab === "settings"
                   ? "bg-gradient-to-r from-slate-700 to-slate-800 text-white shadow-lg shadow-slate-500/25"
-                  : "text-slate-500 hover:bg-slate-100"
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               )}
             >
               <Settings className="w-5 h-5 flex-shrink-0" />
@@ -656,14 +657,25 @@ function MainApp() {
         </nav>
 
         {/* Dev Mode Toggle */}
-        <div className="border-t border-slate-200/60 p-3">
+        <div className="border-t border-slate-200/60 dark:border-slate-700/60 p-3">
+          {/* Theme Toggle */}
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+          >
+            <Sun className="w-4 h-4 flex-shrink-0 dark:hidden" />
+            <Moon className="w-4 h-4 flex-shrink-0 hidden dark:block" />
+            {!sidebarCollapsed && <span className="dark:hidden">Dark Mode</span>}
+            {!sidebarCollapsed && <span className="hidden dark:block">Light Mode</span>}
+          </button>
+
           <button
             onClick={() => setDevMode(!devMode)}
             className={cn(
-              "w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all",
+              "w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all mt-1",
               devMode
-                ? "bg-amber-100 text-amber-700"
-                : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
             )}
           >
             <div className="flex items-center gap-2">
@@ -673,7 +685,7 @@ function MainApp() {
             {!sidebarCollapsed && (
               <div className={cn(
                 "w-8 h-4 rounded-full transition-colors relative",
-                devMode ? "bg-amber-500" : "bg-slate-300"
+                devMode ? "bg-amber-500" : "bg-slate-300 dark:bg-slate-600"
               )}>
                 <div className={cn(
                   "absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform",
@@ -689,7 +701,7 @@ function MainApp() {
               clearToken();
               window.location.href = "/login";
             }}
-            className="w-full flex items-center gap-2 px-3 py-2 mt-2 rounded-lg text-xs font-medium text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
+            className="w-full flex items-center gap-2 px-3 py-2 mt-1 rounded-lg text-xs font-medium text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all"
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />
             {!sidebarCollapsed && <span>Logout</span>}
@@ -699,7 +711,7 @@ function MainApp() {
         {/* Collapse Toggle */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="mx-3 mb-3 p-2 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
+          className="mx-3 mb-3 p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
         >
           {sidebarCollapsed ? (
             <ChevronRight className="w-4 h-4 mx-auto" />
@@ -712,9 +724,9 @@ function MainApp() {
       {/* Main Content */}
       <main className="flex-1 min-h-screen flex flex-col">
         {/* Header */}
-        <header className="h-16 border-b border-slate-200/60 bg-white sticky top-0 z-10 flex items-center justify-between px-6">
+        <header className="h-16 border-b border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-900/50 backdrop-blur-xl sticky top-0 z-10 flex items-center justify-between px-6">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               {activeTab === "chat" && "AI Sales Consultant"}
               {activeTab === "ingest" && "Data Ingestion"}
               {activeTab === "explore" && "Thread Explorer"}
@@ -730,7 +742,7 @@ function MainApp() {
               {activeTab === "audit" && "Graph Audit"}
               {activeTab === "settings" && "Settings"}
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               {activeTab === "chat" && ""}
               {activeTab === "ingest" && "Add email threads and documents to the knowledge base"}
               {activeTab === "explore" && "Browse and manage ingested email threads"}
@@ -754,7 +766,7 @@ function MainApp() {
               {/* New Session */}
               <button
                 onClick={() => chatRef.current?.clearChat()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
                 title="Clear session and start fresh"
               >
                 <Trash2 className="h-4 w-4" />
@@ -787,14 +799,14 @@ function MainApp() {
             {activeTab === "ingest" && (
               <div className="space-y-4">
                 {/* Sub-tabs for Threads vs Docs */}
-                <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit">
+                <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-fit">
                   <button
                     onClick={() => setIngestSubTab("threads")}
                     className={cn(
                       "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
                       ingestSubTab === "threads"
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
+                        ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                     )}
                   >
                     <Upload className="w-4 h-4" />
@@ -805,8 +817,8 @@ function MainApp() {
                     className={cn(
                       "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
                       ingestSubTab === "docs"
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
+                        ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                     )}
                   >
                     <FileText className="w-4 h-4" />

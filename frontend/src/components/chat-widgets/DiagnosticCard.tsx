@@ -46,9 +46,9 @@ export function DiagnosticCard({ data }: DiagnosticCardProps) {
   };
 
   return (
-    <Card className="border-amber-200 bg-gradient-to-br from-amber-50/50 to-orange-50/30 shadow-sm">
+    <Card className="border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-amber-950/30 dark:to-orange-950/20 shadow-sm">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base font-semibold text-amber-900">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold text-amber-900 dark:text-amber-300">
           <ClipboardCheck className="w-5 h-5 text-amber-600" />
           {data.title}
         </CardTitle>
@@ -61,8 +61,8 @@ export function DiagnosticCard({ data }: DiagnosticCardProps) {
               className={cn(
                 "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all",
                 checkedItems[index]
-                  ? "bg-emerald-50 border-emerald-200"
-                  : "bg-white border-slate-200 hover:border-amber-300 hover:bg-amber-50/50"
+                  ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"
+                  : "bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:border-amber-300 dark:hover:border-amber-700 hover:bg-amber-50/50 dark:hover:bg-amber-900/20"
               )}
             >
               <Checkbox
@@ -73,7 +73,7 @@ export function DiagnosticCard({ data }: DiagnosticCardProps) {
               <span
                 className={cn(
                   "text-sm leading-relaxed",
-                  checkedItems[index] ? "text-emerald-700 line-through" : "text-slate-700"
+                  checkedItems[index] ? "text-emerald-700 dark:text-emerald-400 line-through" : "text-slate-700 dark:text-slate-300"
                 )}
               >
                 {getItemText(item)}
@@ -84,13 +84,13 @@ export function DiagnosticCard({ data }: DiagnosticCardProps) {
 
         {/* Progress indicator */}
         <div className="mt-4 flex items-center gap-2">
-          <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+          <div className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-300"
               style={{ width: `${items.length > 0 ? (checkedCount / items.length) * 100 : 0}%` }}
             />
           </div>
-          <span className="text-xs font-medium text-slate-500">
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
             {checkedCount}/{items.length}
           </span>
         </div>
