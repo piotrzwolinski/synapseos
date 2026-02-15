@@ -145,18 +145,18 @@ interface TestLabData {
 // ---------------------------------------------------------------------------
 
 const CATEGORY_COLORS: Record<string, string> = {
-  env: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  assembly: "bg-violet-100 text-violet-700 border-violet-200",
-  atex: "bg-red-100 text-red-700 border-red-200",
-  sizing: "bg-blue-100 text-blue-700 border-blue-200",
-  material: "bg-amber-100 text-amber-700 border-amber-200",
-  positive: "bg-teal-100 text-teal-700 border-teal-200",
-  clarif: "bg-orange-100 text-orange-700 border-orange-200",
-  clarification: "bg-orange-100 text-orange-700 border-orange-200",
-  environment: "bg-cyan-100 text-cyan-700 border-cyan-200",
-  complex: "bg-pink-100 text-pink-700 border-pink-200",
-  dimension: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  capacity: "bg-sky-100 text-sky-700 border-sky-200",
+  env: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+  assembly: "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400 border-violet-200 dark:border-violet-800",
+  atex: "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800",
+  sizing: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+  material: "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+  positive: "bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-800",
+  clarif: "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800",
+  clarification: "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800",
+  environment: "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-400 border-cyan-200 dark:border-cyan-800",
+  complex: "bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-400 border-pink-200 dark:border-pink-800",
+  dimension: "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800",
+  capacity: "bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-800",
 };
 
 function statusIcon(status: string) {
@@ -195,10 +195,10 @@ function assertionConditionLabel(a: TestAssertion): string {
 }
 
 const ASSERTION_CATEGORY_COLORS: Record<string, string> = {
-  detection: "bg-blue-50 text-blue-600 border-blue-200",
-  logic: "bg-violet-50 text-violet-600 border-violet-200",
-  output: "bg-emerald-50 text-emerald-600 border-emerald-200",
-  data: "bg-amber-50 text-amber-600 border-amber-200",
+  detection: "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+  logic: "bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-800",
+  output: "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+  data: "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800",
 };
 
 // ---------------------------------------------------------------------------
@@ -209,27 +209,27 @@ function SummaryBar({ meta }: { meta: TestLabData["meta"] }) {
   const passRate = meta.total_tests > 0 ? Math.round((meta.passed / meta.total_tests) * 100) : 0;
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium">
+      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium">
         <Target className="w-3.5 h-3.5" />
         {meta.total_tests} tests
       </div>
-      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-sm font-medium">
+      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-sm font-medium">
         <CheckCircle2 className="w-3.5 h-3.5" />
         {meta.passed} pass
       </div>
       {meta.failed > 0 && (
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-700 text-sm font-medium">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm font-medium">
           <XCircle className="w-3.5 h-3.5" />
           {meta.failed} fail
         </div>
       )}
       {meta.errors > 0 && (
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 text-sm font-medium">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-sm font-medium">
           <AlertTriangle className="w-3.5 h-3.5" />
           {meta.errors} error
         </div>
       )}
-      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 text-slate-500 text-sm">
+      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-sm">
         <Clock className="w-3.5 h-3.5" />
         {meta.duration_s.toFixed(0)}s
       </div>
@@ -248,23 +248,23 @@ function InferenceTimeline({ steps }: { steps: InferenceStep[] }) {
     <div className="mt-4">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+        className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
       >
         <Zap className="w-3.5 h-3.5" />
         {steps.length} inference steps
         {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
       </button>
       {expanded && (
-        <div className="mt-2 ml-1 border-l-2 border-slate-200 pl-4 space-y-1.5">
+        <div className="mt-2 ml-1 border-l-2 border-slate-200 dark:border-slate-700 pl-4 space-y-1.5">
           {steps.map((s, i) => (
             <div key={i} className="flex items-start gap-2 text-xs">
               <span className={cn(
                 "mt-0.5 w-1.5 h-1.5 rounded-full shrink-0",
                 s.status === "done" || s.status === "complete" ? "bg-emerald-400" :
-                s.status === "warning" ? "bg-amber-400" : "bg-slate-300"
+                s.status === "warning" ? "bg-amber-400" : "bg-slate-300 dark:bg-slate-600"
               )} />
-              <span className="font-mono text-slate-500">{s.step}</span>
-              <span className="text-slate-600">{s.detail}</span>
+              <span className="font-mono text-slate-500 dark:text-slate-400">{s.step}</span>
+              <span className="text-slate-600 dark:text-slate-300">{s.detail}</span>
             </div>
           ))}
         </div>
@@ -292,7 +292,7 @@ function AssertionPanel({ assertions, defaultExpanded }: { assertions: TestAsser
     <div className="mt-4">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+        className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
       >
         <Target className="w-3.5 h-3.5" />
         {assertions.length} assertions
@@ -305,7 +305,7 @@ function AssertionPanel({ assertions, defaultExpanded }: { assertions: TestAsser
           {assertions.map((a, i) => (
             <div key={i} className={cn(
               "rounded-lg border text-xs",
-              a.passed ? "border-slate-100 bg-white" : "border-red-100 bg-red-50/30"
+              a.passed ? "border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800" : "border-red-100 dark:border-red-900/50 bg-red-50/30 dark:bg-red-900/20"
             )}>
               <button
                 onClick={() => toggleRow(i)}
@@ -314,34 +314,34 @@ function AssertionPanel({ assertions, defaultExpanded }: { assertions: TestAsser
                 {a.passed
                   ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                   : <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />}
-                <span className="font-mono text-slate-700">{a.name}</span>
+                <span className="font-mono text-slate-700 dark:text-slate-300">{a.name}</span>
                 {a.category && (
-                  <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium border", ASSERTION_CATEGORY_COLORS[a.category] || "bg-slate-50 text-slate-500 border-slate-200")}>
+                  <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium border", ASSERTION_CATEGORY_COLORS[a.category] || "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700")}>
                     {a.category}
                   </span>
                 )}
-                <span className="ml-auto text-slate-400">
+                <span className="ml-auto text-slate-400 dark:text-slate-500">
                   {expandedRows.has(i) ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 </span>
               </button>
               {expandedRows.has(i) && (
-                <div className="px-3 pb-2 space-y-1 border-t border-slate-100 pt-2">
+                <div className="px-3 pb-2 space-y-1 border-t border-slate-100 dark:border-slate-700 pt-2">
                   <div className="flex gap-2">
-                    <span className="text-slate-400 w-16 shrink-0">Check:</span>
-                    <span className="font-mono text-slate-600">{a.check}</span>
+                    <span className="text-slate-400 dark:text-slate-500 w-16 shrink-0">Check:</span>
+                    <span className="font-mono text-slate-600 dark:text-slate-300">{a.check}</span>
                   </div>
                   <div className="flex gap-2">
-                    <span className="text-slate-400 w-16 shrink-0">Rule:</span>
-                    <span className="text-slate-600">{assertionConditionLabel(a)}</span>
+                    <span className="text-slate-400 dark:text-slate-500 w-16 shrink-0">Rule:</span>
+                    <span className="text-slate-600 dark:text-slate-300">{assertionConditionLabel(a)}</span>
                   </div>
                   <div className="flex gap-2">
-                    <span className="text-slate-400 w-16 shrink-0">Actual:</span>
-                    <span className="font-mono text-slate-600 break-all">{a.actual.slice(0, 300)}{a.actual.length > 300 ? "..." : ""}</span>
+                    <span className="text-slate-400 dark:text-slate-500 w-16 shrink-0">Actual:</span>
+                    <span className="font-mono text-slate-600 dark:text-slate-300 break-all">{a.actual.slice(0, 300)}{a.actual.length > 300 ? "..." : ""}</span>
                   </div>
                   {a.message && (
                     <div className="flex gap-2">
-                      <span className="text-slate-400 w-16 shrink-0">Error:</span>
-                      <span className="text-red-600">{a.message}</span>
+                      <span className="text-slate-400 dark:text-slate-500 w-16 shrink-0">Error:</span>
+                      <span className="text-red-600 dark:text-red-400">{a.message}</span>
                     </div>
                   )}
                 </div>
@@ -466,7 +466,7 @@ function StepAssertionPanel({ assertions, defaultExpanded }: {
     <div className="mt-2">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+        className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
       >
         <Target className="w-3 h-3" />
         {assertions.length} assertions
@@ -480,7 +480,7 @@ function StepAssertionPanel({ assertions, defaultExpanded }: {
             const allPassed = groupAssertions.every(a => a.passed);
             return (
               <div key={groupName} className="space-y-1">
-                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   {allPassed
                     ? <CheckCircle2 className="w-3 h-3 text-emerald-500" />
                     : <XCircle className="w-3 h-3 text-red-500" />}
@@ -491,7 +491,7 @@ function StepAssertionPanel({ assertions, defaultExpanded }: {
                   return (
                     <div key={i} className={cn(
                       "rounded-lg border text-xs",
-                      a.passed ? "border-slate-100 bg-white" : "border-red-100 bg-red-50/30"
+                      a.passed ? "border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800" : "border-red-100 dark:border-red-900/50 bg-red-50/30 dark:bg-red-900/20"
                     )}>
                       <button
                         onClick={() => toggleRow(globalIdx)}
@@ -500,33 +500,33 @@ function StepAssertionPanel({ assertions, defaultExpanded }: {
                         {a.passed
                           ? <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
                           : <XCircle className="w-3 h-3 text-red-500 shrink-0" />}
-                        <span className="font-mono text-slate-700">{a.name}</span>
-                        <span className="ml-auto text-slate-400">
+                        <span className="font-mono text-slate-700 dark:text-slate-300">{a.name}</span>
+                        <span className="ml-auto text-slate-400 dark:text-slate-500">
                           {expandedRows.has(globalIdx) ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         </span>
                       </button>
                       {expandedRows.has(globalIdx) && (
-                        <div className="px-3 pb-2 space-y-1 border-t border-slate-100 pt-2">
+                        <div className="px-3 pb-2 space-y-1 border-t border-slate-100 dark:border-slate-700 pt-2">
                           <div className="flex gap-2">
-                            <span className="text-slate-400 w-16 shrink-0">Check:</span>
-                            <span className="font-mono text-slate-600">{a.check}</span>
+                            <span className="text-slate-400 dark:text-slate-500 w-16 shrink-0">Check:</span>
+                            <span className="font-mono text-slate-600 dark:text-slate-300">{a.check}</span>
                           </div>
                           <div className="flex gap-2">
-                            <span className="text-slate-400 w-16 shrink-0">Rule:</span>
-                            <span className="text-slate-600">
+                            <span className="text-slate-400 dark:text-slate-500 w-16 shrink-0">Rule:</span>
+                            <span className="text-slate-600 dark:text-slate-300">
                               {assertionConditionLabel(a as unknown as TestAssertion)}
                             </span>
                           </div>
                           <div className="flex gap-2">
-                            <span className="text-slate-400 w-16 shrink-0">Actual:</span>
-                            <span className="font-mono text-slate-600 break-all">
+                            <span className="text-slate-400 dark:text-slate-500 w-16 shrink-0">Actual:</span>
+                            <span className="font-mono text-slate-600 dark:text-slate-300 break-all">
                               {a.actual.slice(0, 300)}{a.actual.length > 300 ? "..." : ""}
                             </span>
                           </div>
                           {a.message && (
                             <div className="flex gap-2">
-                              <span className="text-slate-400 w-16 shrink-0">Error:</span>
-                              <span className="text-red-600">{a.message}</span>
+                              <span className="text-slate-400 dark:text-slate-500 w-16 shrink-0">Error:</span>
+                              <span className="text-red-600 dark:text-red-400">{a.message}</span>
                             </div>
                           )}
                         </div>
@@ -562,25 +562,25 @@ function StepProgressBar({ steps }: { steps: StepResultData[] }) {
             )}>
               {step.status === "PASS" ? "\u2713" : step.status === "FAIL" ? "\u2717" : "!"}
             </div>
-            <span className="text-[9px] text-slate-500 whitespace-nowrap">Turn {i + 1}</span>
+            <span className="text-[9px] text-slate-500 dark:text-slate-400 whitespace-nowrap">Turn {i + 1}</span>
           </div>
           {/* Connecting line */}
           {i < steps.length - 1 && (
             <div className={cn(
               "flex-1 h-0.5 mx-1",
-              step.status === "PASS" ? "bg-emerald-300" :
-              step.status === "FAIL" ? "bg-red-300" :
-              "bg-amber-300"
+              step.status === "PASS" ? "bg-emerald-300 dark:bg-emerald-700" :
+              step.status === "FAIL" ? "bg-red-300 dark:bg-red-700" :
+              "bg-amber-300 dark:bg-amber-700"
             )} />
           )}
         </div>
       ))}
       {/* Done marker */}
       <div className="flex flex-col items-center gap-1 ml-1">
-        <div className="w-5 h-5 rounded-full flex items-center justify-center bg-slate-200 text-slate-500">
+        <div className="w-5 h-5 rounded-full flex items-center justify-center bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
           <CheckCircle2 className="w-3 h-3" />
         </div>
-        <span className="text-[9px] text-slate-400">Done</span>
+        <span className="text-[9px] text-slate-400 dark:text-slate-500">Done</span>
       </div>
     </div>
   );
@@ -601,38 +601,38 @@ function MultiStepDetail({ test }: { test: TestResult }) {
           {statusIcon(test.status)}
           <span className={cn(
             "text-sm font-semibold",
-            test.status === "PASS" ? "text-emerald-700" : test.status === "FAIL" ? "text-red-700" : "text-amber-700"
+            test.status === "PASS" ? "text-emerald-700 dark:text-emerald-400" : test.status === "FAIL" ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400"
           )}>{test.status}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-mono font-medium text-slate-800">{test.name}</h3>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h3 className="text-sm font-mono font-medium text-slate-800 dark:text-slate-200">{test.name}</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Multi-step &middot; {test.steps.length} turn{test.steps.length !== 1 ? "s" : ""} &middot; {passedAssertions}/{totalAssertions} assertions passed
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium border", CATEGORY_COLORS[test.category] || "bg-slate-100 text-slate-600 border-slate-200")}>
+          <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium border", CATEGORY_COLORS[test.category] || "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700")}>
             {test.category}
           </span>
-          <span className="text-xs text-slate-400">{test.duration_s.toFixed(1)}s</span>
+          <span className="text-xs text-slate-400 dark:text-slate-500">{test.duration_s.toFixed(1)}s</span>
         </div>
       </div>
 
       {/* Progress bar */}
-      <div className="rounded-lg border border-slate-200 bg-slate-50/50">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
         <StepProgressBar steps={test.steps} />
       </div>
 
       {/* Vertical timeline with chat flow */}
       <div className="relative pl-6">
         {/* Continuous vertical line */}
-        <div className="absolute left-[11px] top-0 bottom-0 w-0.5 bg-slate-200" />
+        <div className="absolute left-[11px] top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-700" />
 
         {test.steps.map((step, i) => (
           <div key={i} className="relative pb-6 last:pb-0">
             {/* Timeline connector dot */}
             <div className={cn(
-              "absolute left-[-13px] top-0 w-3 h-3 rounded-full border-2 border-white z-10",
+              "absolute left-[-13px] top-0 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 z-10",
               step.status === "PASS" ? "bg-emerald-500" :
               step.status === "FAIL" ? "bg-red-500" :
               "bg-amber-500"
@@ -642,17 +642,17 @@ function MultiStepDetail({ test }: { test: TestResult }) {
             <div className="flex items-center gap-2 mb-3">
               <span className={cn(
                 "text-xs font-semibold",
-                step.status === "PASS" ? "text-emerald-700" :
-                step.status === "FAIL" ? "text-red-700" :
-                "text-amber-700"
+                step.status === "PASS" ? "text-emerald-700 dark:text-emerald-400" :
+                step.status === "FAIL" ? "text-red-700 dark:text-red-400" :
+                "text-amber-700 dark:text-amber-400"
               )}>
                 Turn {i + 1}
               </span>
-              <span className="text-[10px] text-slate-400">&mdash;</span>
-              <span className="text-xs text-slate-600">{step.description || `Step ${i + 1}`}</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">&mdash;</span>
+              <span className="text-xs text-slate-600 dark:text-slate-300">{step.description || `Step ${i + 1}`}</span>
               <span className="ml-auto flex items-center gap-1.5">
                 {statusIcon(step.status)}
-                <span className="text-[10px] text-slate-400">{step.duration_s.toFixed(1)}s</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500">{step.duration_s.toFixed(1)}s</span>
               </span>
             </div>
 
@@ -665,7 +665,7 @@ function MultiStepDetail({ test }: { test: TestResult }) {
               </div>
             ) : (
               <div className="flex justify-end mb-3">
-                <div className="max-w-[85%] rounded-2xl rounded-br-md px-3 py-2 bg-slate-100 text-slate-400 text-xs italic">
+                <div className="max-w-[85%] rounded-2xl rounded-br-md px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-xs italic">
                   (query not captured — re-run tests to populate)
                 </div>
               </div>
@@ -674,7 +674,7 @@ function MultiStepDetail({ test }: { test: TestResult }) {
             {/* Error message */}
             {step.status === "ERROR" && step.error_message && (
               <div className="mb-3">
-                <div className="rounded-xl px-4 py-3 bg-red-50 border border-red-200 text-sm text-red-700">
+                <div className="rounded-xl px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-400">
                   <AlertTriangle className="w-4 h-4 inline mr-1" />
                   {step.error_message}
                 </div>
@@ -684,19 +684,19 @@ function MultiStepDetail({ test }: { test: TestResult }) {
             {/* System response bubble (left-aligned, white) */}
             {step.response_text ? (
               <div className="flex justify-start mb-3">
-                <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-3 bg-white border border-slate-200 text-sm shadow-sm">
+                <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm shadow-sm">
                   <div className="flex items-center gap-2 mb-2">
-                    <Cpu className="w-3.5 h-3.5 text-slate-500" />
-                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Response</span>
+                    <Cpu className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Response</span>
                   </div>
-                  <div className="prose prose-sm prose-slate max-w-none text-slate-700 [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0">
+                  <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0">
                     <ReactMarkdown>{step.response_text}</ReactMarkdown>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="flex justify-start mb-3">
-                <div className="max-w-[85%] rounded-2xl rounded-bl-md px-3 py-2 bg-slate-50 border border-slate-100 text-slate-400 text-xs italic">
+                <div className="max-w-[85%] rounded-2xl rounded-bl-md px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 text-xs italic">
                   (response not captured — re-run tests to populate)
                 </div>
               </div>
@@ -714,21 +714,21 @@ function MultiStepDetail({ test }: { test: TestResult }) {
       </div>
 
       {/* Summary card */}
-      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-2">
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 uppercase tracking-wide">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-4 space-y-2">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
           <Target className="w-3.5 h-3.5" />
           Summary
         </div>
         <div className="flex items-center gap-4 text-sm">
-          <span className="text-slate-600">
+          <span className="text-slate-600 dark:text-slate-300">
             <span className="font-medium">{totalAssertions}</span> assertions
           </span>
-          <span className="text-emerald-600 font-medium">{passedAssertions} passed</span>
+          <span className="text-emerald-600 dark:text-emerald-400 font-medium">{passedAssertions} passed</span>
           {failedAssertions > 0 && (
-            <span className="text-red-600 font-medium">{failedAssertions} failed</span>
+            <span className="text-red-600 dark:text-red-400 font-medium">{failedAssertions} failed</span>
           )}
-          <span className="text-slate-400">&middot;</span>
-          <span className="text-slate-500">
+          <span className="text-slate-400 dark:text-slate-500">&middot;</span>
+          <span className="text-slate-500 dark:text-slate-400">
             {test.duration_s.toFixed(1)}s across {test.steps.length} turn{test.steps.length !== 1 ? "s" : ""}
           </span>
         </div>
@@ -746,18 +746,18 @@ function TestDetail({ test }: { test: TestResult }) {
           {statusIcon(test.status)}
           <span className={cn(
             "text-sm font-semibold",
-            test.status === "PASS" ? "text-emerald-700" : test.status === "FAIL" ? "text-red-700" : "text-amber-700"
+            test.status === "PASS" ? "text-emerald-700 dark:text-emerald-400" : test.status === "FAIL" ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400"
           )}>{test.status}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-mono font-medium text-slate-800">{test.name}</h3>
-          <p className="text-xs text-slate-500 mt-0.5">{test.description}</p>
+          <h3 className="text-sm font-mono font-medium text-slate-800 dark:text-slate-200">{test.name}</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{test.description}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium border", CATEGORY_COLORS[test.category] || "bg-slate-100 text-slate-600 border-slate-200")}>
+          <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium border", CATEGORY_COLORS[test.category] || "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700")}>
             {test.category}
           </span>
-          <span className="text-xs text-slate-400">{test.duration_s.toFixed(1)}s</span>
+          <span className="text-xs text-slate-400 dark:text-slate-500">{test.duration_s.toFixed(1)}s</span>
         </div>
       </div>
 
@@ -766,7 +766,7 @@ function TestDetail({ test }: { test: TestResult }) {
         <button
           title="Run in new chat session"
           onClick={() => window.open(`/?q=${encodeURIComponent(test.query)}`, "_blank")}
-          className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+          className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
         >
           <ExternalLink className="w-3.5 h-3.5" />
         </button>
@@ -777,14 +777,14 @@ function TestDetail({ test }: { test: TestResult }) {
 
       {/* Expected outcome bubble */}
       <div className="flex justify-start">
-        <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-3 bg-amber-50 border border-amber-200 text-sm shadow-sm">
+        <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm shadow-sm">
           <div className="flex items-center gap-2 mb-2">
-            <Target className="w-3.5 h-3.5 text-amber-600" />
-            <span className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Expected</span>
+            <Target className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Expected</span>
           </div>
           <div className="space-y-1">
             {test.assertions.map((a, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-amber-800">
+              <div key={i} className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300">
                 <span className="shrink-0 mt-0.5">
                   {a.passed
                     ? <CheckCircle2 className="w-3 h-3 text-emerald-500" />
@@ -793,7 +793,7 @@ function TestDetail({ test }: { test: TestResult }) {
                 <span>
                   <span className="font-mono font-medium">{a.name}</span>
                   {" — "}
-                  <span className="text-amber-600">{assertionConditionLabel(a)}</span>
+                  <span className="text-amber-600 dark:text-amber-400">{assertionConditionLabel(a)}</span>
                 </span>
               </div>
             ))}
@@ -803,10 +803,10 @@ function TestDetail({ test }: { test: TestResult }) {
 
       {/* System response bubble */}
       <div className="flex justify-start">
-        <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-3 bg-white border border-slate-200 text-sm shadow-sm">
+        <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm shadow-sm">
           <div className="flex items-center gap-2 mb-2">
-            <Cpu className="w-3.5 h-3.5 text-slate-500" />
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">System Response</span>
+            <Cpu className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">System Response</span>
             {test.response.risk_detected && (
               <Badge variant="destructive" className="text-[10px] px-1.5 py-0">RISK</Badge>
             )}
@@ -815,22 +815,22 @@ function TestDetail({ test }: { test: TestResult }) {
             )}
           </div>
           {test.status === "ERROR" ? (
-            <div className="text-red-600 text-sm">
+            <div className="text-red-600 dark:text-red-400 text-sm">
               <AlertTriangle className="w-4 h-4 inline mr-1" />
               {test.error_message || "No response received"}
             </div>
           ) : test.response.content_text ? (
-            <div className="prose prose-sm prose-slate max-w-none text-slate-700 [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0">
+            <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0">
               <ReactMarkdown>{test.response.content_text}</ReactMarkdown>
             </div>
           ) : (
-            <div className="text-slate-400 italic text-xs">No content text in response</div>
+            <div className="text-slate-400 dark:text-slate-500 italic text-xs">No content text in response</div>
           )}
 
           {/* Product card indicator */}
           {(test.response.product_card || (test.response.product_cards && test.response.product_cards.length > 0)) && (
-            <div className="mt-3 pt-2 border-t border-slate-100">
-              <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                 <FileText className="w-3 h-3" />
                 {test.response.product_cards
                   ? `${test.response.product_cards.length} product card(s) returned`
@@ -841,8 +841,8 @@ function TestDetail({ test }: { test: TestResult }) {
 
           {/* Clarification indicator */}
           {test.response.clarification_needed && (
-            <div className="mt-3 pt-2 border-t border-slate-100">
-              <div className="flex items-center gap-1.5 text-xs text-violet-600">
+            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-1.5 text-xs text-violet-600 dark:text-violet-400">
                 <AlertTriangle className="w-3 h-3" />
                 Clarification requested
               </div>
@@ -859,23 +859,23 @@ function TestDetail({ test }: { test: TestResult }) {
 
       {/* Metadata */}
       {(test.graph_dependency || test.pdf_reference || test.likely_cause) && (
-        <div className="mt-4 p-3 rounded-lg bg-slate-50 border border-slate-100 space-y-1.5 text-xs">
+        <div className="mt-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 space-y-1.5 text-xs">
           {test.graph_dependency && (
             <div className="flex gap-2">
-              <span className="text-slate-400 w-24 shrink-0">Graph nodes:</span>
-              <span className="font-mono text-slate-600">{test.graph_dependency}</span>
+              <span className="text-slate-400 dark:text-slate-500 w-24 shrink-0">Graph nodes:</span>
+              <span className="font-mono text-slate-600 dark:text-slate-300">{test.graph_dependency}</span>
             </div>
           )}
           {test.pdf_reference && (
             <div className="flex gap-2">
-              <span className="text-slate-400 w-24 shrink-0">PDF reference:</span>
-              <span className="text-slate-600">{test.pdf_reference}</span>
+              <span className="text-slate-400 dark:text-slate-500 w-24 shrink-0">PDF reference:</span>
+              <span className="text-slate-600 dark:text-slate-300">{test.pdf_reference}</span>
             </div>
           )}
           {test.likely_cause && (
             <div className="flex gap-2">
-              <span className="text-slate-400 w-24 shrink-0">Likely cause:</span>
-              <span className="font-mono text-red-600">{test.likely_cause}</span>
+              <span className="text-slate-400 dark:text-slate-500 w-24 shrink-0">Likely cause:</span>
+              <span className="font-mono text-red-600 dark:text-red-400">{test.likely_cause}</span>
             </div>
           )}
         </div>
@@ -941,18 +941,18 @@ interface GeneratedQuestion {
 }
 
 const SCORE_COLORS: Record<number, string> = {
-  5: "text-emerald-600 bg-emerald-50 border-emerald-200",
-  4: "text-blue-600 bg-blue-50 border-blue-200",
-  3: "text-amber-600 bg-amber-50 border-amber-200",
-  2: "text-orange-600 bg-orange-50 border-orange-200",
-  1: "text-red-600 bg-red-50 border-red-200",
+  5: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800",
+  4: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800",
+  3: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800",
+  2: "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800",
+  1: "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800",
 };
 
 const RECOMMENDATION_COLORS: Record<string, string> = {
-  PASS: "bg-emerald-100 text-emerald-700 border-emerald-300",
-  BORDERLINE: "bg-amber-100 text-amber-700 border-amber-300",
-  FAIL: "bg-red-100 text-red-700 border-red-300",
-  ERROR: "bg-slate-100 text-slate-700 border-slate-300",
+  PASS: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800",
+  BORDERLINE: "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800",
+  FAIL: "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 border-red-300 dark:border-red-800",
+  ERROR: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700",
 };
 
 const DIMENSION_LABELS: Record<string, string> = {
@@ -1019,10 +1019,10 @@ function JudgeResultView({ result, question, systemResponse }: {
       {/* Overall score + recommendation */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <span className="text-3xl font-bold text-slate-800">
+          <span className="text-3xl font-bold text-slate-800 dark:text-slate-200">
             {result.overall_score.toFixed(1)}
           </span>
-          <span className="text-sm text-slate-400">/5</span>
+          <span className="text-sm text-slate-400 dark:text-slate-500">/5</span>
         </div>
         <Badge className={cn("text-sm px-3 py-1 font-semibold border", RECOMMENDATION_COLORS[result.recommendation] || RECOMMENDATION_COLORS.ERROR)}>
           {result.recommendation}
@@ -1031,7 +1031,7 @@ function JudgeResultView({ result, question, systemResponse }: {
 
       {/* Explanation */}
       {result.explanation && (
-        <p className="text-sm text-slate-600 leading-relaxed">{result.explanation}</p>
+        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{result.explanation}</p>
       )}
 
       {/* Score cards grid */}
@@ -1049,25 +1049,25 @@ function JudgeResultView({ result, question, systemResponse }: {
       {/* Strengths & Weaknesses */}
       <div className="grid grid-cols-2 gap-3">
         {result.strengths?.length > 0 && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 mb-2">
+          <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/20 p-3">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-2">
               <ThumbsUp className="w-3.5 h-3.5" /> Strengths
             </div>
             <ul className="space-y-1">
               {result.strengths.map((s, i) => (
-                <li key={i} className="text-xs text-emerald-700">{s}</li>
+                <li key={i} className="text-xs text-emerald-700 dark:text-emerald-400">{s}</li>
               ))}
             </ul>
           </div>
         )}
         {result.weaknesses?.length > 0 && (
-          <div className="rounded-lg border border-red-200 bg-red-50/50 p-3">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-red-700 mb-2">
+          <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/20 p-3">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-red-700 dark:text-red-400 mb-2">
               <ThumbsDown className="w-3.5 h-3.5" /> Weaknesses
             </div>
             <ul className="space-y-1">
               {result.weaknesses.map((w, i) => (
-                <li key={i} className="text-xs text-red-700">{w}</li>
+                <li key={i} className="text-xs text-red-700 dark:text-red-400">{w}</li>
               ))}
             </ul>
           </div>
@@ -1086,15 +1086,15 @@ function JudgeResultView({ result, question, systemResponse }: {
         <div>
           <button
             onClick={() => setShowResponse(!showResponse)}
-            className="flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-700"
+            className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
           >
             <Cpu className="w-3.5 h-3.5" />
             System Response
             {showResponse ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
           {showResponse && (
-            <div className="mt-2 rounded-xl px-4 py-3 bg-white border border-slate-200 text-sm">
-              <div className="prose prose-sm prose-slate max-w-none">
+            <div className="mt-2 rounded-xl px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
+              <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
                 <ReactMarkdown>{systemResponse}</ReactMarkdown>
               </div>
             </div>
@@ -1331,7 +1331,7 @@ function JudgeTab() {
   return (
     <div className="flex flex-col h-full gap-4">
       {/* Mode selector */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3">
         {([
           { id: "realtime" as const, label: "Real-time", icon: Send },
           { id: "batch" as const, label: "Batch", icon: Play },
@@ -1344,14 +1344,14 @@ function JudgeTab() {
               "flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-colors",
               mode === m.id
                 ? "bg-violet-600 text-white"
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
             )}
           >
             <m.icon className="w-3.5 h-3.5" />
             {m.label}
           </button>
         ))}
-        <div className="ml-auto text-[10px] text-slate-400 flex items-center gap-1">
+        <div className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
           <Scale className="w-3 h-3" /> Judge: Gemini 3 Pro Preview
         </div>
       </div>
@@ -1367,7 +1367,7 @@ function JudgeTab() {
               onChange={e => setQuestion(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") handleRealTimeJudge(); }}
               placeholder="Enter a question to judge (e.g., 'GDMI for hospital, RF material, 600x600, 3400 m3/h')"
-              className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-300"
+              className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-300 dark:focus:border-violet-600 dark:placeholder:text-slate-500"
               disabled={judging}
             />
             <button
@@ -1376,7 +1376,7 @@ function JudgeTab() {
               className={cn(
                 "px-5 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2",
                 judging
-                  ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                  ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed"
                   : "bg-violet-600 text-white hover:bg-violet-700"
               )}
             >
@@ -1414,18 +1414,18 @@ function JudgeTab() {
             {/* === CHAT MESSAGE 2: System thinking + response (left-aligned) === */}
             {phase !== "idle" && (inferenceSteps.length > 0 || phase === "system") && (
               <div className="flex gap-2">
-                <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0 mt-1">
-                  <Bot className="w-3.5 h-3.5 text-slate-600" />
+                <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 mt-1">
+                  <Bot className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
                 </div>
                 <div className="max-w-[85%] space-y-2">
                   {/* Label */}
-                  <div className="text-[11px] font-medium text-slate-400">Graph Reasoning (SynapseOS)</div>
+                  <div className="text-[11px] font-medium text-slate-400 dark:text-slate-500">Graph Reasoning (SynapseOS)</div>
 
                   {/* Thinking steps - compact */}
                   {inferenceSteps.length > 0 && (
-                    <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 space-y-1">
+                    <div className="rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-3 py-2 space-y-1">
                       {inferenceSteps.map((s, i) => (
-                        <div key={i} className="flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-500">
+                        <div key={i} className="flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
                           <div className={cn(
                             "mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0",
                             s.status === "done" || s.status === "complete" ? "bg-emerald-400"
@@ -1434,7 +1434,7 @@ function JudgeTab() {
                               : "bg-violet-300"
                           )} />
                           <span>
-                            {s.step && <span className="font-medium text-slate-600">{s.step}</span>}
+                            {s.step && <span className="font-medium text-slate-600 dark:text-slate-300">{s.step}</span>}
                             {s.step && ": "}{s.detail}
                           </span>
                         </div>
@@ -1450,13 +1450,13 @@ function JudgeTab() {
 
                   {/* Actual system response bubble */}
                   {(phase === "judging" || phase === "done") && (
-                    <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-white border border-slate-200 shadow-sm">
+                    <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
                       {systemResponseText ? (
-                        <div className="prose prose-sm prose-slate max-w-none text-sm">
+                        <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-sm">
                           <ReactMarkdown>{systemResponseText.slice(0, 3000)}</ReactMarkdown>
                         </div>
                       ) : (
-                        <div className="text-sm text-slate-400 italic">No response generated (empty content)</div>
+                        <div className="text-sm text-slate-400 dark:text-slate-500 italic">No response generated (empty content)</div>
                       )}
                     </div>
                   )}
@@ -1475,17 +1475,17 @@ function JudgeTab() {
             {/* === CHAT MESSAGE 3: Judge evaluation (left-aligned, violet) === */}
             {(phase === "judging" || phase === "done") && (
               <div className="flex gap-2">
-                <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 mt-1">
-                  <Scale className="w-3.5 h-3.5 text-violet-600" />
+                <div className="w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center flex-shrink-0 mt-1">
+                  <Scale className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
                 </div>
                 <div className="max-w-[90%] space-y-2">
                   {/* Label */}
-                  <div className="text-[11px] font-medium text-violet-400">Judge (Gemini 3 Pro)</div>
+                  <div className="text-[11px] font-medium text-violet-400 dark:text-violet-500">Judge (Gemini 3 Pro)</div>
 
                   {/* Still judging */}
                   {phase === "judging" && (
-                    <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-violet-50 border border-violet-100">
-                      <div className="flex items-center gap-2 text-sm text-violet-600">
+                    <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800">
+                      <div className="flex items-center gap-2 text-sm text-violet-600 dark:text-violet-400">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Evaluating response across 6 dimensions...
                       </div>
@@ -1494,16 +1494,16 @@ function JudgeTab() {
 
                   {/* Judge verdict */}
                   {realtimeResult && (
-                    <div className="rounded-2xl rounded-bl-md bg-white border border-violet-200 shadow-sm overflow-hidden">
+                    <div className="rounded-2xl rounded-bl-md bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-800 shadow-sm overflow-hidden">
                       {/* Score header */}
                       <div className={cn(
                         "px-4 py-3 flex items-center gap-3",
-                        realtimeResult.result.recommendation === "PASS" ? "bg-emerald-50 border-b border-emerald-100"
-                          : realtimeResult.result.recommendation === "BORDERLINE" ? "bg-amber-50 border-b border-amber-100"
-                          : realtimeResult.result.recommendation === "FAIL" ? "bg-red-50 border-b border-red-100"
-                          : "bg-slate-50 border-b border-slate-100"
+                        realtimeResult.result.recommendation === "PASS" ? "bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800"
+                          : realtimeResult.result.recommendation === "BORDERLINE" ? "bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800"
+                          : realtimeResult.result.recommendation === "FAIL" ? "bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800"
+                          : "bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700"
                       )}>
-                        <span className="text-2xl font-bold text-slate-800">
+                        <span className="text-2xl font-bold text-slate-800 dark:text-slate-200">
                           {realtimeResult.result.overall_score.toFixed(1)}
                         </span>
                         <span className="text-xs text-slate-400">/5</span>
@@ -1518,7 +1518,7 @@ function JudgeTab() {
                       <div className="px-4 py-3 space-y-3">
                         {/* Explanation */}
                         {realtimeResult.result.explanation && (
-                          <p className="text-sm text-slate-600 leading-relaxed">{realtimeResult.result.explanation}</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{realtimeResult.result.explanation}</p>
                         )}
 
                         {/* 6 dimension scores */}
@@ -1536,25 +1536,25 @@ function JudgeTab() {
                         {/* Strengths & Weaknesses */}
                         <div className="grid grid-cols-2 gap-2">
                           {realtimeResult.result.strengths?.length > 0 && (
-                            <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-2.5">
-                              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 mb-1.5">
+                            <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/20 p-2.5">
+                              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 mb-1.5">
                                 <ThumbsUp className="w-3 h-3" /> Strengths
                               </div>
                               <ul className="space-y-0.5">
                                 {realtimeResult.result.strengths.map((s, i) => (
-                                  <li key={i} className="text-[11px] text-emerald-700 leading-relaxed">{s}</li>
+                                  <li key={i} className="text-[11px] text-emerald-700 dark:text-emerald-400 leading-relaxed">{s}</li>
                                 ))}
                               </ul>
                             </div>
                           )}
                           {realtimeResult.result.weaknesses?.length > 0 && (
-                            <div className="rounded-lg border border-red-200 bg-red-50/50 p-2.5">
-                              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-red-700 mb-1.5">
+                            <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/20 p-2.5">
+                              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-red-700 dark:text-red-400 mb-1.5">
                                 <ThumbsDown className="w-3 h-3" /> Weaknesses
                               </div>
                               <ul className="space-y-0.5">
                                 {realtimeResult.result.weaknesses.map((w, i) => (
-                                  <li key={i} className="text-[11px] text-red-700 leading-relaxed">{w}</li>
+                                  <li key={i} className="text-[11px] text-red-700 dark:text-red-400 leading-relaxed">{w}</li>
                                 ))}
                               </ul>
                             </div>
@@ -1580,7 +1580,7 @@ function JudgeTab() {
             <select
               value={batchFilter}
               onChange={e => setBatchFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+              className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm bg-white dark:bg-slate-800 dark:text-slate-200"
               disabled={batchRunning}
             >
               <option value="all">All categories</option>
@@ -1595,7 +1595,7 @@ function JudgeTab() {
               className={cn(
                 "px-5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2",
                 batchRunning
-                  ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                  ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
                   : "bg-violet-600 text-white hover:bg-violet-700"
               )}
             >
@@ -1604,9 +1604,9 @@ function JudgeTab() {
             </button>
             {batchRunning && (
               <div className="flex-1">
-                <div className="flex items-center gap-2 text-sm text-slate-500">
+                <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                   <span>{batchProgress.current}/{batchProgress.total} judged</span>
-                  <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-violet-500 rounded-full transition-all duration-300"
                       style={{ width: `${batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0}%` }}
@@ -1622,40 +1622,40 @@ function JudgeTab() {
             <>
               {/* Summary cards */}
               <div className="grid grid-cols-4 gap-3">
-                <div className="rounded-lg border border-slate-200 bg-white p-3 text-center">
-                  <div className="text-2xl font-bold text-slate-800">{batchResults.meta.avg_overall_score.toFixed(1)}</div>
-                  <div className="text-xs text-slate-500">Avg Score</div>
+                <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-center">
+                  <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{batchResults.meta.avg_overall_score.toFixed(1)}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Avg Score</div>
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-3 text-center">
-                  <div className="text-2xl font-bold text-slate-800">{batchResults.meta.total_questions}</div>
-                  <div className="text-xs text-slate-500">Questions</div>
+                <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-center">
+                  <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{batchResults.meta.total_questions}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Questions</div>
                 </div>
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center">
-                  <div className="text-2xl font-bold text-emerald-700">
+                <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 p-3 text-center">
+                  <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
                     {batchResults.results.filter(r => r.judge_result?.recommendation === "PASS").length}
                   </div>
-                  <div className="text-xs text-emerald-600">Pass</div>
+                  <div className="text-xs text-emerald-600 dark:text-emerald-400">Pass</div>
                 </div>
-                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-center">
-                  <div className="text-2xl font-bold text-red-700">
+                <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30 p-3 text-center">
+                  <div className="text-2xl font-bold text-red-700 dark:text-red-400">
                     {batchResults.results.filter(r => r.judge_result?.recommendation === "FAIL" || r.judge_result?.recommendation === "ERROR").length}
                   </div>
-                  <div className="text-xs text-red-600">Fail/Error</div>
+                  <div className="text-xs text-red-600 dark:text-red-400">Fail/Error</div>
                 </div>
               </div>
 
               {/* Category breakdown */}
               {batchResults.meta.category_summary && Object.keys(batchResults.meta.category_summary).length > 0 && (
                 <div className="flex items-center gap-3 flex-wrap">
-                  <span className="text-xs text-slate-500 font-medium">By category:</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">By category:</span>
                   {Object.entries(batchResults.meta.category_summary).map(([cat, avg]) => (
                     <span
                       key={cat}
                       className={cn(
                         "px-2.5 py-1 rounded-full text-xs font-medium border",
-                        avg >= 4 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : avg >= 3 ? "bg-amber-50 text-amber-700 border-amber-200"
-                          : "bg-red-50 text-red-700 border-red-200"
+                        avg >= 4 ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                          : avg >= 3 ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                          : "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800"
                       )}
                     >
                       {cat}: {avg.toFixed(1)}
@@ -1666,7 +1666,7 @@ function JudgeTab() {
 
               {/* Score filter */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">Filter:</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">Filter:</span>
                 {([
                   { id: "all" as const, label: "All" },
                   { id: "low" as const, label: "< 3.0" },
@@ -1679,8 +1679,8 @@ function JudgeTab() {
                     className={cn(
                       "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
                       batchScoreFilter === f.id
-                        ? "bg-slate-800 text-white border-slate-800"
-                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                        ? "bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 border-slate-800 dark:border-slate-200"
+                        : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
                     )}
                   >
                     {f.label} ({batchResults.results.filter(r => {
@@ -1701,23 +1701,23 @@ function JudgeTab() {
                   const rec = r.judge_result?.recommendation || "ERROR";
                   const isExpanded = expandedBatchIdx === idx;
                   return (
-                    <div key={r.question_id} className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+                    <div key={r.question_id} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden">
                       <button
                         onClick={() => setExpandedBatchIdx(isExpanded ? null : idx)}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                       >
                         {/* Score badge */}
                         <span className={cn(
                           "w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold border",
-                          score >= 4 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : score >= 3 ? "bg-amber-50 text-amber-700 border-amber-200"
-                            : "bg-red-50 text-red-700 border-red-200"
+                          score >= 4 ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                            : score >= 3 ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                            : "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800"
                         )}>
                           {score.toFixed(1)}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-mono text-slate-700 truncate">{r.question_id}</div>
-                          <div className="text-[11px] text-slate-500 truncate">{r.question_text}</div>
+                          <div className="text-xs font-mono text-slate-700 dark:text-slate-300 truncate">{r.question_id}</div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{r.question_text}</div>
                         </div>
                         <Badge className={cn("text-[10px] px-2 py-0.5 border font-medium", RECOMMENDATION_COLORS[rec])}>
                           {rec}
@@ -1728,7 +1728,7 @@ function JudgeTab() {
                         {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                       </button>
                       {isExpanded && r.judge_result && (
-                        <div className="border-t border-slate-100 p-4">
+                        <div className="border-t border-slate-100 dark:border-slate-700 p-4">
                           <JudgeResultView
                             result={r.judge_result}
                             question={r.question_text}
@@ -1745,8 +1745,8 @@ function JudgeTab() {
 
           {/* Empty state */}
           {!batchResults && !batchRunning && (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">
-              <BarChart3 className="w-10 h-10 text-slate-300" />
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500 gap-3">
+              <BarChart3 className="w-10 h-10 text-slate-300 dark:text-slate-600" />
               <p className="text-sm">No judge results yet</p>
               <p className="text-xs">Click &quot;Run Batch Judge&quot; to evaluate all test cases</p>
             </div>
@@ -1760,11 +1760,11 @@ function JudgeTab() {
           {/* PDF upload + config */}
           <div className="flex items-end gap-3">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-slate-600 mb-1">Product Catalog PDF</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Product Catalog PDF</label>
               <div
                 className={cn(
                   "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
-                  genFile ? "border-violet-300 bg-violet-50" : "border-slate-200 hover:border-slate-300 bg-white"
+                  genFile ? "border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-900/20" : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800"
                 )}
                 onClick={() => document.getElementById("judge-pdf-input")?.click()}
               >
@@ -1776,7 +1776,7 @@ function JudgeTab() {
                   onChange={e => setGenFile(e.target.files?.[0] || null)}
                 />
                 {genFile ? (
-                  <div className="flex items-center justify-center gap-2 text-sm text-violet-700">
+                  <div className="flex items-center justify-center gap-2 text-sm text-violet-700 dark:text-violet-400">
                     <FileText className="w-4 h-4" />
                     {genFile.name} ({(genFile.size / 1024).toFixed(0)} KB)
                   </div>
@@ -1789,14 +1789,14 @@ function JudgeTab() {
               </div>
             </div>
             <div className="w-32">
-              <label className="block text-xs font-medium text-slate-600 mb-1">Questions</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Questions</label>
               <input
                 type="number"
                 value={genCount}
                 onChange={e => setGenCount(Math.max(5, Math.min(50, parseInt(e.target.value) || 20)))}
                 min={5}
                 max={50}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm bg-white dark:bg-slate-800 dark:text-slate-200"
               />
             </div>
             <button
@@ -1805,7 +1805,7 @@ function JudgeTab() {
               className={cn(
                 "px-5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2",
                 !genFile || generating
-                  ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                  ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
                   : "bg-violet-600 text-white hover:bg-violet-700"
               )}
             >
@@ -1816,7 +1816,7 @@ function JudgeTab() {
 
           {/* Status */}
           {genStatus && (
-            <div className="flex items-center gap-2 text-sm text-slate-500">
+            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
               {generating && <Loader2 className="w-4 h-4 animate-spin" />}
               {genStatus}
             </div>
@@ -1826,13 +1826,13 @@ function JudgeTab() {
           {genQuestions.length > 0 && (
             <>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-700">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   {genQuestions.length} questions generated
                 </span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setSelectedGenIds(new Set(genQuestions.map(q => q.id)))}
-                    className="text-xs text-violet-600 hover:text-violet-800"
+                    className="text-xs text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300"
                   >
                     Select all
                   </button>
@@ -1843,7 +1843,7 @@ function JudgeTab() {
                       "px-4 py-1.5 rounded-lg text-xs font-medium transition-colors",
                       selectedGenIds.size > 0
                         ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                        : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
                     )}
                   >
                     Approve ({selectedGenIds.size})
@@ -1857,8 +1857,8 @@ function JudgeTab() {
                     className={cn(
                       "rounded-lg border p-3 cursor-pointer transition-colors",
                       selectedGenIds.has(q.id)
-                        ? "border-violet-300 bg-violet-50"
-                        : "border-slate-200 bg-white hover:bg-slate-50"
+                        ? "border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-900/20"
+                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50"
                     )}
                     onClick={() => setSelectedGenIds(prev => {
                       const next = new Set(prev);
@@ -1874,15 +1874,15 @@ function JudgeTab() {
                         className="mt-1 rounded border-slate-300"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-700">{q.question}</p>
+                        <p className="text-sm text-slate-700 dark:text-slate-300">{q.question}</p>
                         <div className="flex items-center gap-2 mt-1.5">
                           <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium border", CATEGORY_COLORS[q.category] || "bg-slate-50 text-slate-500 border-slate-200")}>
                             {q.category}
                           </span>
-                          <span className="text-[10px] text-slate-400">{q.difficulty}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500">{q.difficulty}</span>
                         </div>
                         {q.expected_elements?.length > 0 && (
-                          <div className="mt-2 text-xs text-slate-500">
+                          <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                             <span className="font-medium">Expected: </span>
                             {q.expected_elements.join(" | ")}
                           </div>
@@ -1897,8 +1897,8 @@ function JudgeTab() {
 
           {/* Empty state */}
           {genQuestions.length === 0 && !generating && (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">
-              <Sparkles className="w-10 h-10 text-slate-300" />
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500 gap-3">
+              <Sparkles className="w-10 h-10 text-slate-300 dark:text-slate-600" />
               <p className="text-sm">Upload a product catalog PDF to generate evaluation questions</p>
               <p className="text-xs">Gemini 3 Pro will analyze the PDF and create diverse test questions</p>
             </div>
@@ -2024,7 +2024,7 @@ export function TestLab() {
   // Loading state
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[500px] text-slate-400">
+      <div className="flex items-center justify-center h-[500px] text-slate-400 dark:text-slate-500">
         <RefreshCw className="w-5 h-5 animate-spin mr-2" />
         Loading test results...
       </div>
@@ -2034,11 +2034,11 @@ export function TestLab() {
   // Error state
   if (error || !data) {
     return (
-      <div className="flex flex-col items-center justify-center h-[500px] text-slate-400 gap-3">
-        <FlaskConical className="w-10 h-10 text-slate-300" />
+      <div className="flex flex-col items-center justify-center h-[500px] text-slate-400 dark:text-slate-500 gap-3">
+        <FlaskConical className="w-10 h-10 text-slate-300 dark:text-slate-600" />
         <p className="text-sm">{error || "No data"}</p>
-        <p className="text-xs text-slate-400">Run: <code className="bg-slate-100 px-1.5 py-0.5 rounded">python run_tests.py all --json backend/static/test-results.json</code></p>
-        <button onClick={fetchResults} className="text-xs text-blue-500 hover:text-blue-700">
+        <p className="text-xs text-slate-400 dark:text-slate-500">Run: <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">python run_tests.py all --json backend/static/test-results.json</code></p>
+        <button onClick={fetchResults} className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
           Retry
         </button>
       </div>
@@ -2057,7 +2057,7 @@ export function TestLab() {
             <span className="text-xs text-slate-400">{relativeTime(data.meta.timestamp)}</span>
             <button
               onClick={fetchResults}
-              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
               title="Refresh results"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -2073,8 +2073,8 @@ export function TestLab() {
             className={cn(
               "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
               categoryFilter === "all"
-                ? "bg-slate-800 text-white border-slate-800"
-                : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                ? "bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 border-slate-800 dark:border-slate-200"
+                : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
             )}
           >
             All ({sourceTests.length})
@@ -2088,8 +2088,8 @@ export function TestLab() {
                 className={cn(
                   "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
                   categoryFilter === cat
-                    ? "bg-slate-800 text-white border-slate-800"
-                    : cn("bg-white border-slate-200 hover:border-slate-300", CATEGORY_COLORS[cat]?.replace("bg-", "hover:bg-") || "")
+                    ? "bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 border-slate-800 dark:border-slate-200"
+                    : cn("bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600", CATEGORY_COLORS[cat]?.replace("bg-", "hover:bg-") || "")
                 )}
               >
                 {cat} ({catCount})
@@ -2097,7 +2097,7 @@ export function TestLab() {
             );
           })}
 
-          <div className="w-px h-5 bg-slate-200 mx-1" />
+          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
 
           {/* Status filter */}
           {(["all", "PASS", "FAIL", "ERROR"] as const).map(s => (
@@ -2110,15 +2110,15 @@ export function TestLab() {
                   ? s === "PASS" ? "bg-emerald-600 text-white border-emerald-600"
                     : s === "FAIL" ? "bg-red-600 text-white border-red-600"
                     : s === "ERROR" ? "bg-amber-600 text-white border-amber-600"
-                    : "bg-slate-800 text-white border-slate-800"
-                  : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                    : "bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 border-slate-800 dark:border-slate-200"
+                  : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
               )}
             >
               {s === "all" ? "All" : s}
             </button>
           ))}
 
-          <div className="w-px h-5 bg-slate-200 mx-1" />
+          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
 
           {/* Search */}
           <div className="relative flex-1 max-w-xs">
@@ -2128,7 +2128,7 @@ export function TestLab() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search tests..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs bg-white dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 dark:focus:border-blue-600 dark:placeholder:text-slate-500"
             />
           </div>
         </div>
@@ -2137,15 +2137,15 @@ export function TestLab() {
       {/* Main two-panel layout */}
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Left panel — test list */}
-        <div className="w-[320px] shrink-0 flex flex-col bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex border-b border-slate-100">
+        <div className="w-[320px] shrink-0 flex flex-col bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="flex border-b border-slate-100 dark:border-slate-700">
             <button
               onClick={() => handleTabSwitch("single")}
               className={cn(
                 "flex-1 px-3 py-2 text-xs font-medium transition-colors",
                 activeTab === "single"
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                  ? "bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900"
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-300"
               )}
             >
               Single ({singleTests.length})
@@ -2155,8 +2155,8 @@ export function TestLab() {
               className={cn(
                 "flex-1 px-3 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1",
                 activeTab === "multi"
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                  ? "bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900"
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-300"
               )}
             >
               <Layers className="w-3 h-3" />
@@ -2172,21 +2172,21 @@ export function TestLab() {
                   className={cn(
                     "w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 group",
                     selectedIndex === i
-                      ? "bg-blue-50 border border-blue-200"
-                      : "hover:bg-slate-50 border border-transparent",
+                      ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
+                      : "hover:bg-slate-50 dark:hover:bg-slate-700/50 border border-transparent",
                     test.status === "FAIL" && selectedIndex !== i && "border-l-2 border-l-red-300",
                     test.status === "ERROR" && selectedIndex !== i && "border-l-2 border-l-amber-300",
                   )}
                 >
                   {statusIcon(test.status)}
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-mono text-slate-700 truncate">{test.name}</div>
-                    <div className="text-[10px] text-slate-400 truncate">{test.description}</div>
+                    <div className="text-xs font-mono text-slate-700 dark:text-slate-300 truncate">{test.name}</div>
+                    <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate">{test.description}</div>
                   </div>
                   <div className="flex flex-col items-end gap-0.5 shrink-0">
                     <div className="flex items-center gap-1">
                       {test.isMultiStep && (
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-medium border bg-indigo-50 text-indigo-600 border-indigo-200">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-medium border bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800">
                           {test.steps?.length} steps
                         </span>
                       )}
@@ -2202,7 +2202,7 @@ export function TestLab() {
                 <div className="px-4 py-8 text-center text-xs text-slate-400">
                   {sourceTests.length === 0
                     ? activeTab === "multi"
-                      ? <>No multi-step results. Run: <code className="bg-slate-100 px-1 py-0.5 rounded">python tests/multistep/run.py all</code></>
+                      ? <>No multi-step results. Run: <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">python tests/multistep/run.py all</code></>
                       : "No single-step results available"
                     : "No tests match your filters"
                   }
@@ -2213,15 +2213,15 @@ export function TestLab() {
         </div>
 
         {/* Right panel — test detail */}
-        <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 overflow-hidden min-w-0">
+        <div className="flex-1 flex flex-col bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden min-w-0">
           {selectedTest ? (
             <>
               {/* Navigation bar */}
-              <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100">
+              <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-700">
                 <button
                   onClick={() => setSelectedIndex(prev => Math.max(0, prev - 1))}
                   disabled={selectedIndex <= 0}
-                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" /> Prev
                 </button>
@@ -2231,7 +2231,7 @@ export function TestLab() {
                 <button
                   onClick={() => setSelectedIndex(prev => Math.min(filteredTests.length - 1, prev + 1))}
                   disabled={selectedIndex >= filteredTests.length - 1}
-                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   Next <ChevronRight className="w-3.5 h-3.5" />
                 </button>
@@ -2245,7 +2245,7 @@ export function TestLab() {
               </div>
             </>
           ) : (
-            <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+            <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500 text-sm">
               Select a test from the list
             </div>
           )}

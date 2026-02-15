@@ -1,0 +1,304 @@
+{
+  "name": "hc_tight_maintenance_shaft",
+  "description": "[HC] 650mm shaft + GDB-600x600 side door → service clearance warning",
+  "query": "We have a 650 mm wide shaft. We want GDB-600x600 with side access door.",
+  "session_id": "6640f1d8-7375-4b81-8cda-eb5959238b5c",
+  "duration_s": 83.8,
+  "error": "Missing key inputs argument! To use the Google AI API, provide (`api_key`) arguments. To use the Google Cloud API, provide (`vertexai`, `project` & `location`) arguments.",
+  "turns": [
+    {
+      "role": "user",
+      "content": "We have a 650 mm wide shaft. We want GDB-600x600 with side access door.",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T23:01:50.376984+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "To finalize the configuration of the GDB-600x600 housing, I need two details:What is the required airflow capacity?",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T23:02:03.255207+00:00",
+      "clarification": {
+        "missing_info": "airflow_m3h",
+        "why_needed": "Airflow is needed to ensure the selected housing can handle the ventilation requirements.",
+        "options": [
+          {
+            "value": "3400",
+            "description": "3400 m³/h (Reference for 600x600 mm)",
+            "display_label": null
+          },
+          {
+            "value": "2550",
+            "description": "2550 m³/h (Reduced load)",
+            "display_label": null
+          },
+          {
+            "value": "1700",
+            "description": "1700 m³/h (Low load)",
+            "display_label": null
+          }
+        ],
+        "question": "What is the required airflow capacity (m³/h)?"
+      },
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 4,
+            "safety": 3,
+            "tone": 4,
+            "reasoning_quality": 4,
+            "constraint_adherence": 5
+          },
+          "overall_score": 4.15,
+          "explanation": "The system correctly identifies the product and asks for a critical missing parameter (airflow). However, it fails to flag a major spatial conflict: a 600mm wide unit with a side-access door cannot be serviced inside a 650mm wide shaft. Additionally, the response claims to need 'two details' but only asks one question.",
+          "dimension_explanations": {
+            "correctness": "Correctly identifies the GDB product family and size 600x600 (verified in PDF p.9) and asks for airflow to determine configuration.",
+            "completeness": "Asks for the essential airflow parameter, but the text claims to need 'two details' while only asking one question, indicating a minor generation error.",
+            "safety": "Misses a significant maintenance access warning: a 600mm wide unit with a side-hinged door requires ~600mm clearance to open, which is physically impossible in a 650mm shaft.",
+            "tone": "Professional, but the 'two details' phrasing followed by a single question is slightly confusing/glitchy.",
+            "reasoning_quality": "Correctly identifies that airflow is needed to validate the selection or determine filter length, though it missed the spatial logic check.",
+            "constraint_adherence": "Follows the rule to ask for missing parameters (airflow) before recommending."
+          },
+          "strengths": [
+            "Correctly identifies product family and size availability",
+            "Properly halts to request airflow capacity before finalizing"
+          ],
+          "weaknesses": [
+            "Fails to warn that side-access doors require swing clearance that exceeds the 650mm shaft width",
+            "Hallucinates a list count ('need two details') but only provides one question"
+          ],
+          "pdf_citations": [
+            "GDB 600x600 exists in the catalog (PDF p.9)",
+            "GDB standard service door is side-hinged (PDF p.8)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 70.89,
+            "prompt_tokens": 15390,
+            "cached_tokens": 15822,
+            "output_tokens": 538
+          }
+        },
+        "openai": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "GPT-5.2 judge failed: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        },
+        "anthropic": {
+          "scores": {
+            "correctness": 4,
+            "completeness": 2,
+            "safety": 3,
+            "tone": 4,
+            "reasoning_quality": 3,
+            "constraint_adherence": 4
+          },
+          "overall_score": 3.2,
+          "explanation": "The system correctly identifies GDB-600x600 as a valid product (PDF p.9 confirms this size exists with 3400 m³/h capacity). However, the clarification request is incomplete — it only asks for airflow capacity but fails to ask about housing length (550 or 750 mm), material preference, or address the user's spatial constraint about the 650mm shaft width. The GDB 600x600 has a width of 600mm which fits in a 650mm shaft, but the system should have confirmed this and noted that with PG connection (+20mm) or flange (+40mm), the total width could be 620-640mm, which is tight in a 650mm shaft.",
+          "dimension_explanations": {
+            "correctness": "GDB 600x600 is confirmed in the PDF (p.9) with 3400 m³/h capacity, 27 kg (550/600) or 34 kg (750/800); the system does not state incorrect facts but also doesn't address the shaft width constraint.",
+            "completeness": "The system only asks for airflow but omits critical questions: housing length (550 vs 750), material, connection type, and critically does not address the 650mm shaft width constraint which is the user's primary concern.",
+            "safety": "The system does not flag the tight spatial constraint — a 600mm wide housing with 20mm PG connection on each side totals 640mm in a 650mm shaft, leaving only 10mm clearance, which should be flagged as a concern.",
+            "tone": "Professional and consultative, appropriate for a technical sales context.",
+            "reasoning_quality": "The system begins a clarification flow which is correct behavior, but the reasoning is incomplete — it should have connected the shaft width to the housing dimensions and connection type implications.",
+            "constraint_adherence": "The system does not violate any product constraints, and correctly identifies GDB-600x600 as a valid configuration to explore."
+          },
+          "strengths": [
+            "Correctly recognizes GDB-600x600 as a valid product family and size",
+            "Appropriately initiates a clarification flow before making a recommendation"
+          ],
+          "weaknesses": [
+            "Fails to address the user's primary concern about the 650mm shaft width and its implications for housing fit with connections",
+            "Incomplete clarification — does not ask about housing length (550 vs 750), material, or connection type, all of which are required parameters",
+            "The question appears truncated — it says 'I need two details' but only asks one question (airflow)"
+          ],
+          "pdf_citations": [
+            "GDB 600x600: Flöde = 3400 m³/h, Vikt 550/600 = 27 kg, Vikt 750/800 = 34 kg (PDF p.9)",
+            "GDB standard lengths: 550/600mm and 750/800mm (PDF p.8)",
+            "GDB connection: PG 20mm standard, flange 40mm option (PDF p.8-9)"
+          ],
+          "recommendation": "BORDERLINE",
+          "usage": {
+            "duration_s": 25.04,
+            "prompt_tokens": 261,
+            "cached_tokens": 53610,
+            "output_tokens": 821
+          }
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 6 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "♟️ Additional info needed",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": "airflow_m3h",
+        "resolved_params": {
+          "available_space_mm": "650",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": null,
+            "product_family": "GDB",
+            "product_code": "GDB-600x600-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth",
+              "airflow"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 0,
+        "variable_features": 3,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "6640f1d8-7375-4b81-8cda-eb5959238b5c",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDB",
+          "locked_material": null,
+          "name": null,
+          "pending_clarification": "airflow_m3h",
+          "resolved_params": "{\"available_space_mm\": \"650\", \"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "housing_width": 600,
+            "product_family": "GDB",
+            "quantity": 1,
+            "filter_width": 600,
+            "housing_height": 600,
+            "session_id": "6640f1d8-7375-4b81-8cda-eb5959238b5c",
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_6640f1d8-7375-4b81-8cda-eb5959238b5c_item_1",
+            "is_complete": false,
+            "filter_height": 600,
+            "product_code": "GDB-600x600-R-PG-FZ"
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Filter 600x600mm -> Sized to 600x600 -> Code: GDB-600x600-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "To finalize the configuration of the GDB-600x600 housing, I need two details:",
+          "type": "GENERAL"
+        },
+        {
+          "text": "What is the required airflow capacity?",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

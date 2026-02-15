@@ -1,8 +1,9 @@
 import json
 import os
-import time
+import time  # batch stats cache
 import uuid
 import asyncio
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
@@ -27,9 +28,9 @@ from config_loader import (
 )
 from auth import LoginRequest, TokenResponse, login, get_current_user, get_current_user_info
 
-app = FastAPI(title="Graph Chatbot API")
+app = FastAPI(title="Graph Chatbot API")  # v3.8
 
-# CORS middleware for Next.js frontend
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -127,6 +128,142 @@ async def get_multistep_results(_user: str = Depends(get_current_user)):
     if results_path.exists():
         return FileResponse(results_path, media_type="application/json")
     raise HTTPException(status_code=404, detail="No multi-step test results available.")
+
+
+def _compute_batch_stats(batch_dir: Path) -> dict:
+    """Compute stats for a batch dir. Cached to _stats.json."""
+    cache_file = batch_dir / "_stats.json"
+    if cache_file.exists():
+        try:
+            return json.loads(cache_file.read_text())
+        except Exception:
+            pass
+    json_files = [f for f in batch_dir.glob("*.json") if f.name not in ("SUMMARY.json", "_stats.json")]
+    judge_totals: dict[str, list[float]] = {"gemini": [], "openai": [], "anthropic": []}
+    dim_totals: dict[str, list[float]] = {}
+    pass_count = 0
+    fail_count = 0
+    judged_count = 0
+    for f in json_files:
+        try:
+            data = json.loads(f.read_text())
+        except Exception:
+            continue
+        for turn in reversed(data.get("turns", [])):
+            jr = turn.get("judge_results")
+            if jr:
+                has_judge = False
+                for provider in ["gemini", "openai", "anthropic"]:
+                    j = jr.get(provider)
+                    if j and isinstance(j, dict) and j.get("recommendation") != "ERROR":
+                        has_judge = True
+                        score = j.get("overall_score", 0)
+                        if score > 0:
+                            judge_totals[provider].append(score)
+                        if j.get("recommendation") == "FAIL":
+                            fail_count += 1
+                        for dim, val in j.get("scores", {}).items():
+                            if isinstance(val, (int, float)) and val > 0:
+                                dim_totals.setdefault(dim, []).append(val)
+                if has_judge:
+                    judged_count += 1
+                    recs = [jr.get(p, {}).get("recommendation") for p in ["gemini", "openai", "anthropic"]
+                            if isinstance(jr.get(p), dict) and jr.get(p, {}).get("recommendation") != "ERROR"]
+                    if recs and all(r == "PASS" for r in recs):
+                        pass_count += 1
+                break
+    judge_avgs = {p: round(sum(v) / len(v), 2) if v else 0 for p, v in judge_totals.items()}
+    all_scores = [s for v in judge_totals.values() for s in v]
+    dim_avgs = {d: round(sum(v) / len(v), 2) for d, v in dim_totals.items() if v}
+    stats = {
+        "test_count": len(json_files),
+        "judged_count": judged_count,
+        "judge_avgs": judge_avgs,
+        "overall_avg": round(sum(all_scores) / len(all_scores), 2) if all_scores else 0,
+        "dimension_avgs": dim_avgs,
+        "pass_count": pass_count,
+        "fail_count": fail_count,
+    }
+    try:
+        cache_file.write_text(json.dumps(stats))
+    except Exception:
+        pass
+    return stats
+
+
+@app.get("/test-lab/batches")
+async def list_batches(_user: str = Depends(get_current_user)):
+    """List all batch result directories with summary stats including per-judge averages."""
+    reports_dir = Path(__file__).parent.parent / "reports"
+    if not reports_dir.exists():
+        return []
+    batches = []
+    for d in sorted(reports_dir.iterdir(), reverse=True):
+        if d.is_dir() and d.name.startswith("batch-"):
+            # Parse timestamp from directory name (batch-2026-02-15T12-10-27)
+            ts_str = d.name.replace("batch-", "")
+            try:
+                dt = datetime.strptime(ts_str, "%Y-%m-%dT%H-%M-%S")
+                ts = dt.timestamp()
+            except ValueError:
+                ts = d.stat().st_mtime
+            stats = _compute_batch_stats(d)
+            if stats.get("test_count", 0) >= 20:
+                batches.append({"id": d.name, "timestamp": ts, **stats})
+    return batches[:20]
+
+
+@app.get("/test-lab/batches/{batch_id}")
+async def get_batch_results(batch_id: str, _user: str = Depends(get_current_user)):
+    """Get all test results from a specific batch with judge scores."""
+    reports_dir = Path(__file__).parent.parent / "reports" / batch_id
+    if not reports_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Batch {batch_id} not found")
+    results = []
+    for f in sorted(reports_dir.glob("*.json")):
+        if f.name in ("SUMMARY.json", "_stats.json"):
+            continue
+        try:
+            data = json.loads(f.read_text())
+        except Exception:
+            continue
+        # Extract last-turn judge scores
+        judge_scores = {}
+        last_turn_num = 0
+        for turn in reversed(data.get("turns", [])):
+            jr = turn.get("judge_results")
+            if jr:
+                last_turn_num = turn.get("turn_number", 0)
+                for provider in ["gemini", "openai", "anthropic"]:
+                    j = jr.get(provider)
+                    if j and isinstance(j, dict) and j.get("recommendation") != "ERROR":
+                        judge_scores[provider] = {
+                            "overall": j.get("overall_score", 0),
+                            "recommendation": j.get("recommendation", ""),
+                            "scores": j.get("scores", {}),
+                            "explanation": j.get("explanation", ""),
+                            "weaknesses": j.get("weaknesses", []),
+                            "strengths": j.get("strengths", []),
+                            "pdf_citations": j.get("pdf_citations", []),
+                            "dimension_explanations": j.get("dimension_explanations", {}),
+                        }
+                break
+        # Count turns
+        total_turns = sum(1 for t in data.get("turns", []) if t.get("role") == "assistant")
+        results.append({
+            "name": data.get("name", f.stem),
+            "query": data.get("query", ""),
+            "duration_s": data.get("duration_s", 0),
+            "error": data.get("error"),
+            "total_turns": total_turns,
+            "last_judged_turn": last_turn_num,
+            "judges": judge_scores,
+        })
+    return {
+        "batch_id": batch_id,
+        "test_count": len(results),
+        "results": results,
+    }
 
 
 # =============================================================================

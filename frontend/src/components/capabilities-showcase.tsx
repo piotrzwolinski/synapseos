@@ -247,28 +247,28 @@ const MODULES: Module[] = [
 ];
 
 const COLOR_MAP: Record<string, { bg: string; bgLight: string; border: string; icon: string; badge: string; dot: string }> = {
-  blue:    { bg: "bg-blue-600",    bgLight: "bg-blue-50",    border: "border-blue-200",    icon: "text-blue-500",    badge: "bg-blue-100 text-blue-700",    dot: "bg-blue-500" },
-  emerald: { bg: "bg-emerald-600", bgLight: "bg-emerald-50", border: "border-emerald-200", icon: "text-emerald-500", badge: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
-  violet:  { bg: "bg-violet-600",  bgLight: "bg-violet-50",  border: "border-violet-200",  icon: "text-violet-500",  badge: "bg-violet-100 text-violet-700",  dot: "bg-violet-500" },
-  amber:   { bg: "bg-amber-600",   bgLight: "bg-amber-50",   border: "border-amber-200",   icon: "text-amber-500",   badge: "bg-amber-100 text-amber-700",   dot: "bg-amber-500" },
-  rose:    { bg: "bg-rose-600",    bgLight: "bg-rose-50",    border: "border-rose-200",    icon: "text-rose-500",    badge: "bg-rose-100 text-rose-700",    dot: "bg-rose-500" },
-  orange:  { bg: "bg-orange-600",  bgLight: "bg-orange-50",  border: "border-orange-200",  icon: "text-orange-500",  badge: "bg-orange-100 text-orange-700",  dot: "bg-orange-500" },
-  red:     { bg: "bg-red-600",     bgLight: "bg-red-50",     border: "border-red-200",     icon: "text-red-500",     badge: "bg-red-100 text-red-700",     dot: "bg-red-500" },
-  slate:   { bg: "bg-slate-600",   bgLight: "bg-slate-50",   border: "border-slate-200",   icon: "text-slate-500",   badge: "bg-slate-100 text-slate-700",   dot: "bg-slate-500" },
-  cyan:    { bg: "bg-cyan-600",    bgLight: "bg-cyan-50",    border: "border-cyan-200",    icon: "text-cyan-500",    badge: "bg-cyan-100 text-cyan-700",    dot: "bg-cyan-500" },
-  indigo:  { bg: "bg-indigo-600",  bgLight: "bg-indigo-50",  border: "border-indigo-200",  icon: "text-indigo-500",  badge: "bg-indigo-100 text-indigo-700",  dot: "bg-indigo-500" },
-  teal:    { bg: "bg-teal-600",    bgLight: "bg-teal-50",    border: "border-teal-200",    icon: "text-teal-500",    badge: "bg-teal-100 text-teal-700",    dot: "bg-teal-500" },
+  blue:    { bg: "bg-blue-600",    bgLight: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-200 dark:border-blue-800",    icon: "text-blue-500",    badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",    dot: "bg-blue-500" },
+  emerald: { bg: "bg-emerald-600", bgLight: "bg-emerald-50 dark:bg-emerald-900/30", border: "border-emerald-200 dark:border-emerald-800", icon: "text-emerald-500", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", dot: "bg-emerald-500" },
+  violet:  { bg: "bg-violet-600",  bgLight: "bg-violet-50 dark:bg-violet-900/30",  border: "border-violet-200 dark:border-violet-800",  icon: "text-violet-500",  badge: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",  dot: "bg-violet-500" },
+  amber:   { bg: "bg-amber-600",   bgLight: "bg-amber-50 dark:bg-amber-900/30",   border: "border-amber-200 dark:border-amber-800",   icon: "text-amber-500",   badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",   dot: "bg-amber-500" },
+  rose:    { bg: "bg-rose-600",    bgLight: "bg-rose-50 dark:bg-rose-900/30",    border: "border-rose-200 dark:border-rose-800",    icon: "text-rose-500",    badge: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",    dot: "bg-rose-500" },
+  orange:  { bg: "bg-orange-600",  bgLight: "bg-orange-50 dark:bg-orange-900/30",  border: "border-orange-200 dark:border-orange-800",  icon: "text-orange-500",  badge: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",  dot: "bg-orange-500" },
+  red:     { bg: "bg-red-600",     bgLight: "bg-red-50 dark:bg-red-900/30",     border: "border-red-200 dark:border-red-800",     icon: "text-red-500",     badge: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",     dot: "bg-red-500" },
+  slate:   { bg: "bg-slate-600",   bgLight: "bg-slate-50 dark:bg-slate-800",   border: "border-slate-200 dark:border-slate-700",   icon: "text-slate-500",   badge: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",   dot: "bg-slate-500" },
+  cyan:    { bg: "bg-cyan-600",    bgLight: "bg-cyan-50 dark:bg-cyan-900/30",    border: "border-cyan-200 dark:border-cyan-800",    icon: "text-cyan-500",    badge: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",    dot: "bg-cyan-500" },
+  indigo:  { bg: "bg-indigo-600",  bgLight: "bg-indigo-50 dark:bg-indigo-900/30",  border: "border-indigo-200 dark:border-indigo-800",  icon: "text-indigo-500",  badge: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",  dot: "bg-indigo-500" },
+  teal:    { bg: "bg-teal-600",    bgLight: "bg-teal-50 dark:bg-teal-900/30",    border: "border-teal-200 dark:border-teal-800",    icon: "text-teal-500",    badge: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",    dot: "bg-teal-500" },
 };
 
 function StatCard({ value, label, icon: Icon }: { value: string; label: string; icon: React.ComponentType<{ className?: string }> }) {
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-5 flex items-center gap-4">
-      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-violet-50 flex items-center justify-center flex-shrink-0">
+    <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-slate-700/60 p-5 flex items-center gap-4">
+      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-violet-50 dark:from-blue-900/30 dark:to-violet-900/30 flex items-center justify-center flex-shrink-0">
         <Icon className="w-6 h-6 text-blue-600" />
       </div>
       <div>
-        <div className="text-2xl font-bold text-slate-900">{value}</div>
-        <div className="text-xs text-slate-500">{label}</div>
+        <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{value}</div>
+        <div className="text-xs text-slate-500 dark:text-slate-400">{label}</div>
       </div>
     </div>
   );
@@ -279,8 +279,8 @@ function ModuleCard({ module, isExpanded, onToggle }: { module: Module; isExpand
   const Icon = module.icon;
   return (
     <div className={cn(
-      "bg-white/90 backdrop-blur-sm rounded-2xl border transition-all duration-300",
-      isExpanded ? cn("shadow-lg", c.border) : "border-slate-200/60 hover:border-slate-300 hover:shadow-md"
+      "bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl border transition-all duration-300",
+      isExpanded ? cn("shadow-lg", c.border) : "border-slate-200/60 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md"
     )}>
       <button onClick={onToggle} className="w-full text-left px-6 py-5 flex items-center gap-4">
         <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg", c.bg)}>
@@ -288,35 +288,35 @@ function ModuleCard({ module, isExpanded, onToggle }: { module: Module; isExpand
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold text-slate-900">{module.title}</h3>
+            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{module.title}</h3>
             <span className="text-xs text-slate-400 italic hidden sm:inline">{module.subtitle}</span>
           </div>
-          <p className="text-sm text-slate-500 mt-0.5 line-clamp-1">{module.description}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">{module.description}</p>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
           <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", c.badge)}>{module.subComponents.length}</span>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{module.examples.length} ex.</span>
-          <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-colors", isExpanded ? c.bgLight : "bg-slate-50")}>
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">{module.examples.length} ex.</span>
+          <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-colors", isExpanded ? c.bgLight : "bg-slate-50 dark:bg-slate-700")}>
             {isExpanded ? <ChevronDown className={cn("w-4 h-4", c.icon)} /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
           </div>
         </div>
       </button>
       {isExpanded && (
         <div className="px-6 pb-6 animate-fade-in">
-          <div className="h-px bg-slate-100 mb-5" />
+          <div className="h-px bg-slate-100 dark:bg-slate-700 mb-5" />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <CircleDot className={cn("w-4 h-4", c.icon)} />
-                <h4 className="text-sm font-semibold text-slate-700">Sub-components</h4>
+                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Sub-components</h4>
               </div>
               <div className="space-y-2">
                 {module.subComponents.map((sub, i) => (
                   <div key={i} className={cn("flex items-start gap-2.5 px-3 py-2.5 rounded-xl border", c.bgLight, c.border)}>
                     <div className={cn("w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0", c.dot)} />
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-slate-800">{sub.name}</div>
-                      {sub.detail && <div className="text-xs text-slate-500 mt-0.5">{sub.detail}</div>}
+                      <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{sub.name}</div>
+                      {sub.detail && <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{sub.detail}</div>}
                     </div>
                   </div>
                 ))}
@@ -325,19 +325,19 @@ function ModuleCard({ module, isExpanded, onToggle }: { module: Module; isExpand
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <HelpCircle className={cn("w-4 h-4", c.icon)} />
-                <h4 className="text-sm font-semibold text-slate-700">Example Customer Questions</h4>
+                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Example Customer Questions</h4>
               </div>
               <div className="space-y-3">
                 {module.examples.map((ex, i) => (
-                  <div key={i} className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-colors">
+                  <div key={i} className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/50 border border-slate-100 dark:border-slate-700 hover:border-slate-200 dark:hover:border-slate-600 transition-colors">
                     <div className="flex-shrink-0 mt-0.5">
                       <div className={cn("w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white", c.bg)}>{i + 1}</div>
                     </div>
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-slate-800 italic">&ldquo;{ex.question}&rdquo;</div>
+                      <div className="text-sm font-medium text-slate-800 dark:text-slate-200 italic">&ldquo;{ex.question}&rdquo;</div>
                       <div className="flex items-start gap-1.5 mt-1.5">
                         <ArrowRight className={cn("w-3 h-3 mt-0.5 flex-shrink-0", c.icon)} />
-                        <div className="text-xs text-slate-500 leading-relaxed">{ex.why}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{ex.why}</div>
                       </div>
                     </div>
                   </div>
@@ -388,10 +388,10 @@ export function CapabilitiesShowcase() {
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="text-sm text-slate-500">{expandedModules.size} of {MODULES.length} expanded</div>
+        <div className="text-sm text-slate-500 dark:text-slate-400">{expandedModules.size} of {MODULES.length} expanded</div>
         <div className="flex gap-2">
-          <button onClick={() => setExpandedModules(new Set(MODULES.map(m => m.id)))} className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Expand All</button>
-          <button onClick={() => setExpandedModules(new Set())} className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Collapse All</button>
+          <button onClick={() => setExpandedModules(new Set(MODULES.map(m => m.id)))} className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">Expand All</button>
+          <button onClick={() => setExpandedModules(new Set())} className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">Collapse All</button>
         </div>
       </div>
 
@@ -401,9 +401,9 @@ export function CapabilitiesShowcase() {
         ))}
       </div>
 
-      <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-6 text-center">
-        <p className="text-sm text-slate-500">All modules are domain-agnostic — the engine reads rules, traits, and constraints from the Knowledge Graph.</p>
-        <p className="text-xs text-slate-400 mt-1">To extend coverage, add new nodes and relationships to the graph. No code changes required.</p>
+      <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-slate-700/60 p-6 text-center">
+        <p className="text-sm text-slate-500 dark:text-slate-400">All modules are domain-agnostic — the engine reads rules, traits, and constraints from the Knowledge Graph.</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">To extend coverage, add new nodes and relationships to the graph. No code changes required.</p>
       </div>
     </div>
   );

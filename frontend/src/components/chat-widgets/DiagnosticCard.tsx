@@ -96,7 +96,7 @@ export function DiagnosticCard({ data }: DiagnosticCardProps) {
         </div>
       </CardContent>
 
-      <Separator className="bg-amber-200/50" />
+      <Separator className="bg-amber-200/50 dark:bg-amber-800/50" />
 
       <CardFooter className="pt-3">
         <Button

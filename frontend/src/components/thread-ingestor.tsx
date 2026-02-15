@@ -368,46 +368,46 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case "Software": return "bg-blue-50 text-blue-700 border-blue-200";
-      case "Data": return "bg-purple-50 text-purple-700 border-purple-200";
-      case "Manual": return "bg-amber-50 text-amber-700 border-amber-200";
-      case "Process": return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      default: return "bg-slate-50 text-slate-600 border-slate-200";
+      case "Software": return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800";
+      case "Data": return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800";
+      case "Manual": return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800";
+      case "Process": return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800";
+      default: return "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
     }
   };
 
   const getLogicTypeStyle = (type: string | null) => {
     switch (type) {
       case "Symptom":
-        return "bg-red-50 text-red-700 border-red-200";
+        return "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800";
       case "Constraint":
-        return "bg-amber-50 text-amber-700 border-amber-200";
+        return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800";
       case "Blocker":
-        return "bg-orange-50 text-orange-700 border-orange-200";
+        return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800";
       case "Standard":
-        return "bg-blue-50 text-blue-700 border-blue-200";
+        return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800";
       case "Workaround":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800";
       case "ProductMapping":
-        return "bg-indigo-50 text-indigo-700 border-indigo-200";
+        return "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800";
       case "Commercial":
-        return "bg-green-50 text-green-700 border-green-200";
+        return "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
       default:
-        return "bg-slate-50 text-slate-600 border-slate-200";
+        return "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
     }
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/60 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
+      <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
             <Mail className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-900">Data Ingestion</h3>
-            <p className="text-xs text-slate-500">
+            <h3 className="font-semibold text-slate-900 dark:text-slate-100">Data Ingestion</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Process email threads into knowledge
             </p>
           </div>
@@ -418,7 +418,7 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
             size="sm"
             onClick={fetchGraphData}
             disabled={loadingGraph}
-            className="text-slate-500 hover:text-slate-700"
+            className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
           >
             {loadingGraph ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -432,7 +432,7 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
             size="sm"
             onClick={clearGraph}
             disabled={clearing}
-            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950"
           >
             {clearing ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -450,10 +450,10 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <GitBranch className="w-4 h-4 text-violet-600" />
-                <span className="text-sm font-medium text-slate-700">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Graph Export
                 </span>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 dark:text-slate-500">
                   {graphData.nodes.length} nodes, {graphData.relationships.length} relationships
                 </span>
               </div>
@@ -480,7 +480,7 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
                 </Button>
               </div>
             </div>
-            <ScrollArea className="h-80 rounded-xl border border-slate-200 bg-slate-900">
+            <ScrollArea className="h-80 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-900">
               <pre className="p-4 text-xs font-mono text-slate-300 whitespace-pre">
                 {formatGraphAsText(graphData)}
               </pre>
@@ -493,13 +493,13 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
           <div className="space-y-4 animate-fade-in">
             {/* Dev Mode: Sample Cases */}
             {devMode && sampleCases && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
-                <span className="text-xs font-medium text-amber-700">Load sample:</span>
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800">
+                <span className="text-xs font-medium text-amber-700 dark:text-amber-300">Load sample:</span>
                 {Object.entries(sampleCases).map(([key, sample]) => (
                   <button
                     key={key}
                     onClick={() => setThreadText(sample.text)}
-                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors"
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors"
                   >
                     {sample.name}
                   </button>
@@ -524,7 +524,7 @@ From: Jane Doe
 Date: 2024-09-06
 
 The file is a dummy solid..."
-                className="w-full h-64 p-4 text-sm bg-slate-50 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 focus:bg-white placeholder:text-slate-400"
+                className="w-full h-64 p-4 text-sm bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 focus:bg-white dark:focus:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:text-slate-200"
               />
             </div>
             <Button
@@ -541,19 +541,19 @@ The file is a dummy solid..."
         {/* Error */}
         {error && !showExport && (
           <div className="animate-fade-in">
-            <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-200">
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-red-800">
+                <p className="text-sm font-medium text-red-800 dark:text-red-200">
                   Processing Failed
                 </p>
-                <p className="text-sm text-red-600 mt-1">{error}</p>
+                <p className="text-sm text-red-600 dark:text-red-400 mt-1">{error}</p>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={reset}
-                className="text-red-600 hover:text-red-800 hover:bg-red-100"
+                className="text-red-600 hover:text-red-800 hover:bg-red-100 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900"
               >
                 Try Again
               </Button>
@@ -564,13 +564,13 @@ The file is a dummy solid..."
         {/* Loading */}
         {uploadState === "uploading" && !showExport && (
           <div className="text-center py-16 animate-fade-in">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900 dark:to-purple-900 flex items-center justify-center">
               <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
             </div>
-            <h3 className="font-semibold text-slate-900 mb-2">
+            <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
               Analyzing Thread
             </h3>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Extracting decision chains with AI...
             </p>
           </div>
@@ -584,19 +584,19 @@ The file is a dummy solid..."
           return (
           <div className="space-y-6 animate-fade-in">
             {/* Success Banner */}
-            <div className="flex items-center justify-between p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800">
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                 <div>
-                  <span className="text-sm font-medium text-emerald-800 block">
+                  <span className="text-sm font-medium text-emerald-800 dark:text-emerald-200 block">
                     Knowledge Successfully Extracted
                   </span>
-                  <span className="text-xs text-emerald-600">
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400">
                     {result.extracted.project}
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-xs text-emerald-600">
+              <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
                 <Mail className="w-3.5 h-3.5" />
                 <span>{result.counts.events} emails processed</span>
               </div>
@@ -607,17 +607,17 @@ The file is a dummy solid..."
 
             {/* Discovery Review - Forensic Knowledge Candidates */}
             {result.extracted.knowledge_candidates && result.extracted.knowledge_candidates.length > 0 && (
-              <div className="border border-violet-200 rounded-xl overflow-hidden bg-violet-50/30">
+              <div className="border border-violet-200 dark:border-violet-800 rounded-xl overflow-hidden bg-violet-50/30 dark:bg-violet-950/30">
                 <button
                   onClick={() => setShowDiscoveries(!showDiscoveries)}
-                  className="w-full px-4 py-3 flex items-center justify-between bg-gradient-to-r from-violet-100 to-purple-100 hover:from-violet-150 hover:to-purple-150 transition-colors"
+                  className="w-full px-4 py-3 flex items-center justify-between bg-gradient-to-r from-violet-100 to-purple-100 dark:from-violet-900 dark:to-purple-900 hover:from-violet-150 hover:to-purple-150 dark:hover:from-violet-800 dark:hover:to-purple-800 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     <Lightbulb className="w-4 h-4 text-violet-600" />
-                    <span className="text-sm font-semibold text-violet-800">
+                    <span className="text-sm font-semibold text-violet-800 dark:text-violet-200">
                       Discovered Knowledge Sources
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-violet-200 text-violet-700 text-xs font-medium">
+                    <span className="px-2 py-0.5 rounded-full bg-violet-200 dark:bg-violet-800 text-violet-700 dark:text-violet-300 text-xs font-medium">
                       {result.extracted.knowledge_candidates.length} found
                     </span>
                   </div>
@@ -631,13 +631,13 @@ The file is a dummy solid..."
 
                 {showDiscoveries && (
                   <div className="p-4 space-y-3">
-                    <p className="text-xs text-violet-600 mb-3">
+                    <p className="text-xs text-violet-600 dark:text-violet-400 mb-3">
                       The AI detected these tools, data sources, or processes. Verify to add them to your Knowledge Library.
                     </p>
                     {result.extracted.knowledge_candidates.map((candidate) => (
                       <div
                         key={candidate.id}
-                        className="p-4 rounded-xl bg-white border border-violet-100 shadow-sm"
+                        className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-violet-100 dark:border-violet-800 shadow-sm"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
@@ -652,17 +652,17 @@ The file is a dummy solid..."
                                 {getTypeIcon(candidate.type)}
                                 {candidate.type}
                               </span>
-                              <h4 className="font-semibold text-slate-900">
+                              <h4 className="font-semibold text-slate-900 dark:text-slate-100">
                                 {candidate.raw_name}
                               </h4>
                             </div>
 
                             {/* Inference Logic */}
-                            <div className="mb-3 p-2 bg-amber-50 rounded-lg border border-amber-100">
-                              <p className="text-xs font-medium text-amber-700 mb-1">
+                            <div className="mb-3 p-2 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-100 dark:border-amber-800">
+                              <p className="text-xs font-medium text-amber-700 dark:text-amber-300 mb-1">
                                 Why I suggested this:
                               </p>
-                              <p className="text-sm text-amber-900">{candidate.inference_logic}</p>
+                              <p className="text-sm text-amber-900 dark:text-amber-200">{candidate.inference_logic}</p>
                             </div>
 
                             {/* Citation - Expandable */}
@@ -675,7 +675,7 @@ The file is a dummy solid..."
                                   )
                                 }
                               >
-                                <div className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800">
+                                <div className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300">
                                   {expandedCandidate === candidate.id ? (
                                     <ChevronDown className="w-3 h-3" />
                                   ) : (
@@ -685,8 +685,8 @@ The file is a dummy solid..."
                                   View source citation
                                 </div>
                                 {expandedCandidate === candidate.id && (
-                                  <div className="mt-2 pl-3 py-2 border-l-4 border-violet-200 bg-violet-50 rounded-r-lg">
-                                    <p className="text-xs text-slate-600 italic">
+                                  <div className="mt-2 pl-3 py-2 border-l-4 border-violet-200 dark:border-violet-700 bg-violet-50 dark:bg-violet-950 rounded-r-lg">
+                                    <p className="text-xs text-slate-600 dark:text-slate-400 italic">
                                       &ldquo;{candidate.citation}&rdquo;
                                     </p>
                                   </div>
@@ -702,7 +702,7 @@ The file is a dummy solid..."
                               size="sm"
                               onClick={() => openMapModal(candidate)}
                               disabled={processingCandidate === candidate.id}
-                              className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                              className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950"
                             >
                               {processingCandidate === candidate.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -715,7 +715,7 @@ The file is a dummy solid..."
                               size="sm"
                               onClick={() => rejectCandidate(candidate.id)}
                               disabled={processingCandidate === candidate.id}
-                              className="text-red-500 border-red-200 hover:bg-red-50"
+                              className="text-red-500 border-red-200 hover:bg-red-50 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-950"
                             >
                               <XCircle className="w-4 h-4" />
                             </Button>
@@ -741,17 +741,17 @@ The file is a dummy solid..."
             )}
 
             {/* Audit Log / Raw Data - Collapsible */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
               <button
                 onClick={() => setShowAuditLog(!showAuditLog)}
-                className="w-full px-4 py-3 flex items-center justify-between bg-slate-50 hover:bg-slate-100 transition-colors"
+                className="w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-slate-500" />
-                  <span className="text-sm font-medium text-slate-700">
+                  <FileText className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     Audit Log
                   </span>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-400 dark:text-slate-500">
                     ({result.extracted.timeline.length} events)
                   </span>
                 </div>

@@ -140,9 +140,9 @@ export interface ExplainableResponseData {
 
 // Layer colors and icons
 const LAYER_CONFIG = {
-  1: { name: "Inventory", color: "bg-blue-500", textColor: "text-blue-600", bgLight: "bg-blue-50", borderColor: "border-blue-200" },
-  2: { name: "Physics", color: "bg-amber-500", textColor: "text-amber-600", bgLight: "bg-amber-50", borderColor: "border-amber-200" },
-  3: { name: "Playbook", color: "bg-violet-500", textColor: "text-violet-600", bgLight: "bg-violet-50", borderColor: "border-violet-200" },
+  1: { name: "Inventory", color: "bg-blue-500", textColor: "text-blue-600 dark:text-blue-400", bgLight: "bg-blue-50 dark:bg-blue-900/30", borderColor: "border-blue-200 dark:border-blue-800" },
+  2: { name: "Physics", color: "bg-amber-500", textColor: "text-amber-600 dark:text-amber-400", bgLight: "bg-amber-50 dark:bg-amber-900/30", borderColor: "border-amber-200 dark:border-amber-800" },
+  3: { name: "Playbook", color: "bg-violet-500", textColor: "text-violet-600 dark:text-violet-400", bgLight: "bg-violet-50 dark:bg-violet-900/30", borderColor: "border-violet-200 dark:border-violet-800" },
 } as const;
 
 interface GraphTraversalItemProps {
@@ -162,7 +162,7 @@ function GraphTraversalItem({ traversal }: GraphTraversalItemProps) {
   return (
     <div className={cn(
       "mt-2 rounded-lg border",
-      isViolation ? "border-red-300 bg-red-50" : config.borderColor,
+      isViolation ? "border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/30" : config.borderColor,
       !isViolation && config.bgLight
     )}>
       <button
@@ -172,24 +172,24 @@ function GraphTraversalItem({ traversal }: GraphTraversalItemProps) {
         {/* Layer badge */}
         <span className={cn(
           "flex-shrink-0 w-5 h-5 rounded text-[10px] font-bold text-white flex items-center justify-center",
-          isViolation ? "bg-red-500" : config.color
+          isViolation ? "bg-red-500 dark:bg-red-600" : config.color
         )}>
           {traversal.layer}
         </span>
         {/* Operation name */}
         <span className={cn(
           "flex-1 text-xs font-medium truncate",
-          isViolation ? "text-red-700" : "text-slate-700"
+          isViolation ? "text-red-700 dark:text-red-400" : "text-slate-700 dark:text-slate-300"
         )}>
           {isViolation && "⚠️ "}{traversal.operation}
         </span>
         {/* Node count */}
         {traversal.nodes_visited.length > 0 && (
-          <span className="text-[10px] text-slate-400">
+          <span className="text-[10px] text-slate-400 dark:text-slate-500">
             {traversal.nodes_visited.length} node{traversal.nodes_visited.length !== 1 ? 's' : ''}
           </span>
         )}
-        <ChevronDown className={cn("w-3 h-3 text-slate-400 transition-transform", expanded ? "" : "-rotate-90")} />
+        <ChevronDown className={cn("w-3 h-3 text-slate-400 dark:text-slate-500 transition-transform", expanded ? "" : "-rotate-90")} />
       </button>
 
       {expanded && (
@@ -197,10 +197,10 @@ function GraphTraversalItem({ traversal }: GraphTraversalItemProps) {
           {/* PATH DESCRIPTION - The "Critical Path" visualization */}
           {traversal.path_description && (
             <div>
-              <span className="text-[10px] text-slate-400 uppercase tracking-wide">Reasoning Chain</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">Reasoning Chain</span>
               <div className={cn(
                 "mt-1 px-3 py-2 rounded-lg font-mono text-[11px] overflow-x-auto whitespace-nowrap",
-                isViolation ? "bg-red-100 text-red-800 border border-red-200" : "bg-slate-800 text-emerald-400"
+                isViolation ? "bg-red-100 text-red-800 border border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-700" : "bg-slate-800 text-emerald-400 dark:bg-slate-900 dark:text-emerald-400"
               )}>
                 {traversal.path_description.split('──').map((part, i) => (
                   <span key={i}>
@@ -221,7 +221,7 @@ function GraphTraversalItem({ traversal }: GraphTraversalItemProps) {
           {traversal.result_summary && (
             <div className={cn(
               "px-3 py-2 rounded-lg text-xs",
-              isViolation ? "bg-red-100 border border-red-200 text-red-800" : "bg-slate-50 border border-slate-200 text-slate-700"
+              isViolation ? "bg-red-100 border border-red-200 text-red-800 dark:bg-red-900/40 dark:border-red-700 dark:text-red-300" : "bg-slate-50 border border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300"
             )}>
               <span className="font-semibold">{isViolation ? "⚠️ Finding: " : "✓ Result: "}</span>
               {traversal.result_summary}
@@ -231,10 +231,10 @@ function GraphTraversalItem({ traversal }: GraphTraversalItemProps) {
           {/* Cypher pattern - collapsible detail */}
           {traversal.cypher_pattern && (
             <details className="group">
-              <summary className="text-[10px] text-slate-400 uppercase tracking-wide cursor-pointer hover:text-slate-600">
-                Cypher Query <span className="text-slate-300">▸</span>
+              <summary className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide cursor-pointer hover:text-slate-600 dark:hover:text-slate-400">
+                Cypher Query <span className="text-slate-300 dark:text-slate-600">▸</span>
               </summary>
-              <code className="block mt-1 px-2 py-1 bg-slate-800 text-emerald-400 text-[10px] rounded font-mono overflow-x-auto">
+              <code className="block mt-1 px-2 py-1 bg-slate-800 dark:bg-slate-900 text-emerald-400 text-[10px] rounded font-mono overflow-x-auto">
                 {traversal.cypher_pattern}
               </code>
             </details>
@@ -243,7 +243,7 @@ function GraphTraversalItem({ traversal }: GraphTraversalItemProps) {
           {/* Nodes visited - visual chain */}
           {traversal.nodes_visited.length > 0 && (
             <div>
-              <span className="text-[10px] text-slate-400 uppercase tracking-wide">Nodes Traversed</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">Nodes Traversed</span>
               <div className="mt-1 flex flex-wrap gap-1">
                 {traversal.nodes_visited.map((node, i) => {
                   const isPass = node.includes('✓');
@@ -253,8 +253,8 @@ function GraphTraversalItem({ traversal }: GraphTraversalItemProps) {
                       key={i}
                       className={cn(
                         "px-1.5 py-0.5 text-[10px] font-medium rounded border",
-                        isPass ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                        isFail ? "bg-red-50 text-red-700 border-red-200" :
+                        isPass ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800" :
+                        isFail ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800" :
                         `${config.bgLight} ${config.textColor} ${config.borderColor}`
                       )}
                     >
@@ -269,12 +269,12 @@ function GraphTraversalItem({ traversal }: GraphTraversalItemProps) {
           {/* Relationships - with arrows */}
           {traversal.relationships.length > 0 && (
             <div>
-              <span className="text-[10px] text-slate-400 uppercase tracking-wide">Relationships Used</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">Relationships Used</span>
               <div className="mt-1 flex flex-wrap items-center gap-1">
                 {traversal.relationships.map((rel, i) => (
                   <span key={i} className="flex items-center gap-0.5">
-                    {i > 0 && <span className="text-slate-300 text-[10px]">•</span>}
-                    <span className="px-1.5 py-0.5 text-[10px] font-mono text-violet-600 bg-violet-50 rounded border border-violet-200">
+                    {i > 0 && <span className="text-slate-300 dark:text-slate-600 text-[10px]">•</span>}
+                    <span className="px-1.5 py-0.5 text-[10px] font-mono text-violet-600 bg-violet-50 rounded border border-violet-200 dark:text-violet-400 dark:bg-violet-900/30 dark:border-violet-800">
                       :{rel}
                     </span>
                   </span>
@@ -326,23 +326,23 @@ export function ThinkingTimeline({ steps, defaultCollapsed = true }: ThinkingTim
       {/* Subtle Header Button */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="group flex items-center gap-2 text-xs text-slate-500 hover:text-slate-700 transition-colors py-1"
+        className="group flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors py-1"
       >
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-100 group-hover:bg-slate-200 transition-colors">
-          <Brain className="w-3 h-3 text-violet-500" />
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">
+          <Brain className="w-3 h-3 text-violet-500 dark:text-violet-400" />
           <span className="font-medium">AI Process</span>
-          <span className="text-slate-400">·</span>
+          <span className="text-slate-400 dark:text-slate-500">·</span>
           <span>{steps.length} steps</span>
           {totalTraversals > 0 && (
             <>
-              <span className="text-slate-400">·</span>
-              <span className="text-emerald-600">{totalTraversals} graph ops</span>
+              <span className="text-slate-400 dark:text-slate-500">·</span>
+              <span className="text-emerald-600 dark:text-emerald-400">{totalTraversals} graph ops</span>
             </>
           )}
         </div>
         <ChevronDown
           className={cn(
-            "w-3.5 h-3.5 text-slate-400 transition-transform",
+            "w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform",
             collapsed ? "-rotate-90" : ""
           )}
         />
@@ -353,7 +353,7 @@ export function ThinkingTimeline({ steps, defaultCollapsed = true }: ThinkingTim
       {!collapsed && (
         <>
           {/* Step-by-step Timeline */}
-          <div className="mt-3 ml-1 pl-4 border-l-2 border-slate-100 space-y-3">
+          <div className="mt-3 ml-1 pl-4 border-l-2 border-slate-100 dark:border-slate-700 space-y-3">
             {steps.map((step, idx) => {
               const hasTraversals = step.graph_traversals && step.graph_traversals.length > 0;
               const isExpanded = expandedSteps.has(idx);
@@ -361,17 +361,17 @@ export function ThinkingTimeline({ steps, defaultCollapsed = true }: ThinkingTim
               return (
                 <div key={idx} className="relative">
                   {/* Step indicator dot */}
-                  <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-white border-2 border-slate-300" />
+                  <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600" />
 
                   {/* Content */}
-                  <div className="text-xs text-slate-500 font-medium uppercase tracking-wide flex items-center gap-1.5">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wide flex items-center gap-1.5">
                     <span>{step.icon}</span>
                     <span>{step.step}</span>
                     {/* Graph traversals badge */}
                     {hasTraversals && (
                       <button
                         onClick={() => toggleStepExpansion(idx)}
-                        className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                        className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-900/50 transition-colors"
                       >
                         <Database className="w-2.5 h-2.5" />
                         {step.graph_traversals!.length} traversal{step.graph_traversals!.length !== 1 ? 's' : ''}
@@ -379,7 +379,7 @@ export function ThinkingTimeline({ steps, defaultCollapsed = true }: ThinkingTim
                       </button>
                     )}
                   </div>
-                  <p className="mt-0.5 text-sm text-slate-600 leading-relaxed">
+                  <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                     {step.description}
                   </p>
 
@@ -480,7 +480,7 @@ function SourceCitation({
         "inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] font-medium rounded cursor-pointer transition-colors ml-0.5",
         isSelected
           ? "text-white bg-emerald-600 border border-emerald-600"
-          : "text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100"
+          : "text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800 dark:hover:bg-emerald-900/50"
       )}
     >
       <Database className="w-2.5 h-2.5" />
@@ -505,7 +505,7 @@ function InferenceBadge({
         "inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] font-medium rounded cursor-pointer transition-colors ml-0.5",
         isSelected
           ? "text-white bg-amber-600 border border-amber-600"
-          : "text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100"
+          : "text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800 dark:hover:bg-amber-900/50"
       )}
     >
       <Brain className="w-2.5 h-2.5" />
@@ -523,14 +523,14 @@ function renderInlineFormatting(line: string, keyPrefix: string): React.ReactNod
   boldParts.forEach((part) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       parts.push(
-        <strong key={`${keyPrefix}-b-${k++}`} className="font-semibold text-slate-900">
+        <strong key={`${keyPrefix}-b-${k++}`} className="font-semibold text-slate-900 dark:text-slate-100">
           {part.slice(2, -2)}
         </strong>
       );
     } else if (part) {
       if (part.startsWith('• ') || part.startsWith('- ')) {
         parts.push(
-          <span key={`${keyPrefix}-bl-${k++}`} className="block pl-4 relative before:content-['•'] before:absolute before:left-1 before:text-slate-400">
+          <span key={`${keyPrefix}-bl-${k++}`} className="block pl-4 relative before:content-['•'] before:absolute before:left-1 before:text-slate-400 dark:before:text-slate-500">
             {part.replace(/^[•\-]\s*/, '')}
           </span>
         );
@@ -637,7 +637,7 @@ export function ExplainableChatBubble({
   if (hasComplexMarkdown && !expertMode) {
     const fullText = segments.map(s => s.text).join('');
     return (
-      <div className="prose prose-sm prose-slate max-w-none">
+      <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
         <ReactMarkdown>{fullText}</ReactMarkdown>
       </div>
     );
@@ -686,8 +686,8 @@ export function ExplainableChatBubble({
             className={cn(
               "cursor-pointer transition-colors pb-0.5",
               isSelected
-                ? "bg-emerald-100"
-                : "hover:bg-emerald-50"
+                ? "bg-emerald-100 dark:bg-emerald-900/40"
+                : "hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
             )}
             style={{
               textDecoration: "underline",
@@ -729,10 +729,10 @@ export function ExplainableChatBubble({
             className={cn(
               "cursor-pointer transition-colors",
               isConfirmed
-                ? "bg-emerald-50"
+                ? "bg-emerald-50 dark:bg-emerald-900/20"
                 : isSelected
-                  ? "bg-amber-100"
-                  : "hover:bg-amber-50"
+                  ? "bg-amber-100 dark:bg-amber-900/40"
+                  : "hover:bg-amber-50 dark:hover:bg-amber-900/20"
             )}
             style={{
               textDecoration: "underline",
@@ -755,7 +755,7 @@ export function ExplainableChatBubble({
                 e.stopPropagation();
                 onConfirmInference(segment.inference_logic!, getContextText());
               }}
-              className="inline-flex items-center justify-center w-4 h-4 ml-0.5 align-baseline text-amber-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+              className="inline-flex items-center justify-center w-4 h-4 ml-0.5 align-baseline text-amber-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded transition-colors"
               title="Confirm this inference as a rule"
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -795,7 +795,7 @@ export function ExplainableChatBubble({
   paragraphs.push({ startIdx: currentStart, endIdx: segments.length });
 
   return (
-    <div className="text-[13.5px] text-gray-800 leading-[1.8] max-w-[72ch] space-y-4">
+    <div className="text-[13.5px] text-gray-800 dark:text-slate-200 leading-[1.8] max-w-[72ch] space-y-4">
       {paragraphs.map((para, pIdx) => (
         <p key={pIdx} className="m-0">
           {segments.slice(para.startIdx, para.endIdx).map((seg, relIdx) =>
@@ -831,10 +831,10 @@ export function ProductCardComponent({ card, onAction, riskSeverity }: ProductCa
     <div className={cn(
       "mt-4 rounded-xl border overflow-hidden",
       isCritical
-        ? "border-red-300 bg-red-50/30"
+        ? "border-red-300 bg-red-50/30 dark:border-red-700 dark:bg-red-900/20"
         : isWarning
-          ? "border-amber-200 bg-amber-50/20"
-          : "border-slate-200 bg-white"
+          ? "border-amber-200 bg-amber-50/20 dark:border-amber-700 dark:bg-amber-900/20"
+          : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800"
     )}>
       {/* Header - Red for CRITICAL */}
       <div className={cn(

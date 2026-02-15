@@ -826,7 +826,7 @@ TEST_CASES = {
         category="material",
         tests_graph_node="ProductFamily(FAM_GDMI).available_materials=[AZ,ZM], ZM=C5",
         pdf_reference="GDMI: only AZ/ZM. 'Ej i Rostfritt'. ZM=C5.",
-        query="I need an insulated filter housing with C5 corrosion resistance for a coastal industrial facility. Size 600x600, airflow 3400 m³/h.",
+        query="I need an insulated filter housing with C5 corrosion resistance for a heavy industrial facility. Size 600x600, airflow 3400 m³/h.",
         assertions=[
             Assertion("gdmi_mentioned", "response.content_text", "contains_any",
                       "GDMI|insulated|insulation",
@@ -1615,7 +1615,7 @@ TEST_CASES = {
         tests_graph_node="ProductFamily(FAM_GDC_FLEX).available_materials includes RF",
         pdf_reference="GDC-FLEX page: 5 material icons FZ/AZ/RF/SF/ZM. RF available.",
         query=(
-            "Pharmaceutical rooftop installation. "
+            "Office ventilation system. "
             "We want GDC-FLEX in Stainless Steel (RF). "
             "Airflow: 1750 m³/h. "
             "Please confirm availability."

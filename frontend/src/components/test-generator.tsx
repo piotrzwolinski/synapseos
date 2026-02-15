@@ -72,19 +72,19 @@ type WizardStep = "configure" | "debate" | "review";
 // ─── Category colors ────────────────────────────────────────────
 
 const CATEGORY_COLORS: Record<string, string> = {
-  env: "bg-emerald-100 text-emerald-700",
-  assembly: "bg-violet-100 text-violet-700",
-  atex: "bg-red-100 text-red-700",
-  sizing: "bg-blue-100 text-blue-700",
-  material: "bg-amber-100 text-amber-700",
-  positive: "bg-teal-100 text-teal-700",
-  clarification: "bg-orange-100 text-orange-700",
+  env: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400",
+  assembly: "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400",
+  atex: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
+  sizing: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400",
+  material: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
+  positive: "bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400",
+  clarification: "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400",
 };
 
 const PROVIDER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  openai: { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
-  gemini: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  anthropic: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+  openai: { bg: "bg-green-50 dark:bg-green-900/20", text: "text-green-700 dark:text-green-400", border: "border-green-200 dark:border-green-800" },
+  gemini: { bg: "bg-blue-50 dark:bg-blue-900/20", text: "text-blue-700 dark:text-blue-400", border: "border-blue-200 dark:border-blue-800" },
+  anthropic: { bg: "bg-orange-50 dark:bg-orange-900/20", text: "text-orange-700 dark:text-orange-400", border: "border-orange-200 dark:border-orange-800" },
 };
 
 // ─── Component ──────────────────────────────────────────────────
@@ -385,9 +385,9 @@ export function TestGenerator() {
   };
 
   const scoreColor = (score: number) => {
-    if (score >= 0.8) return "text-green-600 bg-green-50";
-    if (score >= 0.5) return "text-amber-600 bg-amber-50";
-    return "text-red-600 bg-red-50";
+    if (score >= 0.8) return "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30";
+    if (score >= 0.5) return "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30";
+    return "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30";
   };
 
   // ─── Wizard Steps ───────────────────────────────────────────────
@@ -410,7 +410,7 @@ export function TestGenerator() {
   return (
     <div className="h-full flex flex-col">
       {/* Wizard Progress Bar */}
-      <div className="px-6 py-4 border-b border-slate-200 bg-white/50">
+      <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50">
         <div className="flex items-center gap-2">
           {steps.map((s, i) => (
             <div key={s.key} className="flex items-center">
@@ -424,10 +424,10 @@ export function TestGenerator() {
                 }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   step === s.key
-                    ? "bg-purple-100 text-purple-700"
+                    ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
                     : steps.findIndex((st) => st.key === step) > i
-                    ? "bg-green-50 text-green-600"
-                    : "bg-slate-50 text-slate-400"
+                    ? "bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400"
+                    : "bg-slate-50 dark:bg-slate-800 text-slate-400"
                 }`}
               >
                 {s.icon}
@@ -442,9 +442,9 @@ export function TestGenerator() {
       <div className="flex-1 overflow-y-auto">
         <div className="p-6 max-w-5xl mx-auto space-y-6">
           {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-              <span className="text-sm text-red-700">{error}</span>
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-500" />
+              <span className="text-sm text-red-700 dark:text-red-400">{error}</span>
               <button onClick={() => setError(null)} className="ml-auto">
                 <X className="w-4 h-4 text-red-400" />
               </button>
@@ -455,8 +455,8 @@ export function TestGenerator() {
           {step === "configure" && (
             <div className="space-y-4">
               <div>
-                <h2 className="text-lg font-semibold text-slate-800">Configure Debate</h2>
-                <p className="text-sm text-slate-500 mt-1">
+                <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Configure Debate</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                   Select which LLMs participate in the debate. Each will analyze the product catalog PDF and independently propose test cases.
                 </p>
               </div>
@@ -474,7 +474,7 @@ export function TestGenerator() {
                         key={pk.provider}
                         className={`flex items-center justify-between p-3 rounded-lg border ${
                           pk.configured ? colors.border : "border-slate-200"
-                        } ${pk.configured ? colors.bg : "bg-slate-50 opacity-60"}`}
+                        } ${pk.configured ? colors.bg : "bg-slate-50 dark:bg-slate-800 opacity-60"}`}
                       >
                         <div className="flex items-center gap-3">
                           <input
@@ -496,9 +496,9 @@ export function TestGenerator() {
                               {pk.label}
                             </span>
                             {pk.configured ? (
-                              <Badge className="ml-2 bg-green-100 text-green-700 text-xs border-0">Ready</Badge>
+                              <Badge className="ml-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs border-0">Ready</Badge>
                             ) : (
-                              <Badge className="ml-2 bg-slate-100 text-slate-500 text-xs border-0">No env var</Badge>
+                              <Badge className="ml-2 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-xs border-0">No env var</Badge>
                             )}
                           </div>
                         </div>
@@ -509,8 +509,8 @@ export function TestGenerator() {
                     );
                   })}
                   {providerKeys.filter((k) => k.configured).length === 0 && (
-                    <p className="text-sm text-amber-600 p-3 bg-amber-50 rounded-lg">
-                      No API keys detected. Set environment variables: <code className="font-mono text-xs bg-amber-100 px-1 rounded">OPENAI_API_KEY</code>, <code className="font-mono text-xs bg-amber-100 px-1 rounded">ANTHROPIC_API_KEY</code>, <code className="font-mono text-xs bg-amber-100 px-1 rounded">GEMINI_API_KEY</code>
+                    <p className="text-sm text-amber-600 dark:text-amber-400 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                      No API keys detected. Set environment variables: <code className="font-mono text-xs bg-amber-100 dark:bg-amber-900/40 px-1 rounded">OPENAI_API_KEY</code>, <code className="font-mono text-xs bg-amber-100 dark:bg-amber-900/40 px-1 rounded">ANTHROPIC_API_KEY</code>, <code className="font-mono text-xs bg-amber-100 dark:bg-amber-900/40 px-1 rounded">GEMINI_API_KEY</code>
                     </p>
                   )}
                 </CardContent>
@@ -523,7 +523,7 @@ export function TestGenerator() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-slate-700 block mb-1">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-1">
                       Target test count: {targetCount}
                     </label>
                     <input
@@ -540,7 +540,7 @@ export function TestGenerator() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-slate-700 block mb-1">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-1">
                       Category focus (optional)
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -551,7 +551,7 @@ export function TestGenerator() {
                           className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                             categoryFocus === cat
                               ? "bg-purple-600 text-white"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                           }`}
                         >
                           {cat || "All categories"}
@@ -580,15 +580,15 @@ export function TestGenerator() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-800">Multi-LLM Debate</h2>
-                  <p className="text-sm text-slate-500 mt-1">
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Multi-LLM Debate</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                     {isStreaming ? "Debate in progress..." : "Debate complete"}
                   </p>
                 </div>
                 {isStreaming && (
                   <button
                     onClick={() => abortRef.current?.abort()}
-                    className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-sm font-medium hover:bg-red-100 transition-colors"
+                    className="px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm font-medium hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
                   >
                     Stop
                   </button>
@@ -599,14 +599,14 @@ export function TestGenerator() {
               <div className="flex items-center gap-4">
                 {["generation", "critique", "synthesis"].map((phase, i) => (
                   <div key={phase} className="flex items-center gap-2">
-                    {i > 0 && <div className="w-8 h-px bg-slate-300" />}
+                    {i > 0 && <div className="w-8 h-px bg-slate-300 dark:bg-slate-600" />}
                     <div
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
                         debatePhase === phase
-                          ? "bg-purple-100 text-purple-700 ring-2 ring-purple-300"
+                          ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 ring-2 ring-purple-300 dark:ring-purple-700"
                           : debatePhase === "complete" || steps.findIndex((s) => s.key === "debate") < ["generation", "critique", "synthesis"].indexOf(debatePhase)
-                          ? "bg-green-50 text-green-600"
-                          : "bg-slate-100 text-slate-400"
+                          ? "bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-400"
                       }`}
                     >
                       {phase === "generation" && <Sparkles className="w-3 h-3" />}
@@ -631,7 +631,7 @@ export function TestGenerator() {
                           {ps.status === "complete" && <CheckCircle2 className="w-4 h-4 text-green-500" />}
                           {ps.status === "error" && <AlertCircle className="w-4 h-4 text-red-500" />}
                         </div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
                           {ps.status === "active" && `${ps.phase}...`}
                           {ps.status === "complete" && `${ps.testCount} tests (${ps.duration}s)`}
                           {ps.status === "error" && <span className="text-red-500">{ps.error}</span>}
@@ -662,7 +662,7 @@ export function TestGenerator() {
                               {providerLabel(entry.provider)}
                             </Badge>
                           )}
-                          <span className={`${entry.type === "error" ? "text-red-600" : "text-slate-700"}`}>
+                          <span className={`${entry.type === "error" ? "text-red-600 dark:text-red-400" : "text-slate-700 dark:text-slate-300"}`}>
                             {entry.message}
                           </span>
                         </div>
@@ -697,8 +697,8 @@ export function TestGenerator() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-800">Review Generated Tests</h2>
-                  <p className="text-sm text-slate-500 mt-1">
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Review Generated Tests</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                     {selectedTests.size} of {finalTests.length} selected
                     {summary && ` | ${summary.high_consensus} high consensus | ${summary.duration_s}s total`}
                   </p>
@@ -706,13 +706,13 @@ export function TestGenerator() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={selectAllHighConsensus}
-                    className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium hover:bg-slate-200 transition-colors"
+                    className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                   >
                     Select High Consensus (&ge;0.7)
                   </button>
                   <button
                     onClick={() => setStep("debate")}
-                    className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium hover:bg-slate-200 transition-colors flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center gap-1"
                   >
                     <RotateCcw className="w-3 h-3" />
                     Back to Debate
@@ -721,9 +721,9 @@ export function TestGenerator() {
               </div>
 
               {approveResult && (
-                <div className="p-3 rounded-lg bg-green-50 border border-green-200 flex items-center gap-2">
+                <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  <span className="text-sm text-green-700">
+                  <span className="text-sm text-green-700 dark:text-green-400">
                     Added {approveResult.added} test(s) to the suite ({approveResult.total} total generated tests)
                   </span>
                 </div>
@@ -751,7 +751,7 @@ export function TestGenerator() {
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-mono font-medium text-slate-800 truncate">
+                            <span className="text-sm font-mono font-medium text-slate-800 dark:text-slate-200 truncate">
                               {test.name}
                             </span>
                             <Badge className={`text-[10px] border-0 ${CATEGORY_COLORS[test.category] || "bg-slate-100 text-slate-600"}`}>
@@ -766,7 +766,7 @@ export function TestGenerator() {
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-500 mt-0.5 truncate">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                             {test.description}
                           </p>
                         </div>
@@ -785,30 +785,30 @@ export function TestGenerator() {
 
                     {/* Expanded detail */}
                     {expandedTest === test.id && (
-                      <div className="px-4 pb-4 border-t border-slate-100 pt-3 space-y-3">
+                      <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-700 pt-3 space-y-3">
                         <div>
-                          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Query</p>
-                          <p className="text-sm text-slate-800 bg-slate-50 p-2 rounded">{test.query}</p>
+                          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Query</p>
+                          <p className="text-sm text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 p-2 rounded">{test.query}</p>
                         </div>
                         {test.pdf_reference && (
                           <div>
-                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">PDF Reference</p>
-                            <p className="text-xs text-slate-600">{test.pdf_reference}</p>
+                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">PDF Reference</p>
+                            <p className="text-xs text-slate-600 dark:text-slate-400">{test.pdf_reference}</p>
                           </div>
                         )}
                         {test.critique_notes && (
                           <div>
-                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Critique Notes</p>
-                            <p className="text-xs text-slate-600 italic">{test.critique_notes}</p>
+                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Critique Notes</p>
+                            <p className="text-xs text-slate-600 dark:text-slate-400 italic">{test.critique_notes}</p>
                           </div>
                         )}
                         <div>
-                          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Assertions</p>
+                          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Assertions</p>
                           <div className="space-y-1">
                             {test.assertions?.map((a, i) => (
-                              <div key={i} className="flex items-center gap-2 text-xs p-1.5 bg-slate-50 rounded">
+                              <div key={i} className="flex items-center gap-2 text-xs p-1.5 bg-slate-50 dark:bg-slate-800 rounded">
                                 <Badge variant="outline" className="text-[10px]">{a.category}</Badge>
-                                <span className="font-mono text-slate-700">{a.name}</span>
+                                <span className="font-mono text-slate-700 dark:text-slate-300">{a.name}</span>
                                 <span className="text-slate-400">
                                   {a.check} {a.condition} {a.expected ? `"${a.expected.slice(0, 50)}${a.expected.length > 50 ? "..." : ""}"` : ""}
                                 </span>
@@ -831,7 +831,7 @@ export function TestGenerator() {
 
               {/* Approve button */}
               {finalTests.length > 0 && !approveResult && (
-                <div className="flex justify-end pt-4 border-t border-slate-200">
+                <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-700">
                   <button
                     onClick={approveSelected}
                     disabled={selectedTests.size === 0 || approving}

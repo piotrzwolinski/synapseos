@@ -247,15 +247,15 @@ export function KnowledgeCenter() {
   const getTypeColor = (type: string) => {
     switch (type) {
       case "Software":
-        return "bg-blue-50 text-blue-700 border-blue-200";
+        return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800";
       case "Data":
-        return "bg-purple-50 text-purple-700 border-purple-200";
+        return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800";
       case "Manual":
-        return "bg-amber-50 text-amber-700 border-amber-200";
+        return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800";
       case "Process":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800";
       default:
-        return "bg-slate-50 text-slate-600 border-slate-200";
+        return "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
     }
   };
 
@@ -280,17 +280,17 @@ export function KnowledgeCenter() {
   );
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/60 overflow-hidden h-full flex flex-col">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden h-full flex flex-col">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+      <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-800">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
               <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-900">Knowledge Center</h3>
-              <p className="text-xs text-slate-500">
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100">Knowledge Center</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {viewMode === "candidates" && `${candidates.length} pending discoveries`}
                 {viewMode === "library" && `${verifiedSources.length} verified sources`}
                 {viewMode === "experts" && `${experts.length} subject matter experts`}
@@ -316,37 +316,37 @@ export function KnowledgeCenter() {
         {/* Stats Row */}
         {stats && (
           <div className="grid grid-cols-4 gap-3 mb-4">
-            <div className="p-3 rounded-lg bg-amber-50 border border-amber-100">
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-amber-600" />
-                <span className="text-lg font-bold text-amber-700">{stats.pending}</span>
+                <span className="text-lg font-bold text-amber-700 dark:text-amber-400">{stats.pending}</span>
               </div>
-              <p className="text-xs text-amber-600 mt-0.5">Pending</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">Pending</p>
             </div>
-            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-100">
+            <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span className="text-lg font-bold text-emerald-700">{stats.total_sources}</span>
+                <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{stats.total_sources}</span>
               </div>
-              <p className="text-xs text-emerald-600 mt-0.5">Verified</p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">Verified</p>
             </div>
-            <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
+            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-blue-600" />
-                <span className="text-lg font-bold text-blue-700">{stats.total_projects}</span>
+                <span className="text-lg font-bold text-blue-700 dark:text-blue-400">{stats.total_projects}</span>
               </div>
-              <p className="text-xs text-blue-600 mt-0.5">Projects</p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">Projects</p>
             </div>
-            <div className="p-3 rounded-lg bg-violet-50 border border-violet-100">
+            <div className="p-3 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-violet-600" />
-                <span className="text-lg font-bold text-violet-700">
+                <span className="text-lg font-bold text-violet-700 dark:text-violet-400">
                   {stats.total_candidates > 0
                     ? Math.round((stats.total_sources / (stats.total_sources + stats.pending)) * 100)
                     : 0}%
                 </span>
               </div>
-              <p className="text-xs text-violet-600 mt-0.5">Coverage</p>
+              <p className="text-xs text-violet-600 dark:text-violet-400 mt-0.5">Coverage</p>
             </div>
           </div>
         )}
@@ -360,7 +360,7 @@ export function KnowledgeCenter() {
             className={cn(
               viewMode === "candidates"
                 ? "bg-violet-600 hover:bg-violet-700"
-                : "hover:bg-violet-50"
+                : "hover:bg-violet-50 dark:hover:bg-violet-900/20"
             )}
           >
             <Clock className="w-4 h-4 mr-2" />
@@ -373,7 +373,7 @@ export function KnowledgeCenter() {
             className={cn(
               viewMode === "library"
                 ? "bg-violet-600 hover:bg-violet-700"
-                : "hover:bg-violet-50"
+                : "hover:bg-violet-50 dark:hover:bg-violet-900/20"
             )}
           >
             <BookOpen className="w-4 h-4 mr-2" />
@@ -386,7 +386,7 @@ export function KnowledgeCenter() {
             className={cn(
               viewMode === "experts"
                 ? "bg-violet-600 hover:bg-violet-700"
-                : "hover:bg-violet-50"
+                : "hover:bg-violet-50 dark:hover:bg-violet-900/20"
             )}
           >
             <Users className="w-4 h-4 mr-2" />
@@ -396,7 +396,7 @@ export function KnowledgeCenter() {
       </div>
 
       {/* Search */}
-      <div className="p-4 border-b border-slate-100">
+      <div className="p-4 border-b border-slate-100 dark:border-slate-700">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -408,7 +408,7 @@ export function KnowledgeCenter() {
                 ? "Search discoveries..."
                 : "Search verified sources..."
             }
-            className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+            className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 dark:text-slate-200 dark:placeholder-slate-400"
           />
         </div>
       </div>
@@ -422,7 +422,7 @@ export function KnowledgeCenter() {
         ) : error ? (
           <div className="flex flex-col items-center justify-center h-full p-6">
             <AlertTriangle className="w-12 h-12 text-red-400 mb-4" />
-            <p className="text-sm text-slate-600 mb-4">{error}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">{error}</p>
             <Button
               onClick={() => (viewMode === "candidates" ? fetchCandidates() : fetchLibrary())}
               variant="outline"
@@ -435,7 +435,7 @@ export function KnowledgeCenter() {
           filteredCandidates.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full p-6 text-center">
               <CheckCircle2 className="w-16 h-16 text-emerald-400 mb-4" />
-              <h4 className="font-medium text-slate-600 mb-2">All caught up!</h4>
+              <h4 className="font-medium text-slate-600 dark:text-slate-400 mb-2">All caught up!</h4>
               <p className="text-sm text-slate-400">
                 {searchQuery
                   ? "No discoveries match your search"
@@ -448,7 +448,7 @@ export function KnowledgeCenter() {
                 {filteredCandidates.map((candidate) => (
                   <div
                     key={candidate.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-white hover:border-violet-300 transition-all"
+                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-violet-300 dark:hover:border-violet-700 transition-all"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -463,17 +463,17 @@ export function KnowledgeCenter() {
                             {getTypeIcon(candidate.type)}
                             {candidate.type}
                           </span>
-                          <h4 className="font-semibold text-slate-900 truncate">
+                          <h4 className="font-semibold text-slate-900 dark:text-slate-100 truncate">
                             {candidate.raw_name}
                           </h4>
                         </div>
 
                         {/* Inference Logic - Why AI suggested this */}
-                        <div className="mb-3 p-2 bg-amber-50 rounded-lg border border-amber-100">
-                          <p className="text-xs font-medium text-amber-700 mb-1">
+                        <div className="mb-3 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-100 dark:border-amber-800">
+                          <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-1">
                             Why I suggested this:
                           </p>
-                          <p className="text-sm text-amber-900">{candidate.inference_logic}</p>
+                          <p className="text-sm text-amber-900 dark:text-amber-300">{candidate.inference_logic}</p>
                         </div>
 
                         {/* Source Info */}
@@ -503,8 +503,8 @@ export function KnowledgeCenter() {
                             View source citation
                           </div>
                           {expandedCard === candidate.id && (
-                            <div className="mt-2 pl-3 py-2 border-l-4 border-violet-200 bg-violet-50 rounded-r-lg">
-                              <p className="text-xs text-slate-600 italic">
+                            <div className="mt-2 pl-3 py-2 border-l-4 border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/20 rounded-r-lg">
+                              <p className="text-xs text-slate-600 dark:text-slate-400 italic">
                                 &ldquo;{candidate.citation}&rdquo;
                               </p>
                             </div>
@@ -519,7 +519,7 @@ export function KnowledgeCenter() {
                           size="sm"
                           onClick={() => openVerifyModal(candidate)}
                           disabled={processingId === candidate.id}
-                          className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                          className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:border-emerald-800 dark:hover:bg-emerald-900/30"
                         >
                           {processingId === candidate.id ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -532,7 +532,7 @@ export function KnowledgeCenter() {
                           size="sm"
                           onClick={() => rejectCandidate(candidate.id)}
                           disabled={processingId === candidate.id}
-                          className="text-red-500 border-red-200 hover:bg-red-50"
+                          className="text-red-500 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/30"
                         >
                           <XCircle className="w-4 h-4" />
                         </Button>
@@ -548,7 +548,7 @@ export function KnowledgeCenter() {
           filteredSources.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full p-6 text-center">
               <BookOpen className="w-16 h-16 text-slate-300 mb-4" />
-              <h4 className="font-medium text-slate-600 mb-2">Library is empty</h4>
+              <h4 className="font-medium text-slate-600 dark:text-slate-400 mb-2">Library is empty</h4>
               <p className="text-sm text-slate-400">
                 {searchQuery
                   ? "No sources match your search"
@@ -561,7 +561,7 @@ export function KnowledgeCenter() {
                 {filteredSources.map((source) => (
                   <div
                     key={source.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-white hover:border-violet-300 transition-all"
+                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-violet-300 dark:hover:border-violet-700 transition-all"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -576,12 +576,12 @@ export function KnowledgeCenter() {
                             {getTypeIcon(source.type)}
                             {source.type}
                           </span>
-                          <h4 className="font-semibold text-slate-900">{source.name}</h4>
+                          <h4 className="font-semibold text-slate-900 dark:text-slate-100">{source.name}</h4>
                         </div>
 
                         {/* Description */}
                         {source.description && (
-                          <p className="text-sm text-slate-600 mb-2">{source.description}</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{source.description}</p>
                         )}
 
                         {/* Aliases */}
@@ -591,7 +591,7 @@ export function KnowledgeCenter() {
                             {source.aliases.map((alias, i) => (
                               <span
                                 key={i}
-                                className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600"
+                                className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
                               >
                                 {alias}
                               </span>
@@ -618,7 +618,7 @@ export function KnowledgeCenter() {
           filteredExperts.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full p-6 text-center">
               <Users className="w-16 h-16 text-slate-300 mb-4" />
-              <h4 className="font-medium text-slate-600 mb-2">No expert data yet</h4>
+              <h4 className="font-medium text-slate-600 dark:text-slate-400 mb-2">No expert data yet</h4>
               <p className="text-sm text-slate-400">
                 {searchQuery
                   ? "No experts match your search"
@@ -631,7 +631,7 @@ export function KnowledgeCenter() {
                 {filteredExperts.map((expert) => (
                   <div
                     key={expert.expert_name}
-                    className="p-4 rounded-xl border border-slate-200 bg-white hover:border-violet-300 transition-all"
+                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-violet-300 dark:hover:border-violet-700 transition-all"
                   >
                     <div className="flex items-start gap-4">
                       {/* Avatar */}
@@ -641,7 +641,7 @@ export function KnowledgeCenter() {
 
                       <div className="flex-1 min-w-0">
                         {/* Name */}
-                        <h4 className="font-semibold text-slate-900">{expert.expert_name}</h4>
+                        <h4 className="font-semibold text-slate-900 dark:text-slate-100">{expert.expert_name}</h4>
                         {expert.expert_email && (
                           <p className="text-xs text-slate-400">{expert.expert_email}</p>
                         )}
@@ -685,10 +685,10 @@ export function KnowledgeCenter() {
       {/* Verification Modal */}
       {verifyModalOpen && selectedCandidate && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="p-6 border-b border-slate-100">
-              <h3 className="font-semibold text-lg text-slate-900">Verify Discovery</h3>
-              <p className="text-sm text-slate-500 mt-1">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+              <h3 className="font-semibold text-lg text-slate-900 dark:text-slate-100">Verify Discovery</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                 Verifying: <strong>{selectedCandidate.raw_name}</strong>
               </p>
             </div>
@@ -724,28 +724,28 @@ export function KnowledgeCenter() {
                 <>
                   {/* Verified Name */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                       Canonical Name
                     </label>
                     <input
                       type="text"
                       value={verifiedName}
                       onChange={(e) => setVerifiedName(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                      className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
                       placeholder="e.g., HABE Calculation Tool"
                     />
                   </div>
 
                   {/* Description */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                       Description
                     </label>
                     <textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       rows={3}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 resize-none"
+                      className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 resize-none"
                       placeholder="What is this tool/data source used for?"
                     />
                   </div>
@@ -753,13 +753,13 @@ export function KnowledgeCenter() {
               ) : (
                 /* Map to Existing */
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Select Existing Source
                   </label>
                   <select
                     value={selectedSourceId}
                     onChange={(e) => setSelectedSourceId(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
                   >
                     <option value="">-- Select a source --</option>
                     {verifiedSources.map((s) => (
@@ -777,7 +777,7 @@ export function KnowledgeCenter() {
             </div>
 
             {/* Actions */}
-            <div className="p-6 border-t border-slate-100 flex gap-3 justify-end">
+            <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex gap-3 justify-end">
               <Button
                 variant="outline"
                 onClick={() => {

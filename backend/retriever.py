@@ -2338,7 +2338,7 @@ Use `VULNERABLE_TO` and `DependencyRule` data from the REASONING REPORT. If the 
 
 ### 11. DIMENSION MAPPING (Filter → Housing)
 
-**RULE:** Map filter dimensions to the SMALLEST `DimensionModule` (from `AVAILABLE_IN_SIZE`) that fits. Use BOTH width and height dimensions independently.
+**RULE:** Map filter dimensions to the SMALLEST product variant size that fits. Use BOTH width and height dimensions independently. Airflow values are FAMILY-SPECIFIC (from sizing_reference_m3h in GRAPH_DATA).
 
 ### 12. AUTOMATIC LENGTH INFERENCE (Filter Depth)
 
@@ -2397,9 +2397,29 @@ Use `VULNERABLE_TO` and `DependencyRule` data from the REASONING REPORT. If the 
 - Use ONLY the dimension mappings provided
 - If mapping unclear, state the ambiguity
 
+**For Airflow:**
+- Each product family has DIFFERENT airflow values per size (e.g., GDP 600x600 = 2000 m³/h, GDB 600x600 = 3400 m³/h)
+- Use ONLY the sizing_reference_m3h values from GRAPH_DATA for the specific product family
+- NEVER assume airflow values are the same across different product families
+
+**For Constraints:**
+- ONLY mention constraints that appear in the GRAPH_DATA context
+- NEVER invent installation rules like "service clearance requirements" unless explicitly stated in graph data
+- If uncertain about a constraint, say "Please verify with technical documentation"
+
+**Product Type Accuracy:**
+- GDC/GDC FLEX = Cartridge filter for ACTIVATED CARBON and CHEMICAL MEDIA (gas-phase filtration)
+- GDB = Duct filter for bag/pocket filters and rigid filters (particle filtration)
+- GDP = Flat filter cabinet for panel/flat filters
+- GDMI = Module filter cabinet for bag/pocket and rigid filters
+- PFF = Panel filter frame for pre-filtration
+- NEVER describe GDC as "mechanical filtration" — it is for carbon/chemical media
+
 **Hallucination = B2B Risk:**
 - Wrong weight → shipping/handling errors
 - Wrong dimensions → installation failure
+- Wrong airflow → undersized or oversized system
+- Wrong product type description → customer confusion
 - This is a PROFESSIONAL system, not a chatbot
 
 ---
@@ -2668,6 +2688,10 @@ When the verdict contains a veto or substitution:
 ### 4. STRICT DATA ACCURACY (NO HALLUCINATION)
 
 **CRITICAL: NEVER invent numerical data.** Use ONLY values from the provided context.
+- Each product family has UNIQUE airflow values. Do NOT copy values between families.
+- GDC = carbon/chemical cartridge filter (NOT mechanical). GDMI = modular bag filter.
+- NEVER invent installation constraints not present in the GRAPH_DATA.
+- If GRAPH_DATA contains a `description` field, use it to describe the product accurately.
 
 ### 5. SCOPE OF DELIVERY
 
@@ -2705,6 +2729,7 @@ You deliver **filter housings only**. Standard delivery includes the housing wit
 - NEVER include null values in policy_warnings array. If no warnings, use empty array [].
 - **Product Code**: ALWAYS copy the exact product code from the "✓ USE THIS EXACT CODE" line in the context. NEVER compose your own product code.
 - **Weight and Airflow**: Use the TOTAL values from context (includes multi-module aggregation). If context says "50 kg total (2×25kg per unit)", use "~50 kg" in the card.
+- **Multi-stage assemblies**: Each stage (protector + target) has DIFFERENT specs. Look up EACH product's airflow and weight INDEPENDENTLY from the context. Do NOT copy specs from one stage to another — GDP and GDC/GDC FLEX are different products with different capacities.
 - **risk_severity**: Use "CRITICAL" ONLY when the recommended product is VETOED or BLOCKED by the engine (installation constraint violation, environment block). If the product is ranked #1 with coverage score ≥80% and no vetoes, use "WARNING" for risks that require attention (e.g., ATEX grounding, material upgrade) or null if no risk. ATEX requirements, grounding notes, and gate-based mitigations are handled via warnings and text — they do NOT make the product UNSUITABLE.
 
 {active_policies}"""
@@ -2725,8 +2750,9 @@ DEEP_EXPLAINABLE_SYNTHESIS_PROMPT = """## AVAILABLE PRODUCTS
 2. **Environment analysis**: Identify environment from REASONING REPORT → check material constraints
 3. **Address risks IN TEXT**: If material mismatch detected, explain why and recommend alternative in your response
 4. **Check provided info**: If user gave airflow/size → use it, don't ask again
-5. **Variance check**: Multiple variants + no constraint → CLARIFICATION_NEEDED with bundled questions
-6. **Context persistence**: "this", "it" references → lock to active entity, don't switch products
+5. **Respect user-specified dimensions**: If the user explicitly requested a specific size (e.g., "900x600"), use THAT size — do NOT substitute a smaller module even if airflow could fit. The user may have physical space constraints or ducting requirements that dictate the size.
+6. **Variance check**: Multiple variants + no constraint → CLARIFICATION_NEEDED with bundled questions
+7. **Context persistence**: "this", "it" references → lock to active entity, don't switch products
 
 ## OUTPUT RULES
 - ENGLISH only, professional tone
@@ -2801,22 +2827,24 @@ def extract_resolved_context(query: str) -> dict:
 
 
 def _generate_airflow_options_from_graph(technical_state, db_conn) -> list[dict]:
-    """Generate airflow clarification options from DimensionModule graph data.
+    """Generate airflow clarification options from ProductVariant graph data.
 
-    Uses known housing dimensions to look up reference airflow values,
-    providing proactive button suggestions instead of empty "Other..." UI.
-
-    For multi-tag queries with different sizes, generates per-size reference
-    airflow values with tag context labels (e.g., "1700 m3/h (Reference for 300x600 -- item_1)").
+    v4.0: Uses family-specific ProductVariant airflow values instead of
+    shared DimensionModule pool. This prevents GDB contamination in
+    airflow suggestions for GDP, GDC, PFF, etc.
     """
     options = []
     seen_airflows = set()
 
-    # Collect per-tag airflow references
+    # Collect per-tag airflow references (v4.0: family-aware)
     tag_refs = []
+    detected_family = technical_state.detected_family or ""
     for tag_id, tag in technical_state.tags.items():
         if tag.housing_width and tag.housing_height:
-            ref = db_conn.get_reference_airflow_for_dimensions(tag.housing_width, tag.housing_height)
+            family = tag.product_family or detected_family
+            ref = db_conn.get_reference_airflow_for_dimensions(
+                tag.housing_width, tag.housing_height, product_family=family
+            )
             if ref and ref.get("reference_airflow_m3h"):
                 ref_airflow = int(ref["reference_airflow_m3h"])
                 label = ref.get("label", f"{tag.housing_width}x{tag.housing_height}")
@@ -4341,7 +4369,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None):
                 print(f"⚠️ [CONSTRAINT] Failed to get application chlorine: {e}")
 
     # Merge Scribe-extracted params into resolved_context for engine consumption
-    for rp_key in ("installation_environment", "detected_application", "max_width_mm", "max_height_mm"):
+    for rp_key in ("installation_environment", "detected_application", "max_width_mm", "max_height_mm", "available_space_mm"):
         rp_val = technical_state.resolved_params.get(rp_key)
         if rp_val and rp_key not in resolved_context:
             resolved_context[rp_key] = rp_val
@@ -5308,6 +5336,29 @@ The user has chosen to remove the accessory option to fit within their space con
                         llm_response["content_segments"] = segments
                     print(f"📢 [VALIDATION] Injected WARNING neutralization: {rule.stressor_name} → {rule.trait_name}")
 
+    # v3.12: Inject suitability warnings into content_segments on FINAL_ANSWER
+    # Ensures environment/material concerns (e.g., 95% RH, corrosion risk) survive
+    # into the final product card response even if LLM drops them on follow-up turns.
+    if (
+        graph_reasoning_report.suitability
+        and graph_reasoning_report.suitability.is_suitable
+        and graph_reasoning_report.suitability.warnings
+        and not clarification_needed
+    ):
+        segments = llm_response.get("content_segments", [])
+        existing_text = " ".join(s.get("text", "").lower() for s in segments)
+        for w in graph_reasoning_report.suitability.warnings:
+            # Check if warning topic is already mentioned in content
+            keyword = w.risk_name.lower().replace("_", " ")
+            if keyword not in existing_text and w.description:
+                severity_prefix = "**Warning**" if w.severity == "WARNING" else "**Note**"
+                segments.append({
+                    "text": f"{severity_prefix}: {w.description}" + (f" {w.mitigation}" if w.mitigation and w.mitigation.lower() not in ("none", "n/a", "") else ""),
+                    "type": "GENERAL",
+                })
+                print(f"📢 [v3.12] Injected suitability warning into content: {w.risk_name}")
+        llm_response["content_segments"] = segments
+
     # ============================================================
     # CLARIFICATION SUPPRESSION: Don't ask for data we already have
     # ============================================================
@@ -5444,6 +5495,58 @@ The user has chosen to remove the accessory option to fit within their space con
     )
     if _is_blocked:
         print(f"🚫 [BLOCK GUARD] Product cards suppressed: is_suitable=False")
+
+        # v3.12: Inject block explanation if LLM returned empty/minimal content_segments.
+        # When the engine blocks a configuration, the user must see WHY it was blocked
+        # and what alternatives exist — never an empty response.
+        segments = llm_response.get("content_segments", [])
+        total_text = sum(len(s.get("text", "")) for s in segments)
+        if total_text < 50:
+            block_segments = []
+            # Build explanation from suitability warnings (CRITICAL ones = block reasons)
+            suit = graph_reasoning_report.suitability
+            critical_warnings = [w for w in suit.warnings if w.severity == "CRITICAL"]
+            if critical_warnings:
+                for w in critical_warnings:
+                    block_segments.append({
+                        "text": f"**Configuration Blocked**: {w.description}",
+                        "type": "INFERENCE",
+                        "inference_logic": w.consequence,
+                    })
+                    if w.mitigation and w.mitigation.lower() not in ("none", "n/a", ""):
+                        block_segments.append({
+                            "text": f"**Recommendation**: {w.mitigation}",
+                            "type": "GENERAL",
+                        })
+            else:
+                # Fallback: generic block message from any warnings
+                all_warnings = suit.warnings
+                if all_warnings:
+                    desc_parts = [w.description for w in all_warnings if w.description]
+                    block_segments.append({
+                        "text": f"**Configuration Blocked**: {'; '.join(desc_parts) if desc_parts else 'This configuration does not meet the required constraints.'}",
+                        "type": "INFERENCE",
+                    })
+                else:
+                    block_segments.append({
+                        "text": "**Configuration Blocked**: This product/material combination is not suitable for the specified environment. Please contact engineering for alternatives.",
+                        "type": "GENERAL",
+                    })
+
+            # Add alternatives if available from verdict
+            _verdict_obj = getattr(graph_reasoning_report, '_verdict', None)
+            if _verdict_obj and hasattr(_verdict_obj, 'installation_violations'):
+                for iv in _verdict_obj.installation_violations:
+                    alts = getattr(iv, 'alternatives', [])
+                    if alts:
+                        alt_names = [a.product_family_name for a in alts[:3]]
+                        block_segments.append({
+                            "text": f"**Suitable alternatives**: {', '.join(alt_names)}",
+                            "type": "GENERAL",
+                        })
+
+            llm_response["content_segments"] = block_segments
+            print(f"📢 [BLOCK INJECT] Injected {len(block_segments)} block explanation segments (LLM returned {total_text} chars)")
 
     if entity_card_data and not clarification_needed and not _is_blocked:
         cards = entity_card_data if isinstance(entity_card_data, list) else [entity_card_data]

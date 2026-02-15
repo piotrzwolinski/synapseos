@@ -1,0 +1,300 @@
+{
+  "name": "hc_short_bag_geometry_error",
+  "description": "[HC] 600mm bag filter in GDB-550 → BLOCK (max 450mm), need 750",
+  "query": "We have bag filters 600 mm long. Please provide GDB-550 housing.",
+  "session_id": "19e1f717-2c20-466c-935c-630b9e505ea3",
+  "duration_s": 28.1,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "We have bag filters 600 mm long. Please provide GDB-550 housing.",
+      "turn_number": 1,
+      "timestamp": "2026-02-15T00:23:08.187372+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "The GDB-550 housing is blocked because the specified filter depth of 600mm exceeds the maximum depth of 450mm for that housing length. To accommodate the 600mm filter depth, a longer housing is required.The GDB-750 housing accommodates filter depths up to 650mm, which will work for your 600mm bag filters.",
+      "turn_number": 1,
+      "timestamp": "2026-02-15T00:23:16.957901+00:00",
+      "clarification": null,
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [
+        {
+          "type": "WARNING",
+          "text": "Blocked"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 5.0,
+          "explanation": "The system correctly identified a physical constraint violation based on the product catalog. It accurately cited the maximum filter depth for the requested housing length and proposed the correct alternative housing that accommodates the user's filter size.",
+          "dimension_explanations": {
+            "correctness": "The system correctly states that GDB-550 has a max filter depth of 450mm and GDB-750 has a max depth of 650mm, matching the table on PDF page 3.",
+            "completeness": "The response fully addresses the conflict by explaining the block and providing the necessary solution (switching to GDB-750).",
+            "safety": "Correctly prevents the specification of a housing that is physically too short for the intended filters.",
+            "tone": "Professional and direct.",
+            "reasoning_quality": "Clear and logical: filter length > housing max depth implies the need for a longer housing.",
+            "constraint_adherence": "Strictly adheres to the dimensional limits defined in the 'Sortiment' table on page 3."
+          },
+          "strengths": [
+            "Accurate verification of filter depth limits against housing length",
+            "Clear explanation of the physical constraint",
+            "Correct alternative product recommendation"
+          ],
+          "weaknesses": [],
+          "pdf_citations": [
+            "GDB Längd 550/600mm: Filter max 450mm (PDF p.3)",
+            "GDB Längd 750/800mm: Filter max 650mm (PDF p.3)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 18.07,
+            "prompt_tokens": 15446,
+            "cached_tokens": 15822,
+            "output_tokens": 449
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 4,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.95,
+          "explanation": "The system correctly identified that a longer GDB housing is needed for longer bag filters, but it used an incorrect max filter depth for the GDB-550/600 length and therefore blocked a configuration that the catalog indicates is valid. It also failed to request key missing parameters (size WxH, connection, material) before making a definitive block/recommendation.",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDB length 550/600 mm is for short bag filters with max filter depth 450 mm and 750/800 mm is for long bag filters with max filter depth 650 mm (Sortiment page), but the user’s '600 mm long bag filter' is a filter length, not necessarily 'filter depth', so the system’s depth-based block is likely a misinterpretation; the general idea 'use longer housing for longer bags' is sound.",
+            "completeness": "It did not ask for required selection inputs (housing size WxH, airflow, connection PG/flange, material, door handing) and provided no product card or concrete order code.",
+            "safety": "Conservatively preventing a potentially non-fitting filter/housing combination is safe, though it risks over-blocking due to parameter confusion.",
+            "tone": "Professional and clear, with an explicit warning and a straightforward alternative.",
+            "reasoning_quality": "Cause-effect logic is partially clear (filter too long → need longer housing) but it conflates filter length with 'filter depth' without clarifying definitions.",
+            "constraint_adherence": "It enforced a max-depth rule but applied it to the wrong parameter context, effectively blocking a potentially valid GDB-550/600 selection and recommending GDB-750 without confirming the actual filter depth/format."
+          },
+          "strengths": [
+            "Recognizes the catalog’s concept of two GDB lengths and that longer bags require the longer housing.",
+            "Communicates the constraint and alternative succinctly."
+          ],
+          "weaknesses": [
+            "Misinterprets '600 mm long bag filter' as 'filter depth 600 mm' and uses an incorrect max-depth threshold for the requested housing length.",
+            "Does not gather essential sizing/order parameters (WxH, airflow, connection, material) before blocking/recommending."
+          ],
+          "pdf_citations": [
+            "GDB: standard lengths 550 mm (korta påsfilter) and 750 mm (långa påsfilter) (GDB description page).",
+            "Sortiment table: For GDB, 'Skåp 550/600mm Filter max 450mm' and 'Skåp 750/800mm Filter max 650mm' (Sortimentsida)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 12.95,
+            "attempt": 1,
+            "prompt_tokens": 36813,
+            "cached_tokens": 17920,
+            "output_tokens": 649
+          }
+        },
+        "anthropic": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 4,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 4.85,
+          "explanation": "The system correctly identified that GDB-550 (length 550/600mm) has a maximum filter depth of 450mm per the PDF catalog, making it incompatible with 600mm bag filters. It properly blocked the configuration and recommended the GDB-750 (length 750/800mm) which supports up to 650mm filter depth. The reasoning is technically sound and the safety block is appropriate.",
+          "dimension_explanations": {
+            "correctness": "PDF p.3 confirms GDB lengths 550/600mm accommodate 'Filter max 450mm' and 750/800mm accommodate 'Filter max 650mm' — the system's blocking logic and alternative recommendation are both factually correct.",
+            "completeness": "The system correctly blocked the invalid configuration and suggested the right alternative (GDB-750), but did not provide a full product card for the GDB-750 or ask for remaining parameters (size/WxH, material, connection type) to complete the recommendation.",
+            "safety": "The system correctly blocked a configuration where the filter would not physically fit in the housing, preventing installation issues and potential bypass leakage — this is appropriate safety behavior.",
+            "tone": "Professional, concise, and consultative — clearly explains the problem and offers a solution without being condescending.",
+            "reasoning_quality": "Clear cause-effect chain: 600mm filter > 450mm max depth for GDB-550 → blocked; GDB-750 supports up to 650mm → recommended as alternative. Transparent and logical.",
+            "constraint_adherence": "Correctly enforced the maximum filter depth constraint for GDB-550 and did not allow an oversized filter into an undersized housing."
+          },
+          "strengths": [
+            "Correctly identified the physical constraint that 600mm filters cannot fit in a 550mm-length housing (max 450mm filter depth)",
+            "Proactively recommended the appropriate alternative (GDB-750) with clear reasoning"
+          ],
+          "weaknesses": [
+            "Did not follow up by asking for the remaining parameters (housing size WxH, material, connection type) needed to generate a complete product card for the GDB-750",
+            "No product card was generated — the conversation could have progressed further toward a complete recommendation"
+          ],
+          "pdf_citations": [
+            "GDB housing lengths: 550/600mm → Filter max 450mm; 750/800mm → Filter max 650mm (PDF p.3, Sortiment table)",
+            "GDB description confirms two standard lengths: 550mm for short bag filters, 750mm for long bag filters and compact filters (PDF p.8)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 19.29,
+            "attempt": 1,
+            "prompt_tokens": 310,
+            "cached_tokens": 53610,
+            "output_tokens": 703
+          }
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Verified alternatives: GDB-750",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 4 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "filter_depths": [
+          600
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": null,
+            "filter_height": null,
+            "filter_depth": 600,
+            "housing_width": null,
+            "housing_height": null,
+            "housing_length": 550,
+            "airflow_m3h": null,
+            "product_family": "GDB",
+            "product_code": null,
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_dimensions",
+              "airflow"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 1,
+        "variable_features": 1,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "19e1f717-2c20-466c-935c-630b9e505ea3",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDB",
+          "locked_material": null,
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "filter_depth": 600,
+            "quantity": 1,
+            "session_id": "19e1f717-2c20-466c-935c-630b9e505ea3",
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_19e1f717-2c20-466c-935c-630b9e505ea3_item_1",
+            "is_complete": false,
+            "housing_length": 750
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Length 750mm"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "type": "GENERAL",
+          "text": "The GDB-550 housing is blocked because the specified filter depth of 600mm exceeds the maximum depth of 450mm for that housing length. To accommodate the 600mm filter depth, a longer housing is required."
+        },
+        {
+          "type": "GENERAL",
+          "text": "The GDB-750 housing accommodates filter depths up to 650mm, which will work for your 600mm bag filters."
+        }
+      ]
+    }
+  ]
+}

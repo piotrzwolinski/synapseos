@@ -24,8 +24,8 @@ export function ActionCard({ data }: ActionCardProps) {
       className={cn(
         "shadow-sm overflow-hidden transition-all",
         data.is_locked
-          ? "border-slate-200 bg-slate-50 opacity-60 grayscale"
-          : "border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-teal-50/30"
+          ? "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 opacity-60 grayscale"
+          : "border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50/50 to-teal-50/30 dark:from-emerald-950/30 dark:to-teal-950/20"
       )}
     >
       {/* Accent bar */}
@@ -33,7 +33,7 @@ export function ActionCard({ data }: ActionCardProps) {
         className={cn(
           "h-1",
           data.is_locked
-            ? "bg-slate-300"
+            ? "bg-slate-300 dark:bg-slate-600"
             : "bg-gradient-to-r from-emerald-500 to-teal-500"
         )}
       />
@@ -43,7 +43,7 @@ export function ActionCard({ data }: ActionCardProps) {
           <CardTitle
             className={cn(
               "flex items-center gap-2 text-base font-semibold",
-              data.is_locked ? "text-slate-500" : "text-emerald-900"
+              data.is_locked ? "text-slate-500 dark:text-slate-400" : "text-emerald-900 dark:text-emerald-200"
             )}
           >
             {data.title}
@@ -64,8 +64,8 @@ export function ActionCard({ data }: ActionCardProps) {
             className={cn(
               "flex items-start gap-3 p-3 rounded-lg border",
               data.is_locked
-                ? "bg-slate-100 border-slate-200"
-                : "bg-blue-50 border-blue-100"
+                ? "bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-700"
+                : "bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-800"
             )}
           >
             <BrainCircuit
@@ -78,7 +78,7 @@ export function ActionCard({ data }: ActionCardProps) {
               <p
                 className={cn(
                   "text-xs font-semibold uppercase tracking-wider mb-1",
-                  data.is_locked ? "text-slate-400" : "text-blue-700"
+                  data.is_locked ? "text-slate-400 dark:text-slate-500" : "text-blue-700 dark:text-blue-400"
                 )}
               >
                 Why this recommendation
@@ -86,7 +86,7 @@ export function ActionCard({ data }: ActionCardProps) {
               <p
                 className={cn(
                   "text-sm leading-relaxed",
-                  data.is_locked ? "text-slate-500" : "text-blue-900"
+                  data.is_locked ? "text-slate-500 dark:text-slate-400" : "text-blue-900 dark:text-blue-200"
                 )}
               >
                 {data.reasoning.source_project && (
@@ -103,7 +103,7 @@ export function ActionCard({ data }: ActionCardProps) {
                 <p
                   className={cn(
                     "text-xs mt-1.5 font-medium",
-                    data.is_locked ? "text-slate-400" : "text-blue-600"
+                    data.is_locked ? "text-slate-400 dark:text-slate-500" : "text-blue-600 dark:text-blue-400"
                   )}
                 >
                   Confidence: {data.reasoning.confidence}
@@ -118,14 +118,14 @@ export function ActionCard({ data }: ActionCardProps) {
           className={cn(
             "flex items-center gap-3 p-3 rounded-lg border",
             data.is_locked
-              ? "bg-slate-100 border-slate-200"
-              : "bg-white border-emerald-100"
+              ? "bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-700"
+              : "bg-white dark:bg-slate-800 border-emerald-100 dark:border-emerald-800"
           )}
         >
           <div
             className={cn(
               "w-10 h-10 rounded-lg flex items-center justify-center",
-              data.is_locked ? "bg-slate-200" : "bg-emerald-100"
+              data.is_locked ? "bg-slate-200 dark:bg-slate-600" : "bg-emerald-100 dark:bg-emerald-900/30"
             )}
           >
             <Package
@@ -139,7 +139,7 @@ export function ActionCard({ data }: ActionCardProps) {
             <p
               className={cn(
                 "text-xs font-medium uppercase tracking-wider mb-0.5",
-                data.is_locked ? "text-slate-400" : "text-slate-500"
+                data.is_locked ? "text-slate-400 dark:text-slate-500" : "text-slate-500 dark:text-slate-400"
               )}
             >
               Product
@@ -147,7 +147,7 @@ export function ActionCard({ data }: ActionCardProps) {
             <p
               className={cn(
                 "font-semibold",
-                data.is_locked ? "text-slate-500" : "text-slate-900"
+                data.is_locked ? "text-slate-500 dark:text-slate-400" : "text-slate-900 dark:text-slate-100"
               )}
             >
               {data.product_name}
@@ -160,7 +160,7 @@ export function ActionCard({ data }: ActionCardProps) {
           <p
             className={cn(
               "text-xs font-semibold uppercase tracking-wider",
-              data.is_locked ? "text-slate-400" : "text-slate-500"
+              data.is_locked ? "text-slate-400 dark:text-slate-500" : "text-slate-500 dark:text-slate-400"
             )}
           >
             Specifications
@@ -171,7 +171,7 @@ export function ActionCard({ data }: ActionCardProps) {
                 key={index}
                 className={cn(
                   "flex items-center gap-2 text-sm",
-                  data.is_locked ? "text-slate-400" : "text-slate-700"
+                  data.is_locked ? "text-slate-400 dark:text-slate-500" : "text-slate-700 dark:text-slate-300"
                 )}
               >
                 <Check
@@ -191,8 +191,8 @@ export function ActionCard({ data }: ActionCardProps) {
           className={cn(
             "flex items-center gap-3 p-3 rounded-lg border",
             data.is_locked
-              ? "bg-slate-100 border-slate-200"
-              : "bg-amber-50 border-amber-100"
+              ? "bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-700"
+              : "bg-amber-50 dark:bg-amber-900/30 border-amber-100 dark:border-amber-800"
           )}
         >
           <TrendingUp
@@ -205,7 +205,7 @@ export function ActionCard({ data }: ActionCardProps) {
             <p
               className={cn(
                 "text-xs font-medium uppercase tracking-wider mb-0.5",
-                data.is_locked ? "text-slate-400" : "text-amber-700"
+                data.is_locked ? "text-slate-400 dark:text-slate-500" : "text-amber-700 dark:text-amber-400"
               )}
             >
               Price Impact
@@ -213,7 +213,7 @@ export function ActionCard({ data }: ActionCardProps) {
             <p
               className={cn(
                 "font-bold",
-                data.is_locked ? "text-slate-500" : "text-amber-900"
+                data.is_locked ? "text-slate-500 dark:text-slate-400" : "text-amber-900 dark:text-amber-200"
               )}
             >
               {data.price_impact}
@@ -222,7 +222,7 @@ export function ActionCard({ data }: ActionCardProps) {
         </div>
       </CardContent>
 
-      <Separator className={data.is_locked ? "bg-slate-200" : "bg-emerald-200/50"} />
+      <Separator className={data.is_locked ? "bg-slate-200 dark:bg-slate-700" : "bg-emerald-200/50 dark:bg-emerald-800/50"} />
 
       <CardFooter className="pt-3">
         <Button
@@ -231,7 +231,7 @@ export function ActionCard({ data }: ActionCardProps) {
           className={cn(
             "w-full",
             data.is_locked
-              ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+              ? "bg-slate-300 dark:bg-slate-600 text-slate-500 dark:text-slate-400 cursor-not-allowed"
               : "bg-emerald-600 hover:bg-emerald-700"
           )}
         >

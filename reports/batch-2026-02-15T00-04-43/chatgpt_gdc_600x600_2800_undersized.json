@@ -1,0 +1,328 @@
+{
+  "name": "chatgpt_gdc_600x600_2800_undersized",
+  "description": "[ChatGPT] GDC 600x600 at 2800 m³/h → undersized (2000), suggest 900x600",
+  "query": "I need a GDC carbon housing 600x600 for 2800 m³/h airflow. Indoor warehouse ventilation.",
+  "session_id": "c5e56634-1580-41e7-9f83-4b85a29aca81",
+  "duration_s": 37.3,
+  "error": "Missing key inputs argument! To use the Google AI API, provide (`api_key`) arguments. To use the Google Cloud API, provide (`vertexai`, `project` & `location`) arguments.",
+  "turns": [
+    {
+      "role": "user",
+      "content": "I need a GDC carbon housing 600x600 for 2800 m³/h airflow. Indoor warehouse ventilation.",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T22:53:47.005704+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "For the indoor warehouse ventilation project, you've specified a GDC carbon housing with 600x600mm dimensions and 2800 m³/h airflow. Since a single GDC-600x600 module has a maximum airflow of 2000 m³/h, this configuration requires two modules in parallel to meet the airflow demand. The effective housing dimensions will be 1200x600mm.To finalize the configuration, I need to know the housing length required.Additionally, the requested 2800 airflow_m3h exceeds the recommended flow of 2000 for a single 600x600 module. 2 parallel units are required. Alternatively, a single 900x600 mm module can handle 3000 m³/h.",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T22:53:58.019680+00:00",
+      "clarification": {
+        "missing_info": "housing_length",
+        "why_needed": "The housing length depends on the filter depth you plan to use. Knowing the housing length ensures the selected filters will fit properly inside the housing.",
+        "options": [
+          {
+            "value": "750mm",
+            "description": "750mm",
+            "display_label": null
+          },
+          {
+            "value": "900mm",
+            "description": "900mm",
+            "display_label": null
+          }
+        ],
+        "question": "Which housing length do you need?"
+      },
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 5.0,
+          "explanation": "The system correctly identified that the requested airflow exceeds the capacity of the specified unit. It provided accurate data from the catalog, offered a space-saving alternative (900x600), and correctly paused to request the missing housing length parameter before generating a final specification.",
+          "dimension_explanations": {
+            "correctness": "The system correctly cites the GDC 600x600 capacity as 2000 m³/h and the 900x600 alternative as 3000 m³/h (verified against PDF p.14).",
+            "completeness": "The response addresses the sizing conflict, proposes two valid solutions (parallel modules or a larger single module), and asks for the missing length parameter.",
+            "safety": "Correctly prevents undersizing the filter housing, which would lead to excessive pressure drop or bypass.",
+            "tone": "Professional and consultative.",
+            "reasoning_quality": "The logic is transparent: 2800 > 2000, therefore a larger size or multiple modules are required.",
+            "constraint_adherence": "Strictly adheres to the airflow limits specified in the catalog."
+          },
+          "strengths": [
+            "Accurate retrieval of airflow capacities from the PDF table",
+            "Proactive engineering suggestion (900x600) which is more efficient than the user's implied 2x 600x600",
+            "Correctly identifies missing parameter (housing length) required for GDC selection"
+          ],
+          "weaknesses": [],
+          "pdf_citations": [
+            "GDC 600x600: Rek. flöde = 2000 m³/h (PDF p.14)",
+            "GDC 900x600: Rek. flöde = 3000 m³/h (PDF p.14)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 19.89,
+            "prompt_tokens": 15541,
+            "cached_tokens": 15822,
+            "output_tokens": 519
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 4,
+            "tone": 5,
+            "reasoning_quality": 4,
+            "constraint_adherence": 2
+          },
+          "overall_score": 3.25,
+          "explanation": "The assistant correctly recognized that 2800 m³/h exceeds the recommended flow for a single GDC 600x600 and appropriately asked for the missing housing length. However, it made a critical constraint error by proposing “two modules in parallel” and implying an effective 1200x600 size for the GDC family, which the catalog does not support as a modular parallel arrangement in the GDC table.",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDC 600x600 has recommended flow 2000 m³/h (and 900x600 is 3000 m³/h), so the overflow observation is right, but the claim that two GDC 600x600 can be paralleled into an effective 1200x600 “module” is not supported by the catalog and is a critical factual/constraint leap.",
+            "completeness": "Good clarification on missing length, but it did not ask for key selection inputs (carbon media type, presence of downstream polish filter need, connection type PG vs flange, material/corrosion class) before proposing a configuration.",
+            "safety": "No unsafe material/environment advice was given; indoor warehouse is a benign environment and the warning about exceeding recommended flow is appropriate for performance risk.",
+            "tone": "Professional, clear, and appropriately technical.",
+            "reasoning_quality": "Logical sizing reasoning (compare required flow to recommended flow and suggest alternate size), with a clear next-step question on length.",
+            "constraint_adherence": "Violates catalog/product constraints by inventing a parallel two-module arrangement and an 'effective 1200x600' GDC solution that is not listed as a GDC size or documented as combinable like filter frames/banks."
+          },
+          "strengths": [
+            "Correctly checked the GDC 600x600 recommended airflow against demand and flagged exceedance.",
+            "Asked for a missing critical parameter (housing length) before issuing product cards."
+          ],
+          "weaknesses": [
+            "Proposed a non-catalog configuration (two GDC 600x600 in parallel → 1200x600) without evidence that GDC housings are modular/bankable.",
+            "Did not gather key specification details (media type, connection, material/corrosion requirements, need for polisfilter) before recommending alternates."
+          ],
+          "pdf_citations": [
+            "GDC 600x600: Rek. flöde = 2000 m³/h, antal patroner = 16 (PDF GDC MÅTT table).",
+            "GDC 900x600: Rek. flöde = 3000 m³/h, antal patroner = 24 (PDF GDC MÅTT table)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 15.24,
+            "prompt_tokens": 36888,
+            "cached_tokens": 17920,
+            "output_tokens": 654
+          }
+        },
+        "anthropic": {
+          "scores": {
+            "correctness": 4,
+            "completeness": 4,
+            "safety": 4,
+            "tone": 4,
+            "reasoning_quality": 4,
+            "constraint_adherence": 5
+          },
+          "overall_score": 4.15,
+          "explanation": "The system correctly identified that a single GDC 600x600 has a recommended flow of 2000 m³/h (verified against PDF p.14) and that 2800 m³/h exceeds this capacity. It appropriately suggested either two parallel 600x600 modules (1200x600 effective) or a single 900x600 at 3000 m³/h, and correctly asked for housing length before finalizing. Minor imprecision in phrasing ('maximum airflow' vs 'recommended flow') but the engineering logic is sound.",
+          "dimension_explanations": {
+            "correctness": "PDF p.14 confirms GDC 600x600 has Rek. flöde = 2000 m³/h and GDC 900x600 has Rek. flöde = 3000 m³/h; the system correctly cited these values, though calling 2000 m³/h a 'maximum' rather than 'recommended' flow is a minor imprecision.",
+            "completeness": "The system addressed sizing, parallel module arrangement, alternative single-module option, and asked for housing length; it could have mentioned material options (FZ standard, or AZ/RF/SF/ZM available) and the indoor-only usage note for GDC.",
+            "safety": "The system correctly flagged that 2800 m³/h exceeds the single-module capacity and did not allow an undersized configuration; no unsafe recommendation was made.",
+            "tone": "Professional and consultative, though the last sentence reads slightly like raw system output rather than polished prose.",
+            "reasoning_quality": "Clear cause-effect chain: airflow exceeds single module capacity → need parallel modules or larger size; the alternative 900x600 suggestion at 3000 m³/h is well-reasoned.",
+            "constraint_adherence": "All product constraints respected: correct sizing logic, proper clarification request for housing length before issuing a product card, and no invalid configurations suggested."
+          },
+          "strengths": [
+            "Correctly identified that 2800 m³/h exceeds the GDC 600x600 recommended flow of 2000 m³/h and proposed valid alternatives",
+            "Appropriately asked for housing length before finalizing the recommendation, following proper clarification flow"
+          ],
+          "weaknesses": [
+            "Did not mention available material options (FZ, AZ, RF, SF, ZM) for the GDC housing, which would be relevant for a warehouse environment",
+            "The phrasing 'maximum airflow of 2000 m³/h' is slightly misleading — the PDF lists this as 'Rek. flöde' (recommended flow), not a hard maximum"
+          ],
+          "pdf_citations": [
+            "GDC 600x600: Rek. flöde = 2000 m³/h, 16 patroner, Vikt 32 kg (750/800), PDF p.14",
+            "GDC 900x600: Rek. flöde = 3000 m³/h, 24 patroner, Vikt 40 kg (750/800), PDF p.14"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 26.26,
+            "prompt_tokens": 408,
+            "cached_tokens": 53610,
+            "output_tokens": 849
+          }
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDC",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 19 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "♟️ Additional info needed",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDC",
+        "accessories": [],
+        "pending_clarification": "housing_length",
+        "resolved_params": {
+          "installation_environment": "ENV_INDOOR",
+          "airflow_m3h": "2800",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": 2800,
+            "product_family": "GDC",
+            "product_code": "GDC-600x600-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 2,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 0,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "c5e56634-1580-41e7-9f83-4b85a29aca81",
+        "project": {
+          "detected_family": "GDC",
+          "resolved_params": "{\"installation_environment\": \"ENV_INDOOR\", \"airflow_m3h\": \"2800\", \"connection_type\": \"PG\"}",
+          "assembly_group": null,
+          "locked_material": null,
+          "accessories": null,
+          "name": null,
+          "pending_clarification": "housing_length",
+          "customer": null,
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDC",
+            "quantity": 1,
+            "airflow_m3h": 2800,
+            "session_id": "c5e56634-1580-41e7-9f83-4b85a29aca81",
+            "filter_height": 600,
+            "product_code": "GDC-600x600-R-PG-FZ",
+            "housing_width": 600,
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_c5e56634-1580-41e7-9f83-4b85a29aca81_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Filter 600x600mm -> Sized to 600x600 -> Code: GDC-600x600-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "For the indoor warehouse ventilation project, you've specified a GDC carbon housing with 600x600mm dimensions and 2800 m³/h airflow. Since a single GDC-600x600 module has a maximum airflow of 2000 m³/h, this configuration requires two modules in parallel to meet the airflow demand. The effective housing dimensions will be 1200x600mm.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "To finalize the configuration, I need to know the housing length required.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Additionally, the requested 2800 airflow_m3h exceeds the recommended flow of 2000 for a single 600x600 module. 2 parallel units are required. Alternatively, a single 900x600 mm module can handle 3000 m³/h.",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

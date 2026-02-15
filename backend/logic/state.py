@@ -891,18 +891,13 @@ class TechnicalState:
                     tag.product_code = self.build_product_code(tag, code_format=code_fmt)
 
                 # PRIMARY: ProductVariant exact match (family-specific, authoritative)
+                # v4.0: Pass housing_length to select correct weight for dual-length products
                 fam_name = tag.product_family or self.detected_family or ""
                 if fam_name and tag.housing_width and tag.housing_height:
-                    if tag.housing_length:
-                        variant_key = f"{fam_name}-{tag.housing_width}x{tag.housing_height}-{tag.housing_length}"
-                        weight = db.get_variant_weight(variant_key)
-                        if weight:
-                            tag.weight_kg = weight
-                    if not tag.weight_kg:
-                        variant_key = f"{fam_name}-{tag.housing_width}x{tag.housing_height}"
-                        weight = db.get_variant_weight(variant_key)
-                        if weight:
-                            tag.weight_kg = weight
+                    variant_key = f"{fam_name}-{tag.housing_width}x{tag.housing_height}"
+                    weight = db.get_variant_weight(variant_key, housing_length=tag.housing_length)
+                    if weight:
+                        tag.weight_kg = weight
 
                 # FALLBACK: DimensionModule parametric model
                 if not tag.weight_kg and tag.housing_width and tag.housing_height:

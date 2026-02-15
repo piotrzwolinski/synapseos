@@ -55,21 +55,21 @@ function formatTimestamp(ts: number | null): string {
 function ScoreBadge({ score }: { score: string | null }) {
   if (!score) {
     return (
-      <Badge variant="outline" className="text-slate-400 border-slate-200">
+      <Badge variant="outline" className="text-slate-400 border-slate-200 dark:border-slate-700">
         Not reviewed
       </Badge>
     );
   }
   if (score === "thumbs_up") {
     return (
-      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800">
         <ThumbsUp className="w-3 h-3 mr-1" />
         Approved
       </Badge>
     );
   }
   return (
-    <Badge className="bg-red-100 text-red-700 border-red-200">
+    <Badge className="bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">
       <ThumbsDown className="w-3 h-3 mr-1" />
       Rejected
     </Badge>
@@ -86,7 +86,7 @@ function JudgeScoresPanel({
 
   return (
     <div className="space-y-3">
-      <h4 className="text-sm font-semibold text-slate-700">
+      <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
         Judge Evaluations
       </h4>
       <div className="grid gap-3">
@@ -100,7 +100,7 @@ function JudgeScoresPanel({
                 ? "text-red-600"
                 : "text-amber-600";
           return (
-            <Card key={name} className="border-slate-200">
+            <Card key={name} className="border-slate-200 dark:border-slate-700">
               <CardContent className="p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium capitalize">
@@ -119,9 +119,9 @@ function JudgeScoresPanel({
                   {JUDGE_DIMENSIONS.map((dim) => (
                     <div
                       key={dim}
-                      className="flex justify-between px-1 py-0.5 bg-slate-50 rounded"
+                      className="flex justify-between px-1 py-0.5 bg-slate-50 dark:bg-slate-700 rounded"
                     >
-                      <span className="text-slate-500 truncate">
+                      <span className="text-slate-500 dark:text-slate-400 truncate">
                         {dim.replace("_", " ")}
                       </span>
                       <span className="font-medium ml-1">
@@ -131,7 +131,7 @@ function JudgeScoresPanel({
                   ))}
                 </div>
                 {j.explanation && (
-                  <p className="text-xs text-slate-500 mt-2 line-clamp-2">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 line-clamp-2">
                     {j.explanation}
                   </p>
                 )}
@@ -148,18 +148,18 @@ function ExistingReviews({ reviews }: { reviews: ExpertReviewData[] }) {
   if (reviews.length === 0) return null;
 
   return (
-    <div className="space-y-2 border-t border-slate-200 pt-4">
-      <h4 className="text-sm font-semibold text-slate-700">
+    <div className="space-y-2 border-t border-slate-200 dark:border-slate-700 pt-4">
+      <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
         Previous Reviews ({reviews.length})
       </h4>
       {reviews.map((r) => (
         <div
           key={r.id}
-          className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-1"
+          className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700 space-y-1"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-600">
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
                 {r.reviewer}
               </span>
               <ScoreBadge score={r.overall_score} />
@@ -177,7 +177,7 @@ function ExistingReviews({ reviews }: { reviews: ExpertReviewData[] }) {
             </span>
           </div>
           {r.comment && (
-            <p className="text-sm text-slate-600">{r.comment}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">{r.comment}</p>
           )}
         </div>
       ))}
@@ -271,7 +271,7 @@ export function ExpertReview() {
         {/* Stats bar */}
         {stats && (
           <div className="flex items-center gap-3 mb-3 px-1">
-            <div className="flex items-center gap-1 text-xs text-slate-500">
+            <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
               <MessageSquare className="w-3.5 h-3.5" />
               <span>{total} conversations</span>
             </div>
@@ -339,8 +339,8 @@ export function ExpertReview() {
                   className={cn(
                     "w-full text-left p-3 rounded-lg border transition-colors",
                     selectedId === c.session_id
-                      ? "bg-blue-50 border-blue-200"
-                      : "bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50"
+                      ? "bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800"
+                      : "bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-slate-600 dark:hover:bg-slate-700/50"
                   )}
                 >
                   <div className="flex items-center justify-between mb-1">
@@ -384,7 +384,7 @@ export function ExpertReview() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
             <Button
               size="sm"
               variant="ghost"
@@ -426,7 +426,7 @@ export function ExpertReview() {
             {/* Conversation turns */}
             <div className="flex-1 flex flex-col min-w-0">
               <div className="flex items-center gap-2 mb-3">
-                <h3 className="text-sm font-semibold text-slate-700">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                   Conversation
                 </h3>
                 {detail.detected_family && (
@@ -468,7 +468,7 @@ export function ExpertReview() {
                           )}
                         >
                           {!isUser && (
-                            <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
                               <Bot className="w-4 h-4 text-blue-600" />
                             </div>
                           )}
@@ -477,7 +477,7 @@ export function ExpertReview() {
                               "max-w-[85%] rounded-lg px-3 py-2 text-sm",
                               isUser
                                 ? "bg-blue-600 text-white"
-                                : "bg-slate-100 text-slate-700"
+                                : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
                             )}
                           >
                             <p className="whitespace-pre-wrap break-words">
@@ -485,8 +485,8 @@ export function ExpertReview() {
                             </p>
                           </div>
                           {isUser && (
-                            <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-                              <User className="w-4 h-4 text-slate-600" />
+                            <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <User className="w-4 h-4 text-slate-600 dark:text-slate-400" />
                             </div>
                           )}
                         </div>
@@ -501,10 +501,10 @@ export function ExpertReview() {
                                   const review = reviewByProvider[prov];
                                   const recCls =
                                     j.recommendation === "PASS"
-                                      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                                      ? "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-400"
                                       : j.recommendation === "FAIL"
-                                        ? "bg-red-50 border-red-200 text-red-700"
-                                        : "bg-amber-50 border-amber-200 text-amber-700";
+                                        ? "bg-red-50 border-red-200 text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400"
+                                        : "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-900/30 dark:border-amber-800 dark:text-amber-400";
                                   const badgeCls =
                                     j.recommendation === "PASS"
                                       ? "bg-emerald-200 text-emerald-800"

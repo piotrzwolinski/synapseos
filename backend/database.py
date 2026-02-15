@@ -3016,15 +3016,17 @@ class Neo4jConnection:
             print(f"Warning: Could not get available materials: {e}")
             return []
 
-    def get_reference_airflow_for_dimensions(self, width_mm: int, height_mm: int) -> dict:
-        """Get reference airflow from DimensionModule node for given housing dimensions.
+    def get_reference_airflow_for_dimensions(self, width_mm: int, height_mm: int, product_family: str = None) -> dict:
+        """Get reference airflow from ProductVariant for given housing dimensions.
 
-        Tries both orientations (WxH and HxW) since the graph may store either.
+        v4.0: ProductVariant is the primary source (family-specific airflow).
+        When product_family is provided, returns the CORRECT family-specific airflow.
+        Falls back to DimensionModule when no ProductVariant match.
 
         Returns:
             Dict with reference_airflow_m3h and label, or empty dict if not found.
         """
-        cache_key = f"ref_airflow_{width_mm}x{height_mm}"
+        cache_key = f"ref_airflow_{product_family or 'any'}_{width_mm}x{height_mm}"
         cached = _get_cached(cache_key)
         if cached is not None:
             return cached
@@ -3032,8 +3034,38 @@ class Neo4jConnection:
         def _query():
             driver = self.connect()
             with driver.session(database=self.database) as session:
-                # Primary: DimensionModule lookup
-                result = session.run("""
+                # Primary: ProductVariant lookup (family-specific if provided)
+                if product_family:
+                    pf_id = product_family if product_family.startswith("FAM_") else f"FAM_{product_family.upper()}"
+                    result = session.run("""
+                        MATCH (pf:ProductFamily {id: $pf_id})-[:HAS_VARIANT]->(pv:ProductVariant)
+                        WHERE (pv.width_mm = $w AND pv.height_mm = $h)
+                           OR (pv.width_mm = $h AND pv.height_mm = $w)
+                        RETURN pv.reference_airflow_m3h AS reference_airflow_m3h,
+                               pv.label AS label,
+                               pv.width_mm AS width_mm,
+                               pv.height_mm AS height_mm
+                        LIMIT 1
+                    """, pf_id=pf_id, w=width_mm, h=height_mm)
+                else:
+                    result = session.run("""
+                        MATCH (pv:ProductVariant)
+                        WHERE ((pv.width_mm = $w AND pv.height_mm = $h)
+                            OR (pv.width_mm = $h AND pv.height_mm = $w))
+                          AND pv.reference_airflow_m3h IS NOT NULL
+                        RETURN pv.reference_airflow_m3h AS reference_airflow_m3h,
+                               pv.label AS label,
+                               pv.width_mm AS width_mm,
+                               pv.height_mm AS height_mm
+                        ORDER BY pv.reference_airflow_m3h DESC
+                        LIMIT 1
+                    """, w=width_mm, h=height_mm)
+                record = result.single()
+                if record and record.get("reference_airflow_m3h"):
+                    return dict(record)
+
+                # Fallback: DimensionModule (legacy)
+                result2 = session.run("""
                     MATCH (d:DimensionModule)
                     WHERE (d.width_mm = $w AND d.height_mm = $h)
                        OR (d.width_mm = $h AND d.height_mm = $w)
@@ -3041,23 +3073,6 @@ class Neo4jConnection:
                            d.label AS label,
                            d.width_mm AS width_mm,
                            d.height_mm AS height_mm
-                    LIMIT 1
-                """, w=width_mm, h=height_mm)
-                record = result.single()
-                if record and record.get("reference_airflow_m3h"):
-                    return dict(record)
-
-                # Fallback: ProductVariant with matching dimensions
-                result2 = session.run("""
-                    MATCH (pv:ProductVariant)
-                    WHERE ((pv.width_mm = $w AND pv.height_mm = $h)
-                        OR (pv.width_mm = $h AND pv.height_mm = $w))
-                      AND pv.reference_airflow_m3h IS NOT NULL
-                    RETURN pv.reference_airflow_m3h AS reference_airflow_m3h,
-                           pv.name AS label,
-                           pv.width_mm AS width_mm,
-                           pv.height_mm AS height_mm
-                    ORDER BY pv.reference_airflow_m3h DESC
                     LIMIT 1
                 """, w=width_mm, h=height_mm)
                 record2 = result2.single()
@@ -3129,14 +3144,17 @@ class Neo4jConnection:
             print(f"Warning: Could not get option geometric constraints: {e}")
             return []
 
-    def get_variant_weight(self, variant_name: str) -> int | None:
+    def get_variant_weight(self, variant_name: str, housing_length: int = None) -> float | None:
         """Get the weight in kg for a specific product variant.
 
-        Looks up the weight_kg property from the ProductVariant node.
-        This ensures we return VERIFIED data, not hallucinated values.
+        v4.0: Handles three weight schemas:
+        1. Single weight (GDP): weight_kg property
+        2. Dual weights (GDB, GDMI, GDC): weight_kg_short / weight_kg_long
+           Uses housing_length to pick the correct one.
 
         Args:
-            variant_name: Variant name like 'GDB-600x600-550'
+            variant_name: Variant name like 'GDB-600x600' or 'GDP-600x600'
+            housing_length: Optional housing length in mm to select short/long weight
 
         Returns:
             Weight in kg, or None if not found
@@ -3147,11 +3165,32 @@ class Neo4jConnection:
                 result = session.run("""
                     MATCH (v:ProductVariant)
                     WHERE v.name = $name OR v.name CONTAINS $name
-                    RETURN v.weight_kg AS weight
+                    RETURN v.weight_kg AS weight_kg,
+                           v.weight_kg_short AS weight_kg_short,
+                           v.weight_kg_long AS weight_kg_long,
+                           v.housing_length_mm AS housing_length_mm,
+                           v.housing_length_short_mm AS housing_length_short_mm,
+                           v.housing_length_long_mm AS housing_length_long_mm
                     LIMIT 1
                 """, name=variant_name)
                 record = result.single()
-                return record["weight"] if record else None
+                if not record:
+                    return None
+                r = dict(record)
+                # Single-weight product (e.g., GDP)
+                if r.get("weight_kg") is not None:
+                    return r["weight_kg"]
+                # Dual-weight product: pick based on housing_length
+                if r.get("weight_kg_short") is not None and r.get("weight_kg_long") is not None:
+                    if housing_length and r.get("housing_length_long_mm"):
+                        # If housing_length >= long threshold, use long weight
+                        threshold = (r["housing_length_short_mm"] or 0) + (r["housing_length_long_mm"] or 0)
+                        if threshold > 0:
+                            midpoint = threshold / 2
+                            return r["weight_kg_long"] if housing_length >= midpoint else r["weight_kg_short"]
+                    # Default: return short weight
+                    return r["weight_kg_short"]
+                return None
 
         try:
             return self._execute_with_retry(_query)
@@ -3880,23 +3919,24 @@ class Neo4jConnection:
         def _query():
             driver = self.connect()
             with driver.session(database=self.database) as session:
-                # Query 1: Get all variants for this product family
+                # Query 1: Get all variants for this product family (v4.0: HAS_VARIANT path)
+                pf_id = f"FAM_{product_family}" if not product_family.startswith("FAM_") else product_family
                 variants_result = session.run("""
-                    MATCH (pv:ProductVariant)
-                    WHERE pv.family = $family
+                    MATCH (pf:ProductFamily {id: $pf_id})-[:HAS_VARIANT]->(pv:ProductVariant)
                     RETURN pv.name AS id,
-                           pv.family AS family,
+                           pv.product_family AS family,
                            pv.width_mm AS width_mm,
                            pv.height_mm AS height_mm,
-                           pv.depth_mm AS depth_mm,
-                           pv.length_mm AS length_mm,
-                           pv.weight_kg AS weight_kg,
-                           pv.airflow_m3h AS airflow_m3h,
-                           pv.available_materials AS available_materials,
-                           pv.available_options AS available_options,
-                           pv.price AS price
-                    ORDER BY pv.width_mm, pv.height_mm, pv.depth_mm
-                """, family=product_family)
+                           pv.housing_length_mm AS length_mm,
+                           pv.housing_length_short_mm AS length_short_mm,
+                           pv.housing_length_long_mm AS length_long_mm,
+                           COALESCE(pv.weight_kg, pv.weight_kg_short) AS weight_kg,
+                           pv.weight_kg_short AS weight_kg_short,
+                           pv.weight_kg_long AS weight_kg_long,
+                           pv.reference_airflow_m3h AS airflow_m3h,
+                           pv.cartridge_count AS cartridge_count
+                    ORDER BY pv.width_mm, pv.height_mm
+                """, pf_id=pf_id)
                 variants = [dict(r) for r in variants_result]
 
                 # Query 2: Get all materials
@@ -3941,7 +3981,7 @@ class Neo4jConnection:
                 """)
                 insulation_rules = [dict(r) for r in insulation_result]
 
-                # Build sizing reference from variants
+                # Build sizing reference from variants (v4.0: uses reference_airflow_m3h)
                 sizing_reference = {}
                 for v in variants:
                     if v.get('width_mm') and v.get('height_mm'):
@@ -3949,30 +3989,44 @@ class Neo4jConnection:
                         if v.get('airflow_m3h') and size_key not in sizing_reference:
                             sizing_reference[size_key] = v['airflow_m3h']
 
-                # Build weight lookup table
+                # Build weight lookup table (v4.0: supports both single and dual-length weights)
                 weight_table = {}
                 for v in variants:
-                    if v.get('width_mm') and v.get('height_mm') and v.get('weight_kg'):
-                        # Support both depth_mm and length_mm naming conventions
-                        length = v.get('length_mm') or v.get('depth_mm')
-                        if length:
-                            key = f"{v['width_mm']}x{v['height_mm']}x{length}"
-                            weight_table[key] = v['weight_kg']
+                    if not (v.get('width_mm') and v.get('height_mm')):
+                        continue
+                    size = f"{v['width_mm']}x{v['height_mm']}"
+                    # Single-length products (e.g., GDP with length_mm=250)
+                    if v.get('weight_kg') and v.get('length_mm'):
+                        weight_table[f"{size}x{v['length_mm']}"] = v['weight_kg']
+                    # Dual-length products (e.g., GDB with short/long)
+                    if v.get('weight_kg_short') and v.get('length_short_mm'):
+                        weight_table[f"{size}x{v['length_short_mm']}"] = v['weight_kg_short']
+                    if v.get('weight_kg_long') and v.get('length_long_mm'):
+                        weight_table[f"{size}x{v['length_long_mm']}"] = v['weight_kg_long']
 
-                # Query 6: Get ProductFamily metadata (corrosion, indoor_only)
-                pf_id = f"FAM_{product_family}" if not product_family.startswith("FAM_") else product_family
+                # Query 6: Get ProductFamily metadata (corrosion, indoor_only, description)
                 pf_result = session.run("""
                     MATCH (pf:ProductFamily {id: $pf_id})
                     RETURN pf.corrosion_class AS housing_corrosion_class,
                            pf.indoor_only AS indoor_only,
-                           pf.allowed_environments AS allowed_environments
+                           pf.outdoor_safe AS outdoor_safe,
+                           pf.allowed_environments AS allowed_environments,
+                           pf.description AS description,
+                           pf.media_type AS media_type,
+                           pf.filter_type AS filter_type,
+                           pf.construction_type AS construction_type
                 """, pf_id=pf_id)
                 pf_meta = dict(pf_result.single()) if pf_result.peek() else {}
 
                 return {
                     "family": product_family,
+                    "description": pf_meta.get("description"),
+                    "media_type": pf_meta.get("media_type"),
+                    "filter_type": pf_meta.get("filter_type"),
+                    "construction_type": pf_meta.get("construction_type"),
                     "housing_corrosion_class": pf_meta.get("housing_corrosion_class"),
                     "indoor_only": pf_meta.get("indoor_only", False),
+                    "outdoor_safe": pf_meta.get("outdoor_safe", False),
                     "variants": variants,
                     "materials": materials,
                     "environment_restrictions": restrictions,
@@ -3983,7 +4037,7 @@ class Neo4jConnection:
                     "_meta": {
                         "total_variants": len(variants),
                         "total_materials": len(materials),
-                        "source": "Neo4j Knowledge Graph"
+                        "source": "Neo4j Knowledge Graph v4.0"
                     }
                 }
 
@@ -4682,9 +4736,9 @@ class Neo4jConnection:
                   AND pf.service_access_factor IS NOT NULL
                 WITH pf, $dim_value * (1.0 + pf.service_access_factor) AS required_space
                 WHERE required_space <= $available_space
-                OPTIONAL MATCH (pf)-[:AVAILABLE_IN_SIZE]->(dm:DimensionModule)
-                WHERE dm.{dm_prop} = toInteger($dim_value)
-                WITH pf, required_space, count(dm) AS matching_sizes
+                OPTIONAL MATCH (pf)-[:HAS_VARIANT]->(pv:ProductVariant)
+                WHERE pv.{dm_prop} = toInteger($dim_value)
+                WITH pf, required_space, count(pv) AS matching_sizes
                 WHERE matching_sizes > 0
                 // v3.5: Trait qualification — only return alternatives with required traits
                 WITH pf, required_space
@@ -4941,11 +4995,10 @@ class Neo4jConnection:
     def get_size_determined_properties(
         self, module_id: str, product_family_id: str
     ) -> list[dict]:
-        """Get properties auto-determined by a DimensionModule + ProductFamily combo.
+        """Get properties auto-determined by a size selection.
 
-        When a module size is selected, some properties become fixed (e.g.,
-        cartridge count for a specific housing size). These are stored as
-        SizeProperty nodes linked via DETERMINES_PROPERTY.
+        v4.0: Checks ProductVariant first (for cartridge_count stored directly),
+        then falls back to DimensionModule → SizeProperty path.
 
         Returns:
             List of dicts with key, value, display_name
@@ -4957,6 +5010,20 @@ class Neo4jConnection:
         )
         driver = self.connect()
         with driver.session(database=self.database) as session:
+            # v4.0: Check ProductVariant directly for cartridge_count
+            if module_id.startswith("PV_"):
+                pv_result = session.run("""
+                    MATCH (pv:ProductVariant {id: $module_id})
+                    WHERE pv.cartridge_count IS NOT NULL
+                    RETURN 'capacity_units' AS key,
+                           pv.cartridge_count AS value,
+                           'cartridges' AS display_name
+                """, {"module_id": module_id})
+                pv_props = [dict(r) for r in pv_result]
+                if pv_props:
+                    return pv_props
+
+            # Legacy: DimensionModule → SizeProperty path
             result = session.run("""
                 MATCH (dm:DimensionModule {id: $module_id})-[:DETERMINES_PROPERTY]->(sp:SizeProperty)
                 WHERE sp.for_family = $pf_id OR sp.for_family IS NULL
@@ -4994,15 +5061,11 @@ class Neo4jConnection:
 
 
     def get_available_dimension_modules(self, item_id: str) -> list[dict]:
-        """Get all DimensionModule nodes available for a product family.
+        """Get all ProductVariant nodes available for a product family.
 
-        Queries ProductFamily -[:AVAILABLE_IN_SIZE]-> DimensionModule.
-        Returns modules sorted by effective airflow descending (largest first).
-
-        v3.5: Computes product-specific airflow by joining CapacityRule +
-        SizeProperty. For products with component-based capacity (e.g., carbon
-        cartridges), effective_airflow = component_count × capacity_per_component.
-        Falls back to DimensionModule.reference_airflow_m3h when no CapacityRule.
+        v4.0: Queries ProductFamily -[:HAS_VARIANT]-> ProductVariant.
+        Each family has its own correct airflow values from the PDF catalog,
+        eliminating the GDB data contamination from shared DimensionModules.
 
         Args:
             item_id: ProductFamily ID (e.g., 'FAM_GDP') or short form ('GDP')
@@ -5014,28 +5077,13 @@ class Neo4jConnection:
         driver = self.connect()
         with driver.session(database=self.database) as session:
             result = session.run("""
-                MATCH (pf:ProductFamily {id: $pf_id})-[:AVAILABLE_IN_SIZE]->(dm:DimensionModule)
-                OPTIONAL MATCH (pf)-[:HAS_CAPACITY]->(cr:CapacityRule)
-                OPTIONAL MATCH (dm)-[:DETERMINES_PROPERTY]->(sp_fam:SizeProperty)
-                  WHERE sp_fam.key = cr.component_count_key
-                    AND sp_fam.for_family = pf.id
-                OPTIONAL MATCH (dm)-[:DETERMINES_PROPERTY]->(sp_gen:SizeProperty)
-                  WHERE sp_gen.key = cr.component_count_key
-                    AND sp_gen.for_family IS NULL
-                WITH dm,
-                     CASE WHEN cr IS NOT NULL
-                               AND COALESCE(sp_fam.value, sp_gen.value) IS NOT NULL
-                          THEN toFloat(COALESCE(sp_fam.value, sp_gen.value))
-                               * toFloat(cr.capacity_per_component)
-                          ELSE dm.reference_airflow_m3h
-                     END AS effective_airflow
-                WITH dm, min(effective_airflow) AS effective_airflow
-                RETURN dm.id AS id,
-                       dm.width_mm AS width_mm,
-                       dm.height_mm AS height_mm,
-                       effective_airflow AS reference_airflow_m3h,
-                       dm.label AS label
-                ORDER BY effective_airflow DESC
+                MATCH (pf:ProductFamily {id: $pf_id})-[:HAS_VARIANT]->(pv:ProductVariant)
+                RETURN pv.id AS id,
+                       pv.width_mm AS width_mm,
+                       pv.height_mm AS height_mm,
+                       pv.reference_airflow_m3h AS reference_airflow_m3h,
+                       pv.label AS label
+                ORDER BY pv.reference_airflow_m3h DESC
             """, {"pf_id": pf_id})
             return [dict(record) for record in result]
 
@@ -5068,29 +5116,16 @@ class Neo4jConnection:
         with driver.session(database=self.database) as session:
             result = session.run("""
                 UNWIND $pf_ids AS pf_id
-                MATCH (pf:ProductFamily {id: pf_id})-[:AVAILABLE_IN_SIZE]->(dm:DimensionModule)
-                WHERE ($explicit_width = 0 OR dm.width_mm = $explicit_width)
-                  AND ($explicit_height = 0 OR dm.height_mm = $explicit_height)
-                  AND ($max_width = 0 OR dm.width_mm <= $max_width)
-                  AND ($max_height = 0 OR dm.height_mm <= $max_height)
+                MATCH (pf:ProductFamily {id: pf_id})-[:HAS_VARIANT]->(pv:ProductVariant)
+                WHERE ($explicit_width = 0 OR pv.width_mm = $explicit_width)
+                  AND ($explicit_height = 0 OR pv.height_mm = $explicit_height)
+                  AND ($max_width = 0 OR pv.width_mm <= $max_width)
+                  AND ($max_height = 0 OR pv.height_mm <= $max_height)
 
-                OPTIONAL MATCH (pf)-[:HAS_CAPACITY]->(cr:CapacityRule)
-                OPTIONAL MATCH (dm)-[:DETERMINES_PROPERTY]->(sp_fam:SizeProperty)
-                  WHERE sp_fam.key = cr.component_count_key AND sp_fam.for_family = pf.id
-                OPTIONAL MATCH (dm)-[:DETERMINES_PROPERTY]->(sp_gen:SizeProperty)
-                  WHERE sp_gen.key = cr.component_count_key AND sp_gen.for_family IS NULL
-
-                WITH pf, dm,
-                     CASE WHEN cr IS NOT NULL
-                               AND COALESCE(sp_fam.value, sp_gen.value) IS NOT NULL
-                          THEN toFloat(COALESCE(sp_fam.value, sp_gen.value))
-                               * toFloat(cr.capacity_per_component)
-                          ELSE dm.reference_airflow_m3h
-                     END AS effective_airflow
-                WITH pf, dm, min(effective_airflow) AS effective_airflow
+                WITH pf, pv, pv.reference_airflow_m3h AS effective_airflow
 
                 ORDER BY effective_airflow DESC
-                WITH pf, collect({w: dm.width_mm, h: dm.height_mm, af: effective_airflow})[0] AS best
+                WITH pf, collect({w: pv.width_mm, h: pv.height_mm, af: effective_airflow})[0] AS best
                 WHERE best.af IS NOT NULL AND best.af > 0
 
                 WITH pf, best,

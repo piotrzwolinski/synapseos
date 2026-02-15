@@ -60,10 +60,10 @@ type WizardStep = "configure" | "debate" | "results";
 // ─── Constants ──────────────────────────────────────────────────
 
 const SEVERITY_CONFIG: Record<string, { color: string; icon: React.ComponentType<{ className?: string }>; order: number }> = {
-  CRITICAL: { color: "bg-red-100 text-red-700 border-red-200", icon: X, order: 0 },
-  MAJOR: { color: "bg-orange-100 text-orange-700 border-orange-200", icon: AlertTriangle, order: 1 },
-  MINOR: { color: "bg-yellow-100 text-yellow-700 border-yellow-200", icon: AlertCircle, order: 2 },
-  INFO: { color: "bg-blue-100 text-blue-700 border-blue-200", icon: Info, order: 3 },
+  CRITICAL: { color: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800", icon: X, order: 0 },
+  MAJOR: { color: "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800", icon: AlertTriangle, order: 1 },
+  MINOR: { color: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800", icon: AlertCircle, order: 2 },
+  INFO: { color: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800", icon: Info, order: 3 },
 };
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -73,9 +73,9 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 const PROVIDER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  openai: { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
-  gemini_pro: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  anthropic_opus: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+  openai: { bg: "bg-green-50 dark:bg-green-900/30", text: "text-green-700 dark:text-green-400", border: "border-green-200 dark:border-green-800" },
+  gemini_pro: { bg: "bg-blue-50 dark:bg-blue-900/30", text: "text-blue-700 dark:text-blue-400", border: "border-blue-200 dark:border-blue-800" },
+  anthropic_opus: { bg: "bg-orange-50 dark:bg-orange-900/30", text: "text-orange-700 dark:text-orange-400", border: "border-orange-200 dark:border-orange-800" },
 };
 
 const PHASE_LABELS: Record<string, string> = {
@@ -354,15 +354,15 @@ export function GraphAudit() {
   // ─── Score color ────────────────────────────────────────────────
 
   const scoreColor = (score: number) => {
-    if (score >= 80) return "text-emerald-600";
-    if (score >= 60) return "text-yellow-600";
-    return "text-red-600";
+    if (score >= 80) return "text-emerald-600 dark:text-emerald-400";
+    if (score >= 60) return "text-yellow-600 dark:text-yellow-400";
+    return "text-red-600 dark:text-red-400";
   };
 
   const scoreBg = (score: number) => {
-    if (score >= 80) return "bg-emerald-50 border-emerald-200";
-    if (score >= 60) return "bg-yellow-50 border-yellow-200";
-    return "bg-red-50 border-red-200";
+    if (score >= 80) return "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800";
+    if (score >= 60) return "bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800";
+    return "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800";
   };
 
   // ─── Render ─────────────────────────────────────────────────────
@@ -373,7 +373,7 @@ export function GraphAudit() {
       <div className="flex items-center gap-2 text-sm">
         {(["configure", "debate", "results"] as WizardStep[]).map((s, i) => (
           <div key={s} className="flex items-center gap-2">
-            {i > 0 && <ChevronRight className="w-4 h-4 text-slate-300" />}
+            {i > 0 && <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600" />}
             <button
               onClick={() => {
                 if (s === "configure" && !isStreaming) setStep(s);
@@ -384,8 +384,8 @@ export function GraphAudit() {
                 step === s
                   ? "bg-blue-600 text-white"
                   : s === "configure" || (s === "results" && report)
-                    ? "text-slate-500 hover:bg-slate-100 cursor-pointer"
-                    : "text-slate-300 cursor-default"
+                    ? "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 cursor-pointer"
+                    : "text-slate-300 dark:text-slate-600 cursor-default"
               )}
             >
               {s === "configure" && "1. Configure"}
@@ -401,8 +401,8 @@ export function GraphAudit() {
         <div className="space-y-6">
           <Card>
             <CardContent className="p-6 space-y-4">
-              <h3 className="font-semibold text-slate-900">Select LLM Auditors</h3>
-              <p className="text-sm text-slate-500">
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100">Select LLM Auditors</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Choose which LLMs will independently audit the knowledge graph against the product catalog PDF.
                 All three run in parallel, then cross-critique each other, and finally synthesize a consensus report.
               </p>
@@ -416,7 +416,7 @@ export function GraphAudit() {
                   const keyInfo = providerKeys.find((k) => k.provider === key);
                   const configured = keyInfo?.configured ?? false;
                   const selected = selectedProviders.has(id);
-                  const colors = PROVIDER_COLORS[id] || { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200" };
+                  const colors = PROVIDER_COLORS[id] || { bg: "bg-slate-50 dark:bg-slate-800", text: "text-slate-700 dark:text-slate-300", border: "border-slate-200 dark:border-slate-700" };
 
                   return (
                     <button
@@ -433,16 +433,16 @@ export function GraphAudit() {
                         "p-4 rounded-xl border-2 transition-all text-left",
                         !configured && "opacity-40 cursor-not-allowed",
                         configured && selected && `${colors.bg} ${colors.border}`,
-                        configured && !selected && "border-slate-200 hover:border-slate-300"
+                        configured && !selected && "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
                       )}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className={cn("font-semibold text-sm", selected ? colors.text : "text-slate-700")}>
+                        <span className={cn("font-semibold text-sm", selected ? colors.text : "text-slate-700 dark:text-slate-300")}>
                           {PROVIDER_LABELS[id]}
                         </span>
                         {selected && <Check className={cn("w-4 h-4", colors.text)} />}
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
                         {configured ? (
                           <span className="flex items-center gap-1">
                             <CheckCircle2 className="w-3 h-3 text-emerald-500" />
@@ -467,7 +467,7 @@ export function GraphAudit() {
                   "w-full py-3 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2",
                   selectedProviders.size > 0
                     ? "bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/25"
-                    : "bg-slate-300 cursor-not-allowed"
+                    : "bg-slate-300 dark:bg-slate-700 cursor-not-allowed"
                 )}
               >
                 <Shield className="w-5 h-5" />
@@ -480,7 +480,7 @@ export function GraphAudit() {
           {previousReports.length > 0 && (
             <Card>
               <CardContent className="p-6 space-y-3">
-                <h3 className="font-semibold text-slate-900">Previous Audit Reports</h3>
+                <h3 className="font-semibold text-slate-900 dark:text-slate-100">Previous Audit Reports</h3>
                 <div className="space-y-2">
                   {previousReports.slice(0, 5).map((r) => (
                     <button
@@ -506,10 +506,10 @@ export function GraphAudit() {
                           }
                         } catch { /* non-fatal */ }
                       }}
-                      className="w-full p-3 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all flex items-center justify-between text-left"
+                      className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-all flex items-center justify-between text-left"
                     >
                       <div>
-                        <div className="text-sm font-medium text-slate-700">
+                        <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
                           Score: <span className={scoreColor(r.overall_score)}>{r.overall_score}/100</span>
                           {" "}&middot;{" "}
                           {r.total_findings} findings
@@ -547,12 +547,12 @@ export function GraphAudit() {
                       "flex-1 h-2 rounded-full transition-colors",
                       isPast && "bg-emerald-400",
                       isCurrent && "bg-blue-400 animate-pulse",
-                      !isPast && !isCurrent && "bg-slate-200"
+                      !isPast && !isCurrent && "bg-slate-200 dark:bg-slate-700"
                     )}
                   />
                   <span className={cn(
                     "text-xs font-medium whitespace-nowrap",
-                    isCurrent ? "text-blue-600" : isPast ? "text-emerald-600" : "text-slate-400"
+                    isCurrent ? "text-blue-600 dark:text-blue-400" : isPast ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"
                   )}>
                     {PHASE_LABELS[phase]?.replace(/Round \d: /, "") || phase}
                   </span>
@@ -565,16 +565,16 @@ export function GraphAudit() {
           <div className="grid grid-cols-3 gap-3">
             {Array.from(selectedProviders).map((name) => {
               const ps = providerStatuses[name];
-              const colors = PROVIDER_COLORS[name] || { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200" };
+              const colors = PROVIDER_COLORS[name] || { bg: "bg-slate-50 dark:bg-slate-800", text: "text-slate-700 dark:text-slate-300", border: "border-slate-200 dark:border-slate-700" };
               return (
                 <div
                   key={name}
                   className={cn(
                     "p-3 rounded-xl border transition-all",
                     ps?.status === "active" && `${colors.bg} ${colors.border} border-2`,
-                    ps?.status === "complete" && "bg-emerald-50 border-emerald-200",
-                    ps?.status === "error" && "bg-red-50 border-red-200",
-                    (!ps || ps.status === "idle") && "border-slate-200"
+                    ps?.status === "complete" && "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800",
+                    ps?.status === "error" && "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800",
+                    (!ps || ps.status === "idle") && "border-slate-200 dark:border-slate-700"
                   )}
                 >
                   <div className="flex items-center justify-between mb-1">
@@ -583,7 +583,7 @@ export function GraphAudit() {
                     {ps?.status === "complete" && <Check className="w-4 h-4 text-emerald-500" />}
                     {ps?.status === "error" && <X className="w-4 h-4 text-red-500" />}
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
                     {ps?.status === "active" && `${ps.phase}...`}
                     {ps?.status === "complete" && `${ps.findingsCount} findings, ${ps.duration}s`}
                     {ps?.status === "error" && (ps.error || "Failed")}
@@ -597,7 +597,7 @@ export function GraphAudit() {
           {/* Event log */}
           <div
             ref={logRef}
-            className="flex-1 min-h-[300px] max-h-[500px] overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-1.5 font-mono text-xs"
+            className="flex-1 min-h-[300px] max-h-[500px] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-4 space-y-1.5 font-mono text-xs"
           >
             {debateLog.map((log, i) => (
               <div key={i} className="flex gap-2">
@@ -610,10 +610,10 @@ export function GraphAudit() {
                   </Badge>
                 )}
                 <span className={cn(
-                  log.type === "error" && "text-red-600",
-                  log.type === "system" && "text-slate-600",
-                  log.type === "finding" && "text-blue-600",
-                  log.type === "critique" && "text-violet-600",
+                  log.type === "error" && "text-red-600 dark:text-red-400",
+                  log.type === "system" && "text-slate-600 dark:text-slate-400",
+                  log.type === "finding" && "text-blue-600 dark:text-blue-400",
+                  log.type === "critique" && "text-violet-600 dark:text-violet-400",
                 )}>
                   {log.message}
                 </span>
@@ -632,7 +632,7 @@ export function GraphAudit() {
             {isStreaming && (
               <button
                 onClick={stopAudit}
-                className="px-4 py-2 rounded-lg bg-red-100 text-red-700 text-sm font-medium hover:bg-red-200 transition-colors"
+                className="px-4 py-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
               >
                 Stop Audit
               </button>
@@ -640,7 +640,7 @@ export function GraphAudit() {
             {!isStreaming && !report && (
               <button
                 onClick={() => setStep("configure")}
-                className="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition-colors flex items-center gap-1.5"
+                className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
               >
                 <RotateCcw className="w-4 h-4" />
                 Back to Configure
@@ -649,7 +649,7 @@ export function GraphAudit() {
           </div>
 
           {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-400">
               {error}
             </div>
           )}
@@ -669,8 +669,8 @@ export function GraphAudit() {
 
             {/* Confidence */}
             {report.confidence > 0 && (
-              <div className="text-sm text-slate-500">
-                Confidence: <span className="font-semibold text-slate-700">{Math.round(report.confidence * 100)}%</span>
+              <div className="text-sm text-slate-500 dark:text-slate-400">
+                Confidence: <span className="font-semibold text-slate-700 dark:text-slate-300">{Math.round(report.confidence * 100)}%</span>
               </div>
             )}
 
@@ -716,7 +716,7 @@ export function GraphAudit() {
                 a.click();
                 URL.revokeObjectURL(url);
               }}
-              className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
+              className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
               title="Download report"
             >
               <Download className="w-4 h-4" />
@@ -725,7 +725,7 @@ export function GraphAudit() {
             {/* New audit */}
             <button
               onClick={() => setStep("configure")}
-              className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
+              className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
               title="Run new audit"
             >
               <RotateCcw className="w-4 h-4" />
@@ -744,7 +744,7 @@ export function GraphAudit() {
                   placeholder="Search findings..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-blue-400"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:border-blue-400"
                 />
               </div>
 
@@ -766,8 +766,8 @@ export function GraphAudit() {
                       className={cn(
                         "w-full p-3 rounded-lg border text-left transition-all",
                         isSelected
-                          ? "border-blue-400 bg-blue-50 ring-1 ring-blue-200"
-                          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                          ? "border-blue-400 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-200 dark:ring-blue-800"
+                          : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50"
                       )}
                     >
                       <div className="flex items-start gap-2">
@@ -786,7 +786,7 @@ export function GraphAudit() {
                               {finding.category.replace(/_/g, " ")}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-700 line-clamp-2">
+                          <p className="text-xs text-slate-700 dark:text-slate-300 line-clamp-2">
                             {finding.description}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
@@ -814,7 +814,7 @@ export function GraphAudit() {
               {!selectedFinding ? (
                 <div className="h-full flex items-center justify-center text-slate-400">
                   <div className="text-center">
-                    <Shield className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                    <Shield className="w-12 h-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
                     <p className="font-medium">Select a finding to view details</p>
                     <p className="text-sm mt-1">Click any finding on the left panel</p>
                   </div>
@@ -833,7 +833,7 @@ export function GraphAudit() {
                       {selectedFinding.product_family}
                     </Badge>
                     {selectedFinding.confidence > 0 && (
-                      <span className="text-xs text-slate-500 ml-auto">
+                      <span className="text-xs text-slate-500 dark:text-slate-400 ml-auto">
                         Confidence: {Math.round(selectedFinding.confidence * 100)}%
                       </span>
                     )}
@@ -841,47 +841,47 @@ export function GraphAudit() {
 
                   {/* Description */}
                   <div>
-                    <h4 className="text-sm font-semibold text-slate-900 mb-1">Description</h4>
-                    <p className="text-sm text-slate-700 leading-relaxed">{selectedFinding.description}</p>
+                    <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1">Description</h4>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{selectedFinding.description}</p>
                   </div>
 
                   {/* PDF vs Graph comparison */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
-                      <h5 className="text-xs font-semibold text-emerald-700 mb-1 flex items-center gap-1">
+                    <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800">
+                      <h5 className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-1 flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" />
                         PDF Says (Ground Truth)
                       </h5>
-                      <p className="text-sm text-emerald-900">{selectedFinding.pdf_says}</p>
+                      <p className="text-sm text-emerald-900 dark:text-emerald-200">{selectedFinding.pdf_says}</p>
                     </div>
-                    <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-                      <h5 className="text-xs font-semibold text-red-700 mb-1 flex items-center gap-1">
+                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800">
+                      <h5 className="text-xs font-semibold text-red-700 dark:text-red-400 mb-1 flex items-center gap-1">
                         <AlertCircle className="w-3 h-3" />
                         Graph Says (Current)
                       </h5>
-                      <p className="text-sm text-red-900">{selectedFinding.graph_says}</p>
+                      <p className="text-sm text-red-900 dark:text-red-200">{selectedFinding.graph_says}</p>
                     </div>
                   </div>
 
                   {/* Recommendation */}
-                  <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-                    <h5 className="text-xs font-semibold text-blue-700 mb-1">Recommendation</h5>
-                    <p className="text-sm text-blue-900">{selectedFinding.recommendation}</p>
+                  <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
+                    <h5 className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-1">Recommendation</h5>
+                    <p className="text-sm text-blue-900 dark:text-blue-200">{selectedFinding.recommendation}</p>
                   </div>
 
                   {/* Consensus */}
                   {(selectedFinding.agreed_by?.length > 0 || selectedFinding.challenged_by?.length > 0) && (
                     <div>
-                      <h4 className="text-sm font-semibold text-slate-900 mb-2">Consensus</h4>
+                      <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2">Consensus</h4>
                       <div className="flex gap-2 flex-wrap">
                         {selectedFinding.agreed_by?.map((p) => (
-                          <Badge key={p} className="bg-emerald-100 text-emerald-700 text-xs">
+                          <Badge key={p} className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs">
                             <Check className="w-3 h-3 mr-1" />
                             {PROVIDER_LABELS[p] || p}
                           </Badge>
                         ))}
                         {selectedFinding.challenged_by?.map((p) => (
-                          <Badge key={p} className="bg-red-100 text-red-700 text-xs">
+                          <Badge key={p} className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs">
                             <X className="w-3 h-3 mr-1" />
                             {PROVIDER_LABELS[p] || p}
                           </Badge>
@@ -896,19 +896,19 @@ export function GraphAudit() {
 
           {/* Summary & recommendations at bottom */}
           {report.summary && (
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <h4 className="text-sm font-semibold text-slate-900 mb-1">Executive Summary</h4>
-              <p className="text-sm text-slate-600 whitespace-pre-line">{report.summary}</p>
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1">Executive Summary</h4>
+              <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-line">{report.summary}</p>
             </div>
           )}
 
           {report.recommendations && report.recommendations.length > 0 && (
-            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
-              <h4 className="text-sm font-semibold text-amber-800 mb-2">Priority Actions</h4>
+            <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800">
+              <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-2">Priority Actions</h4>
               <ul className="space-y-1">
                 {report.recommendations.map((rec, i) => (
-                  <li key={i} className="text-sm text-amber-700 flex items-start gap-2">
-                    <span className="font-semibold text-amber-500 shrink-0">{i + 1}.</span>
+                  <li key={i} className="text-sm text-amber-700 dark:text-amber-400 flex items-start gap-2">
+                    <span className="font-semibold text-amber-500 dark:text-amber-500 shrink-0">{i + 1}.</span>
                     {rec}
                   </li>
                 ))}

@@ -232,16 +232,16 @@ export function DocIngestor() {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/60 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
+      <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
             <FileText className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-900">Document Ingestion</h3>
-            <p className="text-xs text-slate-500">
+            <h3 className="font-semibold text-slate-900 dark:text-slate-100">Document Ingestion</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               AI-driven schema discovery & extraction
             </p>
           </div>
@@ -257,8 +257,8 @@ export function DocIngestor() {
                   step === s
                     ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
                     : ["upload", "schema", "processing", "result"].indexOf(step) > i
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-slate-100 text-slate-400"
+                    ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
+                    : "bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500"
                 )}
               >
                 {i + 1}
@@ -268,8 +268,8 @@ export function DocIngestor() {
                   className={cn(
                     "w-6 h-0.5 mx-1",
                     ["upload", "schema", "processing", "result"].indexOf(step) > i
-                      ? "bg-emerald-200"
-                      : "bg-slate-100"
+                      ? "bg-emerald-200 dark:bg-emerald-800"
+                      : "bg-slate-100 dark:bg-slate-700"
                   )}
                 />
               )}
@@ -281,17 +281,17 @@ export function DocIngestor() {
       <div className="p-6">
         {/* Error Banner */}
         {error && (
-          <div className="mb-4 flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-200 animate-fade-in">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="mb-4 flex items-start gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 animate-fade-in">
+            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-red-800">Error</p>
-              <p className="text-sm text-red-600 mt-1">{error}</p>
+              <p className="text-sm font-medium text-red-800 dark:text-red-300">Error</p>
+              <p className="text-sm text-red-600 dark:text-red-400 mt-1">{error}</p>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setError(null)}
-              className="text-red-600 hover:text-red-800 hover:bg-red-100"
+              className="text-red-600 hover:text-red-800 hover:bg-red-100 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/30"
             >
               Dismiss
             </Button>
@@ -309,10 +309,10 @@ export function DocIngestor() {
               className={cn(
                 "relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer",
                 isDragActive
-                  ? "border-emerald-500 bg-emerald-50"
+                  ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20"
                   : file
-                  ? "border-emerald-300 bg-emerald-50/50"
-                  : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                  ? "border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-900/10"
+                  : "border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50"
               )}
               onClick={() => document.getElementById("file-input")?.click()}
             >
@@ -325,23 +325,23 @@ export function DocIngestor() {
               />
 
               <div className="flex flex-col items-center">
-                <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-4">
                   {getFileIcon()}
                 </div>
 
                 {file ? (
                   <>
-                    <p className="text-sm font-medium text-slate-900">{file.name}</p>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{file.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                       {formatFileSize(file.size)} • Click to change
                     </p>
                   </>
                 ) : (
                   <>
-                    <p className="text-sm font-medium text-slate-700">
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                       Drop a document here or click to browse
                     </p>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                       Supports PDF, PNG, JPEG, TXT, CSV, MD
                     </p>
                   </>
@@ -351,7 +351,7 @@ export function DocIngestor() {
 
             {/* Document Hint */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Document Hint (Optional)
               </label>
               <textarea
@@ -360,7 +360,7 @@ export function DocIngestor() {
                 placeholder="Describe what this document contains to help the AI understand it better...
 
 Example: This is a product catalog from a HVAC filter manufacturer, containing product specifications, pricing, and technical data."
-                className="w-full h-24 p-3 text-sm bg-slate-50 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:bg-white placeholder:text-slate-400"
+                className="w-full h-24 p-3 text-sm bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-600 placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:text-slate-200"
               />
             </div>
 
@@ -389,39 +389,39 @@ Example: This is a product catalog from a HVAC filter manufacturer, containing p
         {step === "schema" && schema && (
           <div className="space-y-4 animate-fade-in">
             {/* Document Info */}
-            <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200">
+            <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-800">
               <div className="flex items-center gap-2 mb-2">
-                <Eye className="w-4 h-4 text-emerald-600" />
-                <span className="text-sm font-semibold text-emerald-800">
+                <Eye className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
                   {schema.document_type}
                 </span>
                 {schema.product_family && (
-                  <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-800 text-xs font-medium">
+                  <span className="px-2 py-0.5 rounded bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-medium">
                     {schema.product_family}
                   </span>
                 )}
               </div>
-              <p className="text-sm text-emerald-700">{schema.summary}</p>
+              <p className="text-sm text-emerald-700 dark:text-emerald-400">{schema.summary}</p>
             </div>
 
             {/* Variant Properties (Numeric) */}
             {schema.variant_properties && schema.variant_properties.length > 0 && (
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
-                  <Box className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-semibold text-slate-700">
+              <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-600 flex items-center gap-2">
+                  <Box className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Variant Properties ({schema.variant_properties.length})
                   </span>
                   <span className="text-xs text-slate-400 ml-auto">Numeric fields for Cypher math</span>
                 </div>
                 <div className="p-3 grid grid-cols-2 gap-2">
                   {schema.variant_properties.map((prop) => (
-                    <div key={prop.name} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50">
-                      <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-xs font-mono">
+                    <div key={prop.name} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-700/50">
+                      <span className="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 text-xs font-mono">
                         {prop.name}
                       </span>
-                      <span className="text-xs text-slate-500">{prop.description}</span>
-                      <span className="ml-auto px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px]">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">{prop.description}</span>
+                      <span className="ml-auto px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-[10px]">
                         {prop.type}
                       </span>
                     </div>
@@ -432,27 +432,27 @@ Example: This is a product catalog from a HVAC filter manufacturer, containing p
 
             {/* Category Dimensions */}
             {schema.category_dimensions && schema.category_dimensions.length > 0 && (
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
-                  <Link2 className="w-4 h-4 text-violet-600" />
-                  <span className="text-sm font-semibold text-slate-700">
+              <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-600 flex items-center gap-2">
+                  <Link2 className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Category Dimensions ({schema.category_dimensions.length})
                   </span>
                   <span className="text-xs text-slate-400 ml-auto">Faceted filtering</span>
                 </div>
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100 dark:divide-slate-700">
                   {schema.category_dimensions.map((cat) => (
                     <div key={cat.label} className="p-3">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-1 rounded-lg bg-violet-100 text-violet-700 text-xs font-mono font-medium">
+                        <span className="px-2 py-1 rounded-lg bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400 text-xs font-mono font-medium">
                           {cat.label}
                         </span>
-                        <span className="text-sm text-slate-600">{cat.description}</span>
+                        <span className="text-sm text-slate-600 dark:text-slate-400">{cat.description}</span>
                       </div>
                       {cat.example_values && cat.example_values.length > 0 && (
                         <div className="flex flex-wrap gap-1 pl-2">
                           {cat.example_values.map((val, i) => (
-                            <span key={i} className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs">
+                            <span key={i} className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 text-xs">
                               {val}
                             </span>
                           ))}
@@ -466,16 +466,16 @@ Example: This is a product catalog from a HVAC filter manufacturer, containing p
 
             {/* Compatibility Rules */}
             {schema.compatibility_rules && schema.compatibility_rules.length > 0 && (
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-600" />
-                  <span className="text-sm font-semibold text-slate-700">
+              <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-600 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Compatibility Rules ({schema.compatibility_rules.length})
                   </span>
                 </div>
                 <div className="p-3 space-y-2">
                   {schema.compatibility_rules.map((rule, i) => (
-                    <div key={i} className="text-sm text-slate-600 p-2 rounded bg-amber-50 border border-amber-100">
+                    <div key={i} className="text-sm text-slate-600 dark:text-slate-400 p-2 rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800">
                       {rule}
                     </div>
                   ))}
@@ -485,10 +485,10 @@ Example: This is a product catalog from a HVAC filter manufacturer, containing p
 
             {/* Concepts */}
             {schema.concepts && schema.concepts.length > 0 && (
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
-                  <Database className="w-4 h-4 text-emerald-600" />
-                  <span className="text-sm font-semibold text-slate-700">
+              <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-600 flex items-center gap-2">
+                  <Database className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Semantic Concepts ({schema.concepts.length})
                   </span>
                 </div>
@@ -496,7 +496,7 @@ Example: This is a product catalog from a HVAC filter manufacturer, containing p
                   {schema.concepts.map((concept, i) => (
                     <span
                       key={i}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-200"
+                      className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-medium border border-emerald-200 dark:border-emerald-800"
                     >
                       {concept}
                     </span>
@@ -538,13 +538,13 @@ Example: This is a product catalog from a HVAC filter manufacturer, containing p
         {/* Step 3: Processing */}
         {step === "processing" && (
           <div className="text-center py-16 animate-fade-in">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center">
-              <Loader2 className="w-10 h-10 animate-spin text-emerald-600" />
+            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 flex items-center justify-center">
+              <Loader2 className="w-10 h-10 animate-spin text-emerald-600 dark:text-emerald-400" />
             </div>
-            <h3 className="font-semibold text-slate-900 mb-2">
+            <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
               Extracting Knowledge
             </h3>
-            <p className="text-sm text-slate-500 max-w-sm mx-auto">
+            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
               AI is reading the document and extracting entities, relationships, and concepts...
             </p>
             <div className="mt-6 flex justify-center gap-2">
@@ -559,14 +559,14 @@ Example: This is a product catalog from a HVAC filter manufacturer, containing p
         {step === "result" && result && (
           <div className="space-y-4 animate-fade-in">
             {/* Success Banner */}
-            <div className="flex items-center justify-between p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
               <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 <div>
-                  <span className="text-sm font-medium text-emerald-800 block">
+                  <span className="text-sm font-medium text-emerald-800 dark:text-emerald-300 block">
                     Document Ingested Successfully
                   </span>
-                  <span className="text-xs text-emerald-600">
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400">
                     {file?.name}
                   </span>
                 </div>
@@ -575,44 +575,44 @@ Example: This is a product catalog from a HVAC filter manufacturer, containing p
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-center">
-                <div className="text-2xl font-bold text-blue-700">
+              <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-center">
+                <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">
                   {result.counts.product_variants}
                 </div>
-                <div className="text-xs text-blue-600">Variants</div>
+                <div className="text-xs text-blue-600 dark:text-blue-400">Variants</div>
               </div>
-              <div className="p-4 rounded-xl bg-violet-50 border border-violet-200 text-center">
-                <div className="text-2xl font-bold text-violet-700">
+              <div className="p-4 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 text-center">
+                <div className="text-2xl font-bold text-violet-700 dark:text-violet-400">
                   {result.counts.categories}
                 </div>
-                <div className="text-xs text-violet-600">Categories</div>
+                <div className="text-xs text-violet-600 dark:text-violet-400">Categories</div>
               </div>
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
-                <div className="text-2xl font-bold text-emerald-700">
+              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-center">
+                <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
                   {result.counts.concepts}
                 </div>
-                <div className="text-xs text-emerald-600">Concepts</div>
+                <div className="text-xs text-emerald-600 dark:text-emerald-400">Concepts</div>
               </div>
-              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-center">
-                <div className="text-2xl font-bold text-amber-700">
+              <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-center">
+                <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">
                   {result.counts.accessories}
                 </div>
-                <div className="text-xs text-amber-600">Accessories</div>
+                <div className="text-xs text-amber-600 dark:text-amber-400">Accessories</div>
               </div>
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
-                <div className="text-2xl font-bold text-slate-700">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-center">
+                <div className="text-2xl font-bold text-slate-700 dark:text-slate-300">
                   {result.counts.relationships}
                 </div>
-                <div className="text-xs text-slate-600">Relationships</div>
+                <div className="text-xs text-slate-600 dark:text-slate-400">Relationships</div>
               </div>
             </div>
 
             {/* Extracted Product Variants */}
             {result.extracted.products && result.extracted.products.length > 0 && (
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
-                  <Box className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-semibold text-slate-700">
+              <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-600 flex items-center gap-2">
+                  <Box className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Product Variants ({result.extracted.products.length})
                   </span>
                 </div>
@@ -621,19 +621,19 @@ Example: This is a product catalog from a HVAC filter manufacturer, containing p
                     {result.extracted.products.map((product, i) => (
                       <div
                         key={i}
-                        className="p-3 rounded-lg bg-slate-50 border border-slate-100"
+                        className="p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 border border-slate-100 dark:border-slate-600"
                       >
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-xs font-mono font-medium">
+                          <span className="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 text-xs font-mono font-medium">
                             {product.id}
                           </span>
-                          <span className="text-xs text-slate-500">{product.family}</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">{product.family}</span>
                         </div>
                         {/* Numeric Properties */}
                         {product.variant_props && Object.keys(product.variant_props).length > 0 && (
                           <div className="flex flex-wrap gap-1 mb-2">
                             {Object.entries(product.variant_props).slice(0, 6).map(([k, v]) => (
-                              <span key={k} className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-mono">
+                              <span key={k} className="px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-[10px] font-mono">
                                 {k}: {v}
                               </span>
                             ))}
@@ -643,7 +643,7 @@ Example: This is a product catalog from a HVAC filter manufacturer, containing p
                         {product.categories && product.categories.length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             {product.categories.map((cat, j) => (
-                              <span key={j} className="px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 text-[10px]">
+                              <span key={j} className="px-1.5 py-0.5 rounded bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 text-[10px]">
                                 {cat.label}: {cat.value}
                               </span>
                             ))}
@@ -658,10 +658,10 @@ Example: This is a product catalog from a HVAC filter manufacturer, containing p
 
             {/* Concepts */}
             {result.extracted.concepts && result.extracted.concepts.length > 0 && (
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
-                  <Database className="w-4 h-4 text-emerald-600" />
-                  <span className="text-sm font-semibold text-slate-700">
+              <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-600 flex items-center gap-2">
+                  <Database className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Semantic Concepts
                   </span>
                 </div>
@@ -669,7 +669,7 @@ Example: This is a product catalog from a HVAC filter manufacturer, containing p
                   {result.extracted.concepts.map((concept, i) => (
                     <span
                       key={i}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-200"
+                      className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-medium border border-emerald-200 dark:border-emerald-800"
                     >
                       {concept}
                     </span>
@@ -682,7 +682,7 @@ Example: This is a product catalog from a HVAC filter manufacturer, containing p
             <Button
               variant="outline"
               onClick={reset}
-              className="w-full h-11 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
+              className="w-full h-11 rounded-xl border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50"
             >
               <ArrowRight className="w-4 h-4 mr-2" />
               Ingest Another Document

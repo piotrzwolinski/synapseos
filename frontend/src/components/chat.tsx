@@ -109,7 +109,7 @@ function JudgeBadge({
 
   if (loading) {
     return (
-      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-50 border border-violet-100 text-[11px] text-violet-500">
+      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-50 dark:bg-violet-900/30 border border-violet-100 dark:border-violet-800 text-[11px] text-violet-500 dark:text-violet-400">
         <Loader2 className="w-3 h-3 animate-spin" />
         Judging...
       </div>
@@ -154,7 +154,7 @@ function JudgeBadge({
             </button>
           );
         })}
-        <button onClick={() => setExpanded(!expanded)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+        <button onClick={() => setExpanded(!expanded)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer">
           {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
         </button>
       </div>
@@ -167,7 +167,7 @@ function JudgeBadge({
             return (
               <div key={prov}>
                 <div className="flex items-center justify-between mb-1">
-                  <p className="font-semibold text-slate-700">{PROVIDER_LABELS[prov]}</p>
+                  <p className="font-semibold text-slate-700 dark:text-slate-300">{PROVIDER_LABELS[prov]}</p>
                   <div className="flex items-center gap-1.5">
                     {u && u.duration_s != null && (
                       <span className="text-[10px] text-slate-400 font-mono">{u.duration_s}s</span>
@@ -180,8 +180,8 @@ function JudgeBadge({
                           className={cn(
                             "p-1 rounded transition-colors",
                             review === "thumbs_up"
-                              ? "bg-emerald-100 text-emerald-600"
-                              : "text-slate-300 hover:text-emerald-500 hover:bg-emerald-50"
+                              ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+                              : "text-slate-300 dark:text-slate-600 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
                           )}
                         >
                           <ThumbsUp className="w-3 h-3" />
@@ -191,8 +191,8 @@ function JudgeBadge({
                           className={cn(
                             "p-1 rounded transition-colors",
                             review === "thumbs_down"
-                              ? "bg-red-100 text-red-600"
-                              : "text-slate-300 hover:text-red-500 hover:bg-red-50"
+                              ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                              : "text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
                           )}
                         >
                           <ThumbsDown className="w-3 h-3" />
@@ -201,16 +201,16 @@ function JudgeBadge({
                     )}
                   </div>
                 </div>
-                <p className="text-slate-600 leading-relaxed mb-1.5">{r.explanation}</p>
+                <p className="text-slate-600 dark:text-slate-400 leading-relaxed mb-1.5">{r.explanation}</p>
                 <div className="flex flex-wrap gap-1.5 mb-1.5">
                   {Object.entries(r.scores).map(([dim, s]) => (
                     <span
                       key={dim}
                       className={cn(
                         "px-1.5 py-0.5 rounded text-[10px] font-medium",
-                        s >= 4 ? "bg-emerald-100 text-emerald-700"
-                          : s >= 3 ? "bg-amber-100 text-amber-700"
-                          : "bg-red-100 text-red-700"
+                        s >= 4 ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                          : s >= 3 ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                          : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
                       )}
                     >
                       {JUDGE_DIM_LABELS[dim] || dim}:{s}
@@ -218,15 +218,15 @@ function JudgeBadge({
                   ))}
                 </div>
                 {r.pdf_citations && r.pdf_citations.length > 0 && (
-                  <div className="mt-1.5 border-t border-slate-100 pt-1.5">
-                    <p className="text-[10px] font-semibold text-slate-500 mb-0.5">PDF Citations</p>
-                    <ul className="list-disc list-inside text-[10px] text-slate-500 space-y-0.5">
+                  <div className="mt-1.5 border-t border-slate-100 dark:border-slate-700 pt-1.5">
+                    <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">PDF Citations</p>
+                    <ul className="list-disc list-inside text-[10px] text-slate-500 dark:text-slate-400 space-y-0.5">
                       {r.pdf_citations.map((c, i) => <li key={i}>{c}</li>)}
                     </ul>
                   </div>
                 )}
                 {u && (u.prompt_tokens || u.output_tokens) && (
-                  <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono border-t border-slate-100 pt-1">
+                  <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono border-t border-slate-100 dark:border-slate-700 pt-1">
                     <span>in:{(u.prompt_tokens || 0).toLocaleString()}</span>
                     {u.cached_tokens ? (
                       <span className="text-violet-400">cached:{u.cached_tokens.toLocaleString()} ({Math.round((u.cached_tokens / (u.prompt_tokens || 1)) * 100)}%)</span>
@@ -356,63 +356,63 @@ const QUESTION_CATEGORIES: Record<string, {
     icon: <span className="text-sm">🔧</span>,
     gradient: "from-blue-500 to-cyan-500",
     hoverGradient: "hover:from-blue-600 hover:to-cyan-600",
-    textColor: "text-blue-700",
-    bgColor: "bg-blue-50",
-    borderColor: "border-blue-200",
+    textColor: "text-blue-700 dark:text-blue-400",
+    bgColor: "bg-blue-50 dark:bg-blue-900/20",
+    borderColor: "border-blue-200 dark:border-blue-800",
   },
   huddinge: {
     label: "Huddinge Hospital",
     icon: <span className="text-sm">🏥</span>,
     gradient: "from-emerald-500 to-teal-500",
     hoverGradient: "hover:from-emerald-600 hover:to-teal-600",
-    textColor: "text-emerald-700",
-    bgColor: "bg-emerald-50",
-    borderColor: "border-emerald-200",
+    textColor: "text-emerald-700 dark:text-emerald-400",
+    bgColor: "bg-emerald-50 dark:bg-emerald-900/20",
+    borderColor: "border-emerald-200 dark:border-emerald-800",
   },
   nordic: {
     label: "Nordic Furniture",
     icon: <span className="text-sm">⚠️</span>,
     gradient: "from-amber-500 to-orange-500",
     hoverGradient: "hover:from-amber-600 hover:to-orange-600",
-    textColor: "text-amber-700",
-    bgColor: "bg-amber-50",
-    borderColor: "border-amber-200",
+    textColor: "text-amber-700 dark:text-amber-400",
+    bgColor: "bg-amber-50 dark:bg-amber-900/20",
+    borderColor: "border-amber-200 dark:border-amber-800",
   },
   catalog: {
     label: "Filter Catalog",
     icon: <span className="text-sm">📄</span>,
     gradient: "from-violet-500 to-purple-500",
     hoverGradient: "hover:from-violet-600 hover:to-purple-600",
-    textColor: "text-violet-700",
-    bgColor: "bg-violet-50",
-    borderColor: "border-violet-200",
+    textColor: "text-violet-700 dark:text-violet-400",
+    bgColor: "bg-violet-50 dark:bg-violet-900/20",
+    borderColor: "border-violet-200 dark:border-violet-800",
   },
   housing: {
     label: "Housing Selection",
     icon: <span className="text-sm">🏗️</span>,
     gradient: "from-rose-500 to-pink-500",
     hoverGradient: "hover:from-rose-600 hover:to-pink-600",
-    textColor: "text-rose-700",
-    bgColor: "bg-rose-50",
-    borderColor: "border-rose-200",
+    textColor: "text-rose-700 dark:text-rose-400",
+    bgColor: "bg-rose-50 dark:bg-rose-900/20",
+    borderColor: "border-rose-200 dark:border-rose-800",
   },
   maritime: {
     label: "Maritime / Offshore",
     icon: <span className="text-sm">⚓</span>,
     gradient: "from-sky-500 to-cyan-500",
     hoverGradient: "hover:from-sky-600 hover:to-cyan-600",
-    textColor: "text-sky-700",
-    bgColor: "bg-sky-50",
-    borderColor: "border-sky-200",
+    textColor: "text-sky-700 dark:text-sky-400",
+    bgColor: "bg-sky-50 dark:bg-sky-900/20",
+    borderColor: "border-sky-200 dark:border-sky-800",
   },
   guardian: {
     label: "Guardian Tests",
     icon: <span className="text-sm">🛡️</span>,
     gradient: "from-red-500 to-orange-500",
     hoverGradient: "hover:from-red-600 hover:to-orange-600",
-    textColor: "text-red-700",
-    bgColor: "bg-red-50",
-    borderColor: "border-red-200",
+    textColor: "text-red-700 dark:text-red-400",
+    bgColor: "bg-red-50 dark:bg-red-900/20",
+    borderColor: "border-red-200 dark:border-red-800",
   },
 };
 
@@ -434,7 +434,7 @@ function DevModeQuestions({
     <div className="mb-3 space-y-1.5">
       <div className="flex items-center gap-2 px-1 mb-2">
         <FlaskConical className="w-3.5 h-3.5 text-amber-600" />
-        <span className="text-xs font-semibold text-amber-700">Test Questions</span>
+        <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">Test Questions</span>
       </div>
       <div className="grid grid-cols-2 gap-2">
         {Object.entries(sampleQuestions).map(([key, questions]) => {
@@ -504,7 +504,7 @@ function DevModeQuestions({
                       }}
                       className={cn(
                         "w-full text-left px-3 py-2 rounded-lg text-xs transition-all",
-                        "bg-white/60 hover:bg-white border",
+                        "bg-white/60 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-700 border",
                         category.borderColor,
                         category.textColor,
                         "hover:shadow-sm"
@@ -551,17 +551,17 @@ function DevModePanel({ graphPaths, promptPreview }: { graphPaths?: string[]; pr
             className={cn(
               "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors",
               showPaths
-                ? "bg-violet-100 text-violet-700"
-                : "bg-slate-100 text-slate-500 hover:bg-violet-50 hover:text-violet-600"
+                ? "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-600 dark:hover:text-violet-400"
             )}
           >
             {showPaths ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
             Graph Paths ({graphPaths.length})
           </button>
           {showPaths && (
-            <div className="absolute left-0 top-full mt-1 z-10 w-[400px] max-h-[300px] overflow-auto bg-white border border-violet-200 rounded-lg shadow-lg p-2 space-y-1">
+            <div className="absolute left-0 top-full mt-1 z-10 w-[400px] max-h-[300px] overflow-auto bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-800 rounded-lg shadow-lg p-2 space-y-1">
               {graphPaths.map((path, i) => (
-                <div key={i} className="px-2 py-1.5 bg-violet-50 border border-violet-100 rounded text-[10px] text-violet-800 font-mono leading-relaxed">
+                <div key={i} className="px-2 py-1.5 bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800 rounded text-[10px] text-violet-800 dark:text-violet-300 font-mono leading-relaxed">
                   {path}
                 </div>
               ))}
@@ -577,7 +577,7 @@ function DevModePanel({ graphPaths, promptPreview }: { graphPaths?: string[]; pr
               "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors",
               showPrompt
                 ? "bg-slate-700 text-white"
-                : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-300"
             )}
           >
             <Code className="w-3 h-3" />
@@ -687,7 +687,7 @@ function LlmDiagnosticsPanel({ promptPreview, diagnostics }: { promptPreview?: s
               "w-full flex items-center justify-between px-3 py-2 text-[11px] font-medium transition-colors",
               showPrompt
                 ? "bg-slate-700 text-white"
-                : "text-slate-600 hover:bg-slate-100"
+                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
             )}
           >
             <div className="flex items-center gap-1.5">
@@ -728,18 +728,18 @@ function GraphTraversalPanel({ graphPaths, diagnostics, promptPreview }: { graph
   if (!graphPaths || graphPaths.length === 0) return null;
 
   return (
-    <div className="mt-3 rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50/50 to-blue-50/30 overflow-hidden">
+    <div className="mt-3 rounded-xl border border-violet-200 dark:border-violet-800 bg-gradient-to-br from-violet-50/50 to-blue-50/30 dark:from-slate-800 dark:to-violet-900/20 overflow-hidden">
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-3 py-2 hover:bg-violet-50/50 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2 hover:bg-violet-50/50 dark:hover:bg-violet-900/20 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-md bg-violet-100 flex items-center justify-center">
-            <Network className="w-3 h-3 text-violet-600" />
+          <div className="w-5 h-5 rounded-md bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+            <Network className="w-3 h-3 text-violet-600 dark:text-violet-400" />
           </div>
-          <span className="text-[11px] font-semibold text-slate-700">Graph Traversal</span>
-          <span className="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-medium">
+          <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Graph Traversal</span>
+          <span className="px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 text-[10px] font-medium">
             {graphPaths.length} paths
           </span>
         </div>
@@ -747,7 +747,7 @@ function GraphTraversalPanel({ graphPaths, diagnostics, promptPreview }: { graph
           {diagnostics && (
             <div className="flex items-center gap-3 text-[10px] text-slate-500">
               {diagnostics.model && (
-                <span className="px-1.5 py-0.5 rounded bg-slate-100 font-mono">{diagnostics.model}</span>
+                <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 font-mono">{diagnostics.model}</span>
               )}
               {diagnostics.total_time_s != null && (
                 <span className="flex items-center gap-1">
@@ -763,15 +763,15 @@ function GraphTraversalPanel({ graphPaths, diagnostics, promptPreview }: { graph
 
       {/* Expanded paths */}
       {expanded && (
-        <div className="px-3 pb-3 space-y-1.5 border-t border-violet-100">
+        <div className="px-3 pb-3 space-y-1.5 border-t border-violet-100 dark:border-violet-800">
           <div className="pt-2" />
           {graphPaths.map((path, i) => {
             // Parse path like "ProductFamily(GDB) → ProductVariant[23 variants]"
             const parts = path.split(" → ");
             return (
               <div key={i} className="flex items-start gap-2 group">
-                <div className="flex-shrink-0 mt-1 w-4 h-4 rounded-full bg-violet-100 flex items-center justify-center">
-                  <span className="text-[8px] text-violet-600 font-bold">{i + 1}</span>
+                <div className="flex-shrink-0 mt-1 w-4 h-4 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+                  <span className="text-[8px] text-violet-600 dark:text-violet-400 font-bold">{i + 1}</span>
                 </div>
                 <div className="flex-1 flex flex-wrap items-center gap-1 text-[10px] font-mono leading-relaxed">
                   {parts.map((part, j) => {
@@ -783,8 +783,8 @@ function GraphTraversalPanel({ graphPaths, diagnostics, promptPreview }: { graph
                         <span className={cn(
                           "px-1.5 py-0.5 rounded",
                           isNode
-                            ? "bg-violet-100 text-violet-800 border border-violet-200"
-                            : "text-slate-600"
+                            ? "bg-violet-100 dark:bg-violet-900/30 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-800"
+                            : "text-slate-600 dark:text-slate-400"
                         )}>
                           {part}
                         </span>
@@ -798,7 +798,7 @@ function GraphTraversalPanel({ graphPaths, diagnostics, promptPreview }: { graph
 
           {/* Summary stats */}
           {diagnostics && (
-            <div className="mt-2 pt-2 border-t border-violet-100 flex flex-wrap gap-3 text-[10px] text-slate-500">
+            <div className="mt-2 pt-2 border-t border-violet-100 dark:border-violet-800 flex flex-wrap gap-3 text-[10px] text-slate-500 dark:text-slate-400">
               {diagnostics.variant_count != null && (
                 <span><Database className="w-3 h-3 inline mr-1" />{diagnostics.variant_count} variants loaded</span>
               )}
@@ -813,12 +813,12 @@ function GraphTraversalPanel({ graphPaths, diagnostics, promptPreview }: { graph
 
           {/* Prompt preview (collapsible) */}
           {promptPreview && (
-            <div className="mt-2 pt-2 border-t border-violet-100">
+            <div className="mt-2 pt-2 border-t border-violet-100 dark:border-violet-800">
               <button
                 onClick={() => setShowPrompt(!showPrompt)}
                 className={cn(
                   "flex items-center gap-1.5 text-[10px] font-medium transition-colors",
-                  showPrompt ? "text-slate-700" : "text-slate-500 hover:text-slate-700"
+                  showPrompt ? "text-slate-700 dark:text-slate-300" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                 )}
               >
                 <Code className="w-3 h-3" />
@@ -1716,7 +1716,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     };
 
     return (
-      <div className="text-sm text-slate-700 leading-relaxed">
+      <div className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
         {parts.map((part, idx) => {
           const match = part.match(/\[\[REF:([^\]]+)\]\]/);
           if (match) {
@@ -1857,8 +1857,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
               </button>
               {/* Explainable mode hint */}
               {explainableMode && (
-                <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full">
-                  <span className="text-xs text-emerald-700">
+                <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-full">
+                  <span className="text-xs text-emerald-700 dark:text-emerald-400">
                     <strong>Explainable Mode ON</strong> - Click underlined text to see sources
                   </span>
                 </div>

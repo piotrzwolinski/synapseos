@@ -337,17 +337,17 @@ function getTypeIcon(type: string) {
 
 function getTypeColor(type: string) {
   switch (type) {
-    case "Failure Mode": return "bg-red-50 text-red-700 border-red-200";
-    case "Engineering Requirement": return "bg-amber-50 text-amber-700 border-amber-200";
-    case "Validation Check": return "bg-violet-50 text-violet-700 border-violet-200";
-    case "Physical Limit": return "bg-orange-50 text-orange-700 border-orange-200";
-    case "Assembly Requirement": return "bg-cyan-50 text-cyan-700 border-cyan-200";
-    case "Performance Rating": return "bg-indigo-50 text-indigo-700 border-indigo-200";
-    case "Software": return "bg-blue-50 text-blue-700 border-blue-200";
-    case "Data": return "bg-purple-50 text-purple-700 border-purple-200";
-    case "Manual": return "bg-amber-50 text-amber-700 border-amber-200";
-    case "Process": return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    default: return "bg-slate-50 text-slate-600 border-slate-200";
+    case "Failure Mode": return "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800";
+    case "Engineering Requirement": return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800";
+    case "Validation Check": return "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-800";
+    case "Physical Limit": return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800";
+    case "Assembly Requirement": return "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-300 dark:border-cyan-800";
+    case "Performance Rating": return "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800";
+    case "Software": return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800";
+    case "Data": return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800";
+    case "Manual": return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800";
+    case "Process": return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800";
+    default: return "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
   }
 }
 
@@ -402,9 +402,9 @@ function ProgressTracker({
           <Sparkles className="w-5 h-5 text-white" />
         </div>
         <div>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             {stats && stats.pending > 0 ? (
-              <>You have <strong className="text-slate-900">{stats.pending}</strong> discoveries awaiting review</>
+              <>You have <strong className="text-slate-900 dark:text-slate-100">{stats.pending}</strong> discoveries awaiting review</>
             ) : (
               "No pending discoveries right now"
             )}
@@ -415,20 +415,20 @@ function ProgressTracker({
       {/* Progress bar */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs font-medium text-slate-500">
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
             {goalReached ? (
-              <span className="text-emerald-600 flex items-center gap-1">
+              <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" /> Session goal reached!
               </span>
             ) : (
               `Today's progress`
             )}
           </span>
-          <span className={cn("text-xs font-bold", goalReached ? "text-emerald-600" : "text-violet-600")}>
+          <span className={cn("text-xs font-bold", goalReached ? "text-emerald-600 dark:text-emerald-400" : "text-violet-600 dark:text-violet-400")}>
             {reviewed}/{goal}
           </span>
         </div>
-        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
           <div
             className={cn(
               "h-full rounded-full transition-all duration-700 ease-out",
@@ -444,21 +444,21 @@ function ProgressTracker({
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-3 gap-3">
-          <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-100 text-center">
-            <span className="text-lg font-bold text-amber-700">{stats.pending}</span>
-            <p className="text-[10px] text-amber-600 font-medium">Pending</p>
+          <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-100 dark:border-amber-800 text-center">
+            <span className="text-lg font-bold text-amber-700 dark:text-amber-300">{stats.pending}</span>
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Pending</p>
           </div>
-          <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-100 text-center">
-            <span className="text-lg font-bold text-emerald-700">{stats.total_sources}</span>
-            <p className="text-[10px] text-emerald-600 font-medium">Verified</p>
+          <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-800 text-center">
+            <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{stats.total_sources}</span>
+            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Verified</p>
           </div>
-          <div className="p-2.5 rounded-lg bg-violet-50 border border-violet-100 text-center">
-            <span className="text-lg font-bold text-violet-700">
+          <div className="p-2.5 rounded-lg bg-violet-50 dark:bg-violet-950 border border-violet-100 dark:border-violet-800 text-center">
+            <span className="text-lg font-bold text-violet-700 dark:text-violet-300">
               {stats.total_sources + stats.pending > 0
                 ? Math.round((stats.total_sources / (stats.total_sources + stats.pending)) * 100)
                 : 0}%
             </span>
-            <p className="text-[10px] text-violet-600 font-medium">Coverage</p>
+            <p className="text-[10px] text-violet-600 dark:text-violet-400 font-medium">Coverage</p>
           </div>
         </div>
       )}
@@ -495,13 +495,13 @@ function MadLibsEditor({
           onChangeLogic(reassembleLogic(updated));
         }}
         rows={3}
-        className="w-full px-3 py-2 text-sm bg-slate-50 border border-violet-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 resize-none leading-relaxed"
+        className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-violet-300 dark:border-violet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 resize-none leading-relaxed dark:text-slate-200"
       />
     );
   }
 
   return (
-    <div className="text-sm leading-relaxed text-slate-700">
+    <div className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
       {localSegments.map((seg, i) => {
         if (!seg.editable) {
           return <span key={i}>{seg.text}</span>;
@@ -528,8 +528,8 @@ function MadLibsEditor({
             className={cn(
               "px-1 py-0.5 rounded font-medium",
               seg.type === "quote"
-                ? "bg-violet-100 text-violet-800"
-                : "bg-blue-50 text-blue-700"
+                ? "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-300"
+                : "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
             )}
           >
             {seg.type === "quote" ? `'${seg.text}'` : `(${seg.text})`}
@@ -563,7 +563,7 @@ function InlineInput({ value, onChange }: { value: string; onChange: (v: string)
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="border-b-2 border-violet-500 bg-violet-50 outline-none text-violet-900 font-medium text-sm px-1 py-0.5 rounded-t"
+        className="border-b-2 border-violet-500 bg-violet-50 dark:bg-violet-900 outline-none text-violet-900 dark:text-violet-200 font-medium text-sm px-1 py-0.5 rounded-t"
         style={{ width: Math.max(40, width) }}
       />
     </span>
@@ -575,7 +575,7 @@ function ImpactBadge({ candidate }: { candidate: KnowledgeCandidate }) {
   const eventCount = (candidate.events || []).length;
 
   return (
-    <div className="flex items-center flex-wrap gap-3 text-xs text-slate-400">
+    <div className="flex items-center flex-wrap gap-3 text-xs text-slate-400 dark:text-slate-500">
       {projects.length > 0 && (
         <span className="flex items-center gap-1">
           <ExternalLink className="w-3 h-3" />
@@ -595,7 +595,7 @@ function ImpactBadge({ candidate }: { candidate: KnowledgeCandidate }) {
         </span>
       )}
       {projects.length > 1 && (
-        <span className="flex items-center gap-1 text-violet-500 font-medium">
+        <span className="flex items-center gap-1 text-violet-500 dark:text-violet-400 font-medium">
           <TrendingUp className="w-3 h-3" />
           Cross-project pattern
         </span>
@@ -847,17 +847,17 @@ export function KnowledgeRefinery() {
   // ── Render ──
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/60 overflow-hidden h-full flex flex-col">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden h-full flex flex-col">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+      <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-900">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
               <Zap className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-900">Knowledge Refinery</h3>
-              <p className="text-xs text-slate-500">
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100">Knowledge Refinery</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {state.view === "feed" && `${state.candidates.length} candidates in queue`}
                 {state.view === "library" && `${state.verifiedSources.length} verified sources`}
                 {state.view === "experts" && `${state.experts.length} subject matter experts`}
@@ -879,7 +879,7 @@ export function KnowledgeRefinery() {
               dispatch({ type: "SET_LOADING", loading: false });
             }}
             disabled={state.loading}
-            className="text-slate-500"
+            className="text-slate-500 dark:text-slate-400"
           >
             <RefreshCw className={cn("w-4 h-4", state.loading && "animate-spin")} />
           </Button>
@@ -900,7 +900,7 @@ export function KnowledgeRefinery() {
               className={cn(
                 state.view === tab.id
                   ? "bg-violet-600 hover:bg-violet-700"
-                  : "hover:bg-violet-50"
+                  : "hover:bg-violet-50 dark:hover:bg-violet-900/50"
               )}
             >
               <tab.icon className="w-4 h-4 mr-2" />
@@ -919,7 +919,7 @@ export function KnowledgeRefinery() {
         ) : state.error ? (
           <div className="flex flex-col items-center justify-center h-full p-6">
             <AlertTriangle className="w-12 h-12 text-red-400 mb-4" />
-            <p className="text-sm text-slate-600 mb-4">{state.error}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">{state.error}</p>
             <Button
               onClick={async () => {
                 dispatch({ type: "SET_ERROR", error: null });
@@ -945,8 +945,8 @@ export function KnowledgeRefinery() {
               /* Empty state */
               <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
                 <CheckCircle2 className="w-16 h-16 text-emerald-400 mb-4" />
-                <h4 className="font-semibold text-slate-700 mb-2">All caught up!</h4>
-                <p className="text-sm text-slate-400">
+                <h4 className="font-semibold text-slate-700 dark:text-slate-300 mb-2">All caught up!</h4>
+                <p className="text-sm text-slate-400 dark:text-slate-500">
                   {state.sessionReviewed > 0
                     ? `You reviewed ${state.sessionReviewed} item${state.sessionReviewed !== 1 ? "s" : ""} this session.`
                     : "No pending discoveries to review."}
@@ -958,7 +958,7 @@ export function KnowledgeRefinery() {
                 <div className="w-full max-w-2xl">
                   {/* Card counter */}
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-400 dark:text-slate-500">
                       Card {state.currentIndex + 1} of {state.candidates.length}
                     </span>
                     {state.candidates.length > 1 && (
@@ -989,7 +989,7 @@ export function KnowledgeRefinery() {
                   {currentCandidate && (
                     <div
                       className={cn(
-                        "rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/50 overflow-hidden",
+                        "rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 overflow-hidden",
                         ANIMATION_CLASS[state.cardAnimation]
                       )}
                       onAnimationEnd={handleAnimationEnd}
@@ -1006,7 +1006,7 @@ export function KnowledgeRefinery() {
                             {getTypeIcon(currentCandidate.type)}
                             {currentCandidate.type}
                           </span>
-                          <h3 className="text-xl font-bold text-slate-900 leading-tight">
+                          <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 leading-tight">
                             {currentCandidate.raw_name}
                           </h3>
                         </div>
@@ -1017,7 +1017,7 @@ export function KnowledgeRefinery() {
                             {currentCandidate.projects.filter(Boolean).map((p, i) => (
                               <span
                                 key={i}
-                                className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200"
+                                className="text-xs px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-600"
                               >
                                 {p}
                               </span>
@@ -1028,8 +1028,8 @@ export function KnowledgeRefinery() {
 
                       {/* AI interpretation */}
                       <div className="px-6 pb-4">
-                        <div className="p-4 rounded-xl bg-gradient-to-br from-violet-50/80 to-purple-50/40 border border-violet-100">
-                          <p className="text-xs font-semibold text-violet-600 mb-2 flex items-center gap-1.5">
+                        <div className="p-4 rounded-xl bg-gradient-to-br from-violet-50/80 to-purple-50/40 dark:from-violet-950/50 dark:to-purple-950/30 border border-violet-100 dark:border-violet-800">
+                          <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 mb-2 flex items-center gap-1.5">
                             <Sparkles className="w-3.5 h-3.5" />
                             Engineering Assessment
                             {state.editMode && (
@@ -1049,7 +1049,7 @@ export function KnowledgeRefinery() {
                         <div className="px-6 pb-4">
                           <button
                             onClick={() => dispatch({ type: "TOGGLE_CITATION" })}
-                            className="flex items-center gap-1.5 text-xs text-violet-600 hover:text-violet-800 transition-colors"
+                            className="flex items-center gap-1.5 text-xs text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 transition-colors"
                           >
                             {state.citationExpanded ? (
                               <ChevronDown className="w-3 h-3" />
@@ -1060,8 +1060,8 @@ export function KnowledgeRefinery() {
                             Source citation
                           </button>
                           {state.citationExpanded && (
-                            <div className="mt-2 pl-3 py-2 border-l-4 border-violet-200 bg-violet-50/50 rounded-r-lg animate-fade-in">
-                              <p className="text-xs text-slate-600 italic leading-relaxed">
+                            <div className="mt-2 pl-3 py-2 border-l-4 border-violet-200 dark:border-violet-700 bg-violet-50/50 dark:bg-violet-950/30 rounded-r-lg animate-fade-in">
+                              <p className="text-xs text-slate-600 dark:text-slate-400 italic leading-relaxed">
                                 &ldquo;{currentCandidate.citation}&rdquo;
                               </p>
                             </div>
@@ -1075,7 +1075,7 @@ export function KnowledgeRefinery() {
                       </div>
 
                       {/* Actions */}
-                      <div className="px-6 pb-5 border-t border-slate-100 pt-4">
+                      <div className="px-6 pb-5 border-t border-slate-100 dark:border-slate-700 pt-4">
                         {state.editMode ? (
                           <div className="flex gap-3">
                             <Button
@@ -1104,7 +1104,7 @@ export function KnowledgeRefinery() {
                             <Button
                               onClick={handleReject}
                               variant="outline"
-                              className="flex-1 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                              className="flex-1 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700"
                               disabled={state.processingAction || state.cardAnimation !== "none"}
                             >
                               <XCircle className="w-4 h-4 mr-2" />
@@ -1113,7 +1113,7 @@ export function KnowledgeRefinery() {
                             <Button
                               onClick={() => dispatch({ type: "ENTER_EDIT" })}
                               variant="outline"
-                              className="flex-1 text-slate-600 hover:bg-slate-50"
+                              className="flex-1 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50"
                               disabled={state.processingAction || state.cardAnimation !== "none"}
                             >
                               <Pencil className="w-4 h-4 mr-2" />
@@ -1132,11 +1132,11 @@ export function KnowledgeRefinery() {
 
                         {/* Keyboard hints */}
                         {!state.editMode && (
-                          <div className="flex items-center justify-center gap-4 text-[10px] text-slate-400 mt-3">
-                            <span><kbd className="px-1.5 py-0.5 bg-slate-100 rounded font-mono">Y</kbd> Verify</span>
-                            <span><kbd className="px-1.5 py-0.5 bg-slate-100 rounded font-mono">E</kbd> Edit</span>
-                            <span><kbd className="px-1.5 py-0.5 bg-slate-100 rounded font-mono">N</kbd> Reject</span>
-                            <span><kbd className="px-1.5 py-0.5 bg-slate-100 rounded font-mono">&larr;&rarr;</kbd> Nav</span>
+                          <div className="flex items-center justify-center gap-4 text-[10px] text-slate-400 dark:text-slate-500 mt-3">
+                            <span><kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-mono">Y</kbd> Verify</span>
+                            <span><kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-mono">E</kbd> Edit</span>
+                            <span><kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-mono">N</kbd> Reject</span>
+                            <span><kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-mono">&larr;&rarr;</kbd> Nav</span>
                           </div>
                         )}
                       </div>
@@ -1150,24 +1150,24 @@ export function KnowledgeRefinery() {
           /* ═══ Library View ═══ */
           <div className="h-full flex flex-col">
             {/* Search */}
-            <div className="p-4 border-b border-slate-100">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
                 <input
                   type="text"
                   value={state.searchQuery}
                   onChange={(e) => dispatch({ type: "SET_SEARCH", query: e.target.value })}
                   placeholder="Search verified sources..."
-                  className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                  className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 dark:text-slate-200 dark:placeholder-slate-500"
                 />
               </div>
             </div>
 
             {filteredSources.length === 0 ? (
               <div className="flex flex-col items-center justify-center flex-1 p-6 text-center">
-                <BookOpen className="w-16 h-16 text-slate-300 mb-4" />
-                <h4 className="font-medium text-slate-600 mb-2">Library is empty</h4>
-                <p className="text-sm text-slate-400">
+                <BookOpen className="w-16 h-16 text-slate-300 dark:text-slate-600 mb-4" />
+                <h4 className="font-medium text-slate-600 dark:text-slate-400 mb-2">Library is empty</h4>
+                <p className="text-sm text-slate-400 dark:text-slate-500">
                   {state.searchQuery ? "No sources match your search" : "Verify discoveries to build your knowledge library"}
                 </p>
               </div>

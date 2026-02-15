@@ -1,0 +1,350 @@
+{
+  "name": "chatgpt_env_outdoor_gdmi_zm",
+  "description": "[ChatGPT Env] Outdoor + GDMI ZM → PASS (insulated + C5)",
+  "query": "GDMI 600x600 ZM for rooftop. 3400 m³/h.",
+  "session_id": "ecd9d945-e5bf-41c2-87f2-6346890ac438",
+  "duration_s": 65.5,
+  "error": "No module named 'google'",
+  "turns": [
+    {
+      "role": "user",
+      "content": "GDMI 600x600 ZM for rooftop. 3400 m³/h.",
+      "turn_number": 1,
+      "timestamp": "2026-02-15T10:43:50.258893+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "For your rooftop GDMI project, I see you've specified a 600x600 housing with ZM material and a required airflow of 3400 m³/h.Given the outdoor installation, the system is exposed to both High Humidity and Outdoor Condensation. Persistent humidity can accelerate zinc corrosion, potentially reducing the service life of the unit. Additionally, outdoor condensation on non-insulated metal surfaces is a critical concern.To finalize the configuration, I need two details:What is the minimum expected ambient temperature at the installation site?What is the typical relative humidity at the site?",
+      "turn_number": 1,
+      "timestamp": "2026-02-15T10:44:02.733110+00:00",
+      "clarification": {
+        "missing_info": "gate_validation",
+        "why_needed": "To check for condensation risk",
+        "options": [],
+        "question": "What is the minimum expected ambient temperature at the installation site? What is the typical relative humidity at the site?"
+      },
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 3,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 5
+          },
+          "overall_score": 4.3,
+          "explanation": "The system correctly identifies the product and the outdoor application but fails to recognize a critical product attribute: GDMI is already insulated. The warning regarding \"condensation on non-insulated metal surfaces\" implies the system believes the unit is uninsulated, contradicting the catalog. While asking for environmental conditions is good engineering practice, the justification provided is factually flawed regarding the specific product selected.",
+          "dimension_explanations": {
+            "correctness": "The system implies the housing has \"non-insulated metal surfaces,\" but the PDF explicitly states GDMI is \"värme- och kondensisolerat\" (heat and condensation insulated) (Page 11).",
+            "completeness": "The system correctly pauses to gather necessary environmental parameters before finalizing the configuration.",
+            "safety": "Asking for minimum temperature and humidity for a rooftop unit is a correct safety precaution to prevent condensation issues.",
+            "tone": "The response is professional and consultative.",
+            "reasoning_quality": "The logic applies generic \"outdoor metal housing\" warnings (corrosion, condensation) without accounting for the specific high-spec attributes of the selected product (Insulated, ZM material).",
+            "constraint_adherence": "The system respects the user's choice of ZM and does not block the valid configuration."
+          },
+          "strengths": [
+            "Correctly identifies the need for environmental data (temp/humidity) for outdoor installations.",
+            "Validates the product family and size against the user's request."
+          ],
+          "weaknesses": [
+            "Fails to recognize that GDMI is an insulated product family, giving a warning that contradicts the spec.",
+            "Provides a generic corrosion warning for ZM (Zinc Magnesium) material, which is specifically designed for high corrosion resistance (C4/C5)."
+          ],
+          "pdf_citations": [
+            "GDMI: \"GDMI är ett värme- och kondensisolerat modulfilterskåp\" (PDF p.11)",
+            "GDMI 600x600: Nominal airflow matches 3400 m³/h (PDF p.12 table, p.3 text)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 53.03,
+            "prompt_tokens": 15643,
+            "cached_tokens": 15977,
+            "output_tokens": 561
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 3,
+            "completeness": 2,
+            "safety": 3,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 4
+          },
+          "overall_score": 3.25,
+          "explanation": "The system correctly asked for additional environmental parameters before finalizing, but it made a questionable corrosion statement about ZM in humidity and did not address the key rooftop suitability issue (GDMI is specified for indoor use in the catalog). It also missed critical rooftop design clarifications (weatherproofing, insulation, leakage class, access/service, and whether a dedicated outdoor casing is required).",
+          "dimension_explanations": {
+            "correctness": "PDF check: GDMI 600x600 is listed with Flöde 3400 m³/h and weights 34 kg (600/650) and 43 kg (850/900) (GDMI table); however, the claim that “persistent humidity can accelerate zinc corrosion” is too generic/misleading for ZM (C5 per material page) and the response failed to note the catalog’s “För inomhusbruk” limitation for GDMI.",
+            "completeness": "It only asked for temperature and RH and did not cover rooftop-specific requirements (weather protection, drainage, insulation/condensation control strategy, access clearances, connection type PG/flange, or whether an outdoor-rated solution is needed).",
+            "safety": "It appropriately flagged condensation risk, but did not explicitly warn that the selected housing is intended for indoor use and may be unsuitable/unsafe for rooftop exposure without an outdoor enclosure.",
+            "tone": "Professional, clear, and consultative with appropriate technical language.",
+            "reasoning_quality": "The logic chain (rooftop → humidity/condensation → risk) is understandable, but it over-focuses on RH/temperature and under-justifies the corrosion claim for ZM while omitting the more decisive indoor/outdoor constraint.",
+            "constraint_adherence": "It did not output product cards prematurely and requested missing parameters; it also did not recommend an invalid configuration outright, though it should have raised the indoor-use constraint more explicitly."
+          },
+          "strengths": [
+            "Good clarification behavior before issuing a final selection (no premature product card).",
+            "Correctly highlights condensation as a key rooftop risk driver for metal housings."
+          ],
+          "weaknesses": [
+            "Misses the catalog-stated application constraint that GDMI is for indoor use, which is central to a rooftop request.",
+            "Corrosion statement about zinc in humidity is imprecise for ZM (rated C5 in the catalog) and lacks nuance (salt spray, pollutants, wet-dry cycling, cut-edge protection)."
+          ],
+          "pdf_citations": [
+            "GDMI 600x600: Flöde = 3400 m³/h (GDMI MÅTT table, row 600x600).",
+            "Material page: Zinkmagnesium ZM310 is stated as korrosivitets klass C5."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 13.51,
+            "attempt": 1,
+            "prompt_tokens": 37016,
+            "cached_tokens": 22016,
+            "output_tokens": 668
+          }
+        },
+        "anthropic": {
+          "scores": {
+            "correctness": 4,
+            "completeness": 3,
+            "safety": 4,
+            "tone": 4,
+            "reasoning_quality": 3,
+            "constraint_adherence": 4
+          },
+          "overall_score": 3.65,
+          "explanation": "The system correctly identifies GDMI 600x600 in ZM as a valid product with 3400 m³/h capacity, and raises legitimate concerns about rooftop/outdoor installation. However, the clarification questions about ambient temperature and relative humidity are somewhat tangential when the core issue — GDMI is explicitly designated 'för inomhusbruk' (indoor use only) — should have been stated more directly as a hard constraint. The response also doesn't mention that GDMI is already insulated (double-walled), which partially addresses the condensation concern it raises.",
+          "dimension_explanations": {
+            "correctness": "GDMI 600x600 with ZM material and 3400 m³/h airflow is verified correct per PDF p.12. However, the system states concern about 'non-insulated metal surfaces' when GDMI is explicitly described as 'värme- och kondensisolerat' (heat/condensation insulated) in the PDF p.11 — this is a factual error about the product's construction.",
+            "completeness": "The system raises environmental concerns but fails to explicitly state the most critical fact: GDMI is designated for indoor use only ('för inomhusbruk'), and doesn't mention housing length options (600/650 or 850/900 mm) which are needed to complete the specification.",
+            "safety": "The system correctly flags rooftop exposure as a concern and asks for clarifying environmental data, which is appropriate caution, though it should have been more explicit about the indoor-only designation being a hard block.",
+            "tone": "Professional and consultative, appropriate for a technical sales engineering context.",
+            "reasoning_quality": "The reasoning about humidity and condensation is directionally correct for outdoor installations, but the logic is undermined by incorrectly characterizing GDMI as having non-insulated surfaces when it is in fact the insulated product in the lineup.",
+            "constraint_adherence": "The system appropriately hesitates on the rooftop application but doesn't clearly enforce the indoor-only constraint; instead it asks for more data, which could imply the configuration might be possible with the right conditions."
+          },
+          "strengths": [
+            "Correctly identifies GDMI 600x600 ZM as a valid product configuration with accurate airflow capacity",
+            "Appropriately raises concerns about outdoor/rooftop installation rather than blindly recommending the product"
+          ],
+          "weaknesses": [
+            "Incorrectly states concern about 'non-insulated metal surfaces' when GDMI is explicitly a double-walled insulated housing",
+            "Fails to clearly state the hard constraint that GDMI is designated 'för inomhusbruk' (indoor use only) — should be a clear block rather than a soft clarification request"
+          ],
+          "pdf_citations": [
+            "GDMI 600x600: Flöde = 3400 m³/h, available in ZM material (PDF p.11-12)",
+            "GDMI is described as 'värme- och kondensisolerat modulfilterskåp. För inomhusbruk.' (PDF p.11)",
+            "GDMI 600x600 weight: 34 kg (600/650 length) or 43 kg (850/900 length) (PDF p.12)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 27.35,
+            "attempt": 1,
+            "prompt_tokens": 375,
+            "cached_tokens": 53770,
+            "output_tokens": 873
+          }
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDMI",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Consider alternative technology",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 13 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "♟️ Additional info needed",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "ZM",
+        "project": "rooftop",
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": "rooftop",
+        "locked_material": "ZM",
+        "detected_family": "GDMI",
+        "accessories": [],
+        "pending_clarification": "gate_validation",
+        "resolved_params": {
+          "installation_environment": "ENV_OUTDOOR",
+          "airflow_m3h": "3400",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": 3400,
+            "product_family": "GDMI",
+            "product_code": "GDMI-600x600-R-PG-ZM",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 2,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "ecd9d945-e5bf-41c2-87f2-6346890ac438",
+        "project": {
+          "detected_family": "GDMI",
+          "resolved_params": "{\"installation_environment\": \"ENV_OUTDOOR\", \"airflow_m3h\": \"3400\", \"connection_type\": \"PG\"}",
+          "assembly_group": null,
+          "locked_material": "ZM",
+          "accessories": null,
+          "name": "rooftop",
+          "pending_clarification": "gate_validation",
+          "customer": null,
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDMI",
+            "quantity": 1,
+            "airflow_m3h": 3400,
+            "session_id": "ecd9d945-e5bf-41c2-87f2-6346890ac438",
+            "filter_height": 600,
+            "product_code": "GDMI-600x600-R-PG-ZM",
+            "housing_width": 600,
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_ecd9d945-e5bf-41c2-87f2-6346890ac438_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to ZM -> Filter 600x600mm -> Sized to 600x600 -> Code: GDMI-600x600-R-PG-ZM"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "For your rooftop GDMI project, I see you've specified a 600x600 housing with ZM material and a required airflow of 3400 m³/h.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Given the outdoor installation, the system is exposed to both ",
+          "type": "GENERAL"
+        },
+        {
+          "text": "High Humidity",
+          "type": "INFERENCE",
+          "inference_logic": "Stressor: High Humidity | Relevant trait: Corrosion Resistance C3"
+        },
+        {
+          "text": " and ",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Outdoor Condensation",
+          "type": "INFERENCE",
+          "inference_logic": "Stressor: Outdoor Condensation | Required trait: Thermal Insulation"
+        },
+        {
+          "text": ". Persistent humidity can accelerate zinc corrosion, potentially reducing the service life of the unit. Additionally, outdoor condensation on non-insulated metal surfaces is a critical concern.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "To finalize the configuration, I need two details:",
+          "type": "GENERAL"
+        },
+        {
+          "text": "What is the minimum expected ambient temperature at the installation site?",
+          "type": "GENERAL"
+        },
+        {
+          "text": "What is the typical relative humidity at the site?",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

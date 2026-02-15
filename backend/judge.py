@@ -351,11 +351,12 @@ def _judge_with_gemini(question: str, response_data: dict) -> JudgeResult:
 # OpenAI judge (with PDF)
 # ---------------------------------------------------------------------------
 
-def _judge_with_openai(question: str, response_data: dict) -> JudgeResult:
+def _judge_with_openai(question: str, response_data: dict, _retries: int = 3) -> JudgeResult:
     """Call GPT-5.2 to judge a single response, with PDF context.
 
     Uses OpenAI Files API: PDF uploaded once, referenced by file_id on each call.
     OpenAI auto-caches matching prompt prefixes (50% discount on cached tokens).
+    Retries on 429 rate-limit errors with exponential backoff.
     """
     from openai import OpenAI
 
@@ -379,49 +380,68 @@ def _judge_with_openai(question: str, response_data: dict) -> JudgeResult:
         print("  [JUDGE] GPT-5.2: no PDF available, text-only evaluation")
     user_content.append({"type": "input_text", "text": user_prompt + "\n\nReturn your evaluation as a JSON object."})
 
-    t0 = time.time()
-    try:
-        response = client.responses.create(
-            model=OPENAI_JUDGE_MODEL,
-            instructions=JUDGE_SYSTEM_PROMPT,
-            input=[{"role": "user", "content": user_content}],
-            text={"format": {"type": "json_object"}},
-            max_output_tokens=4096,
-        )
-        raw = response.output_text.strip()
-        duration = round(time.time() - t0, 2)
+    last_error = None
+    for attempt in range(_retries):
+        t0 = time.time()
+        try:
+            response = client.responses.create(
+                model=OPENAI_JUDGE_MODEL,
+                instructions=JUDGE_SYSTEM_PROMPT,
+                input=[{"role": "user", "content": user_content}],
+                text={"format": {"type": "json_object"}},
+                max_output_tokens=8192,
+                temperature=0.0,
+            )
+            raw = response.output_text.strip()
+            duration = round(time.time() - t0, 2)
 
-        # Collect usage
-        usage_data = {"duration_s": duration}
-        usage = getattr(response, "usage", None)
-        if usage:
-            usage_data["prompt_tokens"] = getattr(usage, "input_tokens", 0) or 0
-            input_cached = getattr(usage, "input_tokens_details", None)
-            usage_data["cached_tokens"] = getattr(input_cached, "cached_tokens", 0) if input_cached else 0
-            usage_data["output_tokens"] = getattr(usage, "output_tokens", 0) or 0
-            print(f"  [JUDGE] GPT-5.2 responded in {duration}s | "
-                  f"prompt={usage_data['prompt_tokens']}, "
-                  f"cached={usage_data['cached_tokens']}, "
-                  f"output={usage_data['output_tokens']}")
-        else:
-            print(f"  [JUDGE] GPT-5.2 responded in {duration}s ({len(raw)} chars)")
-    except Exception as e:
-        print(f"  [JUDGE] GPT-5.2 call failed: {e}")
-        return JudgeResult(explanation=f"GPT-5.2 judge failed: {e}", recommendation="ERROR")
+            # Collect usage
+            usage_data = {"duration_s": duration, "attempt": attempt + 1}
+            usage = getattr(response, "usage", None)
+            if usage:
+                usage_data["prompt_tokens"] = getattr(usage, "input_tokens", 0) or 0
+                input_cached = getattr(usage, "input_tokens_details", None)
+                usage_data["cached_tokens"] = getattr(input_cached, "cached_tokens", 0) if input_cached else 0
+                usage_data["output_tokens"] = getattr(usage, "output_tokens", 0) or 0
+                print(f"  [JUDGE] GPT-5.2 responded in {duration}s | "
+                      f"prompt={usage_data['prompt_tokens']}, "
+                      f"cached={usage_data['cached_tokens']}, "
+                      f"output={usage_data['output_tokens']}"
+                      f"{f' (retry {attempt})' if attempt > 0 else ''}")
+            else:
+                print(f"  [JUDGE] GPT-5.2 responded in {duration}s ({len(raw)} chars)")
 
-    result = _parse_judge_json(raw)
-    result.usage = usage_data
-    return result
+            result = _parse_judge_json(raw)
+            result.usage = usage_data
+            return result
+
+        except Exception as e:
+            last_error = e
+            err_str = str(e)
+            # Retry on rate limit (429) or server errors (5xx)
+            if ("429" in err_str or "500" in err_str or "502" in err_str
+                    or "503" in err_str or "rate" in err_str.lower()):
+                wait = 2 ** (attempt + 1) + (attempt * 2)  # 2, 6, 12 seconds
+                print(f"  [JUDGE] GPT-5.2 rate limited (attempt {attempt + 1}/{_retries}), waiting {wait}s...")
+                time.sleep(wait)
+                continue
+            # Non-retryable error
+            print(f"  [JUDGE] GPT-5.2 call failed: {e}")
+            return JudgeResult(explanation=f"GPT-5.2 judge failed: {e}", recommendation="ERROR")
+
+    print(f"  [JUDGE] GPT-5.2 exhausted {_retries} retries: {last_error}")
+    return JudgeResult(explanation=f"GPT-5.2 judge failed after {_retries} retries: {last_error}", recommendation="ERROR")
 
 
 # ---------------------------------------------------------------------------
 # Claude judge (with PDF)
 # ---------------------------------------------------------------------------
 
-def _judge_with_claude(question: str, response_data: dict) -> JudgeResult:
+def _judge_with_claude(question: str, response_data: dict, _retries: int = 3) -> JudgeResult:
     """Call Claude Opus 4.6 to judge a single response, with PDF context.
 
     Uses Anthropic Messages API with native PDF document attachment.
+    Retries on connection errors and rate limits with exponential backoff.
     """
     import anthropic
 
@@ -451,43 +471,58 @@ def _judge_with_claude(question: str, response_data: dict) -> JudgeResult:
         print("  [JUDGE] Claude: no PDF available, text-only evaluation")
     user_content.append({"type": "text", "text": user_prompt + "\n\nReturn your evaluation as a JSON object."})
 
-    t0 = time.time()
-    try:
-        response = client.messages.create(
-            model=CLAUDE_JUDGE_MODEL,
-            max_tokens=8192,
-            temperature=0.0,
-            system=JUDGE_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_content}],
-        )
-        raw = response.content[0].text if response.content else ""
-        if isinstance(raw, str):
-            raw = raw.strip()
-        duration = round(time.time() - t0, 2)
+    last_error = None
+    for attempt in range(_retries):
+        t0 = time.time()
+        try:
+            response = client.messages.create(
+                model=CLAUDE_JUDGE_MODEL,
+                max_tokens=8192,
+                temperature=0.0,
+                system=JUDGE_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_content}],
+            )
+            raw = response.content[0].text if response.content else ""
+            if isinstance(raw, str):
+                raw = raw.strip()
+            duration = round(time.time() - t0, 2)
 
-        # Collect usage
-        usage_data = {"duration_s": duration}
-        usage = getattr(response, "usage", None)
-        if usage:
-            usage_data["prompt_tokens"] = getattr(usage, "input_tokens", 0) or 0
-            usage_data["cached_tokens"] = getattr(usage, "cache_read_input_tokens", 0) or 0
-            usage_data["output_tokens"] = getattr(usage, "output_tokens", 0) or 0
-            print(f"  [JUDGE] Claude responded in {duration}s | "
-                  f"prompt={usage_data['prompt_tokens']}, "
-                  f"cached={usage_data['cached_tokens']}, "
-                  f"output={usage_data['output_tokens']}")
-        else:
-            print(f"  [JUDGE] Claude responded in {duration}s (no usage data)")
-    except Exception as e:
-        print(f"  [JUDGE] Claude call failed: {e}")
-        return JudgeResult(explanation=f"Claude judge failed: {e}", recommendation="ERROR")
+            # Collect usage
+            usage_data = {"duration_s": duration, "attempt": attempt + 1}
+            usage = getattr(response, "usage", None)
+            if usage:
+                usage_data["prompt_tokens"] = getattr(usage, "input_tokens", 0) or 0
+                usage_data["cached_tokens"] = getattr(usage, "cache_read_input_tokens", 0) or 0
+                usage_data["output_tokens"] = getattr(usage, "output_tokens", 0) or 0
+                print(f"  [JUDGE] Claude responded in {duration}s | "
+                      f"prompt={usage_data['prompt_tokens']}, "
+                      f"cached={usage_data['cached_tokens']}, "
+                      f"output={usage_data['output_tokens']}"
+                      f"{f' (retry {attempt})' if attempt > 0 else ''}")
+            else:
+                print(f"  [JUDGE] Claude responded in {duration}s (no usage data)")
 
-    # Debug: log first 200 chars of raw response to diagnose parsing issues
-    print(f"  [JUDGE] Claude raw response (first 200 chars): {repr(raw[:200])}")
+            result = _parse_judge_json(raw)
+            result.usage = usage_data
+            return result
 
-    result = _parse_judge_json(raw)
-    result.usage = usage_data
-    return result
+        except Exception as e:
+            last_error = e
+            err_str = str(e)
+            # Retry on connection errors, rate limits, and server errors
+            if ("connection" in err_str.lower() or "429" in err_str
+                    or "500" in err_str or "502" in err_str or "503" in err_str
+                    or "overloaded" in err_str.lower() or "timeout" in err_str.lower()):
+                wait = 2 ** (attempt + 1) + (attempt * 2)  # 2, 6, 12 seconds
+                print(f"  [JUDGE] Claude error (attempt {attempt + 1}/{_retries}): {err_str[:100]}, waiting {wait}s...")
+                time.sleep(wait)
+                continue
+            # Non-retryable error
+            print(f"  [JUDGE] Claude call failed: {e}")
+            return JudgeResult(explanation=f"Claude judge failed: {e}", recommendation="ERROR")
+
+    print(f"  [JUDGE] Claude exhausted {_retries} retries: {last_error}")
+    return JudgeResult(explanation=f"Claude judge failed after {_retries} retries: {last_error}", recommendation="ERROR")
 
 
 # Backward-compat alias used by batch/streaming orchestrator

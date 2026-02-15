@@ -128,7 +128,7 @@ function StepControls({
     AUTOPLAY_SPEEDS.find((s) => s.value === autoplaySpeed)?.label || "Off";
 
   return (
-    <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-t border-slate-200">
+    <div className="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
       {/* Navigation Controls */}
       <div className="flex items-center gap-1">
         <button
@@ -138,7 +138,7 @@ function StepControls({
             "p-1.5 rounded-md transition-colors",
             current === 0
               ? "text-slate-300 cursor-not-allowed"
-              : "text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+              : "text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-300"
           )}
           title="First step"
         >
@@ -151,7 +151,7 @@ function StepControls({
             "p-1.5 rounded-md transition-colors",
             current === 0
               ? "text-slate-300 cursor-not-allowed"
-              : "text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+              : "text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-300"
           )}
           title="Previous step"
         >
@@ -162,8 +162,8 @@ function StepControls({
           className={cn(
             "p-2 rounded-lg transition-colors",
             isPlaying
-              ? "bg-blue-100 text-blue-600"
-              : "bg-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600"
+              ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+              : "bg-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
           )}
           title={isPlaying ? "Pause" : "Play"}
         >
@@ -180,7 +180,7 @@ function StepControls({
             "p-1.5 rounded-md transition-colors",
             current === total - 1
               ? "text-slate-300 cursor-not-allowed"
-              : "text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+              : "text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-300"
           )}
           title="Next step"
         >
@@ -193,7 +193,7 @@ function StepControls({
             "p-1.5 rounded-md transition-colors",
             current === total - 1
               ? "text-slate-300 cursor-not-allowed"
-              : "text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+              : "text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-300"
           )}
           title="Last step"
         >
@@ -202,7 +202,7 @@ function StepControls({
       </div>
 
       {/* Step Counter */}
-      <div className="text-xs font-medium text-slate-600">
+      <div className="text-xs font-medium text-slate-600 dark:text-slate-400">
         Step{" "}
         <span className="text-blue-600">
           {current + 1}/{total}
@@ -213,14 +213,14 @@ function StepControls({
       <div className="relative">
         <button
           onClick={() => setShowSpeedDropdown(!showSpeedDropdown)}
-          className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
+          className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
         >
           <span className="text-slate-400">Auto:</span>
           <span>{currentSpeedLabel}</span>
           <ChevronDown className="w-3 h-3 text-slate-400" />
         </button>
         {showSpeedDropdown && (
-          <div className="absolute right-0 bottom-full mb-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 min-w-[100px]">
+          <div className="absolute right-0 bottom-full mb-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-20 py-1 min-w-[100px]">
             {AUTOPLAY_SPEEDS.map((speed) => (
               <button
                 key={speed.label}

@@ -93,44 +93,44 @@ export function ThreadInspectorSheet({
     switch (type) {
       case "Symptom":
         return {
-          bg: "bg-red-50",
-          border: "border-red-300",
-          text: "text-red-700",
+          bg: "bg-red-50 dark:bg-red-900/20",
+          border: "border-red-300 dark:border-red-800",
+          text: "text-red-700 dark:text-red-400",
           icon: "text-red-500",
         };
       case "Constraint":
         return {
-          bg: "bg-amber-50",
-          border: "border-amber-300",
-          text: "text-amber-700",
+          bg: "bg-amber-50 dark:bg-amber-900/20",
+          border: "border-amber-300 dark:border-amber-800",
+          text: "text-amber-700 dark:text-amber-400",
           icon: "text-amber-500",
         };
       case "Blocker":
         return {
-          bg: "bg-orange-50",
-          border: "border-orange-300",
-          text: "text-orange-700",
+          bg: "bg-orange-50 dark:bg-orange-900/20",
+          border: "border-orange-300 dark:border-orange-800",
+          text: "text-orange-700 dark:text-orange-400",
           icon: "text-orange-500",
         };
       case "Standard":
         return {
-          bg: "bg-blue-50",
-          border: "border-blue-300",
-          text: "text-blue-700",
+          bg: "bg-blue-50 dark:bg-blue-900/20",
+          border: "border-blue-300 dark:border-blue-800",
+          text: "text-blue-700 dark:text-blue-400",
           icon: "text-blue-500",
         };
       case "Workaround":
         return {
-          bg: "bg-emerald-50",
-          border: "border-emerald-300",
-          text: "text-emerald-700",
+          bg: "bg-emerald-50 dark:bg-emerald-900/20",
+          border: "border-emerald-300 dark:border-emerald-800",
+          text: "text-emerald-700 dark:text-emerald-400",
           icon: "text-emerald-500",
         };
       default:
         return {
-          bg: "bg-slate-50",
-          border: "border-slate-200",
-          text: "text-slate-600",
+          bg: "bg-slate-50 dark:bg-slate-800",
+          border: "border-slate-200 dark:border-slate-700",
+          text: "text-slate-600 dark:text-slate-400",
           icon: "text-slate-400",
         };
     }
@@ -146,7 +146,7 @@ export function ThreadInspectorSheet({
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-xl p-0">
-        <SheetHeader className="p-6 pb-4 border-b border-slate-100">
+        <SheetHeader className="p-6 pb-4 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
               <FileText className="w-5 h-5 text-white" />
@@ -172,8 +172,8 @@ export function ThreadInspectorSheet({
 
             {/* Error State */}
             {error && (
-              <div className="p-4 rounded-xl bg-red-50 border border-red-200">
-                <p className="text-sm text-red-700">{error}</p>
+              <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
               </div>
             )}
 
@@ -181,13 +181,13 @@ export function ThreadInspectorSheet({
             {!loading && !error && data && (
               <div className="space-y-4">
                 {/* Project Header */}
-                <div className="p-4 rounded-xl bg-gradient-to-br from-slate-50 to-blue-50 border border-slate-200">
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-800 dark:to-blue-900/20 border border-slate-200 dark:border-slate-700">
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
                     Project Reference
                   </p>
-                  <p className="font-semibold text-slate-900">{data.project}</p>
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">{data.project}</p>
                   {data.customer && (
-                    <p className="text-sm text-slate-600 mt-1">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                       Customer: {data.customer}
                     </p>
                   )}
@@ -195,7 +195,7 @@ export function ThreadInspectorSheet({
 
                 {/* Timeline Events */}
                 <div className="space-y-3">
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Email Thread ({data.timeline.length} messages)
                   </p>
 
@@ -212,7 +212,7 @@ export function ThreadInspectorSheet({
                           "relative p-4 rounded-xl border-2 transition-all",
                           hasLogic
                             ? `${logicStyle!.bg} ${logicStyle!.border}`
-                            : "bg-white border-slate-100 hover:border-slate-200"
+                            : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-slate-200 dark:hover:border-slate-600"
                         )}
                       >
                         {/* Step indicator */}
@@ -224,7 +224,7 @@ export function ThreadInspectorSheet({
                         <div className="ml-4">
                           <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
                             <User className="w-3 h-3" />
-                            <span className="font-medium text-slate-700">
+                            <span className="font-medium text-slate-700 dark:text-slate-300">
                               {event.sender}
                             </span>
                             {(event.date || event.time) && (
@@ -242,14 +242,14 @@ export function ThreadInspectorSheet({
                           {/* Email Summary */}
                           <div className="flex items-start gap-2 mb-2">
                             <Mail className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
-                            <p className="text-sm text-slate-700">
+                            <p className="text-sm text-slate-700 dark:text-slate-300">
                               {event.summary}
                             </p>
                           </div>
 
                           {/* Logic Node (if present) */}
                           {hasLogic && (
-                            <div className="mt-3 pt-3 border-t border-slate-200/50">
+                            <div className="mt-3 pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
                               {/* Logic Tag */}
                               <div className="flex items-center gap-2 mb-2">
                                 <span
@@ -275,16 +275,16 @@ export function ThreadInspectorSheet({
                               </div>
 
                               {/* Logic Description */}
-                              <p className="text-sm text-slate-700 mb-2">
+                              <p className="text-sm text-slate-700 dark:text-slate-300 mb-2">
                                 {event.logic_node!.description}
                               </p>
 
                               {/* Citation (Source Evidence) */}
                               {event.logic_node!.citation && (
-                                <div className="mt-2 pl-3 py-2 border-l-4 border-slate-300 bg-white/50 rounded-r-lg">
+                                <div className="mt-2 pl-3 py-2 border-l-4 border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50 rounded-r-lg">
                                   <div className="flex items-start gap-2">
                                     <Quote className="w-3 h-3 text-slate-400 flex-shrink-0 mt-0.5" />
-                                    <p className="text-xs text-slate-500 italic leading-relaxed">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 italic leading-relaxed">
                                       "{event.logic_node!.citation}"
                                     </p>
                                   </div>

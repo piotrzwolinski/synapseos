@@ -39,13 +39,13 @@ export function ReferenceCaseCard({ data }: ReferenceCaseCardProps) {
   };
 
   return (
-    <Card className="border-blue-200 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 shadow-sm overflow-hidden">
+    <Card className="border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 dark:from-blue-950/30 dark:to-indigo-950/20 shadow-sm overflow-hidden">
       {/* Accent bar */}
       <div className="h-1 bg-gradient-to-r from-blue-500 to-indigo-500" />
 
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold text-blue-900">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold text-blue-900 dark:text-blue-200">
             <History className="w-5 h-5 text-blue-600" />
             Historical Reference
           </CardTitle>
@@ -53,53 +53,53 @@ export function ReferenceCaseCard({ data }: ReferenceCaseCardProps) {
             Case Study
           </Badge>
         </div>
-        <p className="text-lg font-bold text-slate-900 mt-1">
+        <p className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
           {projectName}
         </p>
       </CardHeader>
 
       <CardContent className="pb-3 space-y-3">
         {/* Symptom */}
-        <div className="flex items-start gap-3 p-3 rounded-lg bg-red-50 border border-red-100">
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800">
           <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-xs font-semibold text-red-700 uppercase tracking-wider mb-0.5">
+            <p className="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wider mb-0.5">
               Symptom
             </p>
-            <p className="text-sm text-red-900">{symptom}</p>
+            <p className="text-sm text-red-900 dark:text-red-200">{symptom}</p>
           </div>
         </div>
 
         {/* Root Cause */}
-        <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 border border-amber-100">
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800">
           <Lightbulb className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-0.5">
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-0.5">
               Root Cause
             </p>
-            <p className="text-sm text-amber-900">{rootCause}</p>
+            <p className="text-sm text-amber-900 dark:text-amber-200">{rootCause}</p>
           </div>
         </div>
 
         {/* Solution */}
-        <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50 border border-emerald-100">
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800">
           <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider mb-0.5">
+            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-0.5">
               Solution Applied
             </p>
-            <p className="text-sm text-emerald-900">{solution}</p>
+            <p className="text-sm text-emerald-900 dark:text-emerald-200">{solution}</p>
           </div>
         </div>
       </CardContent>
 
-      <Separator className="bg-blue-200/50" />
+      <Separator className="bg-blue-200/50 dark:bg-blue-800/50" />
 
       <CardFooter className="pt-3">
         <Button
           variant="outline"
           onClick={handleViewThread}
-          className="w-full border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+          className="w-full border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-800 dark:hover:text-blue-300"
         >
           <ExternalLink className="w-4 h-4 mr-2" />
           {getText(data.link_label) || "View Details"}

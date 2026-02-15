@@ -1,0 +1,324 @@
+{
+  "name": "chatgpt_gdb_1200x900_10000_ok",
+  "description": "[ChatGPT] GDB 1200x900 at 10000 m³/h → OK (capacity 10200)",
+  "query": "I need a GDB housing 1200x900 for 10000 m³/h airflow. FZ material.",
+  "session_id": "1e9dd259-c299-416f-9ffa-9ae61a126d24",
+  "duration_s": 55.1,
+  "error": "Missing key inputs argument! To use the Google AI API, provide (`api_key`) arguments. To use the Google Cloud API, provide (`vertexai`, `project` & `location`) arguments.",
+  "turns": [
+    {
+      "role": "user",
+      "content": "I need a GDB housing 1200x900 for 10000 m³/h airflow. FZ material.",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T22:54:27.470001+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "We are configuring a GDB housing with dimensions 1200x900mm for an airflow of 10000 m³/h, using FZ (Sendzimir galvanized steel) material.To finalize the configuration, I need to know the housing length.",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T22:54:38.159287+00:00",
+      "clarification": {
+        "missing_info": "housing_length",
+        "why_needed": "The housing length depends on the filter depth used in your application.",
+        "options": [
+          {
+            "value": "550",
+            "description": "550mm",
+            "display_label": "550mm (Short Housing)"
+          },
+          {
+            "value": "750",
+            "description": "750mm",
+            "display_label": "750mm (Long Housing)"
+          }
+        ],
+        "question": "Which housing length is required?"
+      },
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 5.0,
+          "explanation": "The system correctly validated the user's request against the GDB product specifications. It recognized that 10,000 m³/h is a valid airflow for a 1200x900 GDB housing (rated up to 10,200 m³/h) and correctly identified that the housing length was missing, which is necessary to distinguish between the 550mm and 750mm versions.",
+          "dimension_explanations": {
+            "correctness": "Verified GDB 1200x900 capacity is 10,200 m³/h on PDF p.9, confirming the user's 10,000 m³/h request is valid (unlike the GDP model which is lower).",
+            "completeness": "Correctly paused to ask for housing length, which is a required parameter for GDB selection (PDF p.8) to determine if it is for short or long filters.",
+            "safety": "No safety issues; the requested airflow is within the rated capacity for this specific product family.",
+            "tone": "Professional and concise.",
+            "reasoning_quality": "The system logic is sound: it accepted a valid size/flow combination and asked for the specific variable needed to finalize the part number.",
+            "constraint_adherence": "Strictly adhered to the catalog structure where GDB housings require a length specification (550mm or 750mm)."
+          },
+          "strengths": [
+            "Accurate verification of airflow capacity for the specific GDB product family",
+            "Correct identification of missing configuration parameters (length)"
+          ],
+          "weaknesses": [],
+          "pdf_citations": [
+            "GDB 1200x900: Flöde = 10 200 m³/h (PDF p.9)",
+            "GDB lengths: 550 mm or 750 mm (PDF p.8)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 44.42,
+            "prompt_tokens": 15421,
+            "cached_tokens": 15822,
+            "output_tokens": 528
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 4,
+            "completeness": 2,
+            "safety": 4,
+            "tone": 5,
+            "reasoning_quality": 4,
+            "constraint_adherence": 3
+          },
+          "overall_score": 3.65,
+          "explanation": "The system correctly asked for the missing housing length before issuing a product card, which is appropriate. However, it failed to flag a key sizing constraint: the requested 10,000 m³/h exceeds the catalog airflow for GDB 1200x900, so the configuration should have triggered a multi-module/bigger-size recommendation rather than only asking for length.",
+          "dimension_explanations": {
+            "correctness": "PDF confirms GDB size 1200x900 exists with flow 10,200 m³/h and weights 61 kg (750/800) and 49 kg (550/600); asking for length is valid, and the general reasoning is sound, but the system did not validate the user’s 10,000 m³/h against the catalog value explicitly.",
+            "completeness": "It only asked for length and did not check/confirm the airflow capacity match, available length variants (550/600 vs 750/800), connection type (PG vs flange), or door handing despite these affecting the final part number.",
+            "safety": "No unsafe advice was given, but it missed an opportunity to confirm inomhusbruk limitation and whether FZ/C2-C3 is acceptable for the actual environment (e.g., outdoor/marine/chlorine).",
+            "tone": "Professional and appropriately concise for a technical configuration step.",
+            "reasoning_quality": "Clear next-step logic (missing parameter → ask for it), but lacks the engineering check that the selected size/flow is within recommended limits and what margin is intended.",
+            "constraint_adherence": "It respected the process constraint of collecting missing parameters before a product card, but did not enforce the catalog sizing constraint/check to confirm that 1200x900 is appropriate for 10,000 m³/h and whether the selection should be 550/600 or 750/800 length."
+          },
+          "strengths": [
+            "Correctly requests missing housing length before producing a final configuration/product card.",
+            "Maintains a professional, configuration-oriented dialogue consistent with HVAC sales engineering practice."
+          ],
+          "weaknesses": [
+            "Does not validate user airflow against the catalog flow rating for the selected size or discuss margin/velocity implications.",
+            "Does not ask other required ordering parameters shown in the catalog (length option, connection PG vs F40, door handing) before readiness for a product card."
+          ],
+          "pdf_citations": [
+            "GDB 1200x900: Flöde = 10 200 m³/h; Vikt 61 kg (750/800) and 49 kg (550/600) (GDB MÅTT table, PDF).",
+            "GDB standard lengths are 550/600 mm and 750/800 mm for short vs long bag filters/compact filters (GDB UTFÖRANDE text, PDF)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 14.14,
+            "prompt_tokens": 36793,
+            "cached_tokens": 0,
+            "output_tokens": 679
+          }
+        },
+        "anthropic": {
+          "scores": {
+            "correctness": 4,
+            "completeness": 4,
+            "safety": 3,
+            "tone": 5,
+            "reasoning_quality": 4,
+            "constraint_adherence": 4
+          },
+          "overall_score": 3.95,
+          "explanation": "The system correctly identifies the GDB 1200x900 as a valid size and appropriately asks for the housing length before finalizing. The airflow claim of 10,000 m³/h is close but slightly below the PDF-listed 10,200 m³/h for GDB 1200x900, though the system doesn't explicitly confirm or deny the airflow match yet. The clarification request for housing length is correct behavior since GDB comes in 550/600mm and 750/800mm lengths.",
+          "dimension_explanations": {
+            "correctness": "GDB 1200x900 exists in the PDF (p.9) with airflow capacity of 10,200 m³/h — the user's requested 10,000 m³/h is slightly below this, which the system hasn't yet addressed but hasn't made incorrect claims either; FZ material description as 'Sendzimir galvanized steel' is a minor imprecision since the PDF describes it as 'förzinkat' (hot-dip galvanized Z275), not Sendzimir.",
+            "completeness": "The system correctly identifies the need for housing length (550/600 or 750/800mm) as a missing parameter, which is appropriate mid-conversation behavior; it has not yet addressed airflow verification, weight, or environment suitability but the conversation is still in progress.",
+            "safety": "No safety warnings were provided about the FZ material being rated C2/C3 (indoor use only) or about the single-wall uninsulated construction; these would be expected even at the clarification stage.",
+            "tone": "Professional and consultative tone appropriate for a technical sales engineering context.",
+            "reasoning_quality": "The system demonstrates clear logic by identifying the missing housing length parameter before proceeding, which is the correct engineering approach since filter depth determines housing length selection.",
+            "constraint_adherence": "The system correctly recognizes GDB 1200x900 as a valid configuration and FZ as an available material option; no constraints were violated."
+          },
+          "strengths": [
+            "Correctly identifies housing length as a required parameter before finalizing the recommendation",
+            "Recognizes GDB 1200x900 as a valid product size from the catalog"
+          ],
+          "weaknesses": [
+            "Describes FZ as 'Sendzimir galvanized steel' when the PDF specifies it as hot-dip galvanized (varmförzinkning) Z275 — these are different galvanizing processes",
+            "Does not mention that the actual GDB 1200x900 capacity is 10,200 m³/h, which exceeds the user's 10,000 m³/h requirement — a brief confirmation would be helpful even at the clarification stage"
+          ],
+          "pdf_citations": [
+            "GDB 1200x900: Flöde = 10,200 m³/h, Vikt 550/600 = 49 kg, Vikt 750/800 = 61 kg (PDF p.9)",
+            "FZ material: 'Plåten består av en stålkärna som metalliseras genom varmförzinkning. Z275, korrosivitets klass C3' (PDF p.4)",
+            "GDB standard lengths: 550/600mm and 750/800mm (PDF p.8)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 26.25,
+            "prompt_tokens": 295,
+            "cached_tokens": 53610,
+            "output_tokens": 883
+          }
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 19 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "♟️ Additional info needed",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "FZ",
+        "dimension_mappings": [
+          {
+            "width": 1200,
+            "height": 900,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": "FZ",
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": "housing_length",
+        "resolved_params": {
+          "airflow_m3h": "10000",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 1200,
+            "filter_height": 900,
+            "filter_depth": null,
+            "housing_width": 1200,
+            "housing_height": 900,
+            "housing_length": null,
+            "airflow_m3h": 10000,
+            "product_family": "GDB",
+            "product_code": "GDB-1200x900-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 0,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "1e9dd259-c299-416f-9ffa-9ae61a126d24",
+        "project": {
+          "detected_family": "GDB",
+          "resolved_params": "{\"airflow_m3h\": \"10000\", \"connection_type\": \"PG\"}",
+          "assembly_group": null,
+          "locked_material": "FZ",
+          "accessories": null,
+          "name": null,
+          "pending_clarification": "housing_length",
+          "customer": null,
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "quantity": 1,
+            "airflow_m3h": 10000,
+            "session_id": "1e9dd259-c299-416f-9ffa-9ae61a126d24",
+            "filter_height": 900,
+            "product_code": "GDB-1200x900-R-PG-FZ",
+            "housing_width": 1200,
+            "filter_width": 1200,
+            "housing_height": 900,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_1e9dd259-c299-416f-9ffa-9ae61a126d24_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to FZ -> Filter 1200x900mm -> Sized to 1200x900 -> Code: GDB-1200x900-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "We are configuring a GDB housing with dimensions 1200x900mm for an airflow of 10000 m³/h, using FZ (Sendzimir galvanized steel) material.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "To finalize the configuration, I need to know the housing length.",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,383 @@
+{
+  "name": "chatgpt_insulated_c5_gdmi_zm",
+  "description": "[ChatGPT] Insulated housing + C5 corrosion → GDMI in ZM (no RF/SF for GDMI)",
+  "query": "I need an insulated filter housing with C5 corrosion resistance for a coastal industrial facility. Size 600x600, airflow 3400 m³/h.",
+  "session_id": "68689bf3-af9d-4b93-ab5c-21ecb40aa5f6",
+  "duration_s": 60.8,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "I need an insulated filter housing with C5 corrosion resistance for a coastal industrial facility. Size 600x600, airflow 3400 m³/h.",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T23:25:07.941565+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "The initial product selections (GDB and GDP) are not suitable for your coastal industrial facility due to the presence of Salt Spray. This accelerates corrosion of the C3-rated galvanized steel (FZ) housings. Marine/coastal environments require C5.1 marine-grade corrosion resistance (acid-proof stainless steel). Therefore, I have configured a two-stage filtration system using acid-proof stainless steel (SF) to withstand the corrosive environment.The system consists of:Additionally, the requested 3400 airflow_m3h exceeds the recommended flow of 2000 for a single 600x600 module. 2 parallel units are required. Alternatively, a single 800x800 mm module can handle 3556 m³/h.",
+      "turn_number": 1,
+      "timestamp": "2026-02-14T23:25:24.169195+00:00",
+      "clarification": null,
+      "product_card": {
+        "title": "Stage 1 (PROTECTOR): GDB Kanalfilterskåp",
+        "specs": {
+          "Housing corrosion class": "C2",
+          "Material": "Acid-proof Stainless Steel (SF)",
+          "Dimensions": "1200x600mm",
+          "Airflow": "4000.0 m³/h",
+          "Parallel Units Required": "2 units",
+          "Product Code": "GDB-600x600-R-PG-SF"
+        },
+        "warning": null,
+        "confidence": "high",
+        "actions": [
+          "Add to Quote"
+        ]
+      },
+      "product_cards": [
+        {
+          "title": "Stage 1 (PROTECTOR): GDB Kanalfilterskåp",
+          "specs": {
+            "Housing corrosion class": "C2",
+            "Material": "Acid-proof Stainless Steel (SF)",
+            "Dimensions": "1200x600mm",
+            "Airflow": "4000.0 m³/h",
+            "Parallel Units Required": "2 units",
+            "Product Code": "GDB-600x600-R-PG-SF"
+          },
+          "warning": null,
+          "confidence": "high",
+          "actions": [
+            "Add to Quote"
+          ]
+        },
+        {
+          "title": "Stage 2 (TARGET): GDP Planfilterskåp",
+          "specs": {
+            "Housing corrosion class": "C2",
+            "Material": "Acid-proof Stainless Steel (SF)",
+            "Dimensions": "1200x600mm",
+            "Airflow": "4000.0 m³/h",
+            "Parallel Units Required": "2 units",
+            "Housing Length": "550mm",
+            "Product Code": "GDP-600x600-50-R-PG-SF"
+          },
+          "warning": null,
+          "confidence": "high",
+          "actions": [
+            "Add to Quote"
+          ]
+        }
+      ],
+      "status_badges": [
+        {
+          "type": "SUCCESS",
+          "text": "CORROSION_RISK_MITIGATED"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 4,
+            "tone": 5,
+            "reasoning_quality": 2,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.95,
+          "explanation": "The system failed on the primary constraint: the user requested an 'insulated' housing, but the system selected GDB and GDP (uninsulated) instead of the correct GDMI family. Furthermore, the sizing logic was flawed; the system claimed a 600x600 unit could not handle 3400 m³/h, whereas the PDF (p.12) explicitly lists GDMI 600x600 with a capacity of 3400 m³/h, making the proposed multi-module configuration unnecessary.",
+          "dimension_explanations": {
+            "correctness": "The system claimed the airflow limit for 600x600 is 2000 m³/h (true for GDP, p.6), but failed to recognize that GDB/GDMI 600x600 are rated for 3400 m³/h (PDF p.9, p.12).",
+            "completeness": "The generated product codes (e.g., 'GDB-600x600-R-PG-SF') are missing the required housing length parameter (550/750) shown in the example on PDF p.8.",
+            "safety": "The recommendation for Acid-proof Stainless Steel (SF) is correct and safe for a C5 coastal environment.",
+            "tone": "The response is professional and structured well.",
+            "reasoning_quality": "The system failed to map the 'insulated' requirement to the GDMI product family and confused airflow capacities between panel (GDP) and bag (GDB) filter housings.",
+            "constraint_adherence": "The system violated the explicit user request for an 'insulated' housing by selecting GDB/GDP (described as 'oisolerat' on p.5/8) instead of GDMI."
+          },
+          "strengths": [
+            "Correctly identified the need for C5/Stainless steel materials for a coastal environment.",
+            "Professional formatting and tone."
+          ],
+          "weaknesses": [
+            "Selected uninsulated housings (GDB/GDP) despite user request for insulated (GDMI).",
+            "Incorrect sizing logic: claimed 600x600 was too small for 3400 m³/h when GDMI 600x600 fits exactly.",
+            "Hallucinated product size: suggested '800x800' as an alternative, which does not exist in the GDB/GDMI families (PDF p.9/12).",
+            "Data integrity error: listed 'Housing corrosion class: C2' in the specs while simultaneously selecting 'Acid-proof Stainless Steel'."
+          ],
+          "pdf_citations": [
+            "GDMI 600x600: Flöde 3400 m³/h (PDF p.12) - proves single unit sufficiency.",
+            "GDMI är ett värme- och kondensisolerat modulfilterskåp (PDF p.11) vs GDB levereras i oisolerat (PDF p.8).",
+            "GDB/GDMI sizes: 800x800 does not exist in tables on p.9 or p.12 (jumps from 600 to 900 width)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 44.57,
+            "prompt_tokens": 16331,
+            "cached_tokens": 15822,
+            "output_tokens": 823
+          }
+        },
+        "openai": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "No module named 'openai'",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "No module named 'anthropic'",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDP",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Select a product with the required traits",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 4 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          },
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDP",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "airflow_m3h": "3400",
+          "connection_type": "PG"
+        },
+        "assembly_group": {
+          "group_id": "assembly_item_1",
+          "rationale": "GDP Planfilterskåp provides Corrosion Resistance C3 but requires protection from environmental stressors. GDB Kanalfilterskåp provides upstream filtration to protect the target stage.",
+          "stages": [
+            {
+              "role": "PROTECTOR",
+              "product_family": "GDB",
+              "tag_id": "item_1_stage_1",
+              "provides_trait": "Corrosion Resistance C5.1",
+              "reason": "Captures Salt Spray upstream, preventing it from reaching the Corrosion Resistance C3 stage"
+            },
+            {
+              "role": "TARGET",
+              "product_family": "GDP",
+              "tag_id": "item_1_stage_2",
+              "provides_trait": "Corrosion Resistance C3",
+              "reason": "Primary Corrosion Resistance C3 function, protected by upstream stage"
+            }
+          ]
+        },
+        "turn_count": 1,
+        "tags": {
+          "item_1_stage_1": {
+            "tag_id": "item_1_stage_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": 3400,
+            "product_family": "GDB",
+            "product_code": "GDB-600x600-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 2,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": "PROTECTOR",
+            "assembly_group_id": "assembly_item_1"
+          },
+          "item_1_stage_2": {
+            "tag_id": "item_1_stage_2",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": 250,
+            "airflow_m3h": 3400,
+            "product_family": "GDP",
+            "product_code": "GDP-600x600-50-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 2,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": true,
+            "missing_params": [],
+            "assembly_role": "TARGET",
+            "assembly_group_id": "assembly_item_1"
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 15,
+        "variable_features": 0,
+        "tags_complete": false,
+        "tags_count": 2
+      },
+      "session_state": {
+        "session_id": "68689bf3-af9d-4b93-ab5c-21ecb40aa5f6",
+        "project": {
+          "detected_family": "GDP",
+          "resolved_params": "{\"airflow_m3h\": \"3400\", \"connection_type\": \"PG\"}",
+          "assembly_group": "{\"group_id\": \"assembly_item_1\", \"rationale\": \"GDP Planfiltersk\\u00e5p provides Corrosion Resistance C3 but requires protection from environmental stressors. GDB Kanalfiltersk\\u00e5p provides upstream filtration to protect the target stage.\", \"stages\": [{\"role\": \"PROTECTOR\", \"product_family\": \"GDB\", \"tag_id\": \"item_1_stage_1\", \"provides_trait\": \"Corrosion Resistance C5.1\", \"reason\": \"Captures Salt Spray upstream, preventing it from reaching the Corrosion Resistance C3 stage\"}, {\"role\": \"TARGET\", \"product_family\": \"GDP\", \"tag_id\": \"item_1_stage_2\", \"provides_trait\": \"Corrosion Resistance C3\", \"reason\": \"Primary Corrosion Resistance C3 function, protected by upstream stage\"}]}",
+          "locked_material": null,
+          "accessories": null,
+          "name": null,
+          "pending_clarification": null,
+          "customer": null,
+          "vetoed_families": "[\"FAM_GDP\", \"FAM_GDB\", \"FAM_GDC\", \"FAM_GDC_FLEX\", \"FAM_GDMI_FLEX\", \"FAM_GDMI\", \"FAM_PFF\", \"FAM_BFF\", \"FAM_PT\", \"FAM_EXL\", \"FAM_FILTER_PROFIL\", \"FAM_TT\"]"
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "quantity": 1,
+            "airflow_m3h": 3400,
+            "session_id": "68689bf3-af9d-4b93-ab5c-21ecb40aa5f6",
+            "filter_height": 600,
+            "product_code": "GDB-600x600-R-PG-FZ",
+            "housing_width": 600,
+            "assembly_group_id": "assembly_item_1",
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1_stage_1",
+            "source_message": 1,
+            "id": "TAG_68689bf3-af9d-4b93-ab5c-21ecb40aa5f6_item_1_stage_1",
+            "is_complete": false
+          },
+          {
+            "product_family": "GDP",
+            "quantity": 1,
+            "airflow_m3h": 3400,
+            "session_id": "68689bf3-af9d-4b93-ab5c-21ecb40aa5f6",
+            "filter_height": 600,
+            "product_code": "GDP-600x600-50-R-PG-FZ",
+            "housing_width": 600,
+            "assembly_group_id": "assembly_item_1",
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1_stage_2",
+            "source_message": 1,
+            "id": "TAG_68689bf3-af9d-4b93-ab5c-21ecb40aa5f6_item_1_stage_2",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 2,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1_stage_1",
+            "path": "Filter 600x600mm -> Sized to 600x600 -> Code: GDB-600x600-R-PG-FZ"
+          },
+          {
+            "tag_id": "item_1_stage_2",
+            "path": "Filter 600x600mm -> Sized to 600x600 -> Code: GDP-600x600-50-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "The initial product selections (GDB and GDP) are not suitable for your coastal industrial facility due to the presence of ",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Salt Spray",
+          "type": "INFERENCE",
+          "inference_logic": "Salt spray accelerates zinc corrosion. C3-rated materials fail prematurely in marine/coastal environments."
+        },
+        {
+          "text": ". This accelerates corrosion of the C3-rated galvanized steel (FZ) housings. Marine/coastal environments require C5.1 marine-grade corrosion resistance (acid-proof stainless steel). Therefore, I have configured a two-stage filtration system using acid-proof stainless steel (SF) to withstand the corrosive environment.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The system consists of:",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Additionally, the requested 3400 airflow_m3h exceeds the recommended flow of 2000 for a single 600x600 module. 2 parallel units are required. Alternatively, a single 800x800 mm module can handle 3556 m³/h.",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

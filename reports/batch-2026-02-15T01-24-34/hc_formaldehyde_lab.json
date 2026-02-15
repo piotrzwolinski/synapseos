@@ -1,0 +1,327 @@
+{
+  "name": "hc_formaldehyde_lab",
+  "description": "[HC] Anatomy lab formaldehyde → standard carbon insufficient, media warning",
+  "query": "Anatomy laboratory exhaust. Formaldehyde vapors present. We want GDC-600x600 in RF. Airflow: 2000 m³/h.",
+  "session_id": "711c22d1-cca6-46e1-b74f-e1eb8ee9ff0d",
+  "duration_s": 40.0,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "Anatomy laboratory exhaust. Formaldehyde vapors present. We want GDC-600x600 in RF. Airflow: 2000 m³/h.",
+      "turn_number": 1,
+      "timestamp": "2026-02-15T00:18:38.412705+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "For the anatomy laboratory exhaust application, I see that you're planning to use a GDC-600x600 filter housing in RF (stainless steel).However, the system is exposed to both Chemical Vapor Exposure and, more specifically, Formaldehyde Exposure. Standard activated carbon filters, such as those used in the GDC family, are insufficient for capturing formaldehyde due to its low molecular weight. Effective removal requires impregnated or chemisorption media.Therefore, the GDC family is not suitable for this application.To properly configure a solution, I need to know the housing length required.Which housing length do you need?",
+      "turn_number": 1,
+      "timestamp": "2026-02-15T00:18:50.653820+00:00",
+      "clarification": null,
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [
+        {
+          "type": "WARNING",
+          "text": "Blocked"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 2,
+            "constraint_adherence": 2
+          },
+          "overall_score": 3.05,
+          "explanation": "The system correctly identifies the chemical safety risk (formaldehyde requires special filtration) but fails on product knowledge. It incorrectly claims the GDC housing is unsuitable for this application, whereas the PDF (p. 14) explicitly states GDC is intended for 'carbon or chemical media' ('kol eller kemikaliemedia'). The system confuses the housing (the metal box) with the media (the cartridge), blocking a valid configuration. Additionally, the response is contradictory: it states the product is unsuitable but immediately asks for a dimension to configure it.",
+          "dimension_explanations": {
+            "correctness": "The system falsely claims GDC is unsuitable for chemisorption; PDF p. 14 explicitly lists 'kemikaliemedia' (chemical media) as an intended use.",
+            "completeness": "The system blocks the user from a valid solution instead of simply specifying that impregnated cartridges are required.",
+            "safety": "Correctly identifies that standard activated carbon is insufficient for formaldehyde capture, which is a valid safety concern.",
+            "tone": "Professional and appropriate.",
+            "reasoning_quality": "Flawed logic; the system fails to distinguish between the filter housing (which supports chemical cartridges) and the default media type.",
+            "constraint_adherence": "Violates the product's application rules by blocking a use case explicitly supported in the catalog text."
+          },
+          "strengths": [
+            "Correctly identifies specific chemical filtration constraints (formaldehyde vs. standard carbon).",
+            "Recognizes the need for chemisorption/impregnated media."
+          ],
+          "weaknesses": [
+            "Falsely blocks a valid product explicitly rated for chemical media in the PDF.",
+            "Contradictory conversation flow (rejects product, then asks for product sizing).",
+            "Confuses housing limitations with filter media limitations."
+          ],
+          "pdf_citations": [
+            "GDC: 'Avsett användningsområde är för patronfilter med kol eller kemikaliemedia' (PDF p. 14)",
+            "GDC 600x600: Rek. flöde 2000 m³/h (PDF p. 14)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 27.77,
+            "prompt_tokens": 15503,
+            "cached_tokens": 15822,
+            "output_tokens": 574
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 4,
+            "tone": 4,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.85,
+          "explanation": "The system correctly flags that standard activated carbon is typically ineffective for formaldehyde and that chemisorption/impregnated media is usually required, which is a valid safety/IAQ concern. However, it makes a hard “GDC not suitable” block that is not supported by the catalog (GDC is explicitly for carbon/chemical media) and then asks for housing length despite having already blocked the product family, creating an inconsistent constraint flow.",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDC-600x600 exists with recommended flow 2000 m³/h and is intended for carbon/chemical media, so the claim that the GDC family is categorically unsuitable is not supported, even though the formaldehyde-media warning is engineering-sound (PDF: GDC 600x600 Rek. flöde 2000 m³/h).",
+            "completeness": "It does not propose a viable alternative configuration (e.g., GDC with impregnated media selection, series stages, or downstream polishing filter) nor confirm length options (750/800 vs 900/950) before blocking.",
+            "safety": "Appropriately warns that formaldehyde generally needs impregnated/chemisorption media rather than standard carbon and avoids issuing a final product card for a potentially ineffective solution.",
+            "tone": "Professional and appropriately technical for a lab exhaust context.",
+            "reasoning_quality": "Cause-effect logic on formaldehyde vs standard carbon is clear, but the leap to a full product-family block is not justified from the provided catalog data.",
+            "constraint_adherence": "Violates internal consistency by blocking GDC while the catalog positions GDC for carbon/chemical media, and then continues with a sizing clarification (length) as if the product were still selectable."
+          },
+          "strengths": [
+            "Correctly identifies the key process risk: formaldehyde typically requires chemisorption/impregnated media rather than generic activated carbon.",
+            "Requests a missing parameter (housing length) that is genuinely required to specify a GDC variant (750/800 vs 900/950)."
+          ],
+          "weaknesses": [
+            "Over-blocks the GDC family despite the catalog stating it is intended for carbon/chemical media; the correct action would be to require the right media type, not reject the housing outright.",
+            "Inconsistent flow: after declaring the family unsuitable/blocked, it still asks for housing length instead of pivoting to an alternative solution path."
+          ],
+          "pdf_citations": [
+            "GDC 600x600: Rek. flöde = 2000 m³/h; lengths 750/800 and 900/950 mm (GDC table/page shown in catalog).",
+            "GDC application text: 'Avsett användningsområde är för patronfilter med kol eller kemikaliemedia' (GDC description page in catalog)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 14.24,
+            "attempt": 1,
+            "prompt_tokens": 36883,
+            "cached_tokens": 17920,
+            "output_tokens": 695
+          }
+        },
+        "anthropic": {
+          "scores": {
+            "correctness": 3,
+            "completeness": 3,
+            "safety": 4,
+            "tone": 4,
+            "reasoning_quality": 3,
+            "constraint_adherence": 3
+          },
+          "overall_score": 3.25,
+          "explanation": "The system correctly identifies GDC 600x600 as a valid product with RF material option and correctly notes formaldehyde requires specialized media. However, it incorrectly blocks the entire GDC family rather than noting that the GDC housing itself is suitable — it's the media selection (impregnated carbon) that matters. The GDC is explicitly designed for 'patronfilter med kol eller kemikaliemedia' per the PDF, which includes chemisorption media for formaldehyde.",
+          "dimension_explanations": {
+            "correctness": "GDC 600x600 exists in the PDF (p.14) with 16 patrons, Rek. flöde 2000 m³/h, and RF is a listed material option. The claim that 'the GDC family is not suitable' is factually incorrect — the GDC housing is designed for chemical media including impregnated carbon; it's the cylinder media choice that determines formaldehyde suitability, not the housing.",
+            "completeness": "The system asks for housing length (appropriate clarification) but blocks the configuration prematurely without offering the correct path — selecting appropriate impregnated media (e.g., KOH/KI cylinders listed on p.15) within the GDC housing.",
+            "safety": "Raising awareness about formaldehyde's low molecular weight and the need for chemisorption/impregnated media is sound safety reasoning, though the conclusion to block the housing entirely is overly conservative.",
+            "tone": "Professional and consultative tone appropriate for a technical sales engineering context.",
+            "reasoning_quality": "The reasoning about formaldehyde requiring specialized media is correct, but the logical leap from 'standard activated carbon is insufficient' to 'the GDC family is not suitable' is flawed — the GDC catalog explicitly lists impregnated media options (KOH/KI cylinders).",
+            "constraint_adherence": "The system overly blocks a valid configuration — GDC with RF material and appropriate impregnated media cylinders would be a valid solution for formaldehyde removal in an anatomy lab."
+          },
+          "strengths": [
+            "Correctly identifies formaldehyde as requiring specialized chemisorption/impregnated media rather than standard activated carbon",
+            "Appropriately asks for housing length as a needed parameter before finalizing configuration"
+          ],
+          "weaknesses": [
+            "Incorrectly blocks the entire GDC family when the housing is explicitly designed for chemical media including impregnated carbon cylinders (KOH/KI options listed in catalog p.15)",
+            "Fails to mention that GDC 600x600 with 16 patrons at Rek. flöde 2000 m³/h perfectly matches the user's airflow requirement, and that impregnated media cylinders are available as catalog options"
+          ],
+          "pdf_citations": [
+            "GDC 600x600: 16 patrons, Rek. flöde = 2000 m³/h, Vikt 32 kg (750/800), available in FZ/AZ/RF/SF/ZM (PDF p.14)",
+            "GDC is described as 'Avsett användningsområde är för patronfilter med kol eller kemikaliemedia' (PDF p.14)",
+            "ECO-C 2600 4mm KOH/KI 450mm impregnated cylinders are listed as compatible media for GDC (PDF p.15)"
+          ],
+          "recommendation": "BORDERLINE",
+          "usage": {
+            "duration_s": 27.58,
+            "attempt": 1,
+            "prompt_tokens": 400,
+            "cached_tokens": 53610,
+            "output_tokens": 929
+          }
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDC + Laboratory",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Select a product with the required traits",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 4 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "RF",
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": "RF",
+        "detected_family": "GDC",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "installation_environment": "ENV_INDOOR",
+          "detected_application": "APP_LAB",
+          "airflow_m3h": "2000",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": 2000,
+            "product_family": "GDC",
+            "product_code": "GDC-600x600-R-PG-RF",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": "Laboratory",
+        "warnings_count": 21,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "711c22d1-cca6-46e1-b74f-e1eb8ee9ff0d",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDC",
+          "locked_material": "RF",
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"installation_environment\": \"ENV_INDOOR\", \"detected_application\": \"APP_LAB\", \"airflow_m3h\": \"2000\", \"connection_type\": \"PG\"}",
+          "vetoed_families": "[\"FAM_GDC\", \"FAM_GDMI_FLEX\", \"FAM_GDC_FLEX\", \"FAM_GDP\", \"FAM_GDB\", \"FAM_GDMI\", \"FAM_PFF\", \"FAM_BFF\", \"FAM_PT\", \"FAM_EXL\", \"FAM_FILTER_PROFIL\", \"FAM_TT\"]"
+        },
+        "tags": [
+          {
+            "product_family": "GDC",
+            "quantity": 1,
+            "airflow_m3h": 2000,
+            "session_id": "711c22d1-cca6-46e1-b74f-e1eb8ee9ff0d",
+            "filter_height": 600,
+            "product_code": "GDC-600x600-R-PG-RF",
+            "housing_width": 600,
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_711c22d1-cca6-46e1-b74f-e1eb8ee9ff0d_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to RF -> Filter 600x600mm -> Sized to 600x600 -> Code: GDC-600x600-R-PG-RF"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "type": "GENERAL",
+          "text": "For the anatomy laboratory exhaust application, I see that you're planning to use a GDC-600x600 filter housing in RF (stainless steel)."
+        },
+        {
+          "type": "INFERENCE",
+          "text": "However, the system is exposed to both Chemical Vapor Exposure and, more specifically, Formaldehyde Exposure. Standard activated carbon filters, such as those used in the GDC family, are insufficient for capturing formaldehyde due to its low molecular weight. Effective removal requires impregnated or chemisorption media."
+        },
+        {
+          "type": "INFERENCE",
+          "text": "Therefore, the GDC family is not suitable for this application."
+        },
+        {
+          "type": "GENERAL",
+          "text": "To properly configure a solution, I need to know the housing length required."
+        },
+        {
+          "type": "GENERAL",
+          "text": "Which housing length do you need?"
+        }
+      ]
+    }
+  ]
+}

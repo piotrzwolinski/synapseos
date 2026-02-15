@@ -1,0 +1,326 @@
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+  SYNAPSEOS TEST RESULTS CLASSIFICATION - BATCH 2026-02-14T12-59-27
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+EXECUTIVE SUMMARY
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+Total Tests:        70
+Pass Rate (≥4.0):   27/70 (38.6%)
+Warning (3.0-3.9):  38/70 (54.3%)
+Critical (<3.0):     5/70 (7.1%)
+
+SCORE DISTRIBUTION
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+< 3.0 (Critical):    5 tests  ████
+3.0-3.9 (Warning):  38 tests  ████████████████████████████████████████
+>= 4.0 (Good):      27 tests  ███████████████████████████
+
+ROOT CAUSE BREAKDOWN
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+GOOD                :  27 tests  (38.6%) - No significant issues
+API_ERROR           :  19 tests  (27.1%) - Judge execution failed (Gemini API key)
+REASONING           :  12 tests  (17.1%) - Bad logic, hallucinations, wrong products
+GRAPH_DATA          :   5 tests  (7.1%)  - Wrong specs, missing catalog constraints
+TRUNCATION          :   3 tests  (4.3%)  - Response cut off mid-sentence
+OVER_BLOCKING       :   2 tests  (2.9%)  - Blocks valid configurations
+UNDER_BLOCKING      :   1 test   (1.4%)  - Allows unsafe configuration
+CLARIFICATION_LOOP  :   1 test   (1.4%)  - Asks for already-provided info
+
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+  CRITICAL FAILURES (Score < 3.0) - DETAILED ANALYSIS
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ #1. hc_shaft_service_access (Score: 2.05) - HALLUCINATION                                          │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  Category:     REASONING
+  Severity:     CRITICAL
+
+  What Happened:
+  • User requested: GDB-1200x1500 for 17,000 m³/h in 1200x1500mm shaft
+  • System claimed: "Unit requires 2400mm of side clearance (double the width) for service access"
+  • System blocked the configuration and suggested PFF Planfilterram as alternative
+
+  What's Wrong:
+  1. INVENTED CONSTRAINT: "Service clearance = 2x width" rule does not exist anywhere in catalog
+  2. MISSED REAL ISSUE: Airflow (17,000 m³/h) may exceed capacity limit (OpenAI says 10,000 m³/h)
+  3. INVALID ALTERNATIVE: PFF is a filter mat frame for GDP, NOT a replacement for GDB housing
+
+  Judge Consensus:
+  • Gemini (1.9): "Hallucinated 'double width' service clearance rule"
+  • OpenAI (2.1): "Invents a service-clearance requirement not supported by the catalog"
+  • Anthropic (2.15): "Fabricates a 'service clearance' constraint that does not exist"
+
+  Root Cause:
+  System is hallucinating installation constraints not present in the graph knowledge base.
+
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ #2. hc_formaldehyde_lab (Score: 2.62) - PRODUCT KNOWLEDGE INVERSION                                │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  Category:     REASONING
+  Severity:     CRITICAL
+
+  What Happened:
+  • User requested: GDC-600x600 RF for anatomy lab formaldehyde exhaust at 2000 m³/h
+  • System claimed: "GDC family uses mechanical filtration, cannot remove gas-phase contaminants"
+  • System blocked the request entirely
+
+  What's Wrong:
+  1. FUNDAMENTAL MISIDENTIFICATION: GDC is DESIGNED for carbon/chemical media, not mechanical
+  2. CATALOG CONTRADICTION: PDF p.14 explicitly states GDC is for "patronfilter med kol eller
+     kemikaliemedia" (carbon or chemical media cartridges)
+  3. BLOCKED CORRECT PRODUCT: User requested the RIGHT product for formaldehyde application
+
+  Judge Consensus:
+  • Gemini (2.45): "Critical hallucination regarding product function: claims GDC is for
+                   mechanical filtration when the PDF defines it as a carbon/chemical filter housing"
+  • OpenAI (2.8): "Incorrectly states GDC uses only mechanical filtration and blocks it,
+                  contradicting the catalog"
+  • Anthropic (2.6): "Fundamentally misidentifies the GDC product family as mechanical filtration
+                     when it is explicitly a carbon/chemical patron filter housing"
+
+  Root Cause:
+  System has INVERTED knowledge about GDC product family. This is the opposite of what the
+  catalog states. Suggests fundamental graph data corruption or incorrect trait assignment.
+
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ #3. chatgpt_gdb_length_750_for_long_bags (Score: 2.90)                                             │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  Category:     REASONING
+  Evidence:     "Incorrectly blocked a valid standard configuration"
+
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ #4. chatgpt_gdb_300x600_1800_undersized (Score: 3.37)                                              │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  Category:     REASONING
+  Evidence:     "Recommended two separate 300x600 units instead of the standard single
+                GDB 600x600 SKU"
+  Issue:        For undersized scenarios, should suggest upsizing to single standard size first
+
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ #5. chatgpt_env_marine_gdb_fz (Score: 3.38)                                                         │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  Category:     REASONING
+  Evidence:     "Implies a pre-filter might solve the housing corrosion issue, whereas the
+                material itself needs to change"
+  Issue:        Confusion between pre-filtration (for media protection) and material selection
+                (for housing corrosion resistance in marine environments)
+
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+  GRAPH DATA ISSUES (Wrong specs, missing constraints)
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+1. hc_gdcflex_rf_available (3.50)
+   → System blocks uninsulated housing for hospital (correct engineering, but may indicate
+     missing graph constraint)
+
+2. hc_hospital_leakage_class (3.53)
+   → Similar hospital leakage class blocking
+
+3. chatgpt_prod_hospital_gdb_fz_pivot (3.58)
+   → "Introduces unsupported catalog assertions (ATEX rating and hospital approval logic)"
+
+4. hc_wastewater_h2s_fz (3.72)
+   → "Misstates or fabricates catalog constraints (GDB corrosion class and allowed environments)"
+
+5. hc_marine_gdmi_sf_pivot (3.85)
+   → "Incorrectly states GDMI has a C3 rating (PDF p.11 lists ZM as C4)"
+
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+  TRUNCATION ISSUES
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+1. chatgpt_prod_rooftop_gdb_fz_condensation (3.65)
+   → "Response is truncated mid-sentence, and mentions 'carbon adsorption efficiency' when
+      GDB is a bag/compact filter housing (not carbon)"
+   → Double issue: truncation + wrong product knowledge
+
+2. chatgpt_env_outdoor_gdb_fz (3.77)
+   → Truncated after identifying application error
+
+3. hc_gdmi_sf_trap (3.97)
+   → Response about SF material constraint truncated
+
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+  TOP PERFORMING TESTS (Score ≥ 4.5)
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+1. chatgpt_env_hospital_gdmi_rf         (4.72) ⭐⭐⭐⭐⭐
+2. chatgpt_gdcflex_900x600_2500_ok      (4.70) ⭐⭐⭐⭐⭐
+3. chatgpt_gdc_600x600_2800_undersized  (4.68) ⭐⭐⭐⭐⭐
+4. hc_short_bag_geometry_error          (4.63) ⭐⭐⭐⭐⭐ - Correctly blocked physical impossibility
+5. chatgpt_gdmi_600x600_3400_ok         (4.63) ⭐⭐⭐⭐⭐
+6. chatgpt_gdc_600x600_2000_ok          (4.62) ⭐⭐⭐⭐⭐
+7. chatgpt_gdb_600x600_2500_ok          (4.60) ⭐⭐⭐⭐⭐
+8. chatgpt_gdmi_rf_not_available        (4.50) ⭐⭐⭐⭐ - Correctly blocked unavailable material
+
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+  KEY INSIGHTS
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+✅ STRENGTHS:
+  • Strong performance on standard sizing scenarios (exact matches, standard SKUs)
+  • Good at blocking physically impossible configurations
+  • Material availability constraints generally work well
+  • Correctly identifies many safety-critical issues (marine corrosion, hospital requirements)
+
+❌ CRITICAL WEAKNESSES:
+
+  1. PRODUCT KNOWLEDGE HALLUCINATIONS (Most Severe)
+     • GDC misidentified as "mechanical filtration" when it's for carbon/chemical media
+     • Invented "service clearance = 2x width" constraint that doesn't exist
+     • Wrong product alternatives (filter frames instead of housings)
+
+  2. GRAPH DATA CONTAMINATION
+     • Wrong corrosion class ratings (C3 vs C4)
+     • Incorrect ATEX/approval assertions
+     • Missing or incorrect material availability constraints
+
+  3. EDGE CASE FAILURES
+     • Undersized scenarios: suggests multi-unit arrays instead of upsizing
+     • Material vs pre-filter confusion: corrosion needs material change, not pre-filtration
+     • Application-specific requirements poorly handled (formaldehyde, marine, hospital)
+
+  4. TRUNCATION
+     • 3 tests had mid-sentence cutoffs
+     • May indicate max_output_tokens issue or streaming problem
+
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+  PRIORITY FIXES
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+🔴 P0 (IMMEDIATE - System is giving wrong answers)
+
+  1. FIX GDC PRODUCT KNOWLEDGE
+     • Graph MUST indicate GDC is for carbon/chemical media (not mechanical)
+     • Check ProductFamily traits: GDC should have "Porous Adsorption" trait
+     • Verify CausalRule: Chemical Vapor → requires Porous Adsorption → GDC is viable
+
+  2. REMOVE HALLUCINATED CONSTRAINTS
+     • "Service clearance = 2x width" does not exist in catalog
+     • Check InstallationConstraint nodes for incorrect geometric rules
+     • Audit all COMPUTED_FORMULA constraints for hallucinations
+
+  3. FIX PRODUCT ALTERNATIVE LOGIC
+     • PFF (filter frame) should NEVER be suggested as alternative to GDB (housing)
+     • Check Alternatives query: must filter by functional equivalence, not just dimensional match
+
+🟡 P1 (HIGH - Affecting multiple tests)
+
+  4. VALIDATE CORROSION CLASS DATA
+     • Audit C3/C4/C5 ratings in graph vs PDF catalog
+     • hc_marine_gdmi_sf_pivot shows C3 when catalog says C4
+
+  5. FIX UNDERSIZED RECOVERY LOGIC
+     • For capacity shortfall: suggest single larger size BEFORE multi-unit arrays
+     • chatgpt_gdb_300x600_1800_undersized: should suggest GDB 600x600, not 2x 300x600
+
+  6. MATERIAL VS PRE-FILTER LOGIC
+     • Corrosion issues require material upgrade (FZ→RF/ZM), not pre-filtration
+     • Pre-filter protects media from particulate loading, not housing from corrosion
+
+🟢 P2 (MEDIUM - Polish)
+
+  7. TRUNCATION HANDLING
+     • Implement response completion detection
+     • Review max_output_tokens setting (currently 2048 per MEMORY.md)
+
+  8. APPLICATION CONSTRAINTS
+     • Validate hospital/marine/lab specific requirements in graph
+     • Ensure formaldehyde/chemical handling traits are correctly assigned
+
+  9. FIX GEMINI API KEY
+     • 19 tests missing Gemini judge scores
+     • Restore 3-judge consensus for all future test runs
+
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+  FULL TEST LISTING (Sorted by Score)
+═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+Test Name                                          | Score  | Root Cause
+══════════════════════════════════════════════════════════════════════════════════
+hc_shaft_service_access                            | 2.05   | REASONING
+chatgpt_insulated_c5_gdmi_zm                       | 2.37   | API_ERROR
+chatgpt_gdb_1200x900_10000_ok                      | 2.45   | API_ERROR
+hc_formaldehyde_lab                                | 2.62   | REASONING
+chatgpt_gdb_length_750_for_long_bags               | 2.90   | REASONING
+hc_aluminium_dust_atex22                           | 3.17   | API_ERROR
+chatgpt_env_atex21_gdcflex                         | 3.20   | API_ERROR
+chatgpt_prod_flour_atex22_gdb_15000                | 3.27   | API_ERROR
+chatgpt_gdb_15000_height_constraint                | 3.32   | API_ERROR
+chatgpt_env_cement_gdc                             | 3.37   | API_ERROR
+chatgpt_gdb_300x600_1800_undersized                | 3.37   | REASONING
+chatgpt_env_marine_gdb_fz                          | 3.38   | REASONING
+hc_tight_maintenance_shaft                         | 3.43   | REASONING
+chatgpt_env_hospital_atex22_gdmi_zm                | 3.47   | API_ERROR
+hc_gdcflex_rf_available                            | 3.50   | GRAPH_DATA
+hc_hospital_leakage_class                          | 3.53   | GRAPH_DATA
+chatgpt_env_hospital_gdb_fz                        | 3.55   | REASONING
+hc_atex21_powder_booth                             | 3.57   | REASONING
+chatgpt_prod_hospital_gdb_fz_pivot                 | 3.58   | GRAPH_DATA
+chatgpt_prod_atex21_gdcflex_block                  | 3.60   | API_ERROR
+chatgpt_env_atex22_gdb_fz                          | 3.63   | API_ERROR
+chatgpt_prod_offshore_gdb_fz_c5m                   | 3.63   | REASONING
+chatgpt_prod_rooftop_gdb_fz_condensation           | 3.65   | TRUNCATION
+chatgpt_env_rooftop_cold_gdmi_zm                   | 3.67   | REASONING
+hc_arctic_condensation                             | 3.68   | REASONING
+chatgpt_env_outdoor_gdmi_zm                        | 3.70   | UNDER_BLOCKING
+hc_cruise_ship_gdc_oversized                       | 3.70   | CLARIFICATION_LOOP
+hc_wastewater_h2s_fz                               | 3.72   | GRAPH_DATA
+chatgpt_env_marine_atex22_gdb_fz                   | 3.73   | REASONING
+chatgpt_env_wastewater_h2s_fz                      | 3.73   | OVER_BLOCKING
+chatgpt_env_pool_gdc_fz                            | 3.75   | OVER_BLOCKING
+chatgpt_prod_museum_85rh_carbon                    | 3.75   | API_ERROR
+chatgpt_env_outdoor_gdb_fz                         | 3.77   | TRUNCATION
+hc_greenhouse_95rh_carbon                          | 3.80   | API_ERROR
+hc_marine_gdmi_sf_pivot                            | 3.85   | GRAPH_DATA
+chatgpt_env_airport_gdcflex_rf                     | 3.87   | API_ERROR
+chatgpt_gdc_600x600_cartridges                     | 3.87   | API_ERROR
+chatgpt_prod_cement_gdc_no_prefilter               | 3.90   | API_ERROR
+hc_flex_contact_time_failure                       | 3.90   | API_ERROR
+chatgpt_env_kitchen_gdcflex_rf                     | 3.93   | API_ERROR
+chatgpt_prod_kitchen_gdcflex_grease                | 3.93   | API_ERROR
+hc_gdmi_sf_trap                                    | 3.97   | TRUNCATION
+chatgpt_gdcflex_rf_available                       | 3.98   | API_ERROR
+──────────────────────────────────────────────────────────────────────────────────
+chatgpt_env_office_gdc_fz                          | 4.00   | GOOD
+chatgpt_gdcflex_600x600_cartridges                 | 4.02   | GOOD
+chatgpt_env_datacenter_gdmi_rf                     | 4.05   | GOOD
+chatgpt_gdmi_1800x1200_20000_ok                    | 4.08   | GOOD
+chatgpt_env_marine_gdmi_rf                         | 4.10   | GOOD
+chatgpt_gdmi_600x600_4000_undersized               | 4.12   | GOOD
+chatgpt_prod_oversized_gdc_low_velocity            | 4.15   | GOOD
+chatgpt_env_pool_gdb_fz                            | 4.17   | GOOD
+hc_kitchen_grease_killer                           | 4.17   | GOOD
+hc_stressor_cascade_boss                           | 4.17   | GOOD
+chatgpt_env_museum_gdmi_zm                         | 4.18   | GOOD
+hc_lcc_four_small_housings                         | 4.27   | GOOD
+chatgpt_prod_hospital_gdmi_rf_block                | 4.28   | GOOD
+chatgpt_gdb_900x900_7000_ok                        | 4.30   | GOOD
+chatgpt_gdcflex_600x600_3000_undersized            | 4.30   | GOOD
+hc_gdb_length_900_block                            | 4.33   | GOOD
+hc_shared_duct_grease_trap                         | 4.38   | GOOD
+chatgpt_gdb_1500x1200_16000_ok                     | 4.45   | GOOD
+chatgpt_gdb_600x600_3800_undersized                | 4.48   | GOOD
+chatgpt_gdmi_rf_not_available                      | 4.50   | GOOD
+chatgpt_gdb_600x600_2500_ok                        | 4.60   | GOOD
+chatgpt_gdc_600x600_2000_ok                        | 4.62   | GOOD
+chatgpt_gdmi_600x600_3400_ok                       | 4.63   | GOOD
+hc_short_bag_geometry_error                        | 4.63   | GOOD
+chatgpt_gdc_600x600_2800_undersized                | 4.68   | GOOD
+chatgpt_gdcflex_900x600_2500_ok                    | 4.70   | GOOD
+chatgpt_env_hospital_gdmi_rf                       | 4.72   | GOOD
+
+════════════════════════════════════════════════════════════════════════════════════════════════════════
+  END OF REPORT
+════════════════════════════════════════════════════════════════════════════════════════════════════════
+Generated: 2026-02-14
+Test Batch: batch-2026-02-14T12-59-27
+Total Tests Analyzed: 70

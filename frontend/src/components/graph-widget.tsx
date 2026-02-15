@@ -543,11 +543,11 @@ export function GraphWidget({
   }
 
   return (
-    <div className="border-b border-slate-200 bg-gradient-to-b from-slate-50 to-white">
+    <div className="border-b border-slate-200 dark:border-slate-700 bg-gradient-to-b from-slate-50 to-white dark:from-slate-800 dark:to-slate-800">
       {/* Collapsible Header */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-slate-600 hover:text-slate-800 hover:bg-slate-100/50 transition-colors"
+        className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-700/50 transition-colors"
       >
         <Network className="w-4 h-4 text-blue-600" />
         <span className="font-semibold">Product Ecosystem</span>
@@ -578,8 +578,8 @@ export function GraphWidget({
 
           {/* Loading State */}
           {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-sm z-10">
-              <div className="flex items-center gap-2 text-sm text-slate-600">
+            <div className="absolute inset-0 flex items-center justify-center bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm z-10">
+              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                 <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                 <span>Loading ecosystem...</span>
               </div>
@@ -589,7 +589,7 @@ export function GraphWidget({
           {/* Error State */}
           {error && !loading && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded-lg">
                 <AlertCircle className="w-4 h-4" />
                 <span>{error}</span>
               </div>
@@ -620,20 +620,20 @@ export function GraphWidget({
               {/* Tooltip */}
               {hoveredNode && (
                 <div
-                  className="absolute z-20 bg-white rounded-lg shadow-lg border border-slate-200 p-3 max-w-[200px] pointer-events-none"
+                  className="absolute z-20 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-3 max-w-[200px] pointer-events-none"
                   style={{
                     left: Math.min((hoveredNode.x || 0) + 160 + 20, 280),
                     top: Math.max((hoveredNode.y || 0) + 10, 10),
                   }}
                 >
-                  <div className="font-semibold text-slate-800 text-sm mb-1">
+                  <div className="font-semibold text-slate-800 dark:text-slate-200 text-sm mb-1">
                     {hoveredNode.name}
                   </div>
-                  <div className="text-xs text-slate-500 mb-2">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 mb-2">
                     {hoveredNode.labels[0]}
                   </div>
                   {hoveredNode.properties && Object.keys(hoveredNode.properties).length > 0 && (
-                    <div className="text-xs text-slate-600 space-y-0.5 border-t border-slate-100 pt-2">
+                    <div className="text-xs text-slate-600 dark:text-slate-400 space-y-0.5 border-t border-slate-100 dark:border-slate-700 pt-2">
                       {Object.entries(hoveredNode.properties)
                         .filter(([k]) => !["embedding", "id"].includes(k))
                         .slice(0, 3)
@@ -652,21 +652,21 @@ export function GraphWidget({
               <div className="absolute bottom-3 right-3 flex gap-1.5">
                 <button
                   onClick={handleZoomIn}
-                  className="p-1.5 bg-white rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600 shadow-sm transition-colors"
+                  className="p-1.5 bg-white dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-400 shadow-sm transition-colors"
                   title="Zoom in"
                 >
                   <ZoomIn className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={handleZoomOut}
-                  className="p-1.5 bg-white rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600 shadow-sm transition-colors"
+                  className="p-1.5 bg-white dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-400 shadow-sm transition-colors"
                   title="Zoom out"
                 >
                   <ZoomOut className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={handleFit}
-                  className="p-1.5 bg-white rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600 shadow-sm transition-colors"
+                  className="p-1.5 bg-white dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-400 shadow-sm transition-colors"
                   title="Fit to view"
                 >
                   <Maximize2 className="w-3.5 h-3.5" />
@@ -680,7 +680,7 @@ export function GraphWidget({
                   .map(({ group, color, icon }) => (
                     <div
                       key={group}
-                      className="flex items-center gap-1.5 px-2 py-1 bg-white/95 rounded-md text-[10px] text-slate-600 shadow-sm border border-slate-100"
+                      className="flex items-center gap-1.5 px-2 py-1 bg-white/95 dark:bg-slate-800/95 rounded-md text-[10px] text-slate-600 dark:text-slate-400 shadow-sm border border-slate-100 dark:border-slate-700"
                     >
                       <span>{ICON_MAP[icon] || "●"}</span>
                       <span className="font-medium">{group}</span>

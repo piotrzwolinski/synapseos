@@ -13,6 +13,7 @@ import { TestGenerator } from "@/components/test-generator";
 import { CapabilitiesShowcase } from "@/components/capabilities-showcase";
 import { ExpertReview } from "@/components/expert-review";
 import { GraphAudit } from "@/components/graph-audit";
+import { BatchResults } from "@/components/batch-results";
 import {
   MessageSquare,
   Upload,
@@ -49,7 +50,7 @@ import { clearToken } from "@/lib/auth";
 
 type ChatMode = "llm-driven" | "graphrag" | "graph-reasoning" | "neuro-symbolic";
 
-type TabType = "chat" | "ingest" | "explore" | "knowledge" | "testlab" | "testgen" | "capabilities" | "expert-review" | "analytics" | "workflows" | "users" | "integrations" | "audit" | "settings";
+type TabType = "chat" | "ingest" | "explore" | "knowledge" | "testlab" | "testgen" | "capabilities" | "expert-review" | "analytics" | "workflows" | "users" | "integrations" | "audit" | "batch-results" | "settings";
 type IngestSubTab = "threads" | "docs";
 
 interface NavItem {
@@ -465,6 +466,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "users", label: "User Management", icon: Users, disabled: true, section: "admin" },
   { id: "integrations", label: "Integrations", icon: Plug, disabled: true, section: "admin" },
   { id: "audit", label: "Graph Audit", icon: Shield, section: "main" },
+  { id: "batch-results", label: "Batch Results", icon: BarChart3, section: "main" },
   { id: "settings", label: "Settings", icon: Settings, section: "admin" },
 ];
 
@@ -740,6 +742,7 @@ function MainApp() {
               {activeTab === "users" && "User Management"}
               {activeTab === "integrations" && "Integrations"}
               {activeTab === "audit" && "Graph Audit"}
+              {activeTab === "batch-results" && "Batch Results"}
               {activeTab === "settings" && "Settings"}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -756,6 +759,7 @@ function MainApp() {
               {activeTab === "users" && "Manage team members and permissions"}
               {activeTab === "integrations" && "Connect with CRM, ERP and other systems"}
               {activeTab === "audit" && "Multi-LLM debate to verify knowledge graph integrity against product catalog"}
+              {activeTab === "batch-results" && "3-LLM judge evaluation across all test questions with per-dimension scores"}
               {activeTab === "settings" && "Configure system preferences and policies"}
             </p>
           </div>
@@ -873,6 +877,7 @@ function MainApp() {
               />
             )}
             {activeTab === "audit" && <GraphAudit />}
+            {activeTab === "batch-results" && <BatchResults />}
             {activeTab === "settings" && <SettingsPanel />}
           </div>
         </div>
