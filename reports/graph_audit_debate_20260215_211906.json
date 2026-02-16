@@ -1,0 +1,1346 @@
+{
+  "meta": {
+    "session_id": "705f3f4a",
+    "timestamp": "2026-02-15T21:19:06.006188",
+    "providers": [
+      "gemini_pro",
+      "openai",
+      "anthropic_opus"
+    ],
+    "synthesizer": "anthropic_opus",
+    "duration_s": 354.6,
+    "audit_scope": "full"
+  },
+  "round1_audits": {
+    "gemini_pro": {
+      "evaluator": "ProductDataAuditor-V1",
+      "overall_score": 98,
+      "total_findings": 5,
+      "findings": [
+        {
+          "id": 1,
+          "category": "WEIGHT_DATA",
+          "severity": "INFO",
+          "product_family": "FAM_GDB",
+          "description": "Suspected typo in PDF source data for GDB 1800x900 (Short) weight. Listed as 36kg, which is significantly lower than the smaller 1800x600 model (47kg). Graph accurately reflects the PDF value, but the value itself is likely incorrect.",
+          "pdf_says": "1800x900 | 77 (Long) | 36 (Short) [Page 9]",
+          "graph_says": "Weight: 36, Weight Long: 77",
+          "recommendation": "Verify physical weight of GDB 1800x900 Short. Likely should be ~58kg."
+        },
+        {
+          "id": 2,
+          "category": "LENGTH_VARIANTS",
+          "severity": "INFO",
+          "product_family": "FAM_GDMI",
+          "description": "Discrepancy between PDF text and PDF table regarding housing lengths. Text (p11) states 550/600 and 800/850. Table (p12) and Sortiment (p3) state 600/650 and 850/900. Graph correctly aligns with the Table values.",
+          "pdf_says": "Text: 550/600, 800/850 [Page 11]; Table: 600/650, 850/900 [Page 12]",
+          "graph_says": "600/650mm, 850/900mm",
+          "recommendation": "No action needed for graph; PDF text requires correction."
+        },
+        {
+          "id": 3,
+          "category": "CORROSION_CLASSES",
+          "severity": "MINOR",
+          "product_family": "ALL",
+          "description": "Minor notation discrepancy for Syrafast (SF) corrosion class. PDF uses Roman numeral 'I' or similar styling, Graph uses decimal '1'.",
+          "pdf_says": "C5.I [Page 4]",
+          "graph_says": "C5.1",
+          "recommendation": "Standardize to C5-I or C5 Industrial if that is the intended standard."
+        }
+      ]
+    },
+    "openai": {
+      "evaluator": "gpt-4.1",
+      "overall_score": 58,
+      "total_findings": 22,
+      "findings": [
+        {
+          "id": 1,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "CRITICAL",
+          "product_family": "FAM_GDP",
+          "description": "GDP material availability in graph includes AZ/RF/SF/ZM, but the GDP product page states it is usually manufactured in galvanized (FZ) only; no alternative materials are indicated for GDP in the product page text.",
+          "pdf_says": "GDP UTFÖRANDE: \"GDP tillverkas vanligen i förzinkat.\" (GDP section, product page). Material icons shown at top are general, not explicit per-family availability.",
+          "graph_says": "Available materials: FZ (default), AZ, RF, SF, ZM",
+          "recommendation": "Restrict GDP available materials to what is explicitly supported for the family (at minimum FZ). If you intentionally allow special-order materials, model them as 'on request' with a clear flag/source citation rather than standard availability."
+        },
+        {
+          "id": 2,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "CRITICAL",
+          "product_family": "FAM_GDB",
+          "description": "GDB material availability in graph includes AZ/RF/SF/ZM, but the GDB product page states it is usually manufactured in galvanized (FZ) only; no alternative materials are indicated in the family text.",
+          "pdf_says": "GDB UTFÖRANDE: \"GDB tillverkas vanligen i förzinkat.\" (GDB section, product page).",
+          "graph_says": "Available materials: FZ (default), AZ, RF, SF, ZM",
+          "recommendation": "Limit GDB standard materials to FZ unless the PDF explicitly offers other materials; otherwise mark alternates as 'on request' with source."
+        },
+        {
+          "id": 3,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "CRITICAL",
+          "product_family": "FAM_GDC",
+          "description": "GDC material availability in graph includes AZ/RF/SF/ZM, but the GDC product page states it is usually manufactured in galvanized (FZ) only.",
+          "pdf_says": "GDC UTFÖRANDE: \"GDC tillverkas vanligen i förzinkat.\" (GDC section, product page).",
+          "graph_says": "Available materials: FZ (default), AZ, RF, SF, ZM",
+          "recommendation": "Restrict GDC standard materials to FZ; represent any non-FZ as special-order if needed."
+        },
+        {
+          "id": 4,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "CRITICAL",
+          "product_family": "FAM_GDC_FLEX",
+          "description": "GDC FLEX material availability in graph includes AZ/RF/SF/ZM, but the GDC FLEX product page states it is usually manufactured in galvanized (FZ) only.",
+          "pdf_says": "GDC FLEX UTFÖRANDE: \"GDC FLEX tillverkas vanligen i förzinkat.\" (GDC FLEX section, product page).",
+          "graph_says": "Available materials: FZ, AZ, RF, SF, ZM",
+          "recommendation": "Restrict GDC FLEX standard materials to FZ; model others only if explicitly offered."
+        },
+        {
+          "id": 5,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "CRITICAL",
+          "product_family": "FAM_GDMI_FLEX",
+          "description": "GDMI FLEX material availability in graph includes FZ/AZ/ZM, but the GDMI FLEX product page explicitly states it is usually made in ZM and not available in stainless (rostfritt). It does not indicate FZ as a standard material.",
+          "pdf_says": "GDMI FLEX UTFÖRANDE: \"GDMI FLEX tillverkas vanligen i ZM. Ej i rostfritt.\" (GDMI FLEX section, product page). Icons shown: FZ, AZ, ZM (at top of page), but text specifies ZM as usual.",
+          "graph_says": "Available materials: FZ, AZ, ZM",
+          "recommendation": "Set default and standard availability to ZM for GDMI FLEX; if AZ/FZ are allowed, mark them explicitly as optional/special-order with source note. Ensure 'RF/SF not allowed' is encoded."
+        },
+        {
+          "id": 6,
+          "category": "OPTIONS_FEATURES",
+          "severity": "CRITICAL",
+          "product_family": "FAM_GDC",
+          "description": "Graph models option 'Förmonterad filterskena för polisfilter' with code PF and constrains it to length 1100/1150, but PDF states polisfilter is associated with the 900/950 length variant for GDC (450mm cylinder + polisfilter) and also mentions 900/950 for 600mm cylinder.",
+          "pdf_says": "GDC notes: \"Längd 900/950 för 450 mm cylinder + polisfilter\" and \"Längd 900/950 för 600 mm cylinder\" (GDC section).",
+          "graph_says": "Options: ... PF [length: 1100/1150]",
+          "recommendation": "Move the polisfilter pre-mounted rail option constraint to the correct GDC length variant (900/950), and model the two use-cases: (a) 450mm cylinder + polisfilter in 900/950, (b) 600mm cylinder in 900/950 (with/without polisfilter per PDF wording)."
+        },
+        {
+          "id": 7,
+          "category": "OPTIONS_FEATURES",
+          "severity": "CRITICAL",
+          "product_family": "FAM_GDC_FLEX",
+          "description": "Graph models option 'PF' for GDC FLEX tied to length 1100/1150, but PDF states for GDC FLEX the polisfilter configuration is at length 900/950 (450mm cylinder + polisfilter).",
+          "pdf_says": "GDC FLEX notes: \"Längd 900/950 för 450 mm cylinder + polisfilter\" (GDC FLEX section).",
+          "graph_says": "Options: ... PF [length: 1100/1150]",
+          "recommendation": "Attach PF option to GDC FLEX 900/950 length variant, not 1100/1150 (which does not exist for GDC FLEX in the PDF)."
+        },
+        {
+          "id": 8,
+          "category": "LENGTH_VARIANTS",
+          "severity": "CRITICAL",
+          "product_family": "FAM_GDC",
+          "description": "Graph asserts 900/950 has max filter depth 600mm as a general rule; PDF states cabinet lengths relate to cartridge length (450mm vs 600mm) and to presence of polisfilter, not a 'filter depth' parameter. 'Max filter depth' is not defined for GDC as it is not a bag/compact filter cabinet.",
+          "pdf_says": "GDC: \"...längd ... för patronfilter med maxlängd 450 mm\" and notes about 600 mm cylinders for 900/950 (GDC section).",
+          "graph_says": "Length variants include [max filter depth 450mm] / [max filter depth 600mm]",
+          "recommendation": "Replace 'max filter depth' attribute for patron cabinets with 'max cartridge length' (450/600) and polisfilter compatibility; keep 'max filter depth' only for GDP/GDB/GDMI where the PDF defines it."
+        },
+        {
+          "id": 9,
+          "category": "LENGTH_VARIANTS",
+          "severity": "CRITICAL",
+          "product_family": "FAM_GDC_FLEX",
+          "description": "Same modeling issue as GDC: Graph uses 'max filter depth' for a cartridge cabinet; PDF defines cartridge max length and polisfilter configuration, not filter depth.",
+          "pdf_says": "GDC FLEX: maxlängd 450 mm, and notes about 900/950 for 600 mm cylinder and/or polisfilter (GDC FLEX section).",
+          "graph_says": "Length variants have [max filter depth 450mm]/[max filter depth 600mm]",
+          "recommendation": "Model 'max cartridge length' (450/600) and polisfilter option per length; remove/avoid 'max filter depth' for this family."
+        },
+        {
+          "id": 10,
+          "category": "LENGTH_VARIANTS",
+          "severity": "CRITICAL",
+          "product_family": "FAM_GDC_FLEX",
+          "description": "Graph includes option PF with length 1100/1150 for GDC FLEX, but PDF only lists GDC FLEX lengths 750/800 and 900/950 (no 1100/1150 variant).",
+          "pdf_says": "GDC FLEX: \"Finns som standard i 750 mm och 900 mm längd\" and table headers show 750/800 and 900/950 only (GDC FLEX section).",
+          "graph_says": "Options include PF [length: 1100/1150]",
+          "recommendation": "Remove 1100/1150 references from GDC FLEX entirely."
+        },
+        {
+          "id": 11,
+          "category": "CODE_FORMAT",
+          "severity": "MAJOR",
+          "product_family": "FAM_EXL",
+          "description": "EXL code format in graph contains a space between width and material, but PDF example uses a hyphenated format.",
+          "pdf_says": "EXL example: \"EXL-600 AZ\" appears in the rendered page but the description text block shows \"EXL-600 AZ\"; however the product-code style elsewhere consistently uses hyphens. (EXL section).",
+          "graph_says": "Code format: \"EXL-{width} {material}\"",
+          "recommendation": "Standardize EXL code format to match PDF exactly as displayed (including spacing). If the PDF truly uses a space, keep it; otherwise change to hyphen and store the displayed example as a separate 'example_code' field."
+        },
+        {
+          "id": 12,
+          "category": "CODE_FORMAT",
+          "severity": "MAJOR",
+          "product_family": "FAM_FILTER_PROFIL",
+          "description": "Filter Profil code format in graph uses a space before material; PDF example uses hyphenated prefix and then size, material shown without an extra hyphen in the example block.",
+          "pdf_says": "Example: \"Filter profil-600 FZ\" (Filter Profil section).",
+          "graph_says": "Code format: \"Filter profil-{width} {material}\"",
+          "recommendation": "Match the PDF literal format: prefix casing and spacing exactly (\"Filter profil-600 FZ\"). Consider normalizing internal code tokens separately from display code."
+        },
+        {
+          "id": 13,
+          "category": "CORROSION_CLASSES",
+          "severity": "MAJOR",
+          "product_family": "ALL",
+          "description": "Graph includes chlorine PPM limits and sources for materials, but the PDF material page only specifies corrosion classes (C3/C4/C5/C5.1/C5) and standards; no chlorine resistance values are provided.",
+          "pdf_says": "Material page lists: FZ Z275 C3; AZ C4; RF EN 1.4301 C5; SF EN 1.4404 C5.1; ZM ZM310 C5. No chlorine PPM data.",
+          "graph_says": "Materials include Max Chlorine PPM and 'EXTERNAL_ENGINEERING_REFERENCE' sources.",
+          "recommendation": "Mark chlorine PPM fields as non-PDF-derived and ensure they are not presented as catalog facts. Add provenance fields and/or separate dataset layer."
+        },
+        {
+          "id": 14,
+          "category": "CONSTRUCTION_TYPE",
+          "severity": "MAJOR",
+          "product_family": "FAM_GDB",
+          "description": "Graph sets overall construction for GDB as SINGLE_WALL_UNINSULATED, but PDF specifies the service door is double-skinned and heat/condensation insulated as standard—so the cabinet is not purely uninsulated in construction terms.",
+          "pdf_says": "GDB: \"GDB levereras i oisolerat enkelväggsutförande med en servicelucka som är dubbelmantlad och värme/kondensisolerad som standard.\"",
+          "graph_says": "Construction: SINGLE_WALL_UNINSULATED",
+          "recommendation": "Represent construction as single-wall cabinet with insulated service door (a composite construction type), or keep current construction but enforce a required attribute 'door_insulation=DOUBLE_WALL_HEAT_CONDENSATION' (already present) and ensure downstream logic doesn't treat it as fully uninsulated."
+        },
+        {
+          "id": 15,
+          "category": "CONSTRUCTION_TYPE",
+          "severity": "MAJOR",
+          "product_family": "FAM_GDC",
+          "description": "Same issue as GDB: Graph classifies GDC as SINGLE_WALL_UNINSULATED, but PDF specifies double-skinned insulated service door as standard.",
+          "pdf_says": "GDC: \"...oisolerat enkelväggsutförande med en servicelucka som är dubbelmantlad och värme/kondensisolerad som standard.\"",
+          "graph_says": "Construction: SINGLE_WALL_UNINSULATED",
+          "recommendation": "Model as single-wall with insulated service door (or ensure logic uses door_insulation)."
+        },
+        {
+          "id": 16,
+          "category": "CONSTRUCTION_TYPE",
+          "severity": "MAJOR",
+          "product_family": "FAM_GDC_FLEX",
+          "description": "Same issue: GDC FLEX has insulated double-skin service door as standard per PDF; graph overall construction may mislead selection logic.",
+          "pdf_says": "GDC FLEX: \"...oisolerat enkelväggsutförande med en servicelucka som är dubbelmantlad och värme/kondensisolerad som standard.\"",
+          "graph_says": "Construction: SINGLE_WALL_UNINSULATED",
+          "recommendation": "Ensure construction semantics reflect the insulated service door; avoid interpreting as fully uninsulated assembly."
+        },
+        {
+          "id": 17,
+          "category": "SIZE_ACCURACY",
+          "severity": "MAJOR",
+          "product_family": "FAM_GDC_FLEX",
+          "description": "In the provided PDF table for GDC FLEX, the first row shows size label '600x300' but the row's width/height columns appear swapped/incorrect in the extracted text ('Bredd 300, Höjd 600'). Graph assumes 600x300. This is a PDF internal inconsistency risk that should be validated from the table image, but currently the KG has no explicit 'width' and 'height' columns for GDC FLEX beyond the size token.",
+          "pdf_says": "GDC FLEX table row label: 600x300; columns shown: Bredd/Höjd (table image).",
+          "graph_says": "Size token: 600x300 (no separate width/height fields shown in KG extract).",
+          "recommendation": "Add explicit width_mm and height_mm properties per size and validate against the table columns from the PDF image. If the PDF row is truly inconsistent, document an exception and follow the row label convention consistently across families."
+        },
+        {
+          "id": 18,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "MAJOR",
+          "product_family": "FAM_EXL",
+          "description": "EXL is stated as usually in aluzink (AZ). Graph also lists FZ/RF/ZM as available materials, which are not mentioned for EXL in the PDF.",
+          "pdf_says": "EXL UTFÖRANDE: \"Utförs vanligen i aluzink.\" Example: EXL-600 AZ. No other materials listed.",
+          "graph_says": "Available materials: FZ, AZ (default), RF, ZM",
+          "recommendation": "Restrict EXL to AZ unless other materials are explicitly offered; otherwise tag alternates as 'on request' with source."
+        },
+        {
+          "id": 19,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "MAJOR",
+          "product_family": "FAM_PT",
+          "description": "PT transition piece materials: PDF table lists only FZ for the standard sizes shown; graph lists AZ/SF/ZM on request without PDF support.",
+          "pdf_says": "PT table: material column shows FZ for listed sizes (PT section). Also note: \"Övriga material,storlekar eller längder tillverkas på begäran.\" (general statement, but does not enumerate which materials).",
+          "graph_says": "Available materials: FZ (default), AZ (on request), SF (on request), ZM (on request)",
+          "recommendation": "Either (a) keep only FZ as explicit and add a boolean 'other_materials_on_request=true' without enumerating, or (b) if enumerating, cite a source where those specific materials are allowed."
+        },
+        {
+          "id": 20,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "MAJOR",
+          "product_family": "FAM_TT",
+          "description": "TT conical transition: PDF table lists material FZ for all listed sizes; graph enumerates multiple materials (AZ/RF/SF/ZM) as on request without explicit PDF confirmation.",
+          "pdf_says": "TT size table: Material column = FZ for listed sizes; note says other materials/sizes/lengths on request (TT section).",
+          "graph_says": "Available materials: FZ (default), AZ (on request), RF (on request), SF (on request), ZM (on request)",
+          "recommendation": "Do not enumerate specific alternative materials unless the PDF explicitly does; model as 'other materials on request' generically."
+        },
+        {
+          "id": 21,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "MAJOR",
+          "product_family": "FAM_PFF",
+          "description": "PFF planfilterram: PDF says it is usually manufactured in galvanized (FZ). Graph lists AZ/RF/SF/ZM as available materials without PDF support.",
+          "pdf_says": "PFF UTFÖRANDE: \"PFF tillverkas vanligen i förzinkat.\" (PFF section).",
+          "graph_says": "Available materials: FZ (default), AZ, RF, SF, ZM",
+          "recommendation": "Restrict PFF to FZ unless the catalog explicitly offers other materials; otherwise mark alternates as special-order with provenance."
+        },
+        {
+          "id": 22,
+          "category": "OPTIONS_FEATURES",
+          "severity": "MINOR",
+          "product_family": "FAM_GDP",
+          "description": "GDP default frame depth in graph is set to 50mm and simultaneously states 'standard: 25mm'—contradictory and not aligned with PDF, where GDP supports 25/50/100 and the example uses 50 but text says standard depths exist (25, 50, 100) and PFF standard is 25 with options 50/100.",
+          "pdf_says": "GDP: standard for plan/pleat/panel with 25, 50 or 100 mm standarddjup på ramen; example code uses 50. PFF: Standard depth 25, options 50/100.",
+          "graph_says": "Default frame depth: 50mm (standard: 25mm)",
+          "recommendation": "Define a single 'default' (recommend aligning with standard offering: 25 for PFF; for GDP, either 25 as default and keep 50/100 as options, or explicitly state default=50 because example uses 50, but then remove 'standard=25' wording)."
+        }
+      ],
+      "summary": "The KG is broadly complete in terms of product families and (for the major cabinet families) the size/airflow/weight tables appear to be captured with high fidelity from the PDF tables (GDP, GDB, GDMI, GDC, GDC FLEX, GDMI FLEX, plus BFF/PFF, PT, TT, EXL, Filter Profil are all present). I did not find missing size rows for GDP/GDB/GDMI/GDC/GDC FLEX/GDMI FLEX relative to the tables shown in the provided catalog pages, and the numeric airflow/weight/cartridge/module counts in the KG generally mirror the PDF tables row-by-row (noting one potential PDF internal inconsistency in the GDC FLEX width/height columns that should be re-validated visually).",
+      "The dominant integrity issues are (1) over-permissive material availability across many families (graph lists multiple materials as standard where the PDF only states 'vanligen i förzinkat' or 'vanligen i aluzink' or 'vanligen i ZM'), and (2) incorrect modeling of the polisfilter rail option (PF) and its linkage to cabinet lengths—especially for GDC and GDC FLEX, where the PDF ties polisfilter to the 900/950 length variant, not 1100/1150. Additionally, the KG introduces non-catalog material attributes (chlorine PPM) that are not present in the PDF and should be segregated by provenance to prevent being treated as catalog facts.": null
+    },
+    "anthropic_opus": {
+      "evaluator": "claude-sonnet-4-20250514",
+      "overall_score": 72,
+      "total_findings": 42,
+      "findings": [
+        {
+          "id": 1,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "CRITICAL",
+          "product_family": "GDMI FLEX",
+          "description": "GDMI FLEX material icons on PDF page 18 show FZ, AZ, ZM (three icons). The graph lists FZ, AZ, ZM which matches. However, the graph does NOT list RF or SF, which is correct per PDF. But the PDF page 18 description says 'GDMI FLEX tillverkas vanligen i ZM. Ej i rostfritt.' confirming no RF/SF. Graph is correct here - NO FINDING. Retracted.",
+          "pdf_says": "FZ, AZ, ZM (page 18 icons)",
+          "graph_says": "FZ, AZ, ZM",
+          "recommendation": "No action needed - graph is correct."
+        },
+        {
+          "id": 2,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "CRITICAL",
+          "product_family": "GDMI",
+          "description": "GDMI page 11 shows only AZ and ZM material icons. The graph correctly lists only AZ and ZM. The PDF text says 'Ei i Rostfritt' (not in stainless). Graph is correct.",
+          "pdf_says": "AZ, ZM only (page 11)",
+          "graph_says": "AZ, ZM",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 3,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "MAJOR",
+          "product_family": "PT",
+          "description": "PT Plan Övergång page 22 shows material icons FZ, AZ, (greyed-out RF), SF, ZM. The RF icon appears greyed out/inactive. The graph lists FZ (default), AZ (on request), SF (on request), ZM (on request) but omits RF entirely. However, the greyed-out RF icon suggests RF is not available, so omitting it may be intentional. The graph does include SF but the icon arrangement on page 22 shows SF is present.",
+          "pdf_says": "FZ, AZ, (RF greyed), SF, ZM (page 22)",
+          "graph_says": "FZ, AZ, SF, ZM (no RF)",
+          "recommendation": "Verify whether RF is truly unavailable for PT. If the greyed icon means unavailable, graph is correct. Add a note explaining RF exclusion."
+        },
+        {
+          "id": 4,
+          "category": "LENGTH_VARIANTS",
+          "severity": "CRITICAL",
+          "product_family": "GDMI",
+          "description": "GDMI page 11 text states lengths '550/600 mm for korta påsfilter och 800/850 mm for långa påsfilter'. However, the dimension table on page 12 shows 600/650 and 850/900. The graph notes this as a SOURCE CONFLICT and uses table values (600/650 and 850/900). The sortiment page 3 also shows 600/650mm and 850/900mm. Graph decision to use table values appears correct.",
+          "pdf_says": "Text: 550/600 & 800/850; Table: 600/650 & 850/900 (pages 11-12)",
+          "graph_says": "600/650 & 850/900 (with SOURCE CONFLICT note)",
+          "recommendation": "Graph handling is reasonable. Consider flagging the text discrepancy to MANN+HUMMEL for catalog correction."
+        },
+        {
+          "id": 5,
+          "category": "CODE_FORMAT",
+          "severity": "MAJOR",
+          "product_family": "GDMI",
+          "description": "GDMI example code on page 11 shows default material as AZ (GDMI-600x600-600-R-PG-AZ), but the text says 'tillverkas vanligen i ZM'. The graph notes this conflict and uses ZM as default. This is a judgment call - the graph should document both perspectives.",
+          "pdf_says": "Text says ZM default; example code uses AZ (page 11)",
+          "graph_says": "ZM as default (with SOURCE CONFLICT note)",
+          "recommendation": "Acceptable handling. Ensure the example code format still works with AZ as shown in PDF."
+        },
+        {
+          "id": 6,
+          "category": "OPTIONS_FEATURES",
+          "severity": "CRITICAL",
+          "product_family": "GDC",
+          "description": "GDC options in graph include 'Förmonterad filterskena för polisfilter (code: PF) [length: 1100/1150]'. The PDF page 14 states the polisfilter option is for length 900/950mm, NOT 1100/1150. Length 1100/1150 belongs to GDMI FLEX. The GDC polisfilter option should reference length 900/950.",
+          "pdf_says": "GDC: Option Skåp L=900/950mm Förmonterad filterskena för polisfilter (page 14)",
+          "graph_says": "Polisfilter option code PF with length 1100/1150",
+          "recommendation": "Change GDC polisfilter option length from 1100/1150 to 900/950."
+        },
+        {
+          "id": 7,
+          "category": "OPTIONS_FEATURES",
+          "severity": "CRITICAL",
+          "product_family": "GDC FLEX",
+          "description": "GDC FLEX options in graph include 'Förmonterad filterskena för polisfilter (code: PF) [length: 1100/1150]'. The PDF page 16 states the polisfilter option is for length 900/950mm. Length 1100/1150 belongs to GDMI FLEX.",
+          "pdf_says": "GDC FLEX: Option Skåp L=900/950mm Förmonterad filterskena för polisfilter (page 16)",
+          "graph_says": "Polisfilter option code PF with length 1100/1150",
+          "recommendation": "Change GDC FLEX polisfilter option length from 1100/1150 to 900/950."
+        },
+        {
+          "id": 8,
+          "category": "WEIGHT_DATA",
+          "severity": "CRITICAL",
+          "product_family": "GDB",
+          "description": "GDB size 1800x900: PDF page 9 shows weight 550/600 = 36 kg. This appears anomalously low compared to surrounding sizes (1800x600=47, 1800x1200=70). The graph stores 36 kg with a SUSPECTED_PDF_ERROR flag. The expected value based on pattern would be approximately 62-65 kg.",
+          "pdf_says": "1800x900 weight 550/600 = 36 kg (page 9)",
+          "graph_says": "36 kg with SUSPECTED_PDF_ERROR flag",
+          "recommendation": "Graph correctly flags this. Contact MANN+HUMMEL to verify. Likely should be ~62 kg based on interpolation."
+        },
+        {
+          "id": 9,
+          "category": "SIZE_ACCURACY",
+          "severity": "MAJOR",
+          "product_family": "GDB",
+          "description": "GDB table on page 9 includes 600x900 with ¼ module=1, ½ module=blank, 1/1 module=1. The graph shows modules as 0/1/1 (¼=0, ½=1, 1/1=1). PDF clearly shows ¼=1 for 600x900.",
+          "pdf_says": "600x900: ¼=1, ½=blank, 1/1=1 (page 9)",
+          "graph_says": "¼=0, ½=1, 1/1=1",
+          "recommendation": "Correct GDB 600x900 module counts to ¼=1, ½=0, 1/1=1."
+        },
+        {
+          "id": 10,
+          "category": "SIZE_ACCURACY",
+          "severity": "MAJOR",
+          "product_family": "GDB",
+          "description": "GDB 900x600: PDF page 9 shows ¼=blank, ½=1, 1/1=1. Graph shows ¼=0, ½=1, 1/1=1. This matches.",
+          "pdf_says": "900x600: ¼=blank, ½=1, 1/1=1",
+          "graph_says": "¼=0, ½=1, 1/1=1",
+          "recommendation": "No action needed - matches."
+        },
+        {
+          "id": 11,
+          "category": "SIZE_ACCURACY",
+          "severity": "MAJOR",
+          "product_family": "GDB",
+          "description": "GDB 600x900: PDF page 9 shows Filtermodul ¼=1, ½=blank (empty), 1/1=1. The graph records this as ¼=0, ½=1, 1/1=1 which swaps the ¼ and ½ values.",
+          "pdf_says": "600x900: ¼=1, ½=(empty), 1/1=1 (page 9)",
+          "graph_says": "600x900: ¼=0, ½=1, 1/1=1",
+          "recommendation": "Fix to ¼=1, ½=0, 1/1=1."
+        },
+        {
+          "id": 12,
+          "category": "SIZE_ACCURACY",
+          "severity": "MAJOR",
+          "product_family": "GDB",
+          "description": "GDB 600x1500: PDF page 9 shows ¼=blank, ½=1, 1/1=2. Graph shows ¼=0, ½=1, 1/1=2. This matches.",
+          "pdf_says": "600x1500: ¼=blank, ½=1, 1/1=2",
+          "graph_says": "¼=0, ½=1, 1/1=2",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 13,
+          "category": "SIZE_ACCURACY",
+          "severity": "MAJOR",
+          "product_family": "GDB",
+          "description": "GDB 900x900: PDF page 9 shows ¼=1, ½=2, 1/1=1. Graph shows ¼=1, ½=2, 1/1=1. This matches.",
+          "pdf_says": "900x900: ¼=1, ½=2, 1/1=1",
+          "graph_says": "¼=1, ½=2, 1/1=1",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 14,
+          "category": "SIZE_ACCURACY",
+          "severity": "MAJOR",
+          "product_family": "GDMI",
+          "description": "GDMI 900x900: PDF page 12 shows ¼=1, ½=2, 1/1=1. Graph shows ¼=1, ½=2, 1/1=1. Matches.",
+          "pdf_says": "Matches",
+          "graph_says": "Matches",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 15,
+          "category": "CODE_FORMAT",
+          "severity": "MINOR",
+          "product_family": "GDP",
+          "description": "GDP code format in graph is '{family}-{width}x{height}-{frame_depth}-R-PG-{material}'. The PDF example on page 5 shows 'GDP-600x600-50-R-PG-FZ'. The graph default frame depth is listed as 50mm with note 'standard: 25mm'. The PDF says 'Standard är 250 mm längd för plan, pleat och panelfilter med 25, 50 eller 100 mm standarddjup på ramen.' The standard frame depth in the code example is 50, which matches.",
+          "pdf_says": "GDP-600x600-50-R-PG-FZ (page 5)",
+          "graph_says": "Default frame depth: 50mm (standard: 25mm)",
+          "recommendation": "Clarify: the default frame depth in the code should be 50 as shown in the example. The '25mm' note is confusing."
+        },
+        {
+          "id": 16,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "MAJOR",
+          "product_family": "EXL",
+          "description": "EXL page 23 shows material icons AZ, RF, FZ, ZM (four icons). The graph lists FZ, AZ (default), RF, ZM. However, the PDF text says 'Utförs vanligen i aluzink' (usually made in aluzink) and the example shows 'EXL-600 AZ'. The graph correctly has AZ as default. But the graph includes RF while the PDF icons show AZ, RF, FZ, ZM - so RF is included. However, SF is NOT shown in the PDF icons for EXL, and the graph correctly omits SF.",
+          "pdf_says": "AZ, RF, FZ, ZM icons (page 23)",
+          "graph_says": "FZ, AZ (default), RF, ZM",
+          "recommendation": "Graph correctly matches PDF. No action needed."
+        },
+        {
+          "id": 17,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "MINOR",
+          "product_family": "Filter Profil",
+          "description": "Filter Profil on page 23 does not show any material icons at the top of its section. The example shows 'Filter profil-600 FZ'. The graph lists FZ (default), AZ (on request), RF (on request), ZM (on request). Since no material icons are shown, the additional materials are assumed/inferred rather than PDF-documented.",
+          "pdf_says": "No material icons shown; example uses FZ (page 23)",
+          "graph_says": "FZ (default), AZ (on request), RF (on request), ZM (on request)",
+          "recommendation": "Consider removing inferred materials or marking them clearly as assumptions not from PDF."
+        },
+        {
+          "id": 18,
+          "category": "CORROSION_CLASSES",
+          "severity": "MINOR",
+          "product_family": "ALL",
+          "description": "The graph stores corrosion class for SF (Syrafast) as C5.1. The PDF page 4 shows 'Korrosivitets klass C5.1' with a period before the 1. This appears to be 'C5-I' (C5 Industrial) in ISO 12944 terminology, not literally 'C5.1'. The graph representation is acceptable but could be more precise.",
+          "pdf_says": "C5.1 (page 4)",
+          "graph_says": "C5.1",
+          "recommendation": "Consider clarifying whether this is ISO 12944 C5-I or a custom designation."
+        },
+        {
+          "id": 19,
+          "category": "PRODUCT_COMPLETENESS",
+          "severity": "INFO",
+          "product_family": "ALL",
+          "description": "All 12 product families from the PDF table of contents (page 2) are present in the graph: GDP, GDB, GDMI, GDC, GDC FLEX, GDMI FLEX, BFF, PFF, PT, TT, EXL, Filter Profil. Complete.",
+          "pdf_says": "12 product families (page 2)",
+          "graph_says": "12 product families",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 20,
+          "category": "SIZE_ACCURACY",
+          "severity": "MAJOR",
+          "product_family": "GDC FLEX",
+          "description": "GDC FLEX dimension table on page 16 shows the first size as '600x300' with Bredd=300, Höjd=600. The graph stores this as size '600x300' with implied width=600, height=300. However, the PDF table shows Bredd(width)=300, Höjd(height)=600, meaning the actual duct opening is 300 wide x 600 high. The size label '600x300' in the PDF appears to follow a different convention than the Bredd/Höjd columns suggest.",
+          "pdf_says": "Size 600x300: Bredd=300, Höjd=600 (page 16)",
+          "graph_says": "Size 600x300 (width x height interpretation unclear)",
+          "recommendation": "Verify the width/height convention for GDC FLEX. The PDF table Bredd=300, Höjd=600 for size labeled '600x300' suggests the size label may be Height x Width, or there's an inconsistency."
+        },
+        {
+          "id": 21,
+          "category": "WEIGHT_DATA",
+          "severity": "MAJOR",
+          "product_family": "GDMI FLEX",
+          "description": "GDMI FLEX dimension table on page 18 has column headers 'Vikt kg 1100/1150' appearing twice. The first column should be 'Vikt kg 850/900' (short length weight) and the second 'Vikt kg 1100/1150' (long length weight). The graph correctly interprets the first weight column as the short (850/900) weight and the second as the long (1100/1150) weight based on the values matching the pattern.",
+          "pdf_says": "Both columns labeled 'Vikt kg 1100/1150' (page 18) - likely a typo",
+          "graph_says": "First column as 850/900 weight, second as 1100/1150 weight",
+          "recommendation": "Graph interpretation appears correct. Flag the PDF column header typo to MANN+HUMMEL."
+        },
+        {
+          "id": 22,
+          "category": "CODE_FORMAT",
+          "severity": "MINOR",
+          "product_family": "GDMI FLEX",
+          "description": "GDMI FLEX example code on page 18 shows 'GDMI-FLEX-600x600-850-R-PG-FZ' with material FZ. But the text says 'tillverkas vanligen i ZM' and the graph default material is listed as FZ. The graph code format uses GDMI-FLEX prefix which matches the PDF example.",
+          "pdf_says": "Example: GDMI-FLEX-600x600-850-R-PG-FZ; Text says default ZM (page 18)",
+          "graph_says": "Materials: FZ, AZ, ZM (no explicit default marked in graph data)",
+          "recommendation": "Clarify default material for GDMI FLEX. Text says ZM but example uses FZ."
+        },
+        {
+          "id": 23,
+          "category": "LENGTH_VARIANTS",
+          "severity": "CRITICAL",
+          "product_family": "GDMI FLEX",
+          "description": "GDMI FLEX PDF page 18 states lengths are 850 and 1100 mm in the text, and the table shows 850/900 and 1100/1150 (PG/F40). The sortiment page 3 shows 850/900mm and 1100/1150mm. The graph correctly shows 850/900mm and 1100/1150mm.",
+          "pdf_says": "850/900 and 1100/1150 (pages 3, 18)",
+          "graph_says": "850/900 and 1100/1150",
+          "recommendation": "No action needed - matches."
+        },
+        {
+          "id": 24,
+          "category": "FILTER_COMPATIBILITY",
+          "severity": "MAJOR",
+          "product_family": "GDP",
+          "description": "GDP graph states 'Default frame depth: 50mm (standard: 25mm)'. The PDF page 5 says 'Standard är 250 mm längd för plan, pleat och panelfilter med 25, 50 eller 100 mm standarddjup på ramen.' The frame depth options are 25, 50, 100mm. The example code uses 50. The graph's variable features list Frame Depth values as [25, 50, 100] which is correct.",
+          "pdf_says": "Frame depths: 25, 50, 100mm (page 5)",
+          "graph_says": "Frame Depth values: [25, 50, 100]",
+          "recommendation": "No action needed - matches."
+        },
+        {
+          "id": 25,
+          "category": "SIZE_ACCURACY",
+          "severity": "MAJOR",
+          "product_family": "GDB",
+          "description": "GDB 300x300: PDF page 9 shows ¼ module=1, ½=blank, 1/1=blank. Graph shows ¼=1, ½=0, 1/1=0. This matches.",
+          "pdf_says": "300x300: ¼=1 (page 9)",
+          "graph_says": "¼=1, ½=0, 1/1=0",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 26,
+          "category": "SIZE_ACCURACY",
+          "severity": "MAJOR",
+          "product_family": "GDB",
+          "description": "GDB 1200x900: PDF page 9 shows ¼=blank, ½=2, 1/1=2. Graph shows ¼=0, ½=2, 1/1=2. This matches.",
+          "pdf_says": "Matches",
+          "graph_says": "Matches",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 27,
+          "category": "CONSTRUCTION_TYPE",
+          "severity": "MINOR",
+          "product_family": "GDP",
+          "description": "GDP construction in graph is 'SINGLE_WALL_UNINSULATED'. PDF page 5 says 'GDP levereras i oisolerat enkelväggsutförande' (uninsulated single-wall). Matches.",
+          "pdf_says": "Oisolerat enkelväggsutförande (page 5)",
+          "graph_says": "SINGLE_WALL_UNINSULATED",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 28,
+          "category": "CONSTRUCTION_TYPE",
+          "severity": "MINOR",
+          "product_family": "GDB",
+          "description": "GDB construction in graph is 'SINGLE_WALL_UNINSULATED'. PDF page 8 says 'GDB levereras i oisolerat enkelväggsutförande med en servicelucka som är dubbelmantlad och värme/kondensisolerad som standard.' The housing is single-wall uninsulated but the door is double-wall insulated. Graph captures door insulation separately as DOUBLE_WALL_HEAT_CONDENSATION. Correct.",
+          "pdf_says": "Housing: single-wall uninsulated; Door: double-wall insulated (page 8)",
+          "graph_says": "Construction: SINGLE_WALL_UNINSULATED; Door insulation: DOUBLE_WALL_HEAT_CONDENSATION",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 29,
+          "category": "AIRFLOW_RATINGS",
+          "severity": "CRITICAL",
+          "product_family": "GDB",
+          "description": "Systematic check of all GDB airflow values against PDF page 9. All 27 sizes checked: 300x300=850, 300x600=1700, 600x300=1700, 600x600=3400, 600x900=5100, 600x1200=6800, 600x1500=8500, 600x1800=10200, 900x600=5100, 900x900=7650, 900x1200=10200, 900x1500=12750, 900x1800=15300, 1200x600=6800, 1200x900=10200, 1200x1200=13600, 1200x1500=17000, 1200x1800=20400, 1500x600=8500, 1500x900=12750, 1500x1200=17000, 1500x1500=21250, 1500x1800=25500, 1800x600=10200, 1800x900=15300, 1800x1200=20400, 1800x1500=25500, 1800x1800=30600. All match graph.",
+          "pdf_says": "All GDB airflow values (page 9)",
+          "graph_says": "All match",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 30,
+          "category": "AIRFLOW_RATINGS",
+          "severity": "INFO",
+          "product_family": "GDP",
+          "description": "Systematic check of all GDP airflow values against PDF page 6. All 35 sizes verified. All values match between graph and PDF.",
+          "pdf_says": "All GDP airflow values (page 6)",
+          "graph_says": "All match",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 31,
+          "category": "WEIGHT_DATA",
+          "severity": "INFO",
+          "product_family": "GDP",
+          "description": "All 35 GDP weight values verified against PDF page 6. All match.",
+          "pdf_says": "All GDP weights (page 6)",
+          "graph_says": "All match",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 32,
+          "category": "CARTRIDGE_COUNTS",
+          "severity": "INFO",
+          "product_family": "GDC",
+          "description": "All 12 GDC cartridge counts verified against PDF page 14. All match: 300x300=4, 300x600=8, 600x300=8, 600x600=16, 900x600=24, 1200x600=32, 1200x900=48, 1200x1200=64, 1500x1200=80, 1500x600=40, 1800x1200=96, 1800x600=48.",
+          "pdf_says": "All GDC cartridge counts (page 14)",
+          "graph_says": "All match",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 33,
+          "category": "CARTRIDGE_COUNTS",
+          "severity": "INFO",
+          "product_family": "GDC FLEX",
+          "description": "All 6 GDC FLEX cartridge counts verified against PDF page 16. All match: 600x300=5, 600x600=14, 900x600=20, 1200x600=28, 1500x600=34, 1800x600=42.",
+          "pdf_says": "All GDC FLEX cartridge counts (page 16)",
+          "graph_says": "All match",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 34,
+          "category": "CARTRIDGE_COUNTS",
+          "severity": "INFO",
+          "product_family": "GDMI FLEX",
+          "description": "All 8 GDMI FLEX cartridge counts verified against PDF page 18. All match: 600x300=5, 600x600=14, 900x600=20, 1200x600=28, 1200x900=38, 1500x600=34, 1500x900=47, 1800x900=56.",
+          "pdf_says": "All GDMI FLEX cartridge counts (page 18)",
+          "graph_says": "All match",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 35,
+          "category": "WEIGHT_DATA",
+          "severity": "MAJOR",
+          "product_family": "GDMI",
+          "description": "GDMI size 900x900: PDF page 12 shows weight 600/650 = 47 kg. Graph shows 47 kg. Match. GDMI 1200x1800: PDF shows 600/650=82, 850/900=101. Graph shows 82 and 101. Match. All GDMI weights systematically verified - all match PDF page 12.",
+          "pdf_says": "All GDMI weights (page 12)",
+          "graph_says": "All match",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 36,
+          "category": "SIZE_ACCURACY",
+          "severity": "MAJOR",
+          "product_family": "GDMI",
+          "description": "GDMI includes sizes up to 2400x2400 in the PDF (page 12). The graph includes all sizes from 300x300 through 2400x2400 (35 sizes total). Verified all are present.",
+          "pdf_says": "35 GDMI sizes from 300x300 to 2400x2400 (page 12)",
+          "graph_says": "35 sizes present",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 37,
+          "category": "SIZE_ACCURACY",
+          "severity": "MINOR",
+          "product_family": "BFF",
+          "description": "BFF sizes verified against PDF page 20. All 5 sizes present: 305x305, 610x305, 910x305, 610x610, 910x610. All weights and filter compatibility data match.",
+          "pdf_says": "5 BFF sizes (page 20)",
+          "graph_says": "5 sizes present, all data matches",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 38,
+          "category": "SIZE_ACCURACY",
+          "severity": "INFO",
+          "product_family": "PFF",
+          "description": "PFF sizes verified against PDF page 21. All 25 sizes present with correct dimensions and airflow values.",
+          "pdf_says": "25 PFF sizes (page 21)",
+          "graph_says": "25 sizes present",
+          "recommendation": "No action needed."
+        },
+        {
+          "id": 39,
+          "category": "OPTIONS_FEATURES",
+          "severity": "MINOR",
+          "product_family": "GDMI FLEX",
+          "description": "GDMI FLEX PDF page 18 states 'Längd 850/900 för 450 mm cylinder' and 'Längd 1100/1150 för 600 mm cylinder + polisfilter'. The graph's long length description says '1100/1150mm (PG/F40), 600mm cartridge or 450mm+polisfilter'. However, the PDF only mentions '600 mm cylinder + polisfilter' for the 1100/1150 length, not '450mm+polisfilter'. The GDC and GDC FLEX pages mention both options (450mm+polisfilter and 600mm cylinder) for the longer length, but GDMI FLEX only mentions 600mm+polisfilter.",
+          "pdf_says": "GDMI FLEX 1100/1150: '600 mm cylinder + polisfilter' (page 18)",
+          "graph_says": "1100/1150: '600mm cartridge or 450mm+polisfilter'",
+          "recommendation": "Update GDMI FLEX long length description to match PDF: '600mm cylinder + polisfilter' only."
+        },
+        {
+          "id": 40,
+          "category": "FILTER_COMPATIBILITY",
+          "severity": "MAJOR",
+          "product_family": "GDC",
+          "description": "GDC PDF page 14 notes: 'Längd 750/800 för 450 mm cylinder', 'Längd 900/950 för 450 mm cylinder + polisfilter', 'Längd 900/950 för 600 mm cylinder'. The graph's length variant for 900/950 says 'max filter depth 600mm' and description says '600mm cartridge or 450mm+polisfilter'. This is correct and captures both use cases for the longer length.",
+          "pdf_says": "900/950: 450mm+polisfilter OR 600mm cylinder (page 14)",
+          "graph_says": "900/950: 600mm cartridge or 450mm+polisfilter",
+          "recommendation": "No action needed - matches."
+        },
+        {
+          "id": 41,
+          "category": "SIZE_ACCURACY",
+          "severity": "MAJOR",
+          "product_family": "GDC FLEX",
+          "description": "GDC FLEX size table on page 16 shows Bredd and Höjd columns that appear swapped relative to the size label. Size '600x300' shows Bredd=300, Höjd=600. Size '600x600' shows Bredd=600, Höjd=600. This suggests the size label format for GDC FLEX may be HöjdxBredd rather than BreddxHöjd, or there's a table error. The graph stores these as-is from the size label column.",
+          "pdf_says": "600x300: Bredd=300, Höjd=600 (page 16)",
+          "graph_says": "Size stored as 600x300",
+          "recommendation": "Investigate whether GDC FLEX size labels follow a different convention. The Bredd/Höjd columns suggest the first number in the label is height, not width, for the 600x300 entry."
+        },
+        {
+          "id": 42,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "MAJOR",
+          "product_family": "GDC FLEX",
+          "description": "GDC FLEX page 16 shows material icons FZ, AZ, RF, SF, ZM (all five). The graph lists FZ, AZ, RF, SF, ZM. However, the graph does not specify a default material. The PDF text says 'GDC FLEX tillverkas vanligen i förzinkat' and the example code uses FZ. The graph should mark FZ as default.",
+          "pdf_says": "Default material: FZ (förzinkat) per text and example (page 16)",
+          "graph_says": "FZ, AZ, RF, SF, ZM listed but no default specified",
+          "recommendation": "Mark FZ as the default material for GDC FLEX."
+        }
+      ],
+      "summary": "The Knowledge Graph is generally well-constructed and captures the vast majority of data from the MANN+HUMMEL HVAC Filterskåp catalog accurately. All 12 product families are present, and the dimensional data (sizes, weights, airflow ratings, cartridge counts) is overwhelmingly correct across hundreds of data points. The graph demonstrates good engineering judgment in handling source conflicts, such as the GDMI length discrepancy between text and table values, and the suspected PDF error in the GDB 1800x900 weight.\n\nThe most significant findings are: (1) The GDC and GDC FLEX polisfilter option incorrectly references length 1100/1150mm instead of the correct 900/950mm - this is a critical error that could lead to incorrect product configuration; (2) The GDB 600x900 filter module counts appear to have the ¼ and ½ values swapped; (3) The GDC FLEX dimension table has an apparent width/height convention inconsistency that should be investigated; (4) Some default material designations are missing or ambiguous for certain product families.\n\nOverall, the graph scores well on completeness and accuracy. The Layer 2 data (environments, applications, stressors) goes beyond what the PDF catalog explicitly provides, representing value-added engineering knowledge. The main areas for improvement are correcting the polisfilter length references, verifying the GDC FLEX dimension convention, and ensuring all default materials are explicitly marked consistent with PDF examples and text descriptions."
+    }
+  },
+  "round2_critiques": {
+    "gemini_pro": {
+      "evaluator": "ProductDataAuditor-V1",
+      "confirmed_findings": [
+        {
+          "finding_id": 1,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 1.0
+        },
+        {
+          "finding_id": 2,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 1.0
+        },
+        {
+          "finding_id": 3,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 1.0
+        },
+        {
+          "finding_id": 4,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 1.0
+        },
+        {
+          "finding_id": 5,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 0.9
+        },
+        {
+          "finding_id": 6,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 1.0
+        },
+        {
+          "finding_id": 7,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 1.0
+        },
+        {
+          "finding_id": 10,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 1.0
+        },
+        {
+          "finding_id": 3,
+          "from_evaluator": "claude-sonnet-4-20250514",
+          "confidence": 1.0
+        },
+        {
+          "finding_id": 8,
+          "from_evaluator": "claude-sonnet-4-20250514",
+          "confidence": 1.0
+        }
+      ],
+      "challenged_findings": [
+        {
+          "finding_id": 11,
+          "from_evaluator": "claude-sonnet-4-20250514",
+          "reason": "Incorrect reading of PDF table. For GDB 600x900, the PDF shows flow 5100 m³/h. Module 1/1 is 3400, 1/2 is 1700, 1/4 is 850. 3400+1700=5100. Therefore, the configuration must be 1/1 + 1/2. Visually, the table on Page 9 shows '1' in the 1/2 column and '1' in the 1/1 column. Claude claims 1/4=1 and 1/1=1, which would sum to 4250 m³/h, contradicting the flow data.",
+          "pdf_evidence": "Page 9, Table 'MÅTT', Row 600x900, Column 'Flöde i m3/h' = 5100"
+        },
+        {
+          "finding_id": 9,
+          "from_evaluator": "claude-sonnet-4-20250514",
+          "reason": "Duplicate/Confused finding. Finding 9 refers to 600x900 but describes 1/4=1. As established above, 600x900 is 1/2+1/1. If the finding intended to refer to 900x600 (Flow 3000), that row shows 1/4=1 and 1/2=1 (850+1700=2550, approx 3000?). However, the finding explicitly cites 600x900.",
+          "pdf_evidence": "Page 9, Table 'MÅTT'"
+        },
+        {
+          "finding_id": 11,
+          "from_evaluator": "gpt-4.1",
+          "reason": "The finding claims the PDF uses a hyphenated format for EXL codes and that the graph incorrectly uses a space. The PDF text on Page 23 explicitly shows 'EXL-600 AZ'. There is a hyphen between 'EXL' and '600', but a SPACE between '600' and 'AZ'. If the graph uses a space between width and material, it is consistent with the PDF.",
+          "pdf_evidence": "Page 23, Example text block: 'EXL-600 AZ'"
+        }
+      ],
+      "new_findings": [],
+      "retracted_own_findings": [],
+      "consensus_score": 65,
+      "final_assessment": "The graph contains several critical errors regarding material availability and option mapping. Specifically, the graph lists materials (AZ, RF, SF, ZM) as standard for families where the PDF explicitly states they are usually FZ or ZM (and explicitly excludes RF for GDMI). Furthermore, the 'Polisfilter' option is mapped to the wrong length variant (1100/1150) for GDC and GDC Flex; the PDF assigns it to 900/950. The graph also includes a non-existent 1100/1150 length variant for GDC Flex. On the positive side, the graph correctly handled the GDB weight typo (flagging it) and the GDMI length discrepancy (favoring the table). The score is adjusted to 65 to reflect these critical accuracy issues."
+    },
+    "openai": {
+      "evaluator": "gpt-4.1-peerreview",
+      "confirmed_findings": [
+        {
+          "finding_id": 6,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 0.95
+        },
+        {
+          "finding_id": 7,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 0.95
+        },
+        {
+          "finding_id": 10,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 0.9
+        },
+        {
+          "finding_id": 6,
+          "from_evaluator": "claude-sonnet-4-20250514",
+          "confidence": 0.95
+        },
+        {
+          "finding_id": 7,
+          "from_evaluator": "claude-sonnet-4-20250514",
+          "confidence": 0.95
+        },
+        {
+          "finding_id": 1,
+          "from_evaluator": "ProductDataAuditor-V1",
+          "confidence": 0.85
+        },
+        {
+          "finding_id": 8,
+          "from_evaluator": "claude-sonnet-4-20250514",
+          "confidence": 0.85
+        },
+        {
+          "finding_id": 2,
+          "from_evaluator": "ProductDataAuditor-V1",
+          "confidence": 0.9
+        },
+        {
+          "finding_id": 4,
+          "from_evaluator": "claude-sonnet-4-20250514",
+          "confidence": 0.9
+        },
+        {
+          "finding_id": 9,
+          "from_evaluator": "claude-sonnet-4-20250514",
+          "confidence": 0.75
+        }
+      ],
+      "challenged_findings": [
+        {
+          "finding_id": 1,
+          "from_evaluator": "gpt-4.1",
+          "reason": "The PDF’s general section explicitly states the cabinets can be manufactured in multiple materials (FZ, ZM, RF) and presents material icons on the GDP product page. The GDP text says 'vanligen i förzinkat' (usually galvanized), which does not exclude other materials; therefore treating non-FZ as categorically wrong 'availability' is too strong. This should be modeled as 'standard/usual = FZ' with optional/on-request materials, not removed entirely.",
+          "pdf_evidence": "Page 3 'VID VAL AV SKÅP TÄNK PÅ: MATERIAL' states: 'Vi kan tillverka våra filterskåp i flera olika material. De vanligaste är FZ,ZM,,RF'. GDP page (page 5) shows material icons (FZ, AZ, RF, SF, ZM) at top while text says 'GDP tillverkas vanligen i förzinkat.'"
+        },
+        {
+          "finding_id": 2,
+          "from_evaluator": "gpt-4.1",
+          "reason": "Same issue as GDP: 'vanligen i förzinkat' does not mean 'only FZ'. The general statement on materials plus material icons on the GDB page indicate broader manufacturability; graph should represent 'standard/usual' separately from 'possible/on request'.",
+          "pdf_evidence": "Page 3 materials note: 'Vi kan tillverka våra filterskåp i flera olika material. De vanligaste är FZ,ZM,,RF'. GDB product page (page 8) shows the material icon row (FZ, AZ, RF, SF, ZM) and text says 'GDB tillverkas vanligen i förzinkat.'"
+        },
+        {
+          "finding_id": 3,
+          "from_evaluator": "gpt-4.1",
+          "reason": "Same logic: GDC says 'vanligen i förzinkat' but the product page carries the full material icon row. Without an explicit restriction (unlike GDMI/GDMI FLEX which explicitly exclude stainless), it’s not correct to call non-FZ 'incorrect'—it’s at most an overstatement if marked as 'standard'.",
+          "pdf_evidence": "Page 14 (GDC) shows material icons (FZ, AZ, RF, SF, ZM) and text: 'GDC tillverkas vanligen i förzinkat.' No statement like 'Ej i rostfritt' exists for GDC."
+        },
+        {
+          "finding_id": 4,
+          "from_evaluator": "gpt-4.1",
+          "reason": "Same as GDC: PDF does not explicitly forbid other materials for GDC FLEX; it says 'vanligen i förzinkat' and shows the full material icon row. This should be modeled as 'usual=FZ', not 'only FZ'.",
+          "pdf_evidence": "Page 16 (GDC FLEX) shows material icons (FZ, AZ, RF, SF, ZM) and text: 'GDC FLEX tillverkas vanligen i förzinkat.' No explicit exclusion of other materials is stated."
+        },
+        {
+          "finding_id": 5,
+          "from_evaluator": "gpt-4.1",
+          "reason": "The graph listing FZ/AZ/ZM for GDMI FLEX is consistent with the material icons shown on the GDMI FLEX page; the PDF text confirms 'vanligen i ZM' and 'Ej i rostfritt' but does not rule out FZ/AZ. So the issue is not 'includes FZ/AZ', but rather that the graph should encode 'standard/usual = ZM' and 'RF/SF not allowed'.",
+          "pdf_evidence": "Page 18 (GDMI FLEX) shows icons: FZ, AZ, ZM. Text: 'GDMI FLEX tillverkas vanligen i ZM. Ej i rostfritt.'"
+        },
+        {
+          "finding_id": 3,
+          "from_evaluator": "ProductDataAuditor-V1",
+          "reason": "This is not a graph defect and not even clearly a PDF defect: the corrosion class for syrafast stainless is written as 'C5.1' in the PDF (not 'C5.I'). So there is no discrepancy to standardize.",
+          "pdf_evidence": "Page 4 MATERIAL: 'SYRAFAST ROSTFRI STÅLPLÅT ... Korrosivitets klass C5.1' (explicitly decimal 5.1)."
+        }
+      ],
+      "new_findings": [
+        {
+          "id": 1,
+          "category": "LENGTH_VARIANTS",
+          "severity": "MAJOR",
+          "product_family": "FAM_GDMI",
+          "description": "PDF has an internal inconsistency in GDMI length variants (text vs tables/sortiment). If the graph does not carry a SOURCE_CONFLICT flag (or equivalent provenance), this should be added so downstream users know which value is authoritative.",
+          "pdf_says": "Page 11 GDMI text: 'Finns som standard i två längder, 550/600 mm ... och 800/850 mm ...'. Page 3 Sortiment and page 12 GDMI table use '600/650' and '850/900'.",
+          "graph_says": "Unknown from provided excerpts; other evaluators claim graph uses 600/650 and 850/900.",
+          "recommendation": "Ensure graph stores table-derived lengths (600/650, 850/900) as authoritative and retains the page-11 text as a conflicting source note (SOURCE_CONFLICT) for traceability."
+        },
+        {
+          "id": 2,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "MAJOR",
+          "product_family": "FAM_GDMI",
+          "description": "GDMI explicitly states 'Ej i Rostfritt' (not in stainless). If the graph includes RF/SF as available for GDMI, that is incorrect and should be removed/forbidden.",
+          "pdf_says": "Page 11 GDMI UTFÖRANDE: 'GDMI tillverkas vanligen i ZM. Ei i Rostfritt.' (intended 'Ej i rostfritt'). Material icons shown: AZ, ZM.",
+          "graph_says": "Not provided by user; several evaluators imply graph is correct here. This finding applies only if graph includes RF/SF.",
+          "recommendation": "Encode RF/SF as not allowed for GDMI; keep AZ/ZM as available with correct 'usual' default per your chosen conflict resolution."
+        }
+      ],
+      "retracted_own_findings": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "consensus_score": 74,
+      "final_assessment": "After peer review against the catalog, the most clearly substantiated graph defects remain around the polisfilter/pre-mounted rail option being tied to the wrong length family/variant (GDC and GDC FLEX should reference 900/950, and GDC FLEX must not reference 1100/1150) and at least one likely size/module-count transcription error in the GDB table (600x900 1/4 vs 1/2 module). Several of my original CRITICAL material-availability findings were overstated: the PDF repeatedly says 'vanligen' (usually) and also states generally that cabinets can be manufactured in multiple materials, with material icon rows shown per product page; therefore the graph should distinguish 'standard/usual' from 'optional/on-request' rather than forbidding materials outright—except where the PDF explicitly forbids stainless (GDMI, GDMI FLEX). Overall, the graph appears directionally correct but needs targeted corrections in option-to-length constraints, patron-cabinet attribute modeling (cartridge length vs 'filter depth'), and a few table transcription fields, bringing revised accuracy to the mid-70s."
+    },
+    "anthropic_opus": {
+      "evaluator": "claude-sonnet-4-20250514",
+      "confirmed_findings": [
+        {
+          "finding_id": 1,
+          "from_evaluator": "ProductDataAuditor-V1",
+          "confidence": 0.95
+        },
+        {
+          "finding_id": 2,
+          "from_evaluator": "ProductDataAuditor-V1",
+          "confidence": 0.95
+        },
+        {
+          "finding_id": 3,
+          "from_evaluator": "ProductDataAuditor-V1",
+          "confidence": 0.7
+        },
+        {
+          "finding_id": 6,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 0.98
+        },
+        {
+          "finding_id": 7,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 0.98
+        },
+        {
+          "finding_id": 10,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 0.99
+        },
+        {
+          "finding_id": 8,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 0.85
+        },
+        {
+          "finding_id": 9,
+          "from_evaluator": "gpt-4.1",
+          "confidence": 0.85
+        }
+      ],
+      "challenged_findings": [
+        {
+          "finding_id": 1,
+          "from_evaluator": "gpt-4.1",
+          "reason": "The GDP product page (page 5) clearly shows five material icons at the top: FZ, AZ, RF, SF, ZM. These icons are product-family-specific indicators shown at the top of each product page throughout the catalog. The text 'tillverkas vanligen i förzinkat' means 'usually manufactured in galvanized' - this indicates the default/standard material, not the only available material. Every product page uses this same phrasing pattern while showing multiple material icons. The icons explicitly indicate which materials are available for that specific product family.",
+          "pdf_evidence": "Page 5: Five material icons (FZ, AZ, RF, SF, ZM) shown at top of GDP product page. Same pattern on page 8 (GDB: FZ, AZ, RF, SF, ZM), page 14 (GDC: FZ, AZ, RF, SF, ZM), page 16 (GDC FLEX: FZ, AZ, RF, SF, ZM). Compare with page 11 (GDMI: only AZ, ZM) and page 18 (GDMI FLEX: only FZ, AZ, ZM) which show restricted sets."
+        },
+        {
+          "finding_id": 2,
+          "from_evaluator": "gpt-4.1",
+          "reason": "Same reasoning as GDP. The GDB product page (page 8) shows all five material icons: FZ, AZ, RF, SF, ZM. These icons are the definitive indicator of material availability per product family. The text 'tillverkas vanligen i förzinkat' indicates the default, not the only option.",
+          "pdf_evidence": "Page 8: Five material icons (FZ, AZ, RF, SF, ZM) at top of GDB product page."
+        },
+        {
+          "finding_id": 3,
+          "from_evaluator": "gpt-4.1",
+          "reason": "Same reasoning. GDC page 14 shows all five material icons: FZ, AZ, RF, SF, ZM.",
+          "pdf_evidence": "Page 14: Five material icons (FZ, AZ, RF, SF, ZM) at top of GDC product page."
+        },
+        {
+          "finding_id": 4,
+          "from_evaluator": "gpt-4.1",
+          "reason": "Same reasoning. GDC FLEX page 16 shows all five material icons: FZ, AZ, RF, SF, ZM.",
+          "pdf_evidence": "Page 16: Five material icons (FZ, AZ, RF, SF, ZM) at top of GDC FLEX product page."
+        },
+        {
+          "finding_id": 5,
+          "from_evaluator": "gpt-4.1",
+          "reason": "The GDMI FLEX page 18 shows three material icons: FZ, AZ, ZM. The text says 'tillverkas vanligen i ZM' (usually manufactured in ZM) indicating ZM is the default. The icons FZ and AZ are shown as available alternatives. The graph listing FZ, AZ, ZM as available materials is correct per the icons. The evaluator's suggestion that FZ should not be standard is contradicted by the FZ icon being present and not greyed out. However, the default should indeed be ZM per the text.",
+          "pdf_evidence": "Page 18: Three material icons shown: FZ, AZ, ZM. Text: 'GDMI FLEX tillverkas vanligen i ZM. Ej i rostfritt.'"
+        }
+      ],
+      "new_findings": [
+        {
+          "id": 101,
+          "category": "OPTIONS_FEATURES",
+          "severity": "CRITICAL",
+          "product_family": "GDMI_FLEX",
+          "description": "GDMI FLEX polisfilter option: PDF page 18 states 'Option: Skåp L= 1100/1150mm Förmonterad filterskena för polisfilter'. The graph should associate the polisfilter option with length 1100/1150 for GDMI FLEX specifically. This is the ONLY product family where 1100/1150 is the correct polisfilter length. The graph may have incorrectly applied this 1100/1150 length to GDC and GDC FLEX instead of GDMI FLEX.",
+          "pdf_says": "GDMI FLEX: 'Option: Skåp L= 1100/1150mm Förmonterad filterskena för polisfilter' (page 18). Lengths: 850/900 for 450mm cylinder, 1100/1150 for 600mm cylinder + polisfilter.",
+          "graph_says": "Polisfilter option with length 1100/1150 appears to be assigned to GDC and GDC FLEX instead of GDMI FLEX",
+          "recommendation": "Ensure GDMI FLEX polisfilter option is correctly associated with length 1100/1150. GDC and GDC FLEX polisfilter should use 900/950."
+        },
+        {
+          "id": 102,
+          "category": "SIZE_ACCURACY",
+          "severity": "MAJOR",
+          "product_family": "GDP",
+          "description": "GDP size 1200x900: PDF page 6 shows exact PFF-Ram size as 1192x442. This is an unusual dimension - for a 1200x900 cabinet one might expect 1192x892 or similar. The 442 height suggests the cabinet uses 2 PFF frames of 1192x442 each. The graph should verify this dimension is correctly captured.",
+          "pdf_says": "GDP 1200x900: Antal PFF ramar=2, Exaktmått PFF-Ram Bredd x Höjd = 1192x442 (page 6)",
+          "graph_says": "Needs verification",
+          "recommendation": "Verify GDP 1200x900 PFF frame dimensions are correctly stored as 1192x442 with 2 frames."
+        },
+        {
+          "id": 103,
+          "category": "LENGTH_VARIANTS",
+          "severity": "MAJOR",
+          "product_family": "GDMI_FLEX",
+          "description": "GDMI FLEX page 18 text states lengths 850 and 1100mm, but the dimension table shows 850/900 and 1100/1150 (with PG/F40 variants). The example code only shows one variant: GDMI-FLEX-600x600-850-R-PG-FZ. The graph should capture both length variants correctly.",
+          "pdf_says": "GDMI FLEX table: Längd PG/FC40 = 850/900 and 1100/1150 (page 18). Text says 'Finns som standard i 850 och 1100 mm längd'.",
+          "graph_says": "Needs verification of both length variants",
+          "recommendation": "Ensure both 850/900 and 1100/1150 length variants are modeled for GDMI FLEX."
+        },
+        {
+          "id": 104,
+          "category": "MATERIAL_AVAILABILITY",
+          "severity": "MAJOR",
+          "product_family": "GDMI_FLEX",
+          "description": "GDMI FLEX example code on page 18 shows material as FZ (GDMI-FLEX-600x600-850-R-PG-FZ), but the text says 'tillverkas vanligen i ZM'. This is a source conflict similar to GDMI where the example code uses a different material than the text default.",
+          "pdf_says": "GDMI FLEX text: 'tillverkas vanligen i ZM' (page 18). Example code: GDMI-FLEX-600x600-850-R-PG-FZ (page 18).",
+          "graph_says": "Default material needs to be verified",
+          "recommendation": "Flag as SOURCE CONFLICT. The text indicates ZM as default but the example code uses FZ. Recommend using ZM as default per text, with note about example code discrepancy."
+        },
+        {
+          "id": 105,
+          "category": "OPTIONS_FEATURES",
+          "severity": "MAJOR",
+          "product_family": "GDP",
+          "description": "GDP has a ram djup (frame depth) option that affects the product code. PDF page 5 shows standard depth is 50mm (in the example code GDP-600x600-50-R-PG-FZ), with options for 25mm and 100mm. The graph should model these three depth options correctly.",
+          "pdf_says": "GDP: Standard ram djup 50. Options: Ram djup 50=50, Ram djup 100=100. Standard length 250mm for plan, pleat and panelfilter with 25, 50 or 100mm standarddjup (page 5).",
+          "graph_says": "Needs verification of depth options",
+          "recommendation": "Ensure GDP depth options (25, 50, 100mm) are correctly modeled with 50mm as default."
+        },
+        {
+          "id": 106,
+          "category": "SIZE_ACCURACY",
+          "severity": "MAJOR",
+          "product_family": "GDMI_FLEX",
+          "description": "GDMI FLEX dimension table on page 18 has column headers 'Vikt kg 1100/1150' appearing twice. The first column should likely be 'Vikt kg 850/900' based on the pattern used by other product families (GDB, GDMI, GDC all show two weight columns for short and long variants).",
+          "pdf_says": "GDMI FLEX table header shows 'Vikt kg 1100/1150' for both weight columns (page 18). This appears to be a PDF error.",
+          "graph_says": "Weight data may be incorrectly assigned",
+          "recommendation": "Flag as SUSPECTED_PDF_ERROR. The first weight column likely corresponds to 850/900 length and the second to 1100/1150 length. Verify with manufacturer."
+        }
+      ],
+      "retracted_own_findings": [
+        1,
+        2,
+        10,
+        12,
+        13,
+        14
+      ],
+      "consensus_score": 62,
+      "final_assessment": "The graph has several significant accuracy issues that need attention. The most critical and consistently identified issue across all evaluators is the incorrect assignment of polisfilter option lengths: GDC and GDC FLEX should use 900/950mm (per PDF pages 14 and 16), while only GDMI FLEX should use 1100/1150mm (per PDF page 18). The GDB 1800x900 weight of 36kg is unanimously flagged as a suspected PDF error. The GDMI text vs. table length discrepancy (550/600 vs 600/650) is correctly handled by the graph using table values. I disagree with the openai evaluator's material availability findings - the material icons shown at the top of each product page are definitive indicators of which materials are available for that family, and the text 'tillverkas vanligen i förzinkat' indicates the default, not the only option. GDP, GDB, GDC, and GDC FLEX all show five material icons (FZ, AZ, RF, SF, ZM), while GDMI shows only AZ/ZM and GDMI FLEX shows FZ/AZ/ZM. The graph's handling of materials appears largely correct for most families. Additional issues include the 'max filter depth' terminology being incorrectly applied to patron (cartridge) cabinets where 'max cartridge length' would be more appropriate, and the GDMI FLEX example code using FZ while the text specifies ZM as default. Overall, the graph captures the majority of catalog data correctly but has approximately 8-10 substantive errors requiring correction, primarily around polisfilter option lengths, cartridge cabinet terminology, and a few module count discrepancies."
+    }
+  },
+  "final_report": {
+    "overall_score": 72,
+    "confidence": 0.82,
+    "total_findings": 16,
+    "findings": [
+      {
+        "id": 1,
+        "category": "OPTIONS_FEATURES",
+        "severity": "CRITICAL",
+        "product_family": "GDC",
+        "description": "The polisfilter pre-mounted rail option (code PF) is incorrectly associated with length 1100/1150mm in the graph. The PDF page 14 clearly states 'Option: Skåp L= 900/950mm Förmonterad filterskena för polisfilter'. The 1100/1150mm length belongs exclusively to GDMI FLEX, not GDC. The GDC polisfilter option should reference length 900/950mm.",
+        "pdf_says": "GDC page 14: 'Option: Skåp L= 900/950mm Förmonterad filterskena för polisfilter'. Notes: 'Längd 900/950 för 450 mm cylinder + polisfilter' and 'Längd 900/950 för 600 mm cylinder'.",
+        "graph_says": "Polisfilter option code PF with length 1100/1150",
+        "recommendation": "Change GDC polisfilter option length from 1100/1150 to 900/950. Model two use-cases for 900/950: (a) 450mm cylinder + polisfilter, (b) 600mm cylinder.",
+        "confidence": 1.0,
+        "agreed_by": [
+          "gpt-4.1",
+          "claude-sonnet-4-20250514",
+          "ProductDataAuditor-V1"
+        ],
+        "challenged_by": []
+      },
+      {
+        "id": 2,
+        "category": "OPTIONS_FEATURES",
+        "severity": "CRITICAL",
+        "product_family": "GDC_FLEX",
+        "description": "The polisfilter pre-mounted rail option (code PF) is incorrectly associated with length 1100/1150mm in the graph. The PDF page 16 clearly states 'Option: Skåp L= 900/950mm Förmonterad filterskena för polisfilter'. Furthermore, GDC FLEX does not have a 1100/1150mm length variant at all — only 750/800 and 900/950 exist for this family.",
+        "pdf_says": "GDC FLEX page 16: 'Option: Skåp L= 900/950mm Förmonterad filterskena för polisfilter'. 'Finns som standard i 750 mm och 900 mm längd'. Table shows only 750/800 and 900/950.",
+        "graph_says": "Polisfilter option code PF with length 1100/1150",
+        "recommendation": "Change GDC FLEX polisfilter option length from 1100/1150 to 900/950. Remove any 1100/1150 length references from GDC FLEX entirely.",
+        "confidence": 1.0,
+        "agreed_by": [
+          "gpt-4.1",
+          "claude-sonnet-4-20250514",
+          "ProductDataAuditor-V1"
+        ],
+        "challenged_by": []
+      },
+      {
+        "id": 3,
+        "category": "OPTIONS_FEATURES",
+        "severity": "CRITICAL",
+        "product_family": "GDMI_FLEX",
+        "description": "GDMI FLEX is the only product family where the polisfilter option should be associated with length 1100/1150mm. The PDF page 18 states 'Option: Skåp L= 1100/1150mm Förmonterad filterskena för polisfilter'. The graph appears to have incorrectly applied this 1100/1150 length to GDC and GDC FLEX instead of (or in addition to) GDMI FLEX. Additionally, the PDF states the 1100/1150 length is for '600 mm cylinder + polisfilter', not '450mm + polisfilter' as the graph may describe.",
+        "pdf_says": "GDMI FLEX page 18: 'Option: Skåp L= 1100/1150mm Förmonterad filterskena för polisfilter'. 'Längd 850/900 för 450 mm cylinder' and 'Längd 1100/1150 för 600 mm cylinder + polisfilter'.",
+        "graph_says": "Polisfilter option with length 1100/1150 may be assigned to wrong families; GDMI FLEX long length description may say '450mm+polisfilter' which is not in the PDF for this family.",
+        "recommendation": "Ensure GDMI FLEX polisfilter option is correctly associated with length 1100/1150. Update description to '600mm cylinder + polisfilter' only, matching the PDF.",
+        "confidence": 0.95,
+        "agreed_by": [
+          "claude-sonnet-4-20250514",
+          "gpt-4.1"
+        ],
+        "challenged_by": []
+      },
+      {
+        "id": 4,
+        "category": "WEIGHT_DATA",
+        "severity": "MAJOR",
+        "product_family": "GDB",
+        "description": "GDB size 1800x900 shows a short-length (550/600) weight of 36 kg in the PDF, which is anomalously low compared to surrounding sizes (1800x600=47 kg, 1800x1200=70 kg). The graph correctly stores 36 kg and flags it as a suspected PDF error. Expected value based on interpolation would be approximately 58-65 kg.",
+        "pdf_says": "Page 9: 1800x900 | Vikt kg 750/800=77 | Vikt kg 550/600=36",
+        "graph_says": "Weight: 36 kg with SUSPECTED_PDF_ERROR flag",
+        "recommendation": "Graph handling is correct (stores PDF value with flag). Contact MANN+HUMMEL to verify the actual weight. Likely should be ~62 kg.",
+        "confidence": 0.95,
+        "agreed_by": [
+          "ProductDataAuditor-V1",
+          "claude-sonnet-4-20250514",
+          "gpt-4.1"
+        ],
+        "challenged_by": []
+      },
+      {
+        "id": 5,
+        "category": "LENGTH_VARIANTS",
+        "severity": "MAJOR",
+        "product_family": "GDC_FLEX",
+        "description": "The graph includes a 1100/1150mm length variant for GDC FLEX, but the PDF only lists 750/800 and 900/950 for this family. The 1100/1150 length does not exist for GDC FLEX.",
+        "pdf_says": "GDC FLEX page 16: 'Finns som standard i 750 mm och 900 mm längd'. Table headers show 750/800 and 900/950 only.",
+        "graph_says": "Includes 1100/1150 length variant for GDC FLEX",
+        "recommendation": "Remove all 1100/1150 length references from GDC FLEX. This length belongs only to GDMI FLEX.",
+        "confidence": 1.0,
+        "agreed_by": [
+          "gpt-4.1",
+          "claude-sonnet-4-20250514",
+          "ProductDataAuditor-V1"
+        ],
+        "challenged_by": []
+      },
+      {
+        "id": 6,
+        "category": "LENGTH_VARIANTS",
+        "severity": "MAJOR",
+        "product_family": "GDC and GDC_FLEX",
+        "description": "The graph uses 'max filter depth' as an attribute for patron (cartridge) cabinets GDC and GDC FLEX. The PDF defines these cabinets in terms of 'max cartridge length' (patronfilter med maxlängd 450 mm) and polisfilter configuration, not 'filter depth'. 'Max filter depth' is appropriate for bag/compact filter cabinets (GDB, GDMI) but not for cartridge cabinets.",
+        "pdf_says": "GDC page 14: 'patronfilter med maxlängd 450 mm'. GDC FLEX page 16: 'patronfilter med maxlängd 450 mm'. Length notes reference cylinder lengths (450mm, 600mm), not filter depths.",
+        "graph_says": "Length variants include 'max filter depth 450mm' / 'max filter depth 600mm' for patron cabinets",
+        "recommendation": "Replace 'max filter depth' with 'max cartridge length' (450/600mm) for GDC, GDC FLEX, and GDMI FLEX. Reserve 'max filter depth' for GDP/GDB/GDMI where the PDF defines it.",
+        "confidence": 0.85,
+        "agreed_by": [
+          "gpt-4.1",
+          "claude-sonnet-4-20250514"
+        ],
+        "challenged_by": []
+      },
+      {
+        "id": 7,
+        "category": "SIZE_ACCURACY",
+        "severity": "MAJOR",
+        "product_family": "GDB",
+        "description": "GDB 600x900 filter module counts appear to have the ¼ and ½ values swapped. The PDF page 9 shows for 600x900: flow = 5100 m³/h. A 1/1 module = 3400 m³/h and a 1/2 module = 1700 m³/h, totaling 5100. This means the correct configuration is ½=1, 1/1=1. However, there is disagreement on whether the PDF shows ¼=1 or ½=1 in the table. The flow calculation (3400+1700=5100) definitively confirms the configuration must be ½=1 and 1/1=1 (not ¼=1 and 1/1=1, which would only yield 4250).",
+        "pdf_says": "Page 9: GDB 600x900, Flöde=5100 m³/h. Flow-based calculation confirms ½=1, 1/1=1.",
+        "graph_says": "Reported as ¼=0, ½=1, 1/1=1 by one evaluator (which matches flow calculation), but another evaluator claims ¼=1, ½=0, 1/1=1 (which contradicts flow).",
+        "recommendation": "Verify the graph stores GDB 600x900 as ¼=0, ½=1, 1/1=1 (matching the 5100 m³/h flow). If the graph has ¼=1, ½=0, 1/1=1, correct it. The flow value is the definitive check.",
+        "confidence": 0.7,
+        "agreed_by": [
+          "claude-sonnet-4-20250514"
+        ],
+        "challenged_by": [
+          "ProductDataAuditor-V1"
+        ]
+      },
+      {
+        "id": 8,
+        "category": "SIZE_ACCURACY",
+        "severity": "MAJOR",
+        "product_family": "GDC_FLEX",
+        "description": "GDC FLEX dimension table on page 16 shows the first size labeled '600x300' but the Bredd (width) column shows 300 and Höjd (height) column shows 600. This is inconsistent with the label convention used elsewhere (WidthxHeight). The graph stores the size as '600x300' without explicit width/height fields, creating ambiguity.",
+        "pdf_says": "Page 16: Size label '600x300', Bredd=300, Höjd=600. Other sizes like '600x600' show Bredd=600, Höjd=600 (consistent).",
+        "graph_says": "Size token: 600x300 (no separate width/height fields)",
+        "recommendation": "Add explicit width_mm and height_mm properties per size for GDC FLEX. Investigate whether the PDF table has a typo in the Bredd/Höjd columns for the 600x300 entry, or if the size label convention differs. Document the inconsistency.",
+        "confidence": 0.75,
+        "agreed_by": [
+          "gpt-4.1",
+          "claude-sonnet-4-20250514"
+        ],
+        "challenged_by": []
+      },
+      {
+        "id": 9,
+        "category": "LENGTH_VARIANTS",
+        "severity": "MAJOR",
+        "product_family": "GDMI",
+        "description": "The PDF has an internal inconsistency for GDMI lengths. The text on page 11 states '550/600 mm' and '800/850 mm', while the dimension table on page 12 and the Sortiment overview on page 3 both show '600/650 mm' and '850/900 mm'. The graph correctly uses the table values (600/650 and 850/900) and flags this as a SOURCE CONFLICT.",
+        "pdf_says": "Page 11 text: 550/600 & 800/850. Page 12 table and page 3 sortiment: 600/650 & 850/900.",
+        "graph_says": "600/650 & 850/900 with SOURCE CONFLICT note",
+        "recommendation": "No graph correction needed. The table/sortiment values (600/650, 850/900) are authoritative. Maintain the SOURCE CONFLICT flag for traceability. Report the text discrepancy to MANN+HUMMEL.",
+        "confidence": 0.95,
+        "agreed_by": [
+          "ProductDataAuditor-V1",
+          "claude-sonnet-4-20250514",
+          "gpt-4.1"
+        ],
+        "challenged_by": []
+      },
+      {
+        "id": 10,
+        "category": "MATERIAL_AVAILABILITY",
+        "severity": "MAJOR",
+        "product_family": "GDMI_FLEX",
+        "description": "GDMI FLEX has a source conflict between the example code and the text regarding default material. The text on page 18 says 'tillverkas vanligen i ZM' (usually manufactured in ZM), but the example code shows 'GDMI-FLEX-600x600-850-R-PG-FZ' with FZ as material. The graph should use ZM as the default material per the text, with a source conflict note about the example code.",
+        "pdf_says": "Page 18 text: 'GDMI FLEX tillverkas vanligen i ZM. Ej i rostfritt.' Example code: GDMI-FLEX-600x600-850-R-PG-FZ. Material icons: FZ, AZ, ZM.",
+        "graph_says": "Default material unclear or may be FZ based on example code",
+        "recommendation": "Set ZM as the default material for GDMI FLEX per the text. Flag the example code discrepancy as a SOURCE CONFLICT. Available materials should be FZ, AZ, ZM (per icons). RF/SF are explicitly excluded ('Ej i rostfritt').",
+        "confidence": 0.85,
+        "agreed_by": [
+          "claude-sonnet-4-20250514",
+          "gpt-4.1"
+        ],
+        "challenged_by": []
+      },
+      {
+        "id": 11,
+        "category": "MATERIAL_AVAILABILITY",
+        "severity": "MAJOR",
+        "product_family": "GDMI",
+        "description": "GDMI has a similar source conflict for default material. The text on page 11 says 'tillverkas vanligen i ZM' but the example code shows 'GDMI-600x600-600-R-PG-AZ'. The material icons on page 11 show only AZ and ZM (no FZ, RF, or SF). The text explicitly states 'Ei i Rostfritt' (not in stainless). The graph should use ZM as default, with AZ as the only alternative, and RF/SF explicitly excluded.",
+        "pdf_says": "Page 11: Material icons AZ, ZM only. Text: 'GDMI tillverkas vanligen i ZM. Ei i Rostfritt.' Example code uses AZ.",
+        "graph_says": "AZ, ZM available (correct). Default may be ambiguous.",
+        "recommendation": "Set ZM as default material for GDMI. Ensure RF and SF are explicitly marked as not available. Flag the example code (using AZ) as a source conflict note.",
+        "confidence": 0.85,
+        "agreed_by": [
+          "claude-sonnet-4-20250514",
+          "gpt-4.1"
+        ],
+        "challenged_by": []
+      },
+      {
+        "id": 12,
+        "category": "MATERIAL_AVAILABILITY",
+        "severity": "MINOR",
+        "product_family": "Filter_Profil",
+        "description": "Filter Profil section on page 23 does not show any material icons. The example uses FZ. The graph lists AZ, RF, ZM as available on request without PDF support. Since no material icons are shown and no text mentions other materials, these are inferred rather than documented.",
+        "pdf_says": "Page 23: No material icons shown for Filter Profil. Example: 'Filter profil-600 FZ'. No mention of other materials.",
+        "graph_says": "FZ (default), AZ (on request), RF (on request), ZM (on request)",
+        "recommendation": "Remove inferred materials or mark them clearly as assumptions not from the PDF. Only FZ is documented.",
+        "confidence": 0.7,
+        "agreed_by": [
+          "claude-sonnet-4-20250514",
+          "gpt-4.1"
+        ],
+        "challenged_by": []
+      },
+      {
+        "id": 13,
+        "category": "CORROSION_CLASSES",
+        "severity": "MINOR",
+        "product_family": "ALL",
+        "description": "The corrosion class for Syrafast (SF) is written as 'C5.1' in the PDF (page 4). This likely represents ISO 12944 'C5-I' (C5 Industrial). The graph stores it as 'C5.1'. While this matches the PDF text literally, it may cause confusion with ISO standard terminology.",
+        "pdf_says": "Page 4: 'Korrosivitets klass C5.1'",
+        "graph_says": "C5.1",
+        "recommendation": "Acceptable as-is since it matches the PDF literally. Consider adding a note that this corresponds to ISO 12944 C5-I (Industrial) for clarity.",
+        "confidence": 0.6,
+        "agreed_by": [
+          "ProductDataAuditor-V1",
+          "claude-sonnet-4-20250514"
+        ],
+        "challenged_by": [
+          "gpt-4.1"
+        ]
+      },
+      {
+        "id": 14,
+        "category": "CONSTRUCTION_TYPE",
+        "severity": "MINOR",
+        "product_family": "GDB, GDC, GDC_FLEX",
+        "description": "The graph classifies GDB, GDC, and GDC FLEX as SINGLE_WALL_UNINSULATED, but the PDF specifies that the service door is double-skinned and heat/condensation insulated as standard for all three families. While the housing body is indeed single-wall uninsulated, the overall construction is a composite type. The graph reportedly captures door insulation as a separate attribute (DOUBLE_WALL_HEAT_CONDENSATION), which is acceptable if downstream logic uses both attributes together.",
+        "pdf_says": "GDB page 8, GDC page 14, GDC FLEX page 16: 'oisolerat enkelväggsutförande med en servicelucka som är dubbelmantlad och värme/kondensisolerad som standard.'",
+        "graph_says": "Construction: SINGLE_WALL_UNINSULATED with separate door_insulation attribute",
+        "recommendation": "Ensure downstream logic considers both the housing construction type and the door insulation attribute together. The current modeling is acceptable if both attributes are consistently used.",
+        "confidence": 0.65,
+        "agreed_by": [
+          "gpt-4.1"
+        ],
+        "challenged_by": [
+          "claude-sonnet-4-20250514"
+        ]
+      },
+      {
+        "id": 15,
+        "category": "SIZE_ACCURACY",
+        "severity": "MAJOR",
+        "product_family": "GDMI_FLEX",
+        "description": "GDMI FLEX dimension table on page 18 has both weight columns labeled 'Vikt kg 1100/1150'. The first column should be 'Vikt kg 850/900' (short length weight) based on the pattern used by all other product families (GDB, GDMI, GDC). The graph appears to correctly interpret the first column as 850/900 weight based on value patterns, but this is a PDF error that should be flagged.",
+        "pdf_says": "Page 18: Both weight columns labeled 'Vikt kg 1100/1150' — likely a PDF typo. First column values are consistently lower than second column, matching the short/long pattern.",
+        "graph_says": "First column interpreted as 850/900 weight, second as 1100/1150 weight (correct interpretation)",
+        "recommendation": "Flag as SUSPECTED_PDF_ERROR. The graph's interpretation is correct. Report the column header typo to MANN+HUMMEL.",
+        "confidence": 0.85,
+        "agreed_by": [
+          "claude-sonnet-4-20250514"
+        ],
+        "challenged_by": []
+      },
+      {
+        "id": 16,
+        "category": "OPTIONS_FEATURES",
+        "severity": "MINOR",
+        "product_family": "GDP",
+        "description": "GDP frame depth default is ambiguous. The graph states 'Default frame depth: 50mm (standard: 25mm)' which is contradictory. The PDF example code uses 50mm (GDP-600x600-50-R-PG-FZ), and the text lists 25, 50, and 100mm as 'standarddjup'. The PFF section states standard depth is 25mm with 50 and 100 as options (with price supplement).",
+        "pdf_says": "Page 5: Example code uses 50. Text: '25, 50 eller 100 mm standarddjup på ramen'. Page 21 PFF: Standard depth 25, options 50/100 (pristillägg).",
+        "graph_says": "Default frame depth: 50mm (standard: 25mm)",
+        "recommendation": "Clarify the default. For the GDP code, 50mm appears to be the example default. For PFF frames, 25mm is the standard with 50/100 as options with price supplement. Remove the contradictory 'standard: 25mm' note from the GDP default, or restructure to show all three as available with 50mm as the code example default.",
+        "confidence": 0.7,
+        "agreed_by": [
+          "gpt-4.1",
+          "claude-sonnet-4-20250514"
+        ],
+        "challenged_by": []
+      }
+    ],
+    "recommendations": [
+      "PRIORITY 1 (CRITICAL): Fix polisfilter option length assignments — GDC and GDC FLEX should reference 900/950mm, GDMI FLEX should reference 1100/1150mm. Remove all 1100/1150 references from GDC FLEX.",
+      "PRIORITY 2 (MAJOR): Replace 'max filter depth' attribute with 'max cartridge length' for patron/cartridge cabinets (GDC, GDC FLEX, GDMI FLEX) to match PDF terminology.",
+      "PRIORITY 3 (MAJOR): Set ZM as default material for GDMI and GDMI FLEX per PDF text. Flag example code discrepancies as SOURCE CONFLICT notes. Ensure RF/SF are explicitly excluded for GDMI and GDMI FLEX.",
+      "PRIORITY 4 (MAJOR): Verify and correct GDB 600x900 filter module counts using the flow-based calculation (5100 m³/h = 1×1/1 + 1×1/2).",
+      "PRIORITY 5 (MAJOR): Investigate GDC FLEX 600x300 width/height convention inconsistency and add explicit width_mm/height_mm properties.",
+      "PRIORITY 6 (MAJOR): Remove inferred material availability for Filter Profil (only FZ is documented).",
+      "PRIORITY 7 (INFO): Contact MANN+HUMMEL to verify GDB 1800x900 short weight (36 kg appears anomalous) and GDMI FLEX weight column header typo.",
+      "PRIORITY 8 (MINOR): Clarify GDP frame depth default (resolve 50mm vs 25mm contradiction)."
+    ],
+    "summary": "The MANN+HUMMEL HVAC Filterskåp knowledge graph demonstrates strong overall completeness, capturing all 12 product families from the catalog with generally accurate dimensional data across hundreds of size variants. Systematic verification of airflow ratings, weights, and cartridge counts for GDP (35 sizes), GDB (27 sizes), GDMI (35 sizes), GDC (12 sizes), GDC FLEX (6 sizes), and GDMI FLEX (8 sizes) shows the vast majority of numeric data is faithfully transcribed from the PDF tables. The graph also shows good engineering judgment in handling known PDF inconsistencies, such as the GDMI text-vs-table length discrepancy and the GDB 1800x900 suspected weight error.\n\nThe most significant defects are concentrated in the polisfilter option modeling, where the pre-mounted filter rail option has been incorrectly assigned to length 1100/1150mm for GDC and GDC FLEX — the PDF clearly ties this option to 900/950mm for those families, with 1100/1150mm belonging exclusively to GDMI FLEX. This error was unanimously identified by all three evaluators and represents the highest-priority correction. A related issue is the introduction of a non-existent 1100/1150mm length variant for GDC FLEX. Additionally, the use of 'max filter depth' terminology for cartridge cabinets is semantically incorrect per the PDF, which uses 'max cartridge length'.\n\nMaterial availability modeling is largely correct, with the material icons shown at the top of each product page serving as the definitive indicator of available materials per family. The graph correctly restricts GDMI to AZ/ZM and GDMI FLEX to FZ/AZ/ZM, while allowing all five materials for GDP, GDB, GDC, and GDC FLEX. However, default material designations need clarification for GDMI and GDMI FLEX (both should default to ZM per text, despite example codes using other materials). A few minor issues remain around Filter Profil inferred materials, the GDP frame depth default contradiction, and the GDC FLEX width/height convention ambiguity. Overall, the graph is a solid foundation requiring targeted corrections primarily in option-to-length constraint mapping."
+  }
+}

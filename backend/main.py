@@ -2191,6 +2191,206 @@ async def list_graph_audit_results(
     return results
 
 
+# ---------------------------------------------------------------------------
+# Bulk Offer endpoints
+# ---------------------------------------------------------------------------
+
+from bulk_offer import (
+    parse_excel, parse_pdf_order, analyze_order, llm_analyze_order,
+    generate_offer_streaming, generate_offer_excel, llm_interpret_refinement,
+    draft_offer_email, OfferConfig, _offer_sessions, _load_housing_variants,
+    _load_capacity_rules,
+    # Cross-reference mode
+    parse_competitor_document, analyze_competitor_order, llm_analyze_crossref,
+    generate_crossref_offer_streaming, llm_interpret_crossref_refinement,
+)
+
+
+class BulkGenerateRequest(BaseModel):
+    offer_id: str
+    material_code: str = "AZ"
+    housing_length: int = 850
+    filter_class: str = "ePM1 65%"
+    product_family: str = "GDMI"
+    overrides: dict = {}
+
+
+class BulkChatRequest(BaseModel):
+    offer_id: str
+    message: str
+
+
+class BulkRefineRequest(BaseModel):
+    offer_id: str
+    changes: dict = {}
+
+
+class BulkEmailRequest(BaseModel):
+    offer_id: str
+    language: str = "sv"
+
+
+@app.post("/offers/bulk/analyze")
+async def bulk_analyze(file: UploadFile = File(...), user=Depends(get_current_user)):
+    """Upload and analyze an Excel or PDF order file."""
+    file_bytes = await file.read()
+    filename = file.filename or "upload"
+
+    try:
+        if filename.lower().endswith(".pdf"):
+            rows = parse_pdf_order(file_bytes, filename)
+        else:
+            rows = parse_excel(file_bytes)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse file: {e}")
+
+    if not rows:
+        raise HTTPException(status_code=400, detail="No data rows found in file")
+
+    analysis = analyze_order(rows, db)
+
+    # Run LLM analysis in background
+    try:
+        variants = _load_housing_variants(db)
+        capacity_rules = _load_capacity_rules(db)
+        llm_result = llm_analyze_order(rows, variants, capacity_rules, filename)
+        analysis["llm_analysis"] = llm_result
+        # Store on session too
+        session = _offer_sessions.get(analysis["offer_id"])
+        if session:
+            session.llm_analysis = llm_result
+            session.filename = filename
+    except Exception as e:
+        analysis["llm_analysis"] = None
+
+    analysis["filename"] = filename
+    return analysis
+
+
+@app.post("/offers/bulk/generate/stream")
+async def bulk_generate_stream(req: BulkGenerateRequest, user=Depends(get_current_user)):
+    """Generate offer with SSE streaming."""
+    config = OfferConfig(
+        material_code=req.material_code,
+        housing_length=req.housing_length,
+        filter_class=req.filter_class,
+        product_family=req.product_family,
+        overrides=req.overrides,
+    )
+
+    def event_stream():
+        for event in generate_offer_streaming(req.offer_id, config, db):
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.post("/offers/bulk/chat")
+async def bulk_chat(req: BulkChatRequest, user=Depends(get_current_user)):
+    """LLM-powered refinement chat."""
+    result = llm_interpret_refinement(req.message, req.offer_id, db)
+    return result
+
+
+@app.post("/offers/bulk/refine/stream")
+async def bulk_refine(req: BulkRefineRequest, user=Depends(get_current_user)):
+    """Apply row-level changes to an offer session."""
+    session = _offer_sessions.get(req.offer_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Offer session not found")
+
+    # Apply changes to original rows
+    for row_id_str, changes in req.changes.items():
+        row_id = int(row_id_str)
+        for row in session.original_rows:
+            if row.row_id == row_id:
+                for field, value in changes.items():
+                    if hasattr(row, field):
+                        setattr(row, field, value)
+                break
+
+    return {"status": "ok", "changes_applied": len(req.changes)}
+
+
+@app.post("/offers/bulk/email")
+async def bulk_email(req: BulkEmailRequest, user=Depends(get_current_user)):
+    """Draft a customer email for the offer."""
+    result = draft_offer_email(req.offer_id, req.language)
+    if not result:
+        raise HTTPException(status_code=404, detail="Offer session not found or no results")
+    return result
+
+
+@app.get("/offers/bulk/export")
+async def bulk_export(offer_id: str, user=Depends(get_current_user)):
+    """Export offer as Excel file."""
+    excel_bytes = generate_offer_excel(offer_id)
+    if not excel_bytes:
+        raise HTTPException(status_code=404, detail="Offer not found or no results")
+
+    return StreamingResponse(
+        iter([excel_bytes]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=offer_{offer_id}.xlsx"},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Bulk Offer — Competitor Cross-Reference endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/offers/bulk/crossref/analyze")
+async def crossref_analyze(file: UploadFile = File(...), user=Depends(get_current_user)):
+    """Upload and analyze a competitor product document."""
+    file_bytes = await file.read()
+    filename = file.filename or "upload"
+
+    try:
+        items = parse_competitor_document(file_bytes, filename, db)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse competitor document: {e}")
+
+    if not items:
+        raise HTTPException(status_code=400, detail="No competitor products found in document")
+
+    analysis = analyze_competitor_order(items, filename, db)
+
+    # LLM summary
+    try:
+        llm_result = llm_analyze_crossref(items, analysis["cross_ref_results"], filename)
+        analysis["llm_analysis"] = llm_result
+    except Exception:
+        analysis["llm_analysis"] = None
+
+    analysis["filename"] = filename
+    return analysis
+
+
+@app.post("/offers/bulk/crossref/generate/stream")
+async def crossref_generate_stream(req: BulkGenerateRequest, user=Depends(get_current_user)):
+    """Generate MH offer from cross-referenced competitor items (SSE streaming)."""
+    config = OfferConfig(
+        material_code=req.material_code,
+        housing_length=req.housing_length,
+        filter_class=req.filter_class,
+        product_family=req.product_family,
+        overrides=req.overrides,
+    )
+
+    def event_stream():
+        for event in generate_crossref_offer_streaming(req.offer_id, config, db):
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.post("/offers/bulk/crossref/chat")
+async def crossref_chat(req: BulkChatRequest, user=Depends(get_current_user)):
+    """LLM-powered refinement for cross-reference results."""
+    result = llm_interpret_crossref_refinement(req.message, req.offer_id, db)
+    return result
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

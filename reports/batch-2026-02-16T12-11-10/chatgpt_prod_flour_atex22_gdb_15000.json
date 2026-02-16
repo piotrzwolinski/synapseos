@@ -1,0 +1,636 @@
+{
+  "name": "chatgpt_prod_flour_atex22_gdb_15000",
+  "description": "[GPT Prod] Flour mill ATEX22 + 15000 m³/h + h≤1500mm → GDB 1800x900",
+  "query": "I need a filtration bank for a flour mill exhaust system. The application is high-risk due to explosive wheat dust, classified as ATEX Zone 22. Total airflow is 15,000 m³/h. We have a fixed height limit of 1,500 mm on the installation platform, but width is not a problem. Material: Galvanized (FZ). Please recommend the GDB assembly and specific requirements.",
+  "session_id": "4f6af2b8-3bff-4e91-8583-6a3bb5df9e94",
+  "duration_s": 113.6,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "I need a filtration bank for a flour mill exhaust system. The application is high-risk due to explosive wheat dust, classified as ATEX Zone 22. Total airflow is 15,000 m³/h. We have a fixed height limit of 1,500 mm on the installation platform, but width is not a problem. Material: Galvanized (FZ). Please recommend the GDB assembly and specific requirements.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T10:56:55.159053+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "For the flour mill exhaust system, we'll configure a GDB filter assembly with dimensions of 1800x900mm to handle the 15000 m³/h airflow. The system will be installed in an environment with Particulate Exposure and an Explosive Atmosphere (ATEX Zone 22).The Explosive Atmosphere requires special consideration. Static discharge from the filter housing can create sparks, which can ignite the explosive wheat dust. To prevent this, the filter housing must be grounded, and anti-static filter media must be used.To finalize the configuration, I need to know the housing length.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T10:57:07.535342+00:00",
+      "clarification": {
+        "missing_info": "housing_length",
+        "why_needed": "To ensure proper fit and function of the filter assembly.",
+        "options": [
+          {
+            "value": "550mm",
+            "description": "550mm",
+            "display_label": null
+          },
+          {
+            "value": "750mm",
+            "description": "750mm",
+            "display_label": null
+          }
+        ],
+        "question": "Which housing length do you need?"
+      },
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 4,
+            "safety": 3,
+            "tone": 5,
+            "reasoning_quality": 2,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.85,
+          "explanation": "The system made a critical sizing error. It recommended a GDB 1800x900 unit for 15,000 m³/h airflow, but the catalog explicitly rates this size for only 9,000 m³/h. The correct size fitting the height constraint would have been GDB 1800x1500. While the ATEX safety advice regarding grounding was sound engineering practice, the gross undersizing of the unit makes the recommendation physically invalid.",
+          "dimension_explanations": {
+            "correctness": "The system claims GDB 1800x900 handles 15,000 m³/h, but the PDF (page 6) lists its capacity as 9,000 m³/h.",
+            "completeness": "The response correctly asks for the missing housing length parameter.",
+            "safety": "Undersizing a filter bank by 40% in an explosive dust application creates dangerous pressure/velocity risks; however, the grounding advice was correct.",
+            "tone": "Professional and appropriate.",
+            "reasoning_quality": "The logic for ATEX precautions is good, but the sizing logic is fundamentally flawed.",
+            "constraint_adherence": "Failed to meet the airflow constraint (15,000 m³/h) despite a valid size (1800x1500) being available within the height limit."
+          },
+          "strengths": [
+            "Correctly identified ATEX Zone 22 risks (static discharge)",
+            "Correctly requested missing housing length parameter"
+          ],
+          "weaknesses": [
+            "Critical sizing error (recommended unit is ~40% undersized)",
+            "Failed to select the obvious correct size (1800x1500) that fits the height limit"
+          ],
+          "pdf_citations": [
+            "GDB 1800x900/250: Flöde = 9000 m³/h (PDF p.6)",
+            "GDB 1800x1500/250: Flöde = 15 000 m³/h (PDF p.6)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 31.62,
+            "prompt_tokens": 15715,
+            "cached_tokens": 15977,
+            "output_tokens": 586
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 2,
+            "tone": 4,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.45,
+          "explanation": "The assistant correctly asked for missing housing length and gave a valid general warning about grounding/anti-static media in a dust-explosive environment. However, it proposed a non-catalog GDB size (1800x900) and did not address the 1500 mm height limit or key ATEX/combustible-dust design constraints, making the recommendation unreliable and potentially unsafe.",
+          "dimension_explanations": {
+            "correctness": "PDF check: GDB size table includes 1800x900 with Flöde 15,300 m³/h (and weights 77/36 kg for 750/800 vs 550/600), but the assistant’s proposed 1800x900mm violates the user’s 1,500 mm height limit and also uses a non-existent size format (should be 1800x900, not 1800x900mm as a single module claim); engineering note about grounding/anti-static is sound but incomplete for ATEX.",
+            "completeness": "It failed to reconcile the height constraint, did not select an actual compliant bank arrangement (e.g., multiple modules in parallel), and omitted connection type (PG/flange), length choice (550/750), access side, and filtration stage details.",
+            "safety": "ATEX Zone 22 requires more than grounding/anti-static media (e.g., dust ignition risk management, avoidance of internal ignition sources, potential need for explosion isolation/venting depending on system), and the assistant did not flag that standard indoor GDB/FZ may be inappropriate without verified ATEX-compliant design.",
+            "tone": "Professional and appropriately cautious, with a reasonable clarification question.",
+            "reasoning_quality": "Reasoning is partially logical (airflow-to-size and static risk), but it makes a major logical miss by ignoring the stated 1,500 mm height limit and not showing how the bank would be arranged to meet it.",
+            "constraint_adherence": "Violates the user’s hard dimensional constraint (H ≤ 1500 mm) and effectively treats a single 1800x900 module as acceptable despite installation limits; also does not enforce that GDB is specified for indoor use in the catalog context."
+          },
+          "strengths": [
+            "Appropriately requested missing parameter (housing length) before finalizing.",
+            "Correctly identified static discharge/grounding and anti-static media as relevant in combustible dust environments."
+          ],
+          "weaknesses": [
+            "Proposed a configuration that conflicts with the 1,500 mm height limit and did not offer a compliant multi-module alternative.",
+            "ATEX/combustible-dust safety guidance is too shallow (no mention of explosion isolation/venting strategy, dust loading/cleaning, or verification of ATEX suitability of the housing/filters)."
+          ],
+          "pdf_citations": [
+            "GDB 1800x900: Flöde = 15,300 m³/h (GDB MÅTT table, catalog page showing GDB dimensions/flows).",
+            "GDB 600x600: Flöde = 3,400 m³/h (GDB MÅTT table, same section)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 17.65,
+            "attempt": 1,
+            "prompt_tokens": 37088,
+            "cached_tokens": 17920,
+            "output_tokens": 747
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBdNpwgxSuutfCp4MWyX'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB + Flour Mill / Grain Processing",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Consider products with this trait",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 13 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "♟️ Additional info needed",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "FZ",
+        "dimension_mappings": [
+          {
+            "width": 1800,
+            "height": 900,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": "FZ",
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": "housing_length",
+        "resolved_params": {
+          "detected_application": "APP_FLOUR_MILL",
+          "atex_zone": "22",
+          "max_height_mm": "1500",
+          "airflow_m3h": "15000",
+          "installation_environment": "ENV_ATEX",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 1800,
+            "filter_height": 900,
+            "filter_depth": null,
+            "housing_width": 1800,
+            "housing_height": 900,
+            "housing_length": null,
+            "airflow_m3h": 15000,
+            "product_family": "GDB",
+            "product_code": "GDB-1800x900-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": "Flour Mill / Grain Processing",
+        "warnings_count": 2,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "4f6af2b8-3bff-4e91-8583-6a3bb5df9e94",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDB",
+          "locked_material": "FZ",
+          "name": null,
+          "pending_clarification": "housing_length",
+          "resolved_params": "{\"detected_application\": \"APP_FLOUR_MILL\", \"atex_zone\": \"22\", \"max_height_mm\": \"1500\", \"airflow_m3h\": \"15000\", \"installation_environment\": \"ENV_ATEX\", \"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "quantity": 1,
+            "airflow_m3h": 15000,
+            "session_id": "4f6af2b8-3bff-4e91-8583-6a3bb5df9e94",
+            "filter_height": 900,
+            "product_code": "GDB-1800x900-R-PG-FZ",
+            "housing_width": 1800,
+            "filter_width": 1800,
+            "housing_height": 900,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_4f6af2b8-3bff-4e91-8583-6a3bb5df9e94_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to FZ -> Filter 1800x900mm -> Sized to 1800x900 -> Code: GDB-1800x900-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "type": "GENERAL",
+          "text": "For the flour mill exhaust system, we'll configure a GDB filter assembly with dimensions of 1800x900mm to handle the 15000 m³/h airflow. The system will be installed in an environment with Particulate Exposure and an Explosive Atmosphere (ATEX Zone 22)."
+        },
+        {
+          "type": "INFERENCE",
+          "text": "The Explosive Atmosphere requires special consideration. Static discharge from the filter housing can create sparks, which can ignite the explosive wheat dust. To prevent this, the filter housing must be grounded, and anti-static filter media must be used."
+        },
+        {
+          "type": "GENERAL",
+          "text": "To finalize the configuration, I need to know the housing length."
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": "750mm",
+      "turn_number": 2,
+      "timestamp": "2026-02-16T10:57:39.722169+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Here is the configuration for your flour mill application.This configuration requires a mechanical filter to capture particulate from Particulate Exposure. The selected GDB housing is suitable for this purpose.The system will also be installed in an Explosive Atmosphere (ATEX Zone 22). Explosive atmospheres require all components to be electrostatically grounded to prevent spark ignition. Static charge on ungrounded filter housings can produce sparks exceeding the minimum ignition energy of many dust/gas mixtures. Grounding/earthing of all metallic housing components is required to prevent static discharge.The housing corrosion class is C2.**Note**: Explosive atmosphere (ATEX zone) requires all components to be electrostatically grounded to prevent spark ignition. Consider products with this trait**Note**: Explosive atmospheres require all components to prevent ignition sources. Static charge on ungrounded filter housings can produce sparks exceeding the minimum ignition energy of many dust/gas mixtures. MANDATORY REQUIREMENTS: (1) Grounding/earthing of all metallic housing components to prevent static discharge; (2) Anti-static filter media with conductive fibers or grounding strips — standard filter media is NOT suitable for ATEX zones; (3) Equipotential bonding between all housing sections; (4) Compliance with EN 60079-0 (general requirements) and EN 60079-31 (dust ignition protection). For Zone 22 (combustible dust): equipment must meet minimum Category 3D protection level. Non-negotiable — follow engineering recommendation",
+      "turn_number": 2,
+      "timestamp": "2026-02-16T10:57:50.354820+00:00",
+      "clarification": null,
+      "product_card": {
+        "title": "Tag item_1: GDB-1800x900-750-R-PG-FZ",
+        "specs": {
+          "Product Code": "GDB-1800x900-750-R-PG-FZ",
+          "Housing Size": "1800x900mm",
+          "Housing Length": "750mm",
+          "Rated Airflow": "15300 m³/h per module",
+          "Weight": "~77.0 kg"
+        },
+        "warning": null,
+        "confidence": "medium",
+        "actions": [
+          "Add to Quote"
+        ]
+      },
+      "product_cards": [
+        {
+          "title": "Tag item_1: GDB-1800x900-750-R-PG-FZ",
+          "specs": {
+            "Product Code": "GDB-1800x900-750-R-PG-FZ",
+            "Housing Size": "1800x900mm",
+            "Housing Length": "750mm",
+            "Rated Airflow": "15300 m³/h per module",
+            "Weight": "~77.0 kg"
+          },
+          "warning": null,
+          "confidence": "medium",
+          "actions": [
+            "Add to Quote"
+          ]
+        }
+      ],
+      "status_badges": [
+        {
+          "type": "SUCCESS",
+          "text": "COMPLETE"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 5.0,
+          "explanation": "The system provided a flawless response. It correctly identified the GDB product family and selected the optimal size (1800x900) from the specific table on Page 9 to meet the airflow and height constraints. Crucially, it recognized the high-risk ATEX Zone 22 application and provided mandatory engineering safety requirements (grounding, anti-static media) which are essential for this application but not explicitly detailed in the standard catalog.",
+          "dimension_explanations": {
+            "correctness": "Product specs for GDB 1800x900 (15,300 m³/h, 77kg) match the table on PDF Page 9 exactly.",
+            "completeness": "Addressed product selection, sizing, material, and critical safety modifications for the application.",
+            "safety": "Excellent identification of ATEX risks; correctly mandated grounding and anti-static media for Zone 22.",
+            "tone": "Professional and authoritative regarding safety constraints.",
+            "reasoning_quality": "Logical flow from user constraints (height limit, airflow) to product selection, with appropriate safety overlays.",
+            "constraint_adherence": "Respected the 1500mm height limit (selected 900mm) and user material request (FZ)."
+          },
+          "strengths": [
+            "Accurate data extraction from the correct table (GDB Page 9) despite potential confusion with GDP (Page 6)",
+            "High-quality engineering advice regarding ATEX Zone 22 safety requirements (grounding, bonding)",
+            "Correctly handled the multi-turn clarification for housing length"
+          ],
+          "weaknesses": [
+            "Minor formatting glitch: The product card appears to be duplicated in the output"
+          ],
+          "pdf_citations": [
+            "GDB 1800x900: Flöde 15 300 m³/h (PDF Page 9)",
+            "GDB 1800x900: Vikt 77 kg for 750/800 length (PDF Page 9)",
+            "GDB standard lengths: 550mm and 750mm (PDF Page 8)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 58.38,
+            "prompt_tokens": 16505,
+            "cached_tokens": 15977,
+            "output_tokens": 584
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 3,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.75,
+          "explanation": "The assistant correctly asked for missing housing length and gave generally sound ATEX electrostatic/earthing guidance, but it selected a non-existent GDB size and invented airflow/weight values for that size. It also failed to respect the user’s 1500 mm height limit and did not address key dust-explosion design constraints beyond grounding/media (e.g., explosion isolation/venting and ATEX-certified equipment requirements).",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDB sizes like 1800x900 with airflow 15,300 m³/h, but only with length 550/600 or 750/800 and the catalog does not list a 1800x900-750 variant nor a 77 kg weight for that size; ATEX grounding/anti-static media advice is broadly sound engineering practice.",
+            "completeness": "Covers basic sizing intent and electrostatic precautions, but omits verification of height constraint, filter type/class selection, pressure drop/face velocity targets, and explosion protection measures (venting/isolation) typically required in dust ATEX systems.",
+            "safety": "Correctly flags static discharge risk and need for bonding/anti-static media, but does not warn that the housing itself is not stated as ATEX-certified and does not address explosion isolation/relief and ignition source control beyond electrostatics.",
+            "tone": "Professional, technical, and appropriately cautionary for a hazardous application.",
+            "reasoning_quality": "Logic for needing grounding in Zone 22 is clear, but the sizing/selection logic is inconsistent with the stated 1500 mm height limit and relies on an invalid product code.",
+            "constraint_adherence": "Violates catalog constraints by outputting GDB-1800x900-750 (length format not per catalog) and violates the user constraint of max 1500 mm height by selecting 1800x900 (height 900 is OK) but earlier it chose 1800x900 without checking that a multi-module arrangement might be needed within 1500 mm height; more critically, it uses a non-listed size/length combination."
+          },
+          "strengths": [
+            "Good clarification behavior (asked for housing length before finalizing).",
+            "Appropriate ATEX electrostatic grounding/equipotential bonding and anti-static media warnings."
+          ],
+          "weaknesses": [
+            "Invented/invalid product code and specs (GDB-1800x900-750, 15,300 m³/h per module, ~77 kg) not supported by the catalog table.",
+            "Did not properly engineer the ATEX dust system beyond electrostatics (e.g., explosion venting/isolation, certified components, dust loading/cleaning strategy, Δp/face velocity)."
+          ],
+          "pdf_citations": [
+            "GDB 600x600: Flöde = 3400 m³/h; available lengths 550/600 and 750/800 (GDB table, page with 'MÅTT Storlek GDB').",
+            "GDB 1800x900: Flöde = 15 300 m³/h; available lengths 550/600 and 750/800; weights shown as 77 kg (750/800) and 36 kg (550/600) in the table (same GDB 'MÅTT' page)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 17.92,
+            "attempt": 1,
+            "prompt_tokens": 37780,
+            "cached_tokens": 32256,
+            "output_tokens": 786
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBdRx8cg5ejJu8PEQ5Um'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB + Flour Mill / Grain Processing",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Consider products with this trait",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 0 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "✅ All parameters resolved",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "FZ",
+        "dimension_mappings": [
+          {
+            "width": 1800,
+            "height": 900,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": "FZ",
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "detected_application": "APP_FLOUR_MILL",
+          "atex_zone": "22",
+          "max_height_mm": "1500",
+          "airflow_m3h": "15000",
+          "installation_environment": "ENV_ATEX",
+          "connection_type": "PG",
+          "housing_length": "750"
+        },
+        "assembly_group": null,
+        "turn_count": 2,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 1800,
+            "filter_height": 900,
+            "filter_depth": null,
+            "housing_width": 1800,
+            "housing_height": 900,
+            "housing_length": 750,
+            "airflow_m3h": 15000,
+            "product_family": "GDB",
+            "product_code": "GDB-1800x900-750-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": 77.0,
+            "modules_needed": 1,
+            "total_weight_kg": 77.0,
+            "total_airflow_m3h": 15000,
+            "is_complete": true,
+            "missing_params": [],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": "Flour Mill / Grain Processing",
+        "warnings_count": 2,
+        "variable_features": 0,
+        "tags_complete": true,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "4f6af2b8-3bff-4e91-8583-6a3bb5df9e94",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDB",
+          "locked_material": "FZ",
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"detected_application\": \"APP_FLOUR_MILL\", \"atex_zone\": \"22\", \"max_height_mm\": \"1500\", \"airflow_m3h\": \"15000\", \"installation_environment\": \"ENV_ATEX\", \"connection_type\": \"PG\", \"housing_length\": \"750\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "quantity": 1,
+            "weight_kg": 77.0,
+            "airflow_m3h": 15000,
+            "session_id": "4f6af2b8-3bff-4e91-8583-6a3bb5df9e94",
+            "filter_height": 900,
+            "product_code": "GDB-1800x900-750-R-PG-FZ",
+            "housing_width": 1800,
+            "filter_width": 1800,
+            "housing_height": 900,
+            "tag_id": "item_1",
+            "source_message": 2,
+            "id": "TAG_4f6af2b8-3bff-4e91-8583-6a3bb5df9e94_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to FZ -> Filter 1800x900mm -> Sized to 1800x900 -> Weight 77.0kg -> Code: GDB-1800x900-750-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "Here is the configuration for your flour mill application.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "This configuration requires a mechanical filter to capture particulate from Particulate Exposure. The selected GDB housing is suitable for this purpose.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The system will also be installed in an Explosive Atmosphere (ATEX Zone 22). Explosive atmospheres require all components to be electrostatically grounded to prevent spark ignition. Static charge on ungrounded filter housings can produce sparks exceeding the minimum ignition energy of many dust/gas mixtures. Grounding/earthing of all metallic housing components is required to prevent static discharge.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The housing corrosion class is C2.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "**Note**: Explosive atmosphere (ATEX zone) requires all components to be electrostatically grounded to prevent spark ignition. Consider products with this trait",
+          "type": "GENERAL"
+        },
+        {
+          "text": "**Note**: Explosive atmospheres require all components to prevent ignition sources. Static charge on ungrounded filter housings can produce sparks exceeding the minimum ignition energy of many dust/gas mixtures. MANDATORY REQUIREMENTS: (1) Grounding/earthing of all metallic housing components to prevent static discharge; (2) Anti-static filter media with conductive fibers or grounding strips — standard filter media is NOT suitable for ATEX zones; (3) Equipotential bonding between all housing sections; (4) Compliance with EN 60079-0 (general requirements) and EN 60079-31 (dust ignition protection). For Zone 22 (combustible dust): equipment must meet minimum Category 3D protection level. Non-negotiable — follow engineering recommendation",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

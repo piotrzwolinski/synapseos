@@ -1,0 +1,615 @@
+{
+  "name": "chatgpt_gdmi_600x600_4000_undersized",
+  "description": "[ChatGPT] GDMI 600x600 at 4000 m³/h → undersized (3400), suggest 600x900",
+  "query": "I need a GDMI insulated housing 600x600 for 4000 m³/h airflow. ZM material.",
+  "session_id": "eb15917b-8245-4cfd-b317-02053dece37f",
+  "duration_s": 77.3,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "I need a GDMI insulated housing 600x600 for 4000 m³/h airflow. ZM material.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T10:33:29.108617+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "For the GDMI insulated housing with dimensions 600x600mm and ZM material, we need to finalize the configuration.To complete the configuration, I need to know the housing length.Additionally, the requested 4000 airflow_m3h exceeds the recommended flow of 3400 for a single 600x600 module. 2 parallel units are required. Alternatively, a single 600x900 mm module can handle 5100 m³/h.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T10:33:38.102263+00:00",
+      "clarification": {
+        "missing_info": "housing_length",
+        "why_needed": "The housing length depends on the filter depth. Knowing the housing length ensures the filter fits properly inside the housing.",
+        "options": [
+          {
+            "value": "600mm",
+            "description": "600mm",
+            "display_label": null
+          },
+          {
+            "value": "850mm",
+            "description": "850mm",
+            "display_label": null
+          }
+        ],
+        "question": "Which housing length do you need?"
+      },
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 5.0,
+          "explanation": "The system correctly identified that the requested airflow (4000 m³/h) exceeds the catalog capacity for the requested size (3400 m³/h). It provided accurate data from the PDF, suggested a valid alternative size (600x900) that meets the airflow requirement, and correctly asked for the missing housing length parameter before finalizing.",
+          "dimension_explanations": {
+            "correctness": "Correctly cites GDMI 600x600 capacity as 3400 m³/h and 600x900 as 5100 m³/h (PDF p.12).",
+            "completeness": "Addresses the sizing conflict, suggests a specific alternative, and asks for the missing length parameter.",
+            "safety": "Prevents an undersized selection which would lead to high pressure drop and energy waste.",
+            "tone": "Professional and helpful.",
+            "reasoning_quality": "Clear logic: Requested flow > Rated flow -> Suggest larger size or multiple modules.",
+            "constraint_adherence": "Strictly adheres to the airflow limits defined in the catalog tables."
+          },
+          "strengths": [
+            "Accurate airflow capacity check against PDF data",
+            "Proactive suggestion of a better-suited size (600x900)",
+            "Correct identification of missing parameter (length)"
+          ],
+          "weaknesses": [],
+          "pdf_citations": [
+            "GDMI 600x600: Flöde 3400 m³/h (PDF p.12)",
+            "GDMI 600x900: Flöde 5100 m³/h (PDF p.12)",
+            "GDMI lengths: 600/650mm or 850/900mm (PDF p.11)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 16.8,
+            "prompt_tokens": 15638,
+            "cached_tokens": 15977,
+            "output_tokens": 511
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 4,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.95,
+          "explanation": "The system correctly asked for missing housing length and correctly flagged that 4000 m³/h exceeds the GDMI 600x600 recommended flow. However, it made a critical catalog mismatch by suggesting a single 600x900 module at 5100 m³/h for GDMI, which is a GDB/GDMI flow figure—not a GDMI size listed in the GDMI table (GDMI uses 600-based module widths/heights like 600x600, 600x1200, etc.).",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDMI 600x600 has recommended flow 3400 m³/h (GDMI table), so the exceedance warning is sound, but the suggested 'single 600x900 module can handle 5100 m³/h' is not a valid GDMI size/capacity pairing per the GDMI table.",
+            "completeness": "It gathered a key missing parameter (length) but did not resolve the selection into a valid GDMI configuration (e.g., 600x1200 or parallel 600x600) with length choice and connection details.",
+            "safety": "No unsafe material/environment advice was given; flagging overspeeding a module above recommended flow is a relevant performance/energy risk warning.",
+            "tone": "Professional, concise, and appropriately consultative for a technical sales context.",
+            "reasoning_quality": "Logic is mostly clear (need length; flow exceeds module rating) but the alternative sizing jump to 600x900 undermines the engineering chain.",
+            "constraint_adherence": "Violates catalog constraints by proposing a GDMI 600x900 option/capacity that is not supported in the GDMI size table; also asserts '2 parallel units are required' without considering a single larger valid GDMI size (e.g., 600x1200 at 6800 m³/h)."
+          },
+          "strengths": [
+            "Correctly requests missing housing length before finalizing a product configuration.",
+            "Correctly identifies that 4000 m³/h exceeds the GDMI 600x600 recommended flow and warns about it."
+          ],
+          "weaknesses": [
+            "Suggests an invalid/unsupported GDMI size-capacity alternative (600x900 at 5100 m³/h).",
+            "Over-constrains the solution by stating parallel units are required instead of also offering a valid single-housing upsize (e.g., GDMI 600x1200)."
+          ],
+          "pdf_citations": [
+            "GDMI 600x600: recommended flow 3400 m³/h (GDMI MÅTT table).",
+            "GDMI 600x1200: recommended flow 6800 m³/h (GDMI MÅTT table), which would cover 4000 m³/h in a single housing."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 14.25,
+            "attempt": 1,
+            "prompt_tokens": 36999,
+            "cached_tokens": 20992,
+            "output_tokens": 682
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBbau9YZd5YdZvvyUJ87'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDMI",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 13 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "♟️ Additional info needed",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "ZM",
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": "ZM",
+        "detected_family": "GDMI",
+        "accessories": [],
+        "pending_clarification": "housing_length",
+        "resolved_params": {
+          "airflow_m3h": "4000",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": 4000,
+            "product_family": "GDMI",
+            "product_code": "GDMI-600x600-R-PG-ZM",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 2,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 0,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "eb15917b-8245-4cfd-b317-02053dece37f",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDMI",
+          "locked_material": "ZM",
+          "name": null,
+          "pending_clarification": "housing_length",
+          "resolved_params": "{\"airflow_m3h\": \"4000\", \"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDMI",
+            "quantity": 1,
+            "airflow_m3h": 4000,
+            "session_id": "eb15917b-8245-4cfd-b317-02053dece37f",
+            "filter_height": 600,
+            "product_code": "GDMI-600x600-R-PG-ZM",
+            "housing_width": 600,
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_eb15917b-8245-4cfd-b317-02053dece37f_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to ZM -> Filter 600x600mm -> Sized to 600x600 -> Code: GDMI-600x600-R-PG-ZM"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "For the GDMI insulated housing with dimensions 600x600mm and ZM material, we need to finalize the configuration.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "To complete the configuration, I need to know the housing length.",
+          "type": "GENERAL"
+        },
+        {
+          "question": "Which housing length do you need?",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Additionally, the requested 4000 airflow_m3h exceeds the recommended flow of 3400 for a single 600x600 module. 2 parallel units are required. Alternatively, a single 600x900 mm module can handle 5100 m³/h.",
+          "type": "GENERAL"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": "850mm",
+      "turn_number": 2,
+      "timestamp": "2026-02-16T10:33:55.476390+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "The configuration requires two GDMI-600x600-850-R-PG-ZM units to meet the specified airflow of 4000 m³/h, as a single module's maximum capacity is 3400 m³/h.The housing corrosion class is C4.",
+      "turn_number": 2,
+      "timestamp": "2026-02-16T10:34:04.263800+00:00",
+      "clarification": null,
+      "product_card": {
+        "title": "GDMI-600x600-850-R-PG-ZM (Unit 1 of 2)",
+        "specs": {
+          "Product Code": "GDMI-600x600-850-R-PG-ZM",
+          "Housing Size": "600x600mm",
+          "Housing Length": "850mm",
+          "Rated Airflow": "3400 m³/h",
+          "Weight": "~34.0 kg"
+        },
+        "warning": null,
+        "confidence": "medium",
+        "actions": [
+          "Add to Quote"
+        ]
+      },
+      "product_cards": [
+        {
+          "title": "GDMI-600x600-850-R-PG-ZM (Unit 1 of 2)",
+          "specs": {
+            "Product Code": "GDMI-600x600-850-R-PG-ZM",
+            "Housing Size": "600x600mm",
+            "Housing Length": "850mm",
+            "Rated Airflow": "3400 m³/h",
+            "Weight": "~34.0 kg"
+          },
+          "warning": null,
+          "confidence": "medium",
+          "actions": [
+            "Add to Quote"
+          ]
+        }
+      ],
+      "status_badges": [
+        {
+          "type": "SUCCESS",
+          "text": "COMPLETE"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 3,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 4.5,
+          "explanation": "The system demonstrates excellent engineering logic by correctly identifying that the requested airflow (4000 m³/h) exceeds the capacity of a single 600x600 module (3400 m³/h) and proposing a valid multi-unit configuration. The product code generation and material corrosion class (C4 for GDMI ZM) are accurate. However, the correctness score is penalized because the system lists the weight as ~34 kg (matching the uninsulated GDB housing) rather than the correct 53 kg for the insulated GDMI housing found in the PDF.",
+          "dimension_explanations": {
+            "correctness": "The system correctly cites the airflow limit (3400 m³/h) and corrosion class (C4), but the weight (~34 kg) is incorrect; PDF p.12 lists the GDMI 600x600 (850 length) at 53 kg.",
+            "completeness": "The response fully addresses the sizing constraint, asks for the necessary length parameter, and provides a complete configuration.",
+            "safety": "No safety issues; the system correctly handles the capacity constraint to prevent undersizing.",
+            "tone": "Professional and helpful.",
+            "reasoning_quality": "The logic for splitting the airflow into two parallel units is sound and clearly explained.",
+            "constraint_adherence": "Strictly adheres to the airflow capacity limits defined in the catalog."
+          },
+          "strengths": [
+            "Correctly identified airflow capacity limit (3400 m³/h) for the requested size",
+            "Proactively suggested a multi-module solution for the excess airflow",
+            "Accurate generation of the complex product code (GDMI-600x600-850-R-PG-ZM)"
+          ],
+          "weaknesses": [
+            "Incorrect weight data (34 kg vs 53 kg) likely due to confusing the GDMI table with the GDB table"
+          ],
+          "pdf_citations": [
+            "GDMI 600x600 Max Airflow: 3400 m³/h (PDF p.12)",
+            "GDMI 600x600 (850/900 length) Weight: 53 kg (PDF p.12)",
+            "GDMI ZM Corrosion Class: C4 (PDF p.11)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 42.07,
+            "prompt_tokens": 16174,
+            "cached_tokens": 15977,
+            "output_tokens": 625
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 4,
+            "tone": 5,
+            "reasoning_quality": 4,
+            "constraint_adherence": 2
+          },
+          "overall_score": 3.2,
+          "explanation": "The consultant correctly asked for missing housing length and correctly identified that 4000 m³/h exceeds a single GDMI 600x600 module’s recommended flow. However, it recommended a non-catalog material configuration (GDMI in ZM) and stated the wrong corrosion class for ZM, which is a critical product/engineering constraint violation.",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDMI 600x600 has Flöde 3400 m³/h and weights 34 kg (600/650) and 43 kg (850/900), so the airflow logic is sound, but the system’s claim that ZM corresponds to corrosion class C4 is wrong (ZM is C5 in the PDF) and it outputs a GDMI-ZM product code not supported by the catalog examples.",
+            "completeness": "It covered sizing vs. recommended flow and collected length, but did not resolve the material feasibility mismatch (GDMI is shown as AZ/ZM and “ej i rostfritt” with example codes in AZ) nor provide a compliant alternative code/material selection path.",
+            "safety": "No unsafe application advice was given; it appropriately avoided oversizing a single module and suggested parallel units/alternative size, though it should have flagged the material/corrosion-class inconsistency more explicitly.",
+            "tone": "Professional, concise, and aligned with a technical sales-engineering interaction.",
+            "reasoning_quality": "Clear logic: request missing parameter, compare airflow to module rating, propose parallel modules/alternative size; the only weakness is the unexamined jump to a non-validated material/code.",
+            "constraint_adherence": "Violates catalog constraints by issuing GDMI-...-ZM as a definitive product code and misclassifying ZM corrosion class (PDF states ZM310 is C5), so the final recommendation is not fully compliant."
+          },
+          "strengths": [
+            "Good clarification behavior (asked for housing length before finalizing).",
+            "Sound airflow sizing logic using the 3400 m³/h per 592x592 module guideline."
+          ],
+          "weaknesses": [
+            "Incorrect corrosion class statement for ZM (should be C5 per catalog).",
+            "Final product code/material combination is not validated against catalog ordering examples (GDMI examples shown in AZ; ZM availability is not confirmed in the response)."
+          ],
+          "pdf_citations": [
+            "GDMI 600x600: Flöde = 3400 m³/h (GDMI MÅTT table, catalog page showing GDMI dimensions/flows).",
+            "Material table: Zinkmagnesium ZM310 = korrosivitets klass C5 (MATERIAL section)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 14.33,
+            "attempt": 1,
+            "prompt_tokens": 37428,
+            "cached_tokens": 32256,
+            "output_tokens": 653
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBbcoigB6Cnuk1XAm8Q4'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDMI",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 0 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "✅ All parameters resolved",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "ZM",
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": "ZM",
+        "detected_family": "GDMI",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "airflow_m3h": "4000",
+          "connection_type": "PG",
+          "housing_length": "850"
+        },
+        "assembly_group": null,
+        "turn_count": 2,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": 850,
+            "airflow_m3h": 4000,
+            "product_family": "GDMI",
+            "product_code": "GDMI-600x600-850-R-PG-ZM",
+            "quantity": 1,
+            "weight_kg": 34.0,
+            "modules_needed": 2,
+            "total_weight_kg": 68.0,
+            "total_airflow_m3h": 8000,
+            "is_complete": true,
+            "missing_params": [],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 0,
+        "variable_features": 0,
+        "tags_complete": true,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "eb15917b-8245-4cfd-b317-02053dece37f",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDMI",
+          "locked_material": "ZM",
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"airflow_m3h\": \"4000\", \"connection_type\": \"PG\", \"housing_length\": \"850\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDMI",
+            "quantity": 1,
+            "weight_kg": 34.0,
+            "airflow_m3h": 4000,
+            "session_id": "eb15917b-8245-4cfd-b317-02053dece37f",
+            "filter_height": 600,
+            "product_code": "GDMI-600x600-850-R-PG-ZM",
+            "housing_width": 600,
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1",
+            "source_message": 2,
+            "id": "TAG_eb15917b-8245-4cfd-b317-02053dece37f_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to ZM -> Filter 600x600mm -> Sized to 600x600 -> Weight 34.0kg -> Code: GDMI-600x600-850-R-PG-ZM"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "The configuration requires two GDMI-600x600-850-R-PG-ZM units to meet the specified airflow of 4000 m³/h, as a single module's maximum capacity is 3400 m³/h.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The housing corrosion class is C4.",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

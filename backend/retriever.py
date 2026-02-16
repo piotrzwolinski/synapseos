@@ -3678,6 +3678,19 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
                     confidence=cd.get("confidence", "medium"),
                     actions=cd.get("actions", ["Add to Quote"])
                 ))
+        # v4.1: Deduplicate product cards
+        if len(product_cards) > 1:
+            seen_keys = set()
+            deduped = []
+            for pc in product_cards:
+                dedup_key = (pc.specs.get("Product Code") if pc.specs else None) or pc.title or ""
+                if dedup_key and dedup_key in seen_keys:
+                    print(f"🗑️ [DEDUP] Removed duplicate product card: {dedup_key}")
+                    continue
+                seen_keys.add(dedup_key)
+                deduped.append(pc)
+            product_cards = deduped
+
         product_card = product_cards[0] if product_cards else None
 
     # Build product pivot info if physics override occurred
@@ -5568,6 +5581,20 @@ The user has chosen to remove the accessory option to fit within their space con
                     "confidence": confidence,
                     "actions": cd.get("actions", ["Add to Quote"])
                 })
+        # v4.1: Deduplicate product cards by product code or title
+        if len(product_cards_list) > 1:
+            seen_keys = set()
+            deduped = []
+            for pc in product_cards_list:
+                # Use product code from specs as dedup key, fallback to title
+                dedup_key = (pc.get("specs", {}).get("Product Code") or pc.get("title", "")).strip()
+                if dedup_key and dedup_key in seen_keys:
+                    print(f"🗑️ [DEDUP] Removed duplicate product card: {dedup_key}")
+                    continue
+                seen_keys.add(dedup_key)
+                deduped.append(pc)
+            product_cards_list = deduped
+
         product_card_dict = product_cards_list[0] if product_cards_list else None
 
     # Installation block overrides clarifications in final response (defense-in-depth)

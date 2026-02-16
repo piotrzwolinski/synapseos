@@ -1,0 +1,282 @@
+{
+  "name": "hc_atex21_powder_booth",
+  "description": "[HC] ATEX Zone 21 powder booth + GDB-FZ → BLOCK (no Ex cert)",
+  "query": "Powder coating booth exhaust. ATEX Zone 21 (dust). Can we use standard GDB-FZ?",
+  "session_id": "9fbd8e73-4dcb-40c2-94a1-0b5034c980bf",
+  "duration_s": 48.0,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "Powder coating booth exhaust. ATEX Zone 21 (dust). Can we use standard GDB-FZ?",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T11:03:02.155099+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "The GDB filter housing is not suitable for your powder coating booth exhaust due to the presence of an Explosive Atmosphere. In explosive environments, any build-up of static charge on ungrounded filter housings can create sparks, which exceeds the minimum ignition energy of many dust/gas mixtures. To ensure safety, all components must be grounded to prevent ignition sources.Additionally, the powder coating process introduces Particulate Exposure and Chemical Vapor Exposure. Standard mechanical filters are ineffective at removing chemical vapors, and carbon filters are quickly blocked by particulates.Given these constraints, a multi-stage filtration system is required. I recommend a GDC FLEX carbon filter unit as the target stage, preceded by a bag filter to remove particulate matter and protect the carbon filter. To proceed with the configuration, I need two details:What is the required airflow (m³/h)?",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T11:03:13.967884+00:00",
+      "clarification": null,
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [
+        {
+          "type": "WARNING",
+          "text": "Blocked"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 4,
+            "safety": 2,
+            "tone": 5,
+            "reasoning_quality": 2,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.65,
+          "explanation": "The system correctly identifies that the requested GDB housing is unsafe for ATEX Zone 21, which is a critical safety block. However, it then recommends an alternative (GDC FLEX) from the same catalog which also lacks ATEX certification in the PDF. Recommending uncertified standard HVAC equipment for an explosive dust atmosphere is a severe safety error that negates the value of the initial block.",
+          "dimension_explanations": {
+            "correctness": "The system implies GDC FLEX is suitable for ATEX Zone 21, but the PDF (p. 16) lists it as standard galvanized (FZ) with no Ex/ATEX rating mentioned.",
+            "completeness": "The response asks for airflow and explains the rejection, covering the user's immediate needs but failing on the solution side.",
+            "safety": "Recommending a non-ATEX rated product (GDC FLEX) for a Zone 21 explosive dust environment is dangerous.",
+            "tone": "The tone is professional and authoritative.",
+            "reasoning_quality": "The logic is contradictory: it rejects GDB for lack of grounding/ATEX suitability but recommends GDC FLEX which shares the same construction and lack of certification.",
+            "constraint_adherence": "Violates the engineering constraint that equipment in Zone 21 must be explicitly ATEX certified."
+          },
+          "strengths": [
+            "Correctly blocked the initial request for GDB in a hazardous environment.",
+            "Correctly identified that carbon filters require pre-filtration to prevent clogging."
+          ],
+          "weaknesses": [
+            "Recommends GDC FLEX for ATEX Zone 21 despite no evidence of certification in the catalog.",
+            "Inconsistent application of safety rules (rejects GDB, accepts GDC FLEX for same hazard).",
+            "Focuses on carbon filtration for a dust zone (Zone 21), where dust collection is the primary concern."
+          ],
+          "pdf_citations": [
+            "GDB description (p. 8): 'GDB är ett kanalfilterskåp... För inomhusbruk... tillverkas vanligen i förzinkat.' (No ATEX mention)",
+            "GDC FLEX description (p. 16): 'GDC FLEX tillverkas vanligen i förzinkat... Avsett användningsområde är för patronfilter med kol eller kemikaliemedia.' (No ATEX mention)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 36.12,
+            "prompt_tokens": 15697,
+            "cached_tokens": 15977,
+            "output_tokens": 624
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 4,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.95,
+          "explanation": "The system correctly blocks use of a standard indoor GDB-FZ in an ATEX Zone 21 dust environment and appropriately highlights ignition/static risks. However, it then recommends GDC FLEX (an indoor carbon/patron housing) for a powder-coating exhaust, which is not an ATEX-rated solution and is also a poor process fit (carbon stage) for dust-laden exhaust, making the recommendation technically inconsistent and incomplete.",
+          "dimension_explanations": {
+            "correctness": "PDF confirms GDB is “för inomhusbruk” and typically FZ/C2 (GDB section) and GDB 600x600 has Flöde 3400 m³/h; engineering-wise the ATEX block is sound, but recommending GDC FLEX carbon as the target stage for Zone 21 exhaust is not sound without ATEX-certified design/grounding and is likely the wrong filtration concept for powder dust.",
+            "completeness": "It asks only for airflow and does not request key ATEX parameters (equipment category, grounding/bonding concept, dust properties/Kst, required filtration efficiency, temperature, pressure class, installation location) before proposing a solution.",
+            "safety": "Correctly flags explosive atmosphere risk and the need to avoid ignition sources/ensure grounding, but does not explicitly state that any proposed housing must be ATEX-compliant/certified for Zone 21 and that carbon housings are not a default safe choice.",
+            "tone": "Professional, clear, and appropriately cautious for a hazardous-area application.",
+            "reasoning_quality": "Reasoning is partially logical (ATEX hazard → block standard housing) but then jumps to a carbon/patron solution that contradicts the earlier particulate-loading concern and lacks an ATEX compliance chain.",
+            "constraint_adherence": "Violates practical engineering constraints by proposing GDC FLEX (catalog: indoor-use carbon/patron housing) for an ATEX Zone 21 exhaust without addressing ATEX equipment requirements, earthing/bonding, and explosion protection measures."
+          },
+          "strengths": [
+            "Appropriately blocks standard GDB-FZ for ATEX Zone 21 and highlights ignition/static risk.",
+            "Requests a key sizing input (airflow) before issuing product cards."
+          ],
+          "weaknesses": [
+            "Recommends GDC FLEX carbon stage for powder-coating exhaust despite heavy dust loading and without any ATEX-rated/certified equipment discussion.",
+            "Insufficient clarification for hazardous-area design (dust explosibility, required protection concept, installation details) and no viable ATEX-compliant alternative path."
+          ],
+          "pdf_citations": [
+            "GDB 600x600: Flöde 3400 m³/h; GDB described as “För inomhusbruk” and typically in förzinkat (FZ) with korrosivitetsklass C2 (GDB section/table).",
+            "GDC FLEX described as “För inomhusbruk” and intended for patronfilter with kol/kemikaliemedia with recommended flows e.g., 600x600 = 1750 m³/h (GDC FLEX table)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 15.32,
+            "attempt": 1,
+            "prompt_tokens": 37085,
+            "cached_tokens": 25088,
+            "output_tokens": 734
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBdqwQNykA1rjgAjXYuz'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB + Powder Coating Line",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Select a product with the required traits",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 3 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "FZ"
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": "FZ",
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "detected_application": "APP_POWDER_COATING",
+          "atex_zone": "21",
+          "installation_environment": "ENV_ATEX",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": null,
+            "filter_height": null,
+            "filter_depth": null,
+            "housing_width": null,
+            "housing_height": null,
+            "housing_length": null,
+            "airflow_m3h": null,
+            "product_family": "GDB",
+            "product_code": null,
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_dimensions",
+              "filter_depth",
+              "airflow"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": "Powder Coating Line",
+        "warnings_count": 21,
+        "variable_features": 3,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "9fbd8e73-4dcb-40c2-94a1-0b5034c980bf",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDB",
+          "locked_material": "FZ",
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"detected_application\": \"APP_POWDER_COATING\", \"atex_zone\": \"21\", \"installation_environment\": \"ENV_ATEX\", \"connection_type\": \"PG\"}",
+          "vetoed_families": "[\"FAM_GDB\", \"FAM_GDP\", \"FAM_GDMI\", \"FAM_PFF\", \"FAM_GDC\", \"FAM_GDMI_FLEX\", \"FAM_GDC_FLEX\", \"FAM_BFF\", \"FAM_PT\", \"FAM_EXL\", \"FAM_FILTER_PROFIL\", \"FAM_TT\"]"
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "quantity": 1,
+            "session_id": "9fbd8e73-4dcb-40c2-94a1-0b5034c980bf",
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_9fbd8e73-4dcb-40c2-94a1-0b5034c980bf_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "type": "GENERAL",
+          "text": "The GDB filter housing is not suitable for your powder coating booth exhaust due to the presence of an Explosive Atmosphere. In explosive environments, any build-up of static charge on ungrounded filter housings can create sparks, which exceeds the minimum ignition energy of many dust/gas mixtures. To ensure safety, all components must be grounded to prevent ignition sources."
+        },
+        {
+          "type": "GENERAL",
+          "text": "Additionally, the powder coating process introduces Particulate Exposure and Chemical Vapor Exposure. Standard mechanical filters are ineffective at removing chemical vapors, and carbon filters are quickly blocked by particulates."
+        },
+        {
+          "type": "GENERAL",
+          "text": "Given these constraints, a multi-stage filtration system is required. I recommend a GDC FLEX carbon filter unit as the target stage, preceded by a bag filter to remove particulate matter and protect the carbon filter. To proceed with the configuration, I need two details:"
+        },
+        {
+          "type": "GENERAL",
+          "text": "What is the required airflow (m³/h)?"
+        }
+      ]
+    }
+  ]
+}

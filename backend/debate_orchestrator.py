@@ -61,23 +61,50 @@ def _clean_json_response(text: str) -> str:
 
 
 def _parse_json_safe(text: str, provider: str) -> Optional[list | dict]:
-    """Parse JSON with fallback repair for truncated output."""
+    """Parse JSON with stateful bracket-tracking repair for truncated output."""
     cleaned = _clean_json_response(text)
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
         pass
 
-    # Attempt repair: close unclosed brackets
-    for suffix in ["]", "}", "}]", "]}]", '"}]', '"}]}]', '"}}}']:
-        try:
-            return json.loads(cleaned + suffix)
-        except json.JSONDecodeError:
+    # Stateful repair: track open brackets/braces accounting for strings and escapes
+    in_string = False
+    escape_next = False
+    stack = []
+    for ch in cleaned:
+        if escape_next:
+            escape_next = False
             continue
+        if ch == '\\' and in_string:
+            escape_next = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch in ('{', '['):
+            stack.append(ch)
+        elif ch == '}' and stack and stack[-1] == '{':
+            stack.pop()
+        elif ch == ']' and stack and stack[-1] == '[':
+            stack.pop()
+
+    repaired = cleaned
+    if in_string:
+        repaired += '"'
+    for opener in reversed(stack):
+        repaired += ']' if opener == '[' else '}'
+
+    try:
+        return json.loads(repaired)
+    except json.JSONDecodeError:
+        pass
 
     # Last resort: regex extract the outermost JSON structure from raw text
     import re
-    for pattern in [r'(\[[\s\S]*\])', r'(\{[\s\S]*\})']:
+    for pattern in [r'(\{[\s\S]*\})', r'(\[[\s\S]*\])']:
         match = re.search(pattern, text)
         if match:
             try:

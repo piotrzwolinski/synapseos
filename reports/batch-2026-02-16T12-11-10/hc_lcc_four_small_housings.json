@@ -1,0 +1,883 @@
+{
+  "name": "hc_lcc_four_small_housings",
+  "description": "[HC] 4 separate 300x300 housings vs 1x600x600 → LCC warning",
+  "query": "We need 3400 m³/h. Instead of one 600x600 housing, we want four separate 300x300 housings.",
+  "session_id": "f7a86418-2e62-4b3b-9d2f-82675a68bc33",
+  "duration_s": 135.7,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "We need 3400 m³/h. Instead of one 600x600 housing, we want four separate 300x300 housings.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T11:05:52.571492+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "To finalize the configuration for each of the four GDP housings with 300x300mm dimensions, I need to know the filter depth.Additionally, the requested 3400 airflow_m3h exceeds the recommended flow of 500 for a single 300x300 module. 7 parallel units are required. Alternatively, a single 800x800 mm module can handle 3556 m³/h.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T11:06:03.043994+00:00",
+      "clarification": {
+        "missing_info": "filter_depth",
+        "why_needed": "The housing length depends on the filter depth.",
+        "options": [
+          {
+            "value": "292",
+            "description": "Filter Depth ≤292mm"
+          },
+          {
+            "value": "450",
+            "description": "Filter Depth ≤450mm"
+          },
+          {
+            "value": "451",
+            "description": "Filter Depth >450mm"
+          }
+        ],
+        "question": "What is the filter depth?"
+      },
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 4,
+            "completeness": 2,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 2,
+            "constraint_adherence": 3
+          },
+          "overall_score": 3.7,
+          "explanation": "The system failed to recognize that the user's specification (3400 m³/h for a 600x600 housing) matches the GDB product family (bag/compact filter), not the GDP family (panel filter). By arbitrarily locking into GDP, it incorrectly advised that 7 units were required, whereas the user's proposed configuration of 4 units is perfectly valid for the GDB product line (4 x 850 = 3400 m³/h).",
+          "dimension_explanations": {
+            "correctness": "The flow values cited for GDP (300x300 = 500 m³/h, 800x800 = 3556 m³/h) are factually correct per PDF page 6, but applied to the wrong product context.",
+            "completeness": "The response completely missed the GDB product alternative which fits the user's math exactly, failing to solve the customer's actual problem.",
+            "safety": "No direct safety risks were introduced.",
+            "tone": "Professional and appropriate.",
+            "reasoning_quality": "The decision to select GDP is arbitrary and contradicts the user's provided performance data (3400 m³/h for 600x600), leading to a nonsensical recommendation.",
+            "constraint_adherence": "The system enforced GDP constraints on a request that clearly aligned with GDB specifications, unnecessarily blocking a valid design."
+          },
+          "strengths": [
+            "Accurately retrieved catalog data for the selected (albeit incorrect) product family (GDP).",
+            "Correctly calculated the number of modules required based on the GDP capacity."
+          ],
+          "weaknesses": [
+            "Failed to identify the correct product family (GDB) despite clear airflow/size indicators from the user.",
+            "Blocked a valid engineering configuration (4x GDB 300x300) by applying the wrong product constraints.",
+            "Did not clarify product type before declaring the user's request invalid."
+          ],
+          "pdf_citations": [
+            "GDP 300x300 flow: 500 m³/h (PDF p.6) - System used this.",
+            "GDP 800x800 flow: 3556 m³/h (PDF p.6) - System used this.",
+            "GDB 600x600 flow: 3400 m³/h (PDF p.9) - Matches user's implied capacity.",
+            "GDB 300x300 flow: 850 m³/h (PDF p.9) - 4 units would equal exactly 3400 m³/h."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 77.08,
+            "prompt_tokens": 15634,
+            "cached_tokens": 15977,
+            "output_tokens": 703
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 4,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 3
+          },
+          "overall_score": 3.25,
+          "explanation": "The system correctly flagged that 4x300x300 GDP housings cannot carry 3400 m³/h, but it used incorrect catalog airflow values and suggested an 800x800 option that is not supported by the provided GDP table. It asked a reasonable clarification (filter depth), yet it prematurely concluded a parallel-unit count based on wrong data.",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDP 300x300/250 has 500 m³/h at 1.5 m/s, so 3400 m³/h would require ~7 units (sound), but the claim that a single 300x300 module is 500 m³/h is correct while the suggested 800x800=3556 m³/h and “recommended flow” framing are not supported by the GDP table (GDP 800x800/250 is 3556 m³/h, but that is a GDP size; the system’s statement is ambiguous and not tied to GDP vs other family).",
+            "completeness": "It did not propose a correct 4-unit alternative (e.g., 4x300x600 GDP = 4x1000 m³/h) or confirm housing family (GDP vs GDB/GDMI) and connection type.",
+            "safety": "No unsafe material/environment advice was given; it appropriately prevented undersized selection by warning the airflow exceedance.",
+            "tone": "Professional and appropriately technical.",
+            "reasoning_quality": "The sizing logic direction is right (parallel units), but it mixes ‘recommended flow’ with GDP’s tabulated flow-at-velocity and introduces an alternative size without clearly anchoring it to the same product family/assumptions.",
+            "constraint_adherence": "It respected the basic capacity constraint (4x300x300 insufficient) but violated catalog-backed selection discipline by citing an alternative size/capacity without clear product-family confirmation and by computing unit count from a single-point value without stating the velocity/pressure-drop basis."
+          },
+          "strengths": [
+            "Correctly identifies that 4x300x300 cannot meet 3400 m³/h and that multiple parallel housings are needed.",
+            "Asks for filter depth before finalizing GDP configuration, which is a valid missing parameter."
+          ],
+          "weaknesses": [
+            "Introduces an 800x800 option/capacity without clearly tying it to the GDP table assumptions and without confirming the intended housing family.",
+            "Does not offer a practical 4-housing solution that actually meets 3400 m³/h using available sizes (e.g., 4x300x600 GDP)."
+          ],
+          "pdf_citations": [
+            "GDP 300x300/250: Flöde = 500 m³/h at 1.5 m/s (GDP table, p.10 in provided excerpt).",
+            "GDP 800x800/250: Flöde = 3556 m³/h at 1.5 m/s (GDP table, p.10 in provided excerpt)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 14.14,
+            "attempt": 1,
+            "prompt_tokens": 36994,
+            "cached_tokens": 22016,
+            "output_tokens": 718
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBe4Hce2fdAPknhfnteH'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDP",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 3 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 300,
+            "height": 300,
+            "depth": null
+          },
+          {
+            "width": 300,
+            "height": 300,
+            "depth": null
+          },
+          {
+            "width": 300,
+            "height": 300,
+            "depth": null
+          },
+          {
+            "width": 300,
+            "height": 300,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDP",
+        "accessories": [],
+        "pending_clarification": "filter_depth",
+        "resolved_params": {
+          "airflow_m3h": "3400",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 300,
+            "filter_height": 300,
+            "filter_depth": null,
+            "housing_width": 300,
+            "housing_height": 300,
+            "housing_length": null,
+            "airflow_m3h": 3400,
+            "product_family": null,
+            "product_code": null,
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 7,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          },
+          "item_2": {
+            "tag_id": "item_2",
+            "filter_width": 300,
+            "filter_height": 300,
+            "filter_depth": null,
+            "housing_width": 300,
+            "housing_height": 300,
+            "housing_length": null,
+            "airflow_m3h": 3400,
+            "product_family": null,
+            "product_code": null,
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 7,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          },
+          "item_3": {
+            "tag_id": "item_3",
+            "filter_width": 300,
+            "filter_height": 300,
+            "filter_depth": null,
+            "housing_width": 300,
+            "housing_height": 300,
+            "housing_length": null,
+            "airflow_m3h": 3400,
+            "product_family": null,
+            "product_code": null,
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 7,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          },
+          "item_4": {
+            "tag_id": "item_4",
+            "filter_width": 300,
+            "filter_height": 300,
+            "filter_depth": null,
+            "housing_width": 300,
+            "housing_height": 300,
+            "housing_length": null,
+            "airflow_m3h": 3400,
+            "product_family": null,
+            "product_code": null,
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 7,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 0,
+        "variable_features": 0,
+        "tags_complete": false,
+        "tags_count": 4
+      },
+      "session_state": {
+        "session_id": "f7a86418-2e62-4b3b-9d2f-82675a68bc33",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDP",
+          "locked_material": null,
+          "name": null,
+          "pending_clarification": "filter_depth",
+          "resolved_params": "{\"airflow_m3h\": \"3400\", \"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "housing_width": 300,
+            "quantity": 1,
+            "filter_width": 300,
+            "airflow_m3h": 3400,
+            "housing_height": 300,
+            "session_id": "f7a86418-2e62-4b3b-9d2f-82675a68bc33",
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_f7a86418-2e62-4b3b-9d2f-82675a68bc33_item_1",
+            "is_complete": false,
+            "filter_height": 300
+          },
+          {
+            "housing_width": 300,
+            "quantity": 1,
+            "filter_width": 300,
+            "airflow_m3h": 3400,
+            "housing_height": 300,
+            "session_id": "f7a86418-2e62-4b3b-9d2f-82675a68bc33",
+            "tag_id": "item_2",
+            "source_message": 1,
+            "id": "TAG_f7a86418-2e62-4b3b-9d2f-82675a68bc33_item_2",
+            "is_complete": false,
+            "filter_height": 300
+          },
+          {
+            "housing_width": 300,
+            "quantity": 1,
+            "filter_width": 300,
+            "airflow_m3h": 3400,
+            "housing_height": 300,
+            "session_id": "f7a86418-2e62-4b3b-9d2f-82675a68bc33",
+            "tag_id": "item_3",
+            "source_message": 1,
+            "id": "TAG_f7a86418-2e62-4b3b-9d2f-82675a68bc33_item_3",
+            "is_complete": false,
+            "filter_height": 300
+          },
+          {
+            "housing_width": 300,
+            "quantity": 1,
+            "filter_width": 300,
+            "airflow_m3h": 3400,
+            "housing_height": 300,
+            "session_id": "f7a86418-2e62-4b3b-9d2f-82675a68bc33",
+            "tag_id": "item_4",
+            "source_message": 1,
+            "id": "TAG_f7a86418-2e62-4b3b-9d2f-82675a68bc33_item_4",
+            "is_complete": false,
+            "filter_height": 300
+          }
+        ],
+        "tag_count": 4,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Filter 300x300mm -> Sized to 300x300"
+          },
+          {
+            "tag_id": "item_2",
+            "path": "Filter 300x300mm -> Sized to 300x300"
+          },
+          {
+            "tag_id": "item_3",
+            "path": "Filter 300x300mm -> Sized to 300x300"
+          },
+          {
+            "tag_id": "item_4",
+            "path": "Filter 300x300mm -> Sized to 300x300"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "To finalize the configuration for each of the four GDP housings with 300x300mm dimensions, I need to know the filter depth.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Additionally, the requested 3400 airflow_m3h exceeds the recommended flow of 500 for a single 300x300 module. 7 parallel units are required. Alternatively, a single 800x800 mm module can handle 3556 m³/h.",
+          "type": "GENERAL"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": "450",
+      "turn_number": 2,
+      "timestamp": "2026-02-16T11:07:20.683169+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "To meet the required airflow of 3400 m³/h with the GDP housing and 300x300mm dimensions, we will need 7 units in parallel. Here are the specifications for each tagged item:",
+      "turn_number": 2,
+      "timestamp": "2026-02-16T11:07:35.352267+00:00",
+      "clarification": null,
+      "product_card": {
+        "title": "Tag item_1",
+        "specs": {
+          "Product Code": "GDP-300x300-50-R-PG-FZ",
+          "Housing Size": "300x300mm",
+          "Housing Length": "750mm",
+          "Rated Airflow": "500 m³/h per module (requested: 3400 m³/h)",
+          "Weight": "See datasheet kg",
+          "Modules Required": "7 parallel units",
+          "Total Weight": "7 x See datasheet kg"
+        },
+        "warning": null,
+        "confidence": "medium",
+        "actions": [
+          "Add to Quote"
+        ]
+      },
+      "product_cards": [
+        {
+          "title": "Tag item_1",
+          "specs": {
+            "Product Code": "GDP-300x300-50-R-PG-FZ",
+            "Housing Size": "300x300mm",
+            "Housing Length": "750mm",
+            "Rated Airflow": "500 m³/h per module (requested: 3400 m³/h)",
+            "Weight": "See datasheet kg",
+            "Modules Required": "7 parallel units",
+            "Total Weight": "7 x See datasheet kg"
+          },
+          "warning": null,
+          "confidence": "medium",
+          "actions": [
+            "Add to Quote"
+          ]
+        }
+      ],
+      "status_badges": [
+        {
+          "type": "SUCCESS",
+          "text": "COMPLETE"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 2,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.8,
+          "explanation": "The system failed to identify the correct product family (GDB) which perfectly matches the user's request for 4 units at 3400 m³/h (4 x 850 = 3400). Instead, it selected GDP, forced a requirement of 7 units, and hallucinated a housing length of 750mm for the GDP housing, which is only available in 250mm length.",
+          "dimension_explanations": {
+            "correctness": "The system claims the GDP housing has a length of 750mm, but the PDF (p.3, p.5) states GDP length is standard 250mm; it also failed to provide the weight (PDF p.6 lists 7kg).",
+            "completeness": "Failed to provide weight data and failed to offer the GDB alternative which would have satisfied the user's '4 units' constraint.",
+            "safety": "No direct safety risks, though specifying a non-existent housing length could cause installation issues.",
+            "tone": "Professional and polite.",
+            "reasoning_quality": "Poor engineering judgment; the user's math (3400/4 = 850) matches the GDB 300x300 capacity exactly (PDF p.9), but the system stuck to GDP and required 7 units.",
+            "constraint_adherence": "Violated the product dimension constraints for GDP (claiming 750mm length instead of 250mm)."
+          },
+          "strengths": [
+            "Correctly identified that GDP 300x300 cannot handle 3400 m³/h alone",
+            "Correctly calculated the number of GDP units required (7) based on GDP airflow"
+          ],
+          "weaknesses": [
+            "Hallucinated housing length (750mm) for GDP product family",
+            "Missed the obvious GDB solution that fit the user's quantity constraint",
+            "Failed to look up weight data available in the PDF"
+          ],
+          "pdf_citations": [
+            "GDP Längd: 250 mm (PDF p.3)",
+            "GDB 300x300 Flöde: 850 m³/h (PDF p.9)",
+            "GDP 300x300 Flöde: 500 m³/h (PDF p.6)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 32.92,
+            "prompt_tokens": 16188,
+            "cached_tokens": 15977,
+            "output_tokens": 635
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 1,
+            "completeness": 1,
+            "safety": 3,
+            "tone": 4,
+            "reasoning_quality": 2,
+            "constraint_adherence": 1
+          },
+          "overall_score": 1.9,
+          "explanation": "The system selected the wrong product family and produced an invalid configuration: GDP is a planfilter housing (max 100 mm filter depth, 250 mm length) but the user requested 450 mm depth and the system output a 750 mm long GDP. It also duplicated the same product card twice and marked the case COMPLETE despite unresolved critical constraints (filter type/depth mismatch and housing count requirement).",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDP-300x300/250 has 250 mm length and 500 m³/h at 1.5 m/s (and GDP max filter depth 100 mm), so the system’s GDP 750 mm length and acceptance of 450 mm depth are incorrect; the parallel-unit airflow math (3400/500≈6.8→7) is sound.",
+            "completeness": "It failed to resolve the user’s stated intent (4 housings) vs its own requirement (7), did not address filter type compatibility, and omitted weight values that are available in the PDF.",
+            "safety": "No major hazardous advice, but it missed a key functional constraint (450 mm filter depth cannot be used in GDP), which can lead to an unbuildable/incorrect installation.",
+            "tone": "Professional and clear, but the confidence/closure is inappropriate given the unresolved constraints.",
+            "reasoning_quality": "Some correct sizing arithmetic, but major logical gaps: it asked for filter depth yet did not validate GDP’s max 100 mm depth and then finalized an impossible selection.",
+            "constraint_adherence": "Violates catalog constraints by specifying GDP with 750 mm length and implying 450 mm filter depth; also ignores the user constraint of exactly four 300x300 housings."
+          },
+          "strengths": [
+            "Correctly recognized that one 300x300 GDP module at 500 m³/h cannot handle 3400 m³/h and computed the need for ~7 parallel units.",
+            "Appropriately asked a clarifying question (filter depth) before finalizing—conceptually correct behavior."
+          ],
+          "weaknesses": [
+            "Selected an incompatible housing type (GDP) for a 450 mm filter depth and invented/incorrect housing length (750 mm) for GDP.",
+            "Marked the interaction COMPLETE and duplicated product cards despite unresolved mismatch with the user’s requested quantity (4) and missing/incorrect specs (weight, length)."
+          ],
+          "pdf_citations": [
+            "GDP 300x300/250: Flöde 500 m³/h, vikt 7 kg, längd 250 mm (GDP mått-tabell).",
+            "GDP: 'Filter max djup 100mm' and standard length 250 mm (Sortiment/ GDP description)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 13.9,
+            "attempt": 1,
+            "prompt_tokens": 37464,
+            "cached_tokens": 20992,
+            "output_tokens": 662
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBeB7CGrb9mS1aEsXrXy'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDP",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 0 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "✅ All parameters resolved",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 300,
+            "height": 300,
+            "depth": 450
+          },
+          {
+            "width": 300,
+            "height": 300,
+            "depth": 450
+          },
+          {
+            "width": 300,
+            "height": 300,
+            "depth": 450
+          },
+          {
+            "width": 300,
+            "height": 300,
+            "depth": 450
+          }
+        ],
+        "filter_depths": [
+          450
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDP",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "airflow_m3h": "3400",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 2,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 300,
+            "filter_height": 300,
+            "filter_depth": 450,
+            "housing_width": 300,
+            "housing_height": 300,
+            "housing_length": 750,
+            "airflow_m3h": 3400,
+            "product_family": null,
+            "product_code": "GDP-300x300-50-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": 7.0,
+            "modules_needed": 7,
+            "total_weight_kg": 49.0,
+            "total_airflow_m3h": 23800,
+            "is_complete": true,
+            "missing_params": [],
+            "assembly_role": null,
+            "assembly_group_id": null
+          },
+          "item_2": {
+            "tag_id": "item_2",
+            "filter_width": 300,
+            "filter_height": 300,
+            "filter_depth": 450,
+            "housing_width": 300,
+            "housing_height": 300,
+            "housing_length": 750,
+            "airflow_m3h": 3400,
+            "product_family": null,
+            "product_code": "GDP-300x300-50-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": 7.0,
+            "modules_needed": 7,
+            "total_weight_kg": 49.0,
+            "total_airflow_m3h": 23800,
+            "is_complete": true,
+            "missing_params": [],
+            "assembly_role": null,
+            "assembly_group_id": null
+          },
+          "item_3": {
+            "tag_id": "item_3",
+            "filter_width": 300,
+            "filter_height": 300,
+            "filter_depth": 450,
+            "housing_width": 300,
+            "housing_height": 300,
+            "housing_length": 750,
+            "airflow_m3h": 3400,
+            "product_family": null,
+            "product_code": "GDP-300x300-50-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": 7.0,
+            "modules_needed": 7,
+            "total_weight_kg": 49.0,
+            "total_airflow_m3h": 23800,
+            "is_complete": true,
+            "missing_params": [],
+            "assembly_role": null,
+            "assembly_group_id": null
+          },
+          "item_4": {
+            "tag_id": "item_4",
+            "filter_width": 300,
+            "filter_height": 300,
+            "filter_depth": 450,
+            "housing_width": 300,
+            "housing_height": 300,
+            "housing_length": 750,
+            "airflow_m3h": 3400,
+            "product_family": null,
+            "product_code": "GDP-300x300-50-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": 7.0,
+            "modules_needed": 7,
+            "total_weight_kg": 49.0,
+            "total_airflow_m3h": 23800,
+            "is_complete": true,
+            "missing_params": [],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 0,
+        "variable_features": 0,
+        "tags_complete": true,
+        "tags_count": 4
+      },
+      "session_state": {
+        "session_id": "f7a86418-2e62-4b3b-9d2f-82675a68bc33",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDP",
+          "locked_material": null,
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"airflow_m3h\": \"3400\", \"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "filter_depth": 450,
+            "quantity": 1,
+            "weight_kg": 7.0,
+            "airflow_m3h": 3400,
+            "session_id": "f7a86418-2e62-4b3b-9d2f-82675a68bc33",
+            "filter_height": 300,
+            "product_code": "GDP-300x300-50-R-PG-FZ",
+            "housing_width": 300,
+            "filter_width": 300,
+            "housing_height": 300,
+            "tag_id": "item_1",
+            "source_message": 2,
+            "id": "TAG_f7a86418-2e62-4b3b-9d2f-82675a68bc33_item_1",
+            "is_complete": true,
+            "housing_length": 750
+          },
+          {
+            "filter_depth": 450,
+            "quantity": 1,
+            "weight_kg": 7.0,
+            "airflow_m3h": 3400,
+            "session_id": "f7a86418-2e62-4b3b-9d2f-82675a68bc33",
+            "filter_height": 300,
+            "product_code": "GDP-300x300-50-R-PG-FZ",
+            "housing_width": 300,
+            "filter_width": 300,
+            "housing_height": 300,
+            "tag_id": "item_2",
+            "source_message": 2,
+            "id": "TAG_f7a86418-2e62-4b3b-9d2f-82675a68bc33_item_2",
+            "is_complete": true,
+            "housing_length": 750
+          },
+          {
+            "filter_depth": 450,
+            "quantity": 1,
+            "weight_kg": 7.0,
+            "airflow_m3h": 3400,
+            "session_id": "f7a86418-2e62-4b3b-9d2f-82675a68bc33",
+            "filter_height": 300,
+            "product_code": "GDP-300x300-50-R-PG-FZ",
+            "housing_width": 300,
+            "filter_width": 300,
+            "housing_height": 300,
+            "tag_id": "item_3",
+            "source_message": 2,
+            "id": "TAG_f7a86418-2e62-4b3b-9d2f-82675a68bc33_item_3",
+            "is_complete": true,
+            "housing_length": 750
+          },
+          {
+            "filter_depth": 450,
+            "quantity": 1,
+            "weight_kg": 7.0,
+            "airflow_m3h": 3400,
+            "session_id": "f7a86418-2e62-4b3b-9d2f-82675a68bc33",
+            "filter_height": 300,
+            "product_code": "GDP-300x300-50-R-PG-FZ",
+            "housing_width": 300,
+            "filter_width": 300,
+            "housing_height": 300,
+            "tag_id": "item_4",
+            "source_message": 2,
+            "id": "TAG_f7a86418-2e62-4b3b-9d2f-82675a68bc33_item_4",
+            "is_complete": true,
+            "housing_length": 750
+          }
+        ],
+        "tag_count": 4,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Filter 300x300mm -> Sized to 300x300 -> Length 750mm -> Weight 7.0kg -> Code: GDP-300x300-50-R-PG-FZ"
+          },
+          {
+            "tag_id": "item_2",
+            "path": "Filter 300x300mm -> Sized to 300x300 -> Length 750mm -> Weight 7.0kg -> Code: GDP-300x300-50-R-PG-FZ"
+          },
+          {
+            "tag_id": "item_3",
+            "path": "Filter 300x300mm -> Sized to 300x300 -> Length 750mm -> Weight 7.0kg -> Code: GDP-300x300-50-R-PG-FZ"
+          },
+          {
+            "tag_id": "item_4",
+            "path": "Filter 300x300mm -> Sized to 300x300 -> Length 750mm -> Weight 7.0kg -> Code: GDP-300x300-50-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "To meet the required airflow of 3400 m³/h with the GDP housing and 300x300mm dimensions, we will need 7 units in parallel. Here are the specifications for each tagged item:",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

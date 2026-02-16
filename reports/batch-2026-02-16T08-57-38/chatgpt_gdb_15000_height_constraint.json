@@ -1,0 +1,612 @@
+{
+  "name": "chatgpt_gdb_15000_height_constraint",
+  "description": "[ChatGPT] GDB for 15000 m³/h with height ≤1500mm → 1800x900 (15300)",
+  "query": "I need a GDB housing for 15000 m³/h airflow. The maximum height of the housing cannot exceed 1500mm. Standard Galvanized FZ.",
+  "session_id": "b066533b-f2b0-4b6c-973f-b743c016455c",
+  "duration_s": 115.4,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "I need a GDB housing for 15000 m³/h airflow. The maximum height of the housing cannot exceed 1500mm. Standard Galvanized FZ.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T07:16:23.575481+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "We have configured a GDB housing with dimensions 1800x900mm to accommodate your required airflow of 15000 m³/h, while respecting the maximum height constraint of 1500mm.To finalize the configuration, we need to determine the appropriate housing length.Which housing length is required?",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T07:16:36.840393+00:00",
+      "clarification": {
+        "missing_info": "housing_length",
+        "why_needed": "The housing length depends on the filter depth. Specifying the correct housing length ensures proper filter installation and performance.",
+        "options": [
+          {
+            "value": "550mm",
+            "description": "550mm",
+            "display_label": null
+          },
+          {
+            "value": "750mm",
+            "description": "750mm",
+            "display_label": null
+          }
+        ],
+        "question": "Which housing length is required?"
+      },
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 1,
+            "completeness": 3,
+            "safety": 3,
+            "tone": 5,
+            "reasoning_quality": 1,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.3,
+          "explanation": "The system failed critically on product selection. It recommended a GDB 1800x900 housing for 15,000 m³/h, but the catalog explicitly states the maximum capacity for that size is 9,000 m³/h. The correct size fitting the height constraint (≤1500mm) would be the GDB 1800x1500.",
+          "dimension_explanations": {
+            "correctness": "The system claims GDB 1800x900 handles 15,000 m³/h, but the PDF (page 6) lists its capacity as 9,000 m³/h.",
+            "completeness": "The system correctly asks for the missing housing length parameter, but the response is fundamentally flawed due to the sizing error.",
+            "safety": "Undersizing a filter housing by 40% (15,000 vs 9,000 capacity) would cause excessive pressure drop and potential filter collapse.",
+            "tone": "The tone is professional and appropriate.",
+            "reasoning_quality": "The logic is opaque and results in a factually incorrect selection; it likely hallucinated the airflow capacity.",
+            "constraint_adherence": "The system respected the height constraint (900mm < 1500mm) but violated the airflow capacity constraint defined in the product data."
+          },
+          "strengths": [
+            "Correctly identified that housing length was missing",
+            "Respected the user's maximum height constraint"
+          ],
+          "weaknesses": [
+            "Hallucinated airflow capacity for the selected size (claimed 15,000 m³/h for a 9,000 m³/h unit)",
+            "Failed to identify the correct available size (1800x1500) that meets all criteria"
+          ],
+          "pdf_citations": [
+            "GDB 1800x900: Flöde = 9000 m³/h (PDF p.6)",
+            "GDB 1800x1500: Flöde = 15 000 m³/h (PDF p.6)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 34.95,
+            "prompt_tokens": 15605,
+            "cached_tokens": 15977,
+            "output_tokens": 594
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 4,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 3.05,
+          "explanation": "The system correctly asked for the missing housing length, but it selected a non-viable single GDB size for 15,000 m³/h: 1800x900 is only rated 15,300 m³/h and exceeds the user’s max height of 1500 mm (height would be 1800 mm per W×H convention). It also failed to propose a compliant multi-module alternative (e.g., 1500x1500 or parallel housings) that meets both airflow and height constraints.",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDB 1800x900 has Flöde 15,300 m³/h, but with W×H it violates the 1500 mm max height (H=1800), so the sizing/constraint logic is not sound. ",
+            "completeness": "It asked for length (good) but did not offer any compliant size options under 1500 mm height or a multi-module arrangement to meet 15,000 m³/h.",
+            "safety": "No unsafe material/environment advice was given; requesting length before finalizing is appropriate and avoids premature specification.",
+            "tone": "Professional and concise, appropriate for technical sales support.",
+            "reasoning_quality": "Reasoning is partially transparent (airflow + height constraint) but contains a key dimensional logic error and lacks alternative solution paths.",
+            "constraint_adherence": "It violated the stated max height constraint by proposing 1800x900 (height 1800 mm) and treated it as compliant."
+          },
+          "strengths": [
+            "Appropriately requested the missing parameter (housing length) before issuing product cards/final configuration.",
+            "Used catalog-style sizing logic by selecting a size near the required airflow capacity."
+          ],
+          "weaknesses": [
+            "Misapplied the W×H convention and therefore violated the user’s maximum height constraint.",
+            "Did not propose valid alternatives (e.g., 1500x1500 single housing or multiple housings in parallel) to satisfy both airflow and height."
+          ],
+          "pdf_citations": [
+            "GDB 1800x900: Flöde = 15 300 m³/h; dimensions listed as Bredd 1800, Höjd 900 (i.e., size 1800x900 is W×H) (PDF GDB MÅTT table).",
+            "GDB 1500x1500: Flöde = 21 250 m³/h (PDF GDB MÅTT table) — would meet 15 000 m³/h with H=1500 mm."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 14.57,
+            "attempt": 1,
+            "prompt_tokens": 36978,
+            "cached_tokens": 32256,
+            "output_tokens": 635
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBLZdWRj7ULmV3ftiPwG'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 13 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "♟️ Additional info needed",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "FZ",
+        "dimension_mappings": [
+          {
+            "width": 1800,
+            "height": 900,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": "FZ",
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": "housing_length",
+        "resolved_params": {
+          "max_height_mm": "1500",
+          "airflow_m3h": "15000",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 1800,
+            "filter_height": 900,
+            "filter_depth": null,
+            "housing_width": 1800,
+            "housing_height": 900,
+            "housing_length": null,
+            "airflow_m3h": 15000,
+            "product_family": "GDB",
+            "product_code": "GDB-1800x900-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 0,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "b066533b-f2b0-4b6c-973f-b743c016455c",
+        "project": {
+          "detected_family": "GDB",
+          "resolved_params": "{\"max_height_mm\": \"1500\", \"airflow_m3h\": \"15000\", \"connection_type\": \"PG\"}",
+          "assembly_group": null,
+          "locked_material": "FZ",
+          "accessories": null,
+          "name": null,
+          "pending_clarification": "housing_length",
+          "customer": null,
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "quantity": 1,
+            "airflow_m3h": 15000,
+            "session_id": "b066533b-f2b0-4b6c-973f-b743c016455c",
+            "filter_height": 900,
+            "product_code": "GDB-1800x900-R-PG-FZ",
+            "housing_width": 1800,
+            "filter_width": 1800,
+            "housing_height": 900,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_b066533b-f2b0-4b6c-973f-b743c016455c_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to FZ -> Filter 1800x900mm -> Sized to 1800x900 -> Code: GDB-1800x900-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "We have configured a GDB housing with dimensions 1800x900mm to accommodate your required airflow of 15000 m³/h, while respecting the maximum height constraint of 1500mm.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "To finalize the configuration, we need to determine the appropriate housing length.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Which housing length is required?",
+          "type": "GENERAL"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": "750mm",
+      "turn_number": 2,
+      "timestamp": "2026-02-16T07:17:12.377734+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Here is the specification for the GDB housing:",
+      "turn_number": 2,
+      "timestamp": "2026-02-16T07:17:20.692924+00:00",
+      "clarification": null,
+      "product_card": {
+        "title": "Tag item_1",
+        "specs": {
+          "Product Code": "GDB-1800x900-750-R-PG-FZ",
+          "Housing Size": "1800x900mm",
+          "Housing Length": "750mm",
+          "Rated Airflow": "15300 m³/h per module",
+          "Weight": "~77.0 kg",
+          "Connection Type": "PG",
+          "Housing Corrosion Class": "C2"
+        },
+        "warning": null,
+        "confidence": "medium",
+        "actions": [
+          "Add to Quote"
+        ]
+      },
+      "product_cards": [
+        {
+          "title": "Tag item_1",
+          "specs": {
+            "Product Code": "GDB-1800x900-750-R-PG-FZ",
+            "Housing Size": "1800x900mm",
+            "Housing Length": "750mm",
+            "Rated Airflow": "15300 m³/h per module",
+            "Weight": "~77.0 kg",
+            "Connection Type": "PG",
+            "Housing Corrosion Class": "C2"
+          },
+          "warning": null,
+          "confidence": "medium",
+          "actions": [
+            "Add to Quote"
+          ]
+        }
+      ],
+      "status_badges": [
+        {
+          "type": "SUCCESS",
+          "text": "COMPLETE"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 5.0,
+          "explanation": "The system performed perfectly. It correctly identified the GDB product family and located the appropriate dimension table (Page 9). It selected the optimal size (1800x900) which provides 15,300 m³/h capacity (closest match above the requested 15,000 m³/h) while strictly adhering to the 1500mm height limit (900mm < 1500mm). It also correctly paused to ask for the required housing length, which is a necessary parameter not provided in the initial prompt.",
+          "dimension_explanations": {
+            "correctness": "All data points (Airflow 15300 m³/h, Weight 77kg, Class C2) match the GDB table on PDF Page 9 and Page 8.",
+            "completeness": "The system correctly identified that housing length was missing and asked for it before finalizing.",
+            "safety": "No safety issues; standard galvanized housing for general ventilation is appropriate.",
+            "tone": "Professional and concise.",
+            "reasoning_quality": "The sizing logic was optimal: it chose the size closest to the requirement that fit the physical constraints.",
+            "constraint_adherence": "Strictly respected the maximum height constraint of 1500mm by selecting a 900mm high unit."
+          },
+          "strengths": [
+            "Optimal sizing logic (1800x900 is the best fit for 15000 m³/h < 1500mm height)",
+            "Accurate data extraction from complex tables",
+            "Correct handling of missing parameters (housing length)"
+          ],
+          "weaknesses": [],
+          "pdf_citations": [
+            "GDB 1800x900: Flöde=15300 m³/h (PDF Page 9)",
+            "GDB 1800x900 Weight (750/800 length): 77 kg (PDF Page 9)",
+            "Standard FZ material = Corrosion Class C2 (PDF Page 8)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 58.21,
+            "prompt_tokens": 16083,
+            "cached_tokens": 15977,
+            "output_tokens": 599
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 3,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 4
+          },
+          "overall_score": 2.95,
+          "explanation": "The selected size (1800x900) and airflow rating align with the catalog and the height constraint is respected, but the product card contains a clear weight error and duplicates the same card twice. The interaction also omits key engineering checks (pressure drop, filter type/length rationale) and provides no application/environment validation beyond material choice.",
+          "dimension_explanations": {
+            "correctness": "Airflow is consistent with the PDF (GDB 1800x900 has Flöde 15,300 m³/h), but the stated weight (~77 kg) conflicts with the PDF (GDB 1800x900: 77 kg for 750/800 length and 36 kg for 550/600), and the engineering reasoning is only partially shown (basic sizing/height check).",
+            "completeness": "It asked for length (good) but did not confirm filter type (short/long bag vs compact), connection option (PG vs flange), door handing, or any pressure-drop/velocity/energy-efficiency considerations.",
+            "safety": "No unsafe recommendation is made, but it also provides no warnings about indoor-only use, access/maintenance clearance, or filtration/application constraints (e.g., if used for contaminated air).",
+            "tone": "Professional and appropriately concise for a technical sales context.",
+            "reasoning_quality": "Logic is straightforward (pick a size meeting airflow and height, then ask for length) but lacks transparency on why 1800x900 was preferred over other feasible W×H combinations.",
+            "constraint_adherence": "Respects the stated max height (900 mm < 1500 mm) and uses the requested material FZ and length 750 mm, which is a valid standard length for GDB."
+          },
+          "strengths": [
+            "Correctly requested the missing housing length before finalizing the product code.",
+            "Selected a valid GDB size that meets both airflow and maximum height constraints per the catalog."
+          ],
+          "weaknesses": [
+            "Weight in the product card is incorrect (appears to mix up 750/800 vs 550/600 columns) and the product card is duplicated.",
+            "Missing key selection checks (filter depth/type vs length, pressure drop/face velocity targets, installation environment and service access)."
+          ],
+          "pdf_citations": [
+            "GDB 1800x900: Flöde = 15,300 m³/h (GDB table, row 1800x900).",
+            "GDB 1800x900: Vikt = 77 kg (750/800) and 36 kg (550/600) (GDB table, row 1800x900)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 14.27,
+            "attempt": 1,
+            "prompt_tokens": 37381,
+            "cached_tokens": 15872,
+            "output_tokens": 648
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBLckCLtGM2NwgH6NChH'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 0 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "✅ All parameters resolved",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "FZ",
+        "dimension_mappings": [
+          {
+            "width": 1800,
+            "height": 900,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": "FZ",
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "max_height_mm": "1500",
+          "airflow_m3h": "15000",
+          "connection_type": "PG",
+          "housing_length": "750"
+        },
+        "assembly_group": null,
+        "turn_count": 2,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 1800,
+            "filter_height": 900,
+            "filter_depth": null,
+            "housing_width": 1800,
+            "housing_height": 900,
+            "housing_length": 750,
+            "airflow_m3h": 15000,
+            "product_family": "GDB",
+            "product_code": "GDB-1800x900-750-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": 77.0,
+            "modules_needed": 1,
+            "total_weight_kg": 77.0,
+            "total_airflow_m3h": 15000,
+            "is_complete": true,
+            "missing_params": [],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 0,
+        "variable_features": 0,
+        "tags_complete": true,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "b066533b-f2b0-4b6c-973f-b743c016455c",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDB",
+          "locked_material": "FZ",
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"max_height_mm\": \"1500\", \"airflow_m3h\": \"15000\", \"connection_type\": \"PG\", \"housing_length\": \"750\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "quantity": 1,
+            "weight_kg": 77.0,
+            "airflow_m3h": 15000,
+            "session_id": "b066533b-f2b0-4b6c-973f-b743c016455c",
+            "filter_height": 900,
+            "product_code": "GDB-1800x900-750-R-PG-FZ",
+            "housing_width": 1800,
+            "filter_width": 1800,
+            "housing_height": 900,
+            "tag_id": "item_1",
+            "source_message": 2,
+            "id": "TAG_b066533b-f2b0-4b6c-973f-b743c016455c_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to FZ -> Filter 1800x900mm -> Sized to 1800x900 -> Weight 77.0kg -> Code: GDB-1800x900-750-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "Here is the specification for the GDB housing:",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

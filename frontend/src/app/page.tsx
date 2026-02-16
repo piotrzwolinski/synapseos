@@ -14,6 +14,8 @@ import { CapabilitiesShowcase } from "@/components/capabilities-showcase";
 import { ExpertReview } from "@/components/expert-review";
 import { GraphAudit } from "@/components/graph-audit";
 import { BatchResults } from "@/components/batch-results";
+import BulkOffer from "@/components/bulk-offer";
+import { UseCaseCoverage } from "@/components/use-case-coverage";
 import {
   MessageSquare,
   Upload,
@@ -41,6 +43,7 @@ import {
   ClipboardCheck,
   Sun,
   Moon,
+  Package,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
@@ -50,7 +53,7 @@ import { clearToken } from "@/lib/auth";
 
 type ChatMode = "llm-driven" | "graphrag" | "graph-reasoning" | "neuro-symbolic";
 
-type TabType = "chat" | "ingest" | "explore" | "knowledge" | "testlab" | "testgen" | "capabilities" | "expert-review" | "analytics" | "workflows" | "users" | "integrations" | "audit" | "batch-results" | "settings";
+type TabType = "chat" | "ingest" | "explore" | "knowledge" | "testlab" | "testgen" | "capabilities" | "expert-review" | "analytics" | "workflows" | "users" | "integrations" | "audit" | "batch-results" | "bulk-offer" | "use-cases" | "settings";
 type IngestSubTab = "threads" | "docs";
 
 interface NavItem {
@@ -453,6 +456,7 @@ Nordic Furniture Group`
 
 const NAV_ITEMS: NavItem[] = [
   { id: "chat", label: "AI Consultant", icon: MessageSquare, section: "main" },
+  { id: "bulk-offer", label: "Bulk Offer", icon: Package, section: "main" },
   // Hidden for now:
   // { id: "ingest", label: "Ingest Data", icon: Upload, section: "main" },
   // { id: "explore", label: "Thread Explorer", icon: FolderSearch, section: "main" },
@@ -460,6 +464,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "testlab", label: "Test Lab", icon: FlaskConical, section: "main" },
   // { id: "testgen", label: "Test Generator", icon: Wand2, section: "main" },
   { id: "capabilities", label: "Capabilities", icon: Compass, section: "main" },
+  { id: "use-cases", label: "Use Cases", icon: BookOpen, section: "main" },
   { id: "expert-review", label: "Expert Review", icon: ClipboardCheck, section: "main" },
   { id: "analytics", label: "Analytics", icon: BarChart3, disabled: true, section: "enterprise" },
   { id: "workflows", label: "Workflows", icon: Workflow, disabled: true, section: "enterprise" },
@@ -743,6 +748,8 @@ function MainApp() {
               {activeTab === "integrations" && "Integrations"}
               {activeTab === "audit" && "Graph Audit"}
               {activeTab === "batch-results" && "Batch Results"}
+              {activeTab === "bulk-offer" && "Bulk Offer Creator"}
+              {activeTab === "use-cases" && "Use Case Coverage"}
               {activeTab === "settings" && "Settings"}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -760,6 +767,8 @@ function MainApp() {
               {activeTab === "integrations" && "Connect with CRM, ERP and other systems"}
               {activeTab === "audit" && "Multi-LLM debate to verify knowledge graph integrity against product catalog"}
               {activeTab === "batch-results" && "3-LLM judge evaluation across all test questions with per-dimension scores"}
+              {activeTab === "bulk-offer" && "Upload client orders, AI analyzes and generates bulk offers with graph reasoning"}
+              {activeTab === "use-cases" && "Real email analysis: what Mikael handles today vs. what the tool covers"}
               {activeTab === "settings" && "Configure system preferences and policies"}
             </p>
           </div>
@@ -878,6 +887,8 @@ function MainApp() {
             )}
             {activeTab === "audit" && <GraphAudit />}
             {activeTab === "batch-results" && <BatchResults />}
+            {activeTab === "bulk-offer" && <BulkOffer />}
+            {activeTab === "use-cases" && <UseCaseCoverage />}
             {activeTab === "settings" && <SettingsPanel />}
           </div>
         </div>

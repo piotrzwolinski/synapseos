@@ -1,0 +1,614 @@
+{
+  "name": "chatgpt_prod_hospital_gdmi_rf_block",
+  "description": "[GPT Prod] Hospital + GDMI RF → BLOCK (Ei i Rostfritt), suggest ZM",
+  "query": "For a hospital ventilation upgrade, we require GDMI 600x600 in Stainless Steel (RF). Airflow is 3,400 m³/h. Please confirm material availability and provide the product code.",
+  "session_id": "d1fdfe08-f12b-43dc-be04-12a39e4dbbb5",
+  "duration_s": 82.6,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "For a hospital ventilation upgrade, we require GDMI 600x600 in Stainless Steel (RF). Airflow is 3,400 m³/h. Please confirm material availability and provide the product code.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T10:53:24.468804+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "For the hospital ventilation upgrade, I see you've specified a GDMI 600x600 with 3400 m³/h airflow. Unfortunately, stainless steel (RF) is not available for the GDMI product family. The available materials are Aluzink (AZ) and ZinkMagnesium (ZM), both offering good corrosion resistance. Also, please note that the GDMI housing has a C4 corrosion class.To finalize the configuration, I need to know which housing length is required:",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T10:53:36.146615+00:00",
+      "clarification": {
+        "missing_info": "housing_length",
+        "why_needed": "To ensure proper fit and function of the filter housing.",
+        "options": [
+          {
+            "value": "600mm",
+            "description": "600mm",
+            "display_label": null
+          },
+          {
+            "value": "850mm",
+            "description": "850mm",
+            "display_label": null
+          }
+        ],
+        "question": "Which housing length do you need?"
+      },
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 5.0,
+          "explanation": "The system correctly identified a specific catalog constraint that GDMI housings are not available in Stainless Steel (RF), citing the specific exclusion found in the product description. It correctly validated the airflow and asked for the missing housing length parameter required to finalize the selection.",
+          "dimension_explanations": {
+            "correctness": "Correctly states GDMI is not available in RF (PDF p.11 'Ej i Rostfritt') and validates airflow for 600x600 (PDF p.12).",
+            "completeness": "Addresses the material unavailability and correctly asks for the missing housing length parameter.",
+            "safety": "Prevents the user from specifying a material configuration that the manufacturer explicitly excludes.",
+            "tone": "Professional and direct.",
+            "reasoning_quality": "Clear logic: identifies the product family -> checks material constraints -> identifies missing parameter -> requests clarification.",
+            "constraint_adherence": "Strictly adheres to the 'Ej i Rostfritt' (Not in Stainless) rule on PDF page 11."
+          },
+          "strengths": [
+            "Accurate detection of negative constraints ('Ej i Rostfritt') which are easily missed.",
+            "Correct clarification flow for missing housing length."
+          ],
+          "weaknesses": [],
+          "pdf_citations": [
+            "GDMI Material: 'Ej i Rostfritt' (PDF p.11)",
+            "GDMI 600x600 Airflow: 3400 m³/h (PDF p.12)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 25.61,
+            "prompt_tokens": 15650,
+            "cached_tokens": 15977,
+            "output_tokens": 433
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 4,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 3
+          },
+          "overall_score": 3.15,
+          "explanation": "The system correctly asked for missing length before issuing a product code, but it made a critical catalog error by stating RF stainless is not available for GDMI, while the PDF explicitly indicates GDMI can be supplied in stainless. Safety/hygiene intent is reasonable, yet the response doesn’t resolve the user’s request (material confirmation + product code) and gives an incorrect material constraint.",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDMI can be supplied in stainless (“GDMI tillverkas vanligen i ZM. Ej i Rostfritt.” is contradicted by the material legend showing AZ/ZM only on the GDMI page, but the general MATERIAL page lists RF/SF as available for the series; also GDMI 600x600 has Flöde 3400 m³/h in the GDMI table), so the claim 'RF not available for GDMI' is not reliably supported and is likely wrong; engineering note that GDMI is C4-oriented is broadly sound.",
+            "completeness": "It did not provide the requested product code nor a definitive, PDF-backed confirmation path for RF availability (e.g., 'on request' vs 'not possible').",
+            "safety": "It avoided confirming an unverified stainless configuration and requested length before finalizing, which is appropriate for hospital applications where leakage/hygiene and correct construction matter.",
+            "tone": "Professional, concise, and appropriately consultative.",
+            "reasoning_quality": "Reasoning is partially transparent (material limitation → propose AZ/ZM → ask length), but it doesn’t reconcile conflicting catalog cues about stainless availability.",
+            "constraint_adherence": "Asking for length before issuing a code follows catalog ordering logic, but it incorrectly imposed a hard constraint on RF availability."
+          },
+          "strengths": [
+            "Correctly requested missing housing length before finalizing a product code.",
+            "Kept the response professional and aligned with a technical sales-engineering workflow."
+          ],
+          "weaknesses": [
+            "Likely incorrect statement that GDMI cannot be supplied in stainless (RF), contradicting catalog-level material availability indications.",
+            "Failed to deliver the user’s requested output (material confirmation + product code) and did not offer an 'RF on request' alternative or escalation."
+          ],
+          "pdf_citations": [
+            "GDMI 600x600: Flöde = 3400 m³/h (GDMI MÅTT table, shown in the provided PDF images).",
+            "Material page: RF (EN 1.4301) listed as corrosion class C5 material option for the filter housing series (MATERIAL section in the provided PDF images)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 15.25,
+            "attempt": 1,
+            "prompt_tokens": 37022,
+            "cached_tokens": 20992,
+            "output_tokens": 640
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBd7Fj1BbuiV5pqUa2pZ'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDMI + Hospital",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 22 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "♟️ Additional info needed",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDMI",
+        "accessories": [],
+        "pending_clarification": "housing_length",
+        "resolved_params": {
+          "installation_environment": "ENV_HOSPITAL",
+          "detected_application": "APP_HOSPITAL",
+          "airflow_m3h": "3400",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": 3400,
+            "product_family": "GDMI",
+            "product_code": "GDMI-600x600-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": "Hospital",
+        "warnings_count": 0,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "d1fdfe08-f12b-43dc-be04-12a39e4dbbb5",
+        "project": {
+          "detected_family": "GDMI",
+          "resolved_params": "{\"installation_environment\": \"ENV_HOSPITAL\", \"detected_application\": \"APP_HOSPITAL\", \"airflow_m3h\": \"3400\", \"connection_type\": \"PG\"}",
+          "assembly_group": null,
+          "locked_material": null,
+          "accessories": null,
+          "name": null,
+          "pending_clarification": "housing_length",
+          "customer": null,
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDMI",
+            "quantity": 1,
+            "airflow_m3h": 3400,
+            "session_id": "d1fdfe08-f12b-43dc-be04-12a39e4dbbb5",
+            "filter_height": 600,
+            "product_code": "GDMI-600x600-R-PG-FZ",
+            "housing_width": 600,
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_d1fdfe08-f12b-43dc-be04-12a39e4dbbb5_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Filter 600x600mm -> Sized to 600x600 -> Code: GDMI-600x600-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "type": "GENERAL",
+          "text": "For the hospital ventilation upgrade, I see you've specified a GDMI 600x600 with 3400 m³/h airflow. Unfortunately, stainless steel (RF) is not available for the GDMI product family. The available materials are Aluzink (AZ) and ZinkMagnesium (ZM), both offering good corrosion resistance. Also, please note that the GDMI housing has a C4 corrosion class."
+        },
+        {
+          "type": "GENERAL",
+          "text": "To finalize the configuration, I need to know which housing length is required:"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": "600mm",
+      "turn_number": 2,
+      "timestamp": "2026-02-16T10:54:02.482429+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Here is the specification for the GDMI filter housing for your hospital application.This configuration is suitable for indoor use and has a housing corrosion class of C4.Please note that medical/cleanroom applications such as hospitals are subject to Hygiene Requirements and VDI 6022, which recommends C5 corrosion resistance (stainless steel) for hygienic surfaces. While the housing itself has C4 corrosion resistance, consider upgrading to stainless steel for components exposed to the airflow.",
+      "turn_number": 2,
+      "timestamp": "2026-02-16T10:54:11.470269+00:00",
+      "clarification": null,
+      "product_card": {
+        "title": "Tag item_1",
+        "specs": {
+          "Product Code": "GDMI-600x600-600-R-PG-FZ",
+          "Housing Size": "600x600mm",
+          "Housing Length": "600mm",
+          "Rated Airflow": "3400 m³/h",
+          "Weight": "24.0 kg"
+        },
+        "warning": null,
+        "confidence": "medium",
+        "actions": [
+          "Add to Quote"
+        ]
+      },
+      "product_cards": [
+        {
+          "title": "Tag item_1",
+          "specs": {
+            "Product Code": "GDMI-600x600-600-R-PG-FZ",
+            "Housing Size": "600x600mm",
+            "Housing Length": "600mm",
+            "Rated Airflow": "3400 m³/h",
+            "Weight": "24.0 kg"
+          },
+          "warning": null,
+          "confidence": "medium",
+          "actions": [
+            "Add to Quote"
+          ]
+        }
+      ],
+      "status_badges": [
+        {
+          "type": "SUCCESS",
+          "text": "COMPLETE"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 5,
+            "safety": 4,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 3.35,
+          "explanation": "The system correctly identifies that the requested material (Stainless Steel) is unavailable for the GDMI family and provides good engineering context regarding hospital hygiene. However, the final product card contains significant factual errors: the weight is listed as 24kg (actual is 43kg), and the product code uses 'FZ' (Galvanized) despite the system explicitly stating only AZ/ZM are available and claiming a C4 class (FZ is C3).",
+          "dimension_explanations": {
+            "correctness": "The system lists the weight as 24.0 kg, but the PDF (p.12) lists 43 kg for GDMI 600x600; it also generates an 'FZ' material code which contradicts the PDF's specification of ZM/AZ for GDMI (p.11).",
+            "completeness": "The system asks for the necessary length parameter and provides a full recommendation.",
+            "safety": "The system correctly flags the hygiene requirements (VDI 6022) for hospital applications, which is excellent advice.",
+            "tone": "Professional and helpful.",
+            "reasoning_quality": "The logic regarding material unavailability is sound, but the final output contradicts the system's own statements (claiming C4 class but generating an FZ code).",
+            "constraint_adherence": "The system violates the material constraint it just explained—it states RF is out and AZ/ZM are options, but then generates a code for FZ (Galvanized)."
+          },
+          "strengths": [
+            "Correctly identifies that GDMI is not available in Stainless Steel (RF)",
+            "Provides relevant engineering advice regarding VDI 6022 and hygiene standards",
+            "Correctly requests housing length before finalizing configuration"
+          ],
+          "weaknesses": [
+            "Significant weight error (24kg vs 43kg)",
+            "Generates product code with 'FZ' (Galvanized) despite stating GDMI is ZM/AZ",
+            "Contradictory corrosion class logic (claims C4, provides FZ which is C3)"
+          ],
+          "pdf_citations": [
+            "GDMI 600x600 (600/650 length): Vikt = 43 kg (PDF p.12)",
+            "GDMI tillverkas vanligen i ZM. Ej i Rostfritt (PDF p.11)",
+            "FÖRZINKAT (FZ) ... korrosivitets klass C3 (PDF p.4)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 35.53,
+            "prompt_tokens": 16144,
+            "cached_tokens": 15977,
+            "output_tokens": 657
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 3,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.65,
+          "explanation": "The system correctly recognized that GDMI is not offered in stainless steel (RF) per the catalog, but then issued a contradictory final product code in FZ and duplicated the product card. It also gave an imprecise hygiene/corrosion recommendation (\"VDI 6022 recommends C5\") without tying it to the actual catalog material options or offering a compliant alternative within this product range.",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDMI-600x600 has rated flow 3400 m³/h and weights 34 kg (600/650 length) and 43 kg (850/900 length), so the system’s 24 kg is wrong and the product code ending in FZ contradicts its own (correct) statement that GDMI materials are AZ/ZM; the hygiene reasoning is directionally sensible (hospitals need hygienic, corrosion-resistant surfaces) but the specific claim that VDI 6022 “recommends C5” is not substantiated here.",
+            "completeness": "It failed to confirm the requested RF availability with a correct alternative product code/material and did not resolve the mismatch between requested RF and delivered FZ.",
+            "safety": "It at least flagged hygiene requirements for hospital/cleanroom use, but did not clearly block the non-requested/non-hygienic material selection it ultimately output.",
+            "tone": "Professional, consultative, and appropriately technical.",
+            "reasoning_quality": "Reasoning starts logically (material availability + need length) but becomes inconsistent when it outputs an FZ code and incorrect weight after stating only AZ/ZM are available.",
+            "constraint_adherence": "Violates catalog constraints by outputting GDMI in FZ and by not honoring the user’s stainless-steel requirement with a valid catalog option or a clear 'not possible' plus alternative."
+          },
+          "strengths": [
+            "Appropriately asked for missing parameter (housing length) before finalizing selection.",
+            "Correctly identified (initially) that GDMI is not available in RF and referenced hospital hygiene considerations."
+          ],
+          "weaknesses": [
+            "Final product code and material are incorrect/contradictory (outputs FZ for GDMI) and weight is wrong versus the catalog table.",
+            "Duplicate product card and no clear, compliant alternative recommendation (e.g., different housing family/material) after rejecting RF."
+          ],
+          "pdf_citations": [
+            "GDMI 600x600: Flöde = 3400 m³/h; Vikt = 34 kg (600/650) and 43 kg (850/900) (GDMI MÅTT table, catalog page showing GDMI dimensions/weights).",
+            "GDMI description: 'GDMI tillverkas vanligen i ZM. Ej i Rostfritt.' and example code uses AZ (GDMI-600x600-600-R-PG-AZ) (GDMI product page)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 14.57,
+            "attempt": 1,
+            "prompt_tokens": 37441,
+            "cached_tokens": 31232,
+            "output_tokens": 701
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBd9qkSprn2jbFHiZho7'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDMI + Hospital",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 0 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "✅ All parameters resolved",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDMI",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "installation_environment": "ENV_HOSPITAL",
+          "detected_application": "APP_HOSPITAL",
+          "airflow_m3h": "3400",
+          "connection_type": "PG",
+          "housing_length": "600"
+        },
+        "assembly_group": null,
+        "turn_count": 2,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": 600,
+            "airflow_m3h": 3400,
+            "product_family": "GDMI",
+            "product_code": "GDMI-600x600-600-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": 24.0,
+            "modules_needed": 1,
+            "total_weight_kg": 24.0,
+            "total_airflow_m3h": 3400,
+            "is_complete": true,
+            "missing_params": [],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": "Hospital",
+        "warnings_count": 0,
+        "variable_features": 0,
+        "tags_complete": true,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "d1fdfe08-f12b-43dc-be04-12a39e4dbbb5",
+        "project": {
+          "detected_family": "GDMI",
+          "resolved_params": "{\"installation_environment\": \"ENV_HOSPITAL\", \"detected_application\": \"APP_HOSPITAL\", \"airflow_m3h\": \"3400\", \"connection_type\": \"PG\", \"housing_length\": \"600\"}",
+          "assembly_group": null,
+          "locked_material": null,
+          "accessories": null,
+          "name": null,
+          "pending_clarification": null,
+          "customer": null,
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDMI",
+            "quantity": 1,
+            "weight_kg": 24.0,
+            "airflow_m3h": 3400,
+            "session_id": "d1fdfe08-f12b-43dc-be04-12a39e4dbbb5",
+            "filter_height": 600,
+            "product_code": "GDMI-600x600-600-R-PG-FZ",
+            "housing_width": 600,
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1",
+            "source_message": 2,
+            "id": "TAG_d1fdfe08-f12b-43dc-be04-12a39e4dbbb5_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Filter 600x600mm -> Sized to 600x600 -> Weight 24.0kg -> Code: GDMI-600x600-600-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "Here is the specification for the GDMI filter housing for your hospital application.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "This configuration is suitable for indoor use and has a housing corrosion class of C4.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Please note that medical/cleanroom applications such as hospitals are subject to Hygiene Requirements and VDI 6022, which recommends C5 corrosion resistance (stainless steel) for hygienic surfaces. While the housing itself has C4 corrosion resistance, consider upgrading to stainless steel for components exposed to the airflow.",
+          "type": "GENERAL",
+          "inference_logic": "Medical/cleanroom applications follow VDI 6022 which recommends C5 corrosion resistance (stainless steel) for hygienic surfaces.\nStressor: Hygiene Requirements | Relevant trait: Corrosion Resistance C5"
+        }
+      ]
+    }
+  ]
+}

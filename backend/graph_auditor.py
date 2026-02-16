@@ -45,14 +45,16 @@ def build_graph_data_snapshot(db_connection) -> str:
         pf_records = session.run("""
             MATCH (pf:ProductFamily)
             OPTIONAL MATCH (pf)-[r:AVAILABLE_IN_MATERIAL]->(m:Material)
-            WITH pf, collect(DISTINCT {code: m.code, is_default: r.is_default}) AS materials
+            WITH pf, collect(DISTINCT {code: m.code, is_default: r.is_default, on_request: r.on_request}) AS materials
             OPTIONAL MATCH (pf)-[:HAS_LENGTH_VARIANT]->(vl)
-            WITH pf, materials, collect(DISTINCT {mm: vl.mm, max_filter_depth: vl.max_filter_depth, is_default: vl.is_default}) AS lengths
+            WITH pf, materials, collect(DISTINCT {mm: vl.length_mm, f40_mm: vl.length_f40_mm, max_cartridge_length: vl.max_cartridge_length_mm, max_filter_depth: vl.max_filter_depth_mm, is_default: vl.is_default, description: vl.description, order_code_length: vl.order_code_length, compatibility_modes: vl.compatibility_modes}) AS lengths
             OPTIONAL MATCH (pf)-[:HAS_OPTION]->(opt)
-            WITH pf, materials, lengths, collect(DISTINCT {code: opt.code, name: opt.name}) AS options
+            WITH pf, materials, lengths, collect(DISTINCT {code: opt.code, name: opt.name, length_variant_link: opt.length_variant_link}) AS options
             OPTIONAL MATCH (pf)-[:HAS_VARIABLE_FEATURE]->(vf)
-            RETURN pf, materials, lengths, options,
-                   collect(DISTINCT {name: vf.feature_name, property_key: vf.property_key, values: vf.allowed_values}) AS features
+            WITH pf, materials, lengths, options, collect(DISTINCT {name: vf.feature_name, property_key: vf.property_key, values: vf.allowed_values}) AS features
+            OPTIONAL MATCH (pf)-[:HAS_STANDARD_FEATURE]->(sf)
+            RETURN pf, materials, lengths, options, features,
+                   collect(DISTINCT sf.feature_name) AS standard_features
             ORDER BY pf.selection_priority
         """).data()
 
@@ -79,6 +81,33 @@ def build_graph_data_snapshot(db_connection) -> str:
                     sections.append(f"- Code format: {props['code_format']}")
                 if props.get("service_access_type"):
                     sections.append(f"- Service access: {props['service_access_type']}")
+                if props.get("door_insulation"):
+                    sections.append(f"- Door insulation: {props['door_insulation']}")
+                if props.get("hinge_type"):
+                    sections.append(f"- Hinge type: {props['hinge_type']}, Lock type: {props.get('lock_type', 'N/A')}")
+                if props.get("corrosion_class_note"):
+                    sections.append(f"- Corrosion note: {props['corrosion_class_note']}")
+                if props.get("max_filter_depth_mm"):
+                    sections.append(f"- Max filter depth: {props['max_filter_depth_mm']}mm")
+                if props.get("default_frame_depth"):
+                    sections.append(f"- Default frame depth: {props['default_frame_depth']}mm, available: {props.get('available_frame_depths', 'N/A')}")
+                if props.get("airflow_basis"):
+                    sections.append(f"- Airflow basis: {props['airflow_basis']}")
+                if props.get("housing_construction"):
+                    sections.append(f"- Housing construction: {props['housing_construction']}, Door construction: {props.get('door_construction', 'N/A')}")
+                if props.get("accepted_filter_frame_thickness_mm"):
+                    sections.append(f"- Accepted filter frame: {props['accepted_filter_frame_thickness_mm']}mm")
+                if props.get("mounting_type"):
+                    sections.append(f"- Mounting: {props['mounting_type']}, Filter bank: {props.get('supports_filter_bank', False)}, Frame thickness: {props.get('compatible_filter_frame_thickness_mm', 'N/A')}mm")
+                if props.get("compatible_filter_types"):
+                    sections.append(f"- Compatible filters: {props['compatible_filter_types']} - {props.get('filter_description', '')}")
+                if props.get("material_exclusions"):
+                    sections.append(f"- Material exclusions: {props['material_exclusions']} ({props.get('material_exclusion_note', '')})")
+                if props.get("available_depths_mm"):
+                    sections.append(f"- Available depths: {props['available_depths_mm']}mm")
+                if props.get("source_conflicts"):
+                    for sc in props["source_conflicts"]:
+                        sections.append(f"- SOURCE CONFLICT: {sc}")
 
                 # Materials
                 mats = rec.get("materials", [])
@@ -89,6 +118,8 @@ def build_graph_data_snapshot(db_connection) -> str:
                         s = m["code"]
                         if m.get("is_default"):
                             s += " (default)"
+                        elif m.get("on_request"):
+                            s += " (on request)"
                         mat_strs.append(s)
                     sections.append(f"- Available materials: {', '.join(mat_strs)}")
 
@@ -98,9 +129,19 @@ def build_graph_data_snapshot(db_connection) -> str:
                 if lens:
                     len_strs = []
                     for l in lens:
-                        s = f"{l['mm']}mm"
-                        if l.get("max_filter_depth"):
-                            s += f" (max filter depth {l['max_filter_depth']}mm)"
+                        pg = l['mm']
+                        f40 = l.get('f40_mm')
+                        s = f"{pg}/{f40}mm (PG/F40)" if f40 and f40 != pg else f"{pg}mm"
+                        if l.get("order_code_length"):
+                            s += f" [code: {l['order_code_length']}]"
+                        if l.get("max_cartridge_length"):
+                            s += f" [max cartridge length {l['max_cartridge_length']}mm]"
+                        elif l.get("max_filter_depth"):
+                            s += f" [max filter depth {l['max_filter_depth']}mm]"
+                        if l.get("compatibility_modes"):
+                            s += f" [modes: {l['compatibility_modes']}]"
+                        if l.get("description"):
+                            s += f" - {l['description']}"
                         if l.get("is_default"):
                             s += " [default]"
                         len_strs.append(s)
@@ -110,26 +151,61 @@ def build_graph_data_snapshot(db_connection) -> str:
                 opts = rec.get("options", [])
                 opts = [o for o in opts if o.get("code") or o.get("name")]
                 if opts:
-                    opt_strs = [f"{o.get('name', '')} ({o.get('code', '')})" for o in opts]
+                    opt_strs = []
+                    for o in opts:
+                        s = f"{o.get('name', '')} (code: {o.get('code', 'N/A')})"
+                        if o.get("length_variant_link"):
+                            s += f" [length: {o['length_variant_link']}]"
+                        opt_strs.append(s)
                     sections.append(f"- Options: {', '.join(opt_strs)}")
 
                 # Features
                 feats = rec.get("features", [])
                 feats = [f for f in feats if f.get("name")]
                 if feats:
-                    feat_strs = [f.get("name", "") for f in feats]
+                    feat_strs = [f"{f.get('name', '')} (values: {f.get('values', 'N/A')})" for f in feats]
                     sections.append(f"- Variable features: {', '.join(feat_strs)}")
+
+                # Standard features
+                std_feats = rec.get("standard_features", [])
+                std_feats = [f for f in std_feats if f]
+                if std_feats:
+                    sections.append(f"- Standard features: {', '.join(std_feats)}")
 
                 sections.append("")
 
-        # 2. DimensionModules (sizes + airflow + weights) grouped by family
+        # 2. DimensionModules (sizes + airflow + weights + all properties) grouped by family
         dm_records = session.run("""
             MATCH (pf:ProductFamily)-[:AVAILABLE_IN_SIZE]->(dm:DimensionModule)
             RETURN pf.name AS family, pf.id AS family_id,
                    dm.width_mm AS width, dm.height_mm AS height,
                    dm.reference_airflow_m3h AS airflow,
                    dm.unit_weight_kg AS weight,
-                   dm.reference_length_mm AS ref_length
+                   dm.reference_length_mm AS ref_length,
+                   dm.reference_length_f40_mm AS ref_length_f40,
+                   dm.reference_length_long_mm AS ref_length_long,
+                   dm.reference_length_long_f40_mm AS ref_length_long_f40,
+                   dm.unit_weight_kg_750 AS weight_750,
+                   dm.unit_weight_kg_900 AS weight_900,
+                   dm.unit_weight_kg_600 AS weight_600,
+                   dm.unit_weight_kg_850 AS weight_850,
+                   dm.unit_weight_kg_1100 AS weight_1100,
+                   dm.cartridge_count AS cartridge_count,
+                   dm.nippelmatt_mm AS nippelmatt,
+                   dm.standard_length_mm AS std_length,
+                   dm.filter_module_quarter AS fm_quarter,
+                   dm.filter_module_half AS fm_half,
+                   dm.filter_module_full AS fm_full,
+                   dm.round_duct_diameter_mm AS duct_diameter,
+                   dm.depth_mm AS depth,
+                   dm.pff_frame_count AS pff_frames,
+                   dm.pff_frame_size AS pff_frame_size,
+                   dm.passar_filter_width AS passar_w,
+                   dm.passar_filter_height AS passar_h,
+                   dm.exact_width_mm AS exact_w,
+                   dm.exact_height_mm AS exact_h,
+                   dm.data_quality_flag AS dq_flag,
+                   dm.data_quality_note AS dq_note
             ORDER BY pf.name, dm.width_mm, dm.height_mm
         """).data()
 
@@ -140,14 +216,102 @@ def build_graph_data_snapshot(db_connection) -> str:
                 if rec["family"] != current_family:
                     current_family = rec["family"]
                     sections.append(f"\n### {current_family}")
-                    sections.append("| Size (WxH) | Airflow (m³/h) | Weight (kg) | Ref Length (mm) |")
-                    sections.append("|------------|----------------|-------------|-----------------|")
+                    fam_recs = [r for r in dm_records if r["family"] == current_family]
+                    has_dual_weight = any(r.get("weight_750") or r.get("weight_900") or r.get("weight_600") or r.get("weight_850") or r.get("weight_1100") for r in fam_recs)
+                    has_cartridge = any(r.get("cartridge_count") for r in fam_recs)
+                    has_nippelmatt = any(r.get("nippelmatt") for r in fam_recs)
+                    has_modules = any(r.get("fm_full") is not None for r in fam_recs)
+                    has_duct = any(r.get("duct_diameter") for r in fam_recs)
+                    has_depth = any(r.get("depth") for r in fam_recs)
+                    has_pff = any(r.get("pff_frames") for r in fam_recs)
+                    has_passar = any(r.get("passar_w") for r in fam_recs)
+                    has_exact = any(r.get("exact_w") for r in fam_recs)
+
+                    header = "| Size (WxH) | Airflow (m³/h) | Weight (kg) | Ref Length PG/F40 (mm) |"
+                    sep = "|------------|----------------|-------------|------------------------|"
+                    if has_dual_weight:
+                        long_len = ""
+                        for r in fam_recs:
+                            if r.get("weight_750"): long_len = "750"; break
+                            if r.get("weight_900"): long_len = "900"; break
+                            if r.get("weight_850"): long_len = "850"; break
+                            if r.get("weight_1100"): long_len = "1100"; break
+                        wt_label = f" Weight Long (kg {long_len}) |" if long_len else " Weight Long (kg) |"
+                        header += wt_label
+                        sep += "-" * (len(wt_label) - 2) + "|"
+                    if has_cartridge:
+                        header += " Cartridges |"
+                        sep += "------------|"
+                    if has_nippelmatt:
+                        header += " Nippelmått Ø (mm) | Std Length (mm) |"
+                        sep += "--------------------|-----------------|"
+                    if has_modules:
+                        header += " Modules (¼/½/1) |"
+                        sep += "------------------|"
+                    if has_duct:
+                        header += " Duct Ø (mm) |"
+                        sep += "--------------|"
+                    if has_depth:
+                        header += " Depth (mm) |"
+                        sep += "-------------|"
+                    if has_pff:
+                        header += " PFF Frames | PFF Size |"
+                        sep += "------------|----------|"
+                    if has_passar:
+                        header += " Passar Filter |"
+                        sep += "---------------|"
+                    if has_exact:
+                        header += " Exact (BxH) |"
+                        sep += "--------------|"
+                    sections.append(header)
+                    sections.append(sep)
+
                 w = rec.get("width", "?")
                 h = rec.get("height", "?")
                 af = rec.get("airflow", "N/A")
                 wt = rec.get("weight", "N/A")
                 rl = rec.get("ref_length", "N/A")
-                sections.append(f"| {w}x{h} | {af} | {wt} | {rl} |")
+                rl_f40 = rec.get("ref_length_f40", "")
+                ref_str = f"{rl}" + (f"/{rl_f40}" if rl_f40 else "")
+                rl_long = rec.get("ref_length_long", "")
+                rl_long_f40 = rec.get("ref_length_long_f40", "")
+                if rl_long:
+                    ref_str += f" & {rl_long}" + (f"/{rl_long_f40}" if rl_long_f40 else "")
+
+                row = f"| {w}x{h} | {af} | {wt} | {ref_str} |"
+
+                if has_dual_weight:
+                    wt2 = rec.get("weight_750") or rec.get("weight_900") or rec.get("weight_600") or rec.get("weight_850") or rec.get("weight_1100") or "N/A"
+                    row += f" {wt2} |"
+                if has_cartridge:
+                    row += f" {rec.get('cartridge_count', 'N/A')} |"
+                if has_nippelmatt:
+                    row += f" {rec.get('nippelmatt', 'N/A')} | {rec.get('std_length', 'N/A')} |"
+                if has_modules:
+                    fmq = rec.get("fm_quarter", 0) or 0
+                    fmh = rec.get("fm_half", 0) or 0
+                    fmf = rec.get("fm_full", 0) or 0
+                    row += f" {fmq}/{fmh}/{fmf} |"
+                if has_duct:
+                    row += f" {rec.get('duct_diameter', 'N/A')} |"
+                if has_depth:
+                    row += f" {rec.get('depth', 'N/A')} |"
+                if has_pff:
+                    row += f" {rec.get('pff_frames', 'N/A')} | {rec.get('pff_frame_size', 'N/A')} |"
+                if has_passar:
+                    pw = rec.get('passar_w', '')
+                    ph = rec.get('passar_h', '')
+                    row += f" {pw}x{ph} |" if pw else " N/A |"
+                if has_exact:
+                    ew = rec.get('exact_w', '')
+                    eh = rec.get('exact_h', '')
+                    row += f" {ew}x{eh} |" if ew else " N/A |"
+                if rec.get('dq_flag'):
+                    row += f" ⚠ {rec['dq_flag']}"
+                    if rec.get('dq_note'):
+                        row += f" ({rec['dq_note']})"
+
+                sections.append(row)
             sections.append("")
 
         # 3. Materials table
@@ -155,16 +319,16 @@ def build_graph_data_snapshot(db_connection) -> str:
             MATCH (m:Material)
             RETURN m.code AS code, m.name AS name,
                    m.corrosion_class AS corrosion_class,
-                   m.max_chlorine_ppm AS max_chlorine_ppm
+                   m.steel_specification AS steel_spec
             ORDER BY m.code
         """).data()
 
         if mat_records:
             sections.append("## MATERIALS IN GRAPH (Layer 1)\n")
-            sections.append("| Code | Name | Corrosion Class | Max Chlorine PPM |")
-            sections.append("|------|------|----------------|------------------|")
+            sections.append("| Code | Name | Corrosion Class | Steel Spec |")
+            sections.append("|------|------|----------------|------------|")
             for rec in mat_records:
-                sections.append(f"| {rec.get('code', '?')} | {rec.get('name', '?')} | {rec.get('corrosion_class', '?')} | {rec.get('max_chlorine_ppm', '?')} |")
+                sections.append(f"| {rec.get('code', '?')} | {rec.get('name', '?')} | {rec.get('corrosion_class', '?')} | {rec.get('steel_spec', '-')} |")
             sections.append("")
 
         # 4. Capacity rules (cartridge counts)

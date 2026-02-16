@@ -1,0 +1,376 @@
+{
+  "name": "hc_cruise_ship_gdc_oversized",
+  "description": "[HC] Cruise ship 2600 m³/h + GDC 600x600 (2000) → undersized",
+  "query": "Cruise ship exhaust. 2600 m³/h. GDC-600x600 in RF.",
+  "session_id": "78b5f6c3-63e4-4cc2-b007-dc5e6a8c6e21",
+  "duration_s": 80.1,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "Cruise ship exhaust. 2600 m³/h. GDC-600x600 in RF.",
+      "turn_number": 1,
+      "timestamp": "2026-02-15T20:51:31.611500+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "For the cruise ship exhaust application, the GDC filter housing is not suitable due to the marine environment. The GDC housing has a C2 corrosion class and is not insulated, making it vulnerable to Salt Spray, High Humidity, and Outdoor Condensation, which are prevalent in marine environments. Salt spray accelerates corrosion on the housing, and outdoor condensation can cause moisture to form on the housing's surface, leading to further corrosion. The single-wall uninsulated construction does not meet the leakage and hygiene requirements for marine environments.The system is therefore blocked for marine installation. I recommend the GDMI Modulfilterskåp, which is approved for marine environments.To provide a complete filtration solution, I recommend a two-stage assembly:Stage 1 (PROTECTOR): GDP PlanfilterskåpStage 2 (TARGET): GDMI ModulfilterskåpThe GDMI Modulfilterskåp requires protection from environmental stressors, which the GDP Planfilterskåp provides via upstream filtration.The requested airflow of 2600 m³/h exceeds the maximum capacity of a single 600x600 module, which is rated for 2000 m³/h. To accommodate the required airflow, two 600x600 modules in parallel are needed, resulting in effective housing dimensions of 1200x600mm. Alternatively, a single 1200x600 module can handle the flow.For the GDMI Modulfilterskåp (Stage 2), the requested RF (Stainless Steel) material is not available. However, AZ (Aluzink) and ZM (ZinkMagnesium) are available. Which filter depth do you need for the GDMI Modulfilterskåp, and which material would you prefer: AZ or ZM?",
+      "turn_number": 1,
+      "timestamp": "2026-02-15T20:51:50.654479+00:00",
+      "clarification": null,
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [
+        {
+          "type": "WARNING",
+          "text": "Blocked"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 3,
+            "completeness": 4,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 4
+          },
+          "overall_score": 4.0,
+          "explanation": "The system correctly identifies critical environmental constraints (blocking GDC for marine use) and material availability constraints (GDMI not available in Stainless Steel). However, it makes a significant error in sizing the recommended alternative, applying the airflow limit of the rejected product (GDC) to the recommended product (GDMI), resulting in an oversized recommendation.",
+          "dimension_explanations": {
+            "correctness": "Correctly states GDC 600x600 capacity is 2000 m³/h (PDF p.14) and GDMI is not available in RF (PDF p.11), but incorrectly implies GDMI 600x600 has the same 2000 m³/h limit (actual is 3400 m³/h, PDF p.12).",
+            "completeness": "Addresses the environment, material, and product selection, but fails to clarify if the user required activated carbon (implied by GDC request) before switching to GDMI (typically particulate).",
+            "safety": "Excellent identification of corrosion risks; correctly blocks a C2-rated uninsulated housing for a marine application.",
+            "tone": "Professional and consultative.",
+            "reasoning_quality": "Sound logic for blocking the product and checking material constraints, but the sizing logic is flawed as it carries over constraints from the rejected product to the new one.",
+            "constraint_adherence": "Strictly adheres to the PDF's specific material constraint ('Ej i Rostfritt' for GDMI) and environmental engineering rules."
+          },
+          "strengths": [
+            "Correctly identifies that GDC (C2, uninsulated) is unsuitable for marine environments.",
+            "Accurately catches the specific catalog constraint that GDMI is not manufactured in Stainless Steel (RF).",
+            "Proposes a valid marine-grade material alternative (ZM/Aluzink)."
+          ],
+          "weaknesses": [
+            "Incorrect sizing logic: applies GDC airflow limits (2000 m³/h) to the GDMI housing (capacity 3400 m³/h), leading to an unnecessary recommendation for double modules.",
+            "Switches from a cartridge/carbon housing (GDC) to a bag/compact housing (GDMI) without verifying if the user needed odor control."
+          ],
+          "pdf_citations": [
+            "GDC 600x600: Rek. flöde 2000 m³/h (PDF p.14)",
+            "GDMI 600x600: Flöde 3400 m³/h (PDF p.12)",
+            "GDMI Material: 'Ej i Rostfritt' (PDF p.11)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 61.0,
+            "prompt_tokens": 15909,
+            "cached_tokens": 15977,
+            "output_tokens": 691
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 4,
+            "tone": 4,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.95,
+          "explanation": "The response contains multiple catalog mismatches (corrosion class, suitability, and airflow sizing) and blocks a configuration that is not actually blocked by the provided PDF data. Safety awareness around marine corrosion/condensation is generally sound, but the product selection logic and stated constraints are not aligned with the catalog.",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDC is \"tillverkas vanligen i förzinkat\" (C2) but the catalog also lists RF/SF/ZM materials generally; the system’s claim that 600x600 is only 2000 m³/h is inconsistent with GDC 600x600 having rek. flöde 2000 m³/h (PDF GDC table) while the user asked for 2600 m³/h—engineering concern is valid, but it incorrectly states 600x600 module capacity and misattributes marine unsuitability as a hard block and claims GDMI is “approved for marine” without PDF support.",
+            "completeness": "It does not provide a valid alternative carbon/patron solution sized for 2600 m³/h (e.g., correct GDC size) and asks irrelevant questions (filter depth for GDMI) without confirming media type, length option, or whether carbon/polisfilter is required.",
+            "safety": "Correctly flags marine salt spray/high humidity/condensation as key risks for uninsulated/galvanized housings and avoids a potentially short-life material choice.",
+            "tone": "Professional and consultative, with clear warnings and a structured proposal.",
+            "reasoning_quality": "Reasoning is partially transparent (marine corrosion + condensation + sizing), but it makes unsupported leaps (hard “blocked”, “GDMI approved for marine”, and GDP as required protector stage).",
+            "constraint_adherence": "Violates catalog constraints by asserting RF is not available for GDMI (catalog text indicates GDMI can be ZM and 'Ej i Rostfritt', so that part is fine) but it incorrectly blocks GDC in RF and mis-sizes the solution instead of selecting a larger GDC/GDC FLEX size that meets 2600 m³/h."
+          },
+          "strengths": [
+            "Good risk awareness for marine environments (salt spray, humidity, condensation) and avoids recommending plain galvanized for ship exhaust without caveats.",
+            "Asks a follow-up question on material choice (AZ vs ZM) rather than issuing a final product card prematurely."
+          ],
+          "weaknesses": [
+            "Incorrect/unsupported hard block and claims of marine approval; the PDF does not state GDC is prohibited in marine environments nor that GDMI is marine-approved.",
+            "Sizing logic is flawed: instead of proposing a correct single larger housing (e.g., GDC 900x600 = 3000 m³/h), it proposes parallel 600x600 modules and references 2000 m³/h capacity in a way that doesn’t match the appropriate product table for the requested housing type."
+          ],
+          "pdf_citations": [
+            "GDC 600x600: Rek. flöde 2000 m³/h, antal patroner 16 (GDC MÅTT table, PDF page showing GDC).",
+            "GDC 900x600: Rek. flöde 3000 m³/h (GDC MÅTT table, PDF page showing GDC)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 19.66,
+            "attempt": 1,
+            "prompt_tokens": 37263,
+            "cached_tokens": 17920,
+            "output_tokens": 793
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYAWvDscrba3767NT6Tz8'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDC + Marine/Offshore",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Select a product with the required traits",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 4 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "RF",
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          },
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": "RF",
+        "detected_family": "GDC",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "installation_environment": "ENV_MARINE",
+          "detected_application": "APP_MARINE",
+          "airflow_m3h": "2600",
+          "connection_type": "PG"
+        },
+        "assembly_group": {
+          "group_id": "assembly_item_1",
+          "rationale": "GDMI Modulfilterskåp provides Corrosion Resistance C3 but requires protection from environmental stressors. GDP Planfilterskåp provides upstream filtration to protect the target stage.",
+          "stages": [
+            {
+              "role": "PROTECTOR",
+              "product_family": "GDP",
+              "tag_id": "item_1_stage_1",
+              "provides_trait": "Corrosion Resistance C5.1",
+              "reason": "Captures Salt Spray upstream, preventing it from reaching the Corrosion Resistance C3 stage"
+            },
+            {
+              "role": "TARGET",
+              "product_family": "GDMI",
+              "tag_id": "item_1_stage_2",
+              "provides_trait": "Corrosion Resistance C3",
+              "reason": "Replaces GDC family (blocked by installation constraint). Approved for ENV_MARINE environment"
+            }
+          ]
+        },
+        "turn_count": 1,
+        "tags": {
+          "item_1_stage_1": {
+            "tag_id": "item_1_stage_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": 250,
+            "airflow_m3h": 2600,
+            "product_family": "GDP",
+            "product_code": "GDP-600x600-50-R-PG-RF",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 2,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": true,
+            "missing_params": [],
+            "assembly_role": "PROTECTOR",
+            "assembly_group_id": "assembly_item_1"
+          },
+          "item_1_stage_2": {
+            "tag_id": "item_1_stage_2",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": 2600,
+            "product_family": "GDMI",
+            "product_code": "GDMI-600x600-R-PG-AZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 2,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": "TARGET",
+            "assembly_group_id": "assembly_item_1"
+          }
+        }
+      },
+      "graph_report": {
+        "application": "Marine/Offshore",
+        "warnings_count": 4,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 2
+      },
+      "session_state": {
+        "session_id": "78b5f6c3-63e4-4cc2-b007-dc5e6a8c6e21",
+        "project": {
+          "detected_family": "GDC",
+          "resolved_params": "{\"installation_environment\": \"ENV_MARINE\", \"detected_application\": \"APP_MARINE\", \"airflow_m3h\": \"2600\", \"connection_type\": \"PG\"}",
+          "assembly_group": "{\"group_id\": \"assembly_item_1\", \"rationale\": \"GDMI Modulfiltersk\\u00e5p provides Corrosion Resistance C3 but requires protection from environmental stressors. GDP Planfiltersk\\u00e5p provides upstream filtration to protect the target stage.\", \"stages\": [{\"role\": \"PROTECTOR\", \"product_family\": \"GDP\", \"tag_id\": \"item_1_stage_1\", \"provides_trait\": \"Corrosion Resistance C5.1\", \"reason\": \"Captures Salt Spray upstream, preventing it from reaching the Corrosion Resistance C3 stage\"}, {\"role\": \"TARGET\", \"product_family\": \"GDMI\", \"tag_id\": \"item_1_stage_2\", \"provides_trait\": \"Corrosion Resistance C3\", \"reason\": \"Replaces GDC family (blocked by installation constraint). Approved for ENV_MARINE environment\"}]}",
+          "locked_material": "RF",
+          "accessories": null,
+          "name": null,
+          "pending_clarification": null,
+          "customer": null,
+          "vetoed_families": "[\"FAM_GDC\"]"
+        },
+        "tags": [
+          {
+            "product_family": "GDP",
+            "quantity": 1,
+            "airflow_m3h": 2600,
+            "session_id": "78b5f6c3-63e4-4cc2-b007-dc5e6a8c6e21",
+            "filter_height": 600,
+            "product_code": "GDP-600x600-50-R-PG-RF",
+            "housing_width": 600,
+            "assembly_group_id": "assembly_item_1",
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1_stage_1",
+            "source_message": 1,
+            "id": "TAG_78b5f6c3-63e4-4cc2-b007-dc5e6a8c6e21_item_1_stage_1",
+            "is_complete": false
+          },
+          {
+            "product_family": "GDMI",
+            "quantity": 1,
+            "airflow_m3h": 2600,
+            "session_id": "78b5f6c3-63e4-4cc2-b007-dc5e6a8c6e21",
+            "filter_height": 600,
+            "product_code": "GDMI-600x600-R-PG-AZ",
+            "housing_width": 600,
+            "assembly_group_id": "assembly_item_1",
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1_stage_2",
+            "source_message": 1,
+            "id": "TAG_78b5f6c3-63e4-4cc2-b007-dc5e6a8c6e21_item_1_stage_2",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 2,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1_stage_1",
+            "path": "Material locked to RF -> Filter 600x600mm -> Sized to 600x600 -> Code: GDP-600x600-50-R-PG-RF"
+          },
+          {
+            "tag_id": "item_1_stage_2",
+            "path": "Material locked to RF -> Filter 600x600mm -> Sized to 600x600 -> Code: GDMI-600x600-R-PG-AZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "For the cruise ship exhaust application, the GDC filter housing is not suitable due to the marine environment. The GDC housing has a C2 corrosion class and is not insulated, making it vulnerable to Salt Spray, High Humidity, and Outdoor Condensation, which are prevalent in marine environments. Salt spray accelerates corrosion on the housing, and outdoor condensation can cause moisture to form on the housing's surface, leading to further corrosion. The single-wall uninsulated construction does not meet the leakage and hygiene requirements for marine environments.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The system is therefore blocked for marine installation. I recommend the GDMI Modulfilterskåp, which is approved for marine environments.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "To provide a complete filtration solution, I recommend a two-stage assembly:",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Stage 1 (PROTECTOR): GDP Planfilterskåp",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Stage 2 (TARGET): GDMI Modulfilterskåp",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The GDMI Modulfilterskåp requires protection from environmental stressors, which the GDP Planfilterskåp provides via upstream filtration.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The requested airflow of 2600 m³/h exceeds the maximum capacity of a single 600x600 module, which is rated for 2000 m³/h. To accommodate the required airflow, two 600x600 modules in parallel are needed, resulting in effective housing dimensions of 1200x600mm. Alternatively, a single 1200x600 module can handle the flow.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "For the GDMI Modulfilterskåp (Stage 2), the requested RF (Stainless Steel) material is not available. However, AZ (Aluzink) and ZM (ZinkMagnesium) are available. Which filter depth do you need for the GDMI Modulfilterskåp, and which material would you prefer: AZ or ZM?",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

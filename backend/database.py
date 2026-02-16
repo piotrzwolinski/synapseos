@@ -3177,25 +3177,53 @@ class Neo4jConnection:
                 if not record:
                     return None
                 r = dict(record)
-                # Single-weight product (e.g., GDP)
-                if r.get("weight_kg") is not None:
-                    return r["weight_kg"]
-                # Dual-weight product: pick based on housing_length
+                # v4.1: Check dual weights FIRST (more precise than legacy weight_kg)
+                # Legacy weight_kg is always the short weight and was set before
+                # dual-weight support was added. Dual weights take priority.
                 if r.get("weight_kg_short") is not None and r.get("weight_kg_long") is not None:
                     if housing_length and r.get("housing_length_long_mm"):
-                        # If housing_length >= long threshold, use long weight
                         threshold = (r["housing_length_short_mm"] or 0) + (r["housing_length_long_mm"] or 0)
                         if threshold > 0:
                             midpoint = threshold / 2
-                            return r["weight_kg_long"] if housing_length >= midpoint else r["weight_kg_short"]
-                    # Default: return short weight
+                            selected = r["weight_kg_long"] if housing_length >= midpoint else r["weight_kg_short"]
+                            print(f"⚖️ [WEIGHT] {variant_name}: len={housing_length} midpoint={midpoint} → {'long' if housing_length >= midpoint else 'short'}={selected}kg")
+                            return selected
+                    # No housing_length provided: return short weight as safe default
                     return r["weight_kg_short"]
+                # Single-weight product (e.g., GDP) — no dual-weight data available
+                if r.get("weight_kg") is not None:
+                    return r["weight_kg"]
                 return None
 
         try:
             return self._execute_with_retry(_query)
         except Exception as e:
             print(f"Warning: Could not get variant weight for {variant_name}: {e}")
+            return None
+
+    def get_default_length_variant(self, family_id: str) -> int | None:
+        """Get the default (shortest) length variant for a product family.
+
+        Returns the length_mm of the first length variant, or None if not found.
+        Used as fallback when housing_length is not set from user input.
+        """
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (pf:ProductFamily {id: $fid})-[:HAS_LENGTH_VARIANT]->(lv)
+                    RETURN lv.length_mm AS length_mm, lv.is_default AS is_default
+                    ORDER BY lv.is_default DESC, lv.length_mm ASC
+                    LIMIT 1
+                """, fid=family_id)
+                record = result.single()
+                if record and record["length_mm"]:
+                    return int(record["length_mm"])
+                return None
+
+        try:
+            return self._execute_with_retry(_query)
+        except Exception:
             return None
 
     def get_product_family_code_format(self, family_id: str):

@@ -29,6 +29,9 @@ import httpx
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
 
 # ---------------------------------------------------------------------------
 # Configuration

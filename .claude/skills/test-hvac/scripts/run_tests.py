@@ -26,6 +26,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
 import requests
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", ".env"))
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -34,6 +37,95 @@ BASE_URL = os.getenv("TEST_BASE_URL", "http://localhost:8000")
 USERNAME = os.getenv("TEST_USERNAME", "mh")
 PASSWORD = os.getenv("TEST_PASSWORD", "MHFind@r2026")
 TIMEOUT = int(os.getenv("TEST_TIMEOUT", "60"))
+MAX_TURNS = int(os.getenv("TEST_MAX_TURNS", "5"))
+
+# ---------------------------------------------------------------------------
+# Gemini Follow-up Generator (for multi-turn tests)
+# ---------------------------------------------------------------------------
+_gemini_client = None
+_FOLLOWUP_MODEL = "gemini-2.0-flash"
+
+
+def _get_gemini():
+    """Lazy-init Gemini client."""
+    global _gemini_client
+    if _gemini_client is None:
+        from google import genai
+        _gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    return _gemini_client
+
+
+def generate_followup(original_query, system_response, clarification,
+                      conversation_history, max_retries=3):
+    """Use Gemini Flash to simulate a customer answering a clarification question."""
+    question = clarification.get("question", "")
+    options = clarification.get("options", [])
+    missing = clarification.get("missing_info", [])
+
+    options_text = ""
+    if options:
+        for i, opt in enumerate(options, 1):
+            if isinstance(opt, dict):
+                label = opt.get("label", opt.get("value", str(opt)))
+                desc = opt.get("description", "")
+                options_text += "  " + str(i) + ". " + label
+                if desc:
+                    options_text += " -- " + desc
+                options_text += "\n"
+            else:
+                options_text += "  " + str(i) + ". " + str(opt) + "\n"
+
+    history_text = ""
+    for msg in conversation_history:
+        role = msg["role"].upper()
+        content_snip = msg["content"][:300]
+        history_text += role + ": " + content_snip + "\n"
+
+    prompt = (
+        "You are simulating a CUSTOMER who is buying HVAC kitchen exhaust filter housings.\n"
+        "The sales system asked a clarification question. Answer it as a realistic customer would.\n\n"
+        "CONVERSATION SO FAR:\n" + history_text + "\n"
+        "SYSTEM ASKED:\n" + question + "\n\n"
+        "AVAILABLE OPTIONS:\n" + options_text + "\n"
+        "MISSING INFO: " + (", ".join(missing) if missing else "N/A") + "\n\n"
+        "RULES:\n"
+        "- Pick a reasonable, standard option from the list if available.\n"
+        "- For housing length: prefer 850mm for GDMI, 750mm for GDB, 900mm for GDC/GDC-FLEX.\n"
+        "- For dimensions: pick standard sizes (e.g., 600x400, 800x600, 1200x600).\n"
+        "- For airflow: pick a mid-range value (e.g., 5000 m3/h for commercial kitchens).\n"
+        "- Answer as a customer in 1-2 short sentences. Do NOT explain your reasoning.\n"
+        "- Do NOT say I choose option 2 -- state the actual value.\n"
+        "- If options are listed, pick the FIRST reasonable one.\n\n"
+        "YOUR ANSWER (as the customer):"
+    )
+
+    for attempt in range(max_retries):
+        try:
+            client = _get_gemini()
+            resp = client.models.generate_content(
+                model=_FOLLOWUP_MODEL,
+                contents=prompt,
+                config={"temperature": 0.1, "max_output_tokens": 256},
+            )
+            answer = resp.text.strip()
+            if answer:
+                return answer
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait = 2 ** (attempt + 1)
+                print("       [Gemini retry " + str(attempt + 1) + "/" + str(max_retries) + ": " + str(e) + ", waiting " + str(wait) + "s]")
+                time.sleep(wait)
+            else:
+                print("       [Gemini failed after " + str(max_retries) + " retries: " + str(e) + "]")
+
+    # Fallback: pick first option or generic answer
+    if options:
+        first = options[0]
+        if isinstance(first, dict):
+            return first.get("label", first.get("value", "850mm"))
+        return str(first)
+    return "850mm housing length"
+
 
 
 # ---------------------------------------------------------------------------
@@ -2317,8 +2409,8 @@ def diagnose_failure(result: TestResult, test: TestCase) -> str:
 # ---------------------------------------------------------------------------
 # Test Runner
 # ---------------------------------------------------------------------------
-def run_test(test: TestCase, token: str) -> TestResult:
-    """Run a single test case and return results."""
+def run_test(test: TestCase, token: str, multi_turn: bool = False) -> TestResult:
+    """Run a single test case. Supports multi-turn via LLM follow-ups."""
     session_id = f"test-{test.name}-{uuid.uuid4().hex[:8]}"
     result = TestResult(test_name=test.name, status="PASS", category=test.category)
 
@@ -2334,27 +2426,57 @@ def run_test(test: TestCase, token: str) -> TestResult:
         pass
 
     start = time.time()
+    conversation_history = []
+    current_query = test.query
+    events = []
+    turn_count = 0
 
-    # Execute query
-    events = call_streaming_endpoint(test.query, session_id, token)
+    for turn in range(MAX_TURNS if multi_turn else 1):
+        turn_count += 1
+        events = call_streaming_endpoint(current_query, session_id, token)
+
+        conversation_history.append({"role": "customer", "content": current_query})
+
+        errors = [e for e in events if e.get("type") == "error"]
+        if errors:
+            result.status = "ERROR"
+            result.error_message = errors[0].get("detail", "Unknown error")
+            result.raw_events = events
+            result.duration_s = time.time() - start
+            return result
+
+        complete_events = [e for e in events if e.get("type") == "complete" or e.get("step") == "complete"]
+        if not complete_events:
+            result.status = "ERROR"
+            result.error_message = "No complete event received"
+            result.raw_events = events
+            result.duration_s = time.time() - start
+            return result
+
+        data = extract_test_data(events)
+        resp = data.get("response", {})
+        conversation_history.append({"role": "system", "content": resp.get("content_text", "")[:500]})
+
+        clar_needed = resp.get("clarification_needed", False)
+        clarification = resp.get("clarification") or {}
+
+        if not multi_turn or not clar_needed or turn == (MAX_TURNS - 1):
+            break
+
+        followup = generate_followup(
+            original_query=test.query,
+            system_response=resp.get("content_text", ""),
+            clarification=clarification,
+            conversation_history=conversation_history,
+        )
+        q_short = (clarification.get("question", ""))[:60]
+        f_short = followup[:60]
+        print(f"       [T{turn+1}] Q: {q_short} -> A: {f_short}")
+        current_query = followup
+
     result.raw_events = events
     result.duration_s = time.time() - start
 
-    # Check for API errors
-    errors = [e for e in events if e.get("type") == "error"]
-    if errors:
-        result.status = "ERROR"
-        result.error_message = errors[0].get("detail", "Unknown error")
-        return result
-
-    # Check for complete event
-    complete_events = [e for e in events if e.get("type") == "complete" or e.get("step") == "complete"]
-    if not complete_events:
-        result.status = "ERROR"
-        result.error_message = "No 'complete' event received"
-        return result
-
-    # Extract data and run assertions
     data = extract_test_data(events)
     result.assertions_total = len(test.assertions)
 
@@ -2587,8 +2709,8 @@ PARALLEL_WORKERS = int(os.getenv("TEST_PARALLEL", "10"))
 
 def _run_test_wrapper(args_tuple):
     """Wrapper for ThreadPoolExecutor."""
-    name, test, token = args_tuple
-    result = run_test(test, token)
+    name, test, token, multi_turn = args_tuple
+    result = run_test(test, token, multi_turn=multi_turn)
     return name, result
 
 
@@ -2631,6 +2753,9 @@ def main():
     gap_mode, args = _parse_flag(args, "--gap")
     gap_mode = gap_mode or False
 
+    multi_turn, args = _parse_flag(args, "--multi-turn")
+    multi_turn = multi_turn or False
+
     json_output, args = _parse_flag(args, "--json", has_value=True,
         default=None)
     if json_output is None and "--json" in sys.argv:
@@ -2670,6 +2795,8 @@ def main():
         tests_to_run = tests_to_run[:limit]
 
     mode = "sequential" if sequential else f"parallel({parallel})"
+    if multi_turn:
+        mode += " + multi-turn"
 
     # Header
     print(f"\n{'=' * 80}")
@@ -2696,7 +2823,7 @@ def main():
         results = []
         for test_name in tests_to_run:
             test = TEST_CASES[test_name]
-            result = run_test(test, token)
+            result = run_test(test, token, multi_turn=multi_turn)
             results.append(result)
             verbose = len(tests_to_run) == 1
             print_result(result, verbose=verbose)
@@ -2705,7 +2832,7 @@ def main():
         workers = min(parallel, len(tests_to_run))
         print(f"  ▶ Running {len(tests_to_run)} tests ({workers} workers)...\n")
 
-        tasks = [(n, TEST_CASES[n], token) for n in tests_to_run]
+        tasks = [(n, TEST_CASES[n], token, multi_turn) for n in tests_to_run]
         completed = 0
         ordered_results = {}
 

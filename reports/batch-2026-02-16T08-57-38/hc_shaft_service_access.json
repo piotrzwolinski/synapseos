@@ -1,0 +1,610 @@
+{
+  "name": "hc_shaft_service_access",
+  "description": "[HC] Shaft exactly 1200x1500 → service door clearance warning",
+  "query": "I have a shaft opening exactly 1200x1500 mm. I want GDB-1200x1500. Airflow: 17,000 m³/h.",
+  "session_id": "fd76a20e-b6d0-4cc5-9601-2916b08c5058",
+  "duration_s": 118.6,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "I have a shaft opening exactly 1200x1500 mm. I want GDB-1200x1500. Airflow: 17,000 m³/h.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T07:47:42.416170+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "We are configuring a GDB-1200x1500 filter housing for your 1200x1500mm shaft opening with an airflow of 17,000 m³/h. To finalize the configuration, I need to know the housing length.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T07:48:00.126661+00:00",
+      "clarification": {
+        "missing_info": "housing_length",
+        "why_needed": "The housing length depends on the filter depth.",
+        "options": [
+          {
+            "value": "550mm",
+            "description": "550mm",
+            "display_label": null
+          },
+          {
+            "value": "750mm",
+            "description": "750mm",
+            "display_label": null
+          }
+        ],
+        "question": "Which housing length is required?"
+      },
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 3,
+            "tone": 5,
+            "reasoning_quality": 2,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.45,
+          "explanation": "The system failed to validate the requested airflow against the product's rated capacity. The user requested 17,000 m³/h for a GDB 1200x1500 housing, but the catalog rates this size at only 10,000 m³/h. Accepting a 70% airflow overload without a warning is a critical engineering oversight, as it would result in excessive face velocity and pressure drop.",
+          "dimension_explanations": {
+            "correctness": "The system accepted 17,000 m³/h for GDB 1200x1500, but the PDF (p.6) explicitly lists the flow at 1.5 m/s as 10,000 m³/h.",
+            "completeness": "The response failed to address the significant capacity mismatch before proceeding to configuration.",
+            "safety": "Running this housing at ~2.6 m/s (vs rated 1.5 m/s) causes high pressure drop and potential filter damage; this risk was ignored.",
+            "tone": "The tone was professional and appropriate.",
+            "reasoning_quality": "The system failed to apply basic HVAC sizing logic (comparing requested flow to rated capacity).",
+            "constraint_adherence": "The system ignored the flow rating constraints provided in the catalog table."
+          },
+          "strengths": [
+            "Correctly identified that housing length is a required parameter for GDB configuration."
+          ],
+          "weaknesses": [
+            "Failed to flag a massive airflow exceedance (17,000 requested vs 10,000 rated).",
+            "Did not warn the user that the requested airflow is unsuitable for the specified dimensions."
+          ],
+          "pdf_citations": [
+            "GDB 1200x1500: Flöde i m3/h vid 1,5 m/s = 10 000 (PDF p.6)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 35.08,
+            "prompt_tokens": 15605,
+            "cached_tokens": 15977,
+            "output_tokens": 536
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 3,
+            "safety": 3,
+            "tone": 5,
+            "reasoning_quality": 4,
+            "constraint_adherence": 5
+          },
+          "overall_score": 4.1,
+          "explanation": "The system correctly moved to a necessary clarification (housing length) before issuing a final product card, which aligns with the catalog’s multiple length variants for GDB. However, it did not yet validate that 17,000 m³/h is within the recommended flow for GDB-1200x1500, nor did it ask any application/environment questions that could affect material and suitability.",
+          "dimension_explanations": {
+            "correctness": "PDF confirms GDB size 1200x1500 exists with recommended flow 17,000 m³/h and lengths 550/600 or 750/800 mm; asking for length is correct and the engineering reasoning (need length to finalize) is sound.",
+            "completeness": "It only requested length and did not yet confirm airflow vs. catalog rating, connection type (PG/flange), door handing, or material/environment needs.",
+            "safety": "No safety/environment checks were raised (e.g., indoor-only limitation, corrosion class/material selection), though the interaction is still at an early clarification stage.",
+            "tone": "Professional and appropriately concise for a technical sales-engineering dialogue.",
+            "reasoning_quality": "Clear and logical next-step question, but it could have explicitly stated the available GDB length options from the catalog to guide the user.",
+            "constraint_adherence": "Did not output product cards prematurely and followed the rule to collect missing required parameters (length) before finalizing."
+          },
+          "strengths": [
+            "Correctly requests housing length before final configuration, consistent with GDB having multiple standard lengths.",
+            "Maintains a professional, technical tone and stays aligned with the user’s stated size and intent."
+          ],
+          "weaknesses": [
+            "Did not yet verify/communicate that 17,000 m³/h matches the catalog recommended flow for GDB-1200x1500 (important confirmation step).",
+            "Did not ask for application/environment/material inputs (GDB is specified for indoor use; material/corrosion class may be critical)."
+          ],
+          "pdf_citations": [
+            "GDB 1200x1500: Flöde = 17 000 m³/h (GDB MÅTT table in provided catalog extract).",
+            "GDB standard lengths: 550/600 mm and 750/800 mm (GDB description and MÅTT table in provided catalog extract)."
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 11.11,
+            "attempt": 1,
+            "prompt_tokens": 36970,
+            "cached_tokens": 23040,
+            "output_tokens": 587
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBNxHtbeeHVocioEqH54'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Verified alternatives: PFF Planfilterram",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 4 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "♟️ Additional info needed",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 1200,
+            "height": 1500,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": "housing_length",
+        "resolved_params": {
+          "available_space_mm": "1200",
+          "airflow_m3h": "17000",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 1200,
+            "filter_height": 1500,
+            "filter_depth": null,
+            "housing_width": 1200,
+            "housing_height": 1500,
+            "housing_length": null,
+            "airflow_m3h": 17000,
+            "product_family": "GDB",
+            "product_code": "GDB-1200x1500-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 1,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "fd76a20e-b6d0-4cc5-9601-2916b08c5058",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDB",
+          "locked_material": null,
+          "name": null,
+          "pending_clarification": "housing_length",
+          "resolved_params": "{\"available_space_mm\": \"1200\", \"airflow_m3h\": \"17000\", \"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "quantity": 1,
+            "airflow_m3h": 17000,
+            "session_id": "fd76a20e-b6d0-4cc5-9601-2916b08c5058",
+            "filter_height": 1500,
+            "product_code": "GDB-1200x1500-R-PG-FZ",
+            "housing_width": 1200,
+            "filter_width": 1200,
+            "housing_height": 1500,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_fd76a20e-b6d0-4cc5-9601-2916b08c5058_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Filter 1200x1500mm -> Sized to 1200x1500 -> Code: GDB-1200x1500-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "We are configuring a ",
+          "type": "GENERAL"
+        },
+        {
+          "text": "GDB-1200x1500",
+          "type": "GRAPH_FACT",
+          "key_specs": []
+        },
+        {
+          "text": " filter housing for your 1200x1500mm shaft opening with an airflow of 17,000 m³/h. To finalize the configuration, I need to know the housing length.",
+          "type": "GENERAL"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": "750mm",
+      "turn_number": 2,
+      "timestamp": "2026-02-16T07:48:35.746442+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Here is the specification for the GDB housing:**Warning**: Service access requires 1476mm clearance but only 1200mm available. Consider front-access alternatives (PFF/GDMI) for tight spaces. Verified alternatives: PFF Planfilterram",
+      "turn_number": 2,
+      "timestamp": "2026-02-16T07:48:42.872312+00:00",
+      "clarification": null,
+      "product_card": {
+        "title": "Tag item_1",
+        "specs": {
+          "Product Code": "GDB-1200x1500-750-R-PG-FZ",
+          "Housing Size": "1200x1500mm",
+          "Housing Length": "750mm",
+          "Rated Airflow": "17000 m³/h",
+          "Weight": "84.0 kg",
+          "Housing Corrosion Class": "C2",
+          "Indoor Only": "Yes"
+        },
+        "warning": null,
+        "confidence": "medium",
+        "actions": [
+          "Add to Quote"
+        ]
+      },
+      "product_cards": [
+        {
+          "title": "Tag item_1",
+          "specs": {
+            "Product Code": "GDB-1200x1500-750-R-PG-FZ",
+            "Housing Size": "1200x1500mm",
+            "Housing Length": "750mm",
+            "Rated Airflow": "17000 m³/h",
+            "Weight": "84.0 kg",
+            "Housing Corrosion Class": "C2",
+            "Indoor Only": "Yes"
+          },
+          "warning": null,
+          "confidence": "medium",
+          "actions": [
+            "Add to Quote"
+          ]
+        }
+      ],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 4,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 4.9,
+          "explanation": "The system provides perfectly accurate product data verified against the PDF and offers excellent engineering advice regarding installation constraints. It correctly identifies that a side-access housing (GDB) fitting exactly into a shaft opening will likely have blocked service doors, and suggests the correct front-access alternative (PFF). The only minor flaw is the duplication of the product card in the output.",
+          "dimension_explanations": {
+            "correctness": "Verified GDB 1200x1500 weight (84kg) and airflow (17000 m³/h) against PDF page 9 table; all data matches exactly.",
+            "completeness": "Correctly asked for housing length (required parameter per PDF page 8) before finalizing, and provided a complete specification.",
+            "safety": "Excellent warning regarding service access; installing a housing with side doors into a shaft of the exact same dimensions would make filter changes impossible.",
+            "tone": "Professional and helpful, though the product card appears twice in the output (minor formatting glitch).",
+            "reasoning_quality": "The logic to warn about clearance when the housing size equals the available space is sound HVAC engineering; suggesting PFF (front access frame) is the correct solution.",
+            "constraint_adherence": "Respects the user's request for GDB while flagging the physical constraint, rather than blocking it unnecessarily."
+          },
+          "strengths": [
+            "Perfect data extraction from catalog tables (Weight, Airflow)",
+            "High-level engineering reasoning regarding installation clearance and service access",
+            "Correct identification of front-access alternatives (PFF) for shaft applications"
+          ],
+          "weaknesses": [
+            "Output formatting issue: The product card was duplicated in the final response"
+          ],
+          "pdf_citations": [
+            "GDB 1200x1500 (Length 750/800): Vikt = 84 kg (PDF p.9)",
+            "GDB 1200x1500: Flöde = 17 000 m³/h (PDF p.9)",
+            "GDB Standard Lengths: 550mm and 750mm (PDF p.8)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 58.09,
+            "prompt_tokens": 16122,
+            "cached_tokens": 15977,
+            "output_tokens": 586
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 3,
+            "tone": 4,
+            "reasoning_quality": 2,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.55,
+          "explanation": "The selected product code and rated airflow match the catalog for GDB 1200x1500 at 750/800 length, but the stated weight is wrong and the access-clearance warning appears unsupported/incorrect. The system also suggests PFF/GDMI as “front-access alternatives” without establishing that they solve the access constraint or even match the required filter type/airflow, and it duplicates the same product card.",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDB 1200x1500 has Flöde 17,000 m³/h and weight 84 kg (for 750/800) and 68 kg (for 550/600), so airflow is correct but the card’s 84 kg for a 750mm length is inconsistent with the catalog’s 750/800 grouping and the 1476 mm service-clearance claim is not substantiated and likely incorrect; engineering reasoning on access is not convincingly supported.",
+            "completeness": "Does not confirm door side/handing vs site access, connection type (PG vs flange), material choice beyond default FZ, or whether 17,000 m³/h is acceptable for pressure drop/energy targets.",
+            "safety": "Mentions service-access clearance risk, but does not address key operational risks like filter class selection, bypass/leakage class expectations, or maintenance handling at this size/flow.",
+            "tone": "Professional and generally consultative, though the duplicated product card reduces perceived quality.",
+            "reasoning_quality": "Asks for missing length appropriately, but then introduces a specific clearance number and alternative products without showing the calculation or how the alternatives meet the same duty.",
+            "constraint_adherence": "Respects the requested size and length family, but recommends PFF (a planfilter frame for GDP) as an alternative to a bag/compact filter housing and implies suitability without validating constraints (filter type, airflow, installation)."
+          },
+          "strengths": [
+            "Good clarification step: requested housing length before finalizing the configuration.",
+            "Correctly matches the requested GDB size to the catalog airflow rating for 1200x1500 (17,000 m³/h)."
+          ],
+          "weaknesses": [
+            "Service-clearance warning (1476 mm) appears arbitrary/incorrect and is not tied to catalog dimensions or a clear method.",
+            "Alternative recommendation (PFF/GDMI) is not technically justified for the same application/airflow and the response includes duplicate product cards."
+          ],
+          "pdf_citations": [
+            "GDB 1200x1500: Flöde = 17,000 m³/h (GDB MÅTT table, row 1200x1500).",
+            "GDB 1200x1500: Vikt = 84 kg (750/800) and 68 kg (550/600) (GDB MÅTT table, row 1200x1500)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 14.31,
+            "attempt": 1,
+            "prompt_tokens": 37410,
+            "cached_tokens": 23040,
+            "output_tokens": 705
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBP1a7FLgN4o62Wvf5CL'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Verified alternatives: PFF Planfilterram",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 0 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "✅ All parameters resolved",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 1200,
+            "height": 1500,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "available_space_mm": "1200",
+          "airflow_m3h": "17000",
+          "connection_type": "PG",
+          "housing_length": "750"
+        },
+        "assembly_group": null,
+        "turn_count": 2,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 1200,
+            "filter_height": 1500,
+            "filter_depth": null,
+            "housing_width": 1200,
+            "housing_height": 1500,
+            "housing_length": 750,
+            "airflow_m3h": 17000,
+            "product_family": "GDB",
+            "product_code": "GDB-1200x1500-750-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": 84.0,
+            "modules_needed": 1,
+            "total_weight_kg": 84.0,
+            "total_airflow_m3h": 17000,
+            "is_complete": true,
+            "missing_params": [],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 1,
+        "variable_features": 0,
+        "tags_complete": true,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "fd76a20e-b6d0-4cc5-9601-2916b08c5058",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDB",
+          "locked_material": null,
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"available_space_mm\": \"1200\", \"airflow_m3h\": \"17000\", \"connection_type\": \"PG\", \"housing_length\": \"750\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "quantity": 1,
+            "weight_kg": 84.0,
+            "airflow_m3h": 17000,
+            "session_id": "fd76a20e-b6d0-4cc5-9601-2916b08c5058",
+            "filter_height": 1500,
+            "product_code": "GDB-1200x1500-750-R-PG-FZ",
+            "housing_width": 1200,
+            "filter_width": 1200,
+            "housing_height": 1500,
+            "tag_id": "item_1",
+            "source_message": 2,
+            "id": "TAG_fd76a20e-b6d0-4cc5-9601-2916b08c5058_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Filter 1200x1500mm -> Sized to 1200x1500 -> Weight 84.0kg -> Code: GDB-1200x1500-750-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "Here is the specification for the GDB housing:",
+          "type": "GENERAL"
+        },
+        {
+          "text": "**Warning**: Service access requires 1476mm clearance but only 1200mm available. Consider front-access alternatives (PFF/GDMI) for tight spaces. Verified alternatives: PFF Planfilterram",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

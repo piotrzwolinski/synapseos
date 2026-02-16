@@ -382,10 +382,15 @@ class TechnicalState:
             if self.project_name:
                 lines.append(f"- **Project:** {self.project_name}")
             if self.locked_material:
-                lines.append(f"- **Material:** {self.locked_material.value} ← USE THIS IN ALL PRODUCT CODES")
-                lines.append(f"  ⛔ PROHIBITION: Do NOT use FZ if RF is specified. Do NOT revert to default.")
+                mat_code = self.locked_material.value
+                _corrosion_map = {"FZ": "C3", "AZ": "C4", "ZM": "C5", "RF": "C5", "SF": "C5.1"}
+                corr_class = _corrosion_map.get(mat_code, "unknown")
+                lines.append(f"- **Material:** {mat_code} (corrosion class {corr_class}) ← USE THIS IN ALL PRODUCT CODES")
+                lines.append(f"  ⛔ PROHIBITION: Do NOT use FZ if {mat_code} is specified. Do NOT revert to default.")
             if self.detected_family:
                 lines.append(f"- **Product Family:** {self.detected_family}")
+                if self.detected_family in ("GDMI", "GDMI_FLEX"):
+                    lines.append(f"  (Indoor use only per catalog)")
             if self.accessories:
                 lines.append(f"- **Accessories:** {', '.join(self.accessories)}")
             if self.resolved_params:
@@ -874,6 +879,39 @@ class TechnicalState:
             parts.append(str(tag.housing_length))
         return "-".join(parts)
 
+    def _infer_housing_length(self, tag: "TagSpecification", db) -> None:
+        """Infer housing_length from product code or length variant default.
+
+        v4.1: Fixes weight lookup bug where housing_length stays None even when
+        the product code contains a length (e.g., GDB-900x900-750-R-PG-FZ).
+        Called before weight lookup to ensure correct short/long selection.
+        """
+        if tag.housing_length is not None:
+            return
+
+        # 1. Extract from product code if it contains a numeric length segment
+        if tag.product_code:
+            import re
+            # Product code format: FAM-WxH-LENGTH-CONN-TYPE-MAT
+            # Length is a 3-4 digit number after the WxH segment
+            m = re.search(r'-(\d{3,4})-', tag.product_code)
+            if m:
+                candidate = int(m.group(1))
+                # Sanity check: housing lengths are typically 550-1100mm
+                if 400 <= candidate <= 1200:
+                    tag.housing_length = candidate
+                    print(f"📐 [WEIGHT] Inferred housing_length={candidate} from product code {tag.product_code}")
+                    return
+
+        # 2. Query the default length variant from graph
+        fam = tag.product_family or self.detected_family or ""
+        fam_id = f"FAM_{fam}" if fam and not fam.startswith("FAM_") else fam
+        if fam_id:
+            default_length = db.get_default_length_variant(fam_id)
+            if default_length:
+                tag.housing_length = default_length
+                print(f"📐 [WEIGHT] Inferred housing_length={default_length} from default length variant for {fam_id}")
+
     def enrich_with_weights(self, db) -> None:
         """Look up weights from graph for all complete tags.
 
@@ -889,6 +927,9 @@ class TechnicalState:
                     fam_id = f"FAM_{fam}" if fam and not fam.startswith("FAM_") else fam
                     code_fmt = db.get_product_family_code_format(fam_id) if fam_id else None
                     tag.product_code = self.build_product_code(tag, code_format=code_fmt)
+
+                # v4.1: Infer housing_length before weight lookup
+                self._infer_housing_length(tag, db)
 
                 # PRIMARY: ProductVariant exact match (family-specific, authoritative)
                 # v4.0: Pass housing_length to select correct weight for dual-length products
@@ -928,25 +969,44 @@ class TechnicalState:
                 tag.total_airflow_m3h = tag.airflow_m3h
 
     def verify_material_codes(self) -> list[str]:
-        """Verify all product codes use the locked material suffix.
+        """Verify and ENFORCE that all product codes use the locked material suffix.
+
+        v4.1: Now rewrites mismatched product codes instead of just warning.
+        This fixes the bug where the engine correctly detects material constraints
+        but the product code still uses FZ as fallback.
 
         Returns:
-            List of warning messages for mismatched codes
+            List of warning messages for codes that were rewritten
         """
         warnings = []
 
         if not self.locked_material:
             return warnings
 
-        expected_suffix = f"-{self.locked_material.value}"
+        expected_mat = self.locked_material.value
+        expected_suffix = f"-{expected_mat}"
+        # All known material codes that could appear as suffix
+        known_materials = {"FZ", "AZ", "ZM", "RF", "SF"}
 
         for tag_id, tag in self.tags.items():
             if tag.product_code:
                 if not tag.product_code.endswith(expected_suffix):
-                    warnings.append(
-                        f"Tag {tag_id}: Product code '{tag.product_code}' "
-                        f"does not end with locked material '{expected_suffix}'"
-                    )
+                    old_code = tag.product_code
+                    # Replace the material suffix at the end of the product code
+                    parts = tag.product_code.rsplit("-", 1)
+                    if len(parts) == 2 and parts[1] in known_materials:
+                        tag.product_code = f"{parts[0]}-{expected_mat}"
+                        tag.material_override = None  # Clear any override
+                        warnings.append(
+                            f"Tag {tag_id}: Rewrote '{old_code}' → '{tag.product_code}' "
+                            f"(enforced locked material {expected_mat})"
+                        )
+                        print(f"🔧 [MATERIAL-ENFORCE] {tag_id}: {old_code} → {tag.product_code}")
+                    else:
+                        warnings.append(
+                            f"Tag {tag_id}: Product code '{tag.product_code}' "
+                            f"does not end with locked material '{expected_suffix}' (could not auto-fix)"
+                        )
 
         return warnings
 

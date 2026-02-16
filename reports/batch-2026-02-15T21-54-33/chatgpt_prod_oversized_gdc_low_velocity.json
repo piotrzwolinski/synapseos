@@ -1,0 +1,637 @@
+{
+  "name": "chatgpt_prod_oversized_gdc_low_velocity",
+  "description": "[GPT Prod] GDC 1200x1200 RF @ 800 m³/h → extreme oversizing (8% util), channeling risk",
+  "query": "For an office odor control project, we selected GDC 1200x1200 in RF. Airflow is only 800 m³/h. We intentionally oversized to increase safety margin. Please confirm acceptability.",
+  "session_id": "6c6eac32-8ec8-4a5e-af45-d956e1bbfe27",
+  "duration_s": 182.7,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "For an office odor control project, we selected GDC 1200x1200 in RF. Airflow is only 800 m³/h. We intentionally oversized to increase safety margin. Please confirm acceptability.",
+      "turn_number": 1,
+      "timestamp": "2026-02-15T20:46:12.613692+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "For your office odor control project, you've selected a GDC 1200x1200 housing in RF stainless steel. The system is exposed to Chemical Vapor Exposure, which requires activated carbon adsorption to remove gas-phase contaminants. The GDC housing has a corrosion class of C2.To finalize the configuration, I need to know the housing length.The selected module (8000 m³/h capacity) is significantly oversized for the requested 800 m³/h (10% utilization). This can lead to uneven air distribution and reduced efficiency. A more appropriate option would be a 300x600 mm module (1000 m³/h capacity).",
+      "turn_number": 1,
+      "timestamp": "2026-02-15T20:46:24.972342+00:00",
+      "clarification": {
+        "missing_info": "housing_length",
+        "why_needed": "To finalize the configuration, I need to know the housing length.",
+        "options": [
+          {
+            "value": "750mm",
+            "description": "750mm",
+            "display_label": null
+          },
+          {
+            "value": "900mm",
+            "description": "900mm",
+            "display_label": null
+          }
+        ],
+        "question": "Which housing length do you need?"
+      },
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 4,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 4.75,
+          "explanation": "The system provides excellent engineering advice by identifying a massive sizing inefficiency (10% utilization) and suggesting a correct alternative from the catalog. It correctly identifies the product application (carbon filtration) and asks for the required housing length parameter. The only minor flaw is stating the housing is Corrosion Class C2 after acknowledging the user's Stainless Steel (RF) selection; while the standard GDC is C2 (PDF p.14), an RF execution would be C5.",
+          "dimension_explanations": {
+            "correctness": "Verified GDC 1200x1200 capacity is 8000 m³/h and 300x600 is 1000 m³/h (PDF p.14); the claim that GDC is C2 is technically true for the standard product but contradicts the user's RF selection (which is C5).",
+            "completeness": "Correctly asks for housing length, which is a required parameter for GDC (750/800 or 900/950 mm options on p.14).",
+            "safety": "Correctly identifies the risk of uneven air distribution (channeling) due to extremely low pressure drop in a massively oversized housing.",
+            "tone": "Professional and consultative.",
+            "reasoning_quality": "Demonstrates high-level HVAC engineering logic: recognizing that while oversizing carbon filters is common, 10% utilization causes airflow distribution issues.",
+            "constraint_adherence": "Adheres to the catalog's sizing tables and required parameters."
+          },
+          "strengths": [
+            "Excellent engineering judgment regarding minimum utilization/air distribution",
+            "Accurate retrieval of airflow capacity data for both the user's selection and the recommended alternative",
+            "Correctly identifies missing configuration parameter (Length)"
+          ],
+          "weaknesses": [
+            "Confusingly states the housing is Corrosion Class C2 immediately after acknowledging the user's Stainless Steel (RF) selection"
+          ],
+          "pdf_citations": [
+            "GDC 1200x1200: Rek. flöde 8000 m³/h (PDF p.14)",
+            "GDC 300x600: Rek. flöde 1000 m³/h (PDF p.14)",
+            "GDC standard material: Förzinkat C2 (PDF p.14)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 51.43,
+            "prompt_tokens": 15691,
+            "cached_tokens": 15977,
+            "output_tokens": 634
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 3,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.85,
+          "explanation": "The response contains a critical product-data error: it assigns an 8000 m³/h capacity to GDC 1200x1200, which the catalog lists as 8000 m³/h for GDMI (bag/compact filter housing), not for GDC (patron carbon housing). It also incorrectly states GDC has corrosion class C2 despite the user specifying RF stainless, and it fails to properly confirm acceptability of oversizing for carbon adsorption (which is generally acceptable and often beneficial if distribution is handled).",
+          "dimension_explanations": {
+            "correctness": "Incorrect: GDC 1200x1200 has recommended flow 8000 m³/h in the PDF, but the system’s statement that “GDC has corrosion class C2” conflicts with the RF material choice (RF is listed as C5), and the oversizing concern is only partially sound (distribution can be managed).",
+            "completeness": "It asks for length (good) but does not address key acceptability criteria for carbon systems at low face velocity (residence time, risk of channeling, pressure drop, and whether a police filter is needed).",
+            "safety": "No major unsafe recommendation, but it misses practical risks like poor media utilization/channeling and potential carbon dust control (police filter) considerations for sensitive office IAQ.",
+            "tone": "Professional and consultative, with an appropriate clarification question.",
+            "reasoning_quality": "Reasoning is plausible on oversizing causing maldistribution, but it’s not supported with face velocity/residence-time logic and is undermined by the incorrect corrosion-class statement.",
+            "constraint_adherence": "Violates catalog/material logic by labeling the selected RF stainless GDC as C2; also mixes sizing logic by implying a generic 'module capacity' without tying it to the GDC patron configuration."
+          },
+          "strengths": [
+            "Correctly requests missing parameter (housing length) before finalizing configuration.",
+            "Flags a real engineering consideration: extreme oversizing can cause maldistribution if not designed with proper flow equalization."
+          ],
+          "weaknesses": [
+            "Misstates corrosion class for the specified RF stainless selection (RF is C5 in the catalog, not C2).",
+            "Uses an airflow-capacity argument that is not properly tied to GDC carbon patron performance (should discuss face velocity, contact time, and distribution rather than only 'utilization')."
+          ],
+          "pdf_citations": [
+            "Material table: RF (EN 1.4301 / SS2333) is listed as corrosivity class C5 (PDF 'MATERIAL' page).",
+            "GDC 1200x1200: Rek. flöde = 8000 m³/h and antal patroner = 64 (PDF 'GDC MÅTT' table)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 16.18,
+            "attempt": 1,
+            "prompt_tokens": 37053,
+            "cached_tokens": 25088,
+            "output_tokens": 677
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYAWWF2enyis4yuQUWYBu'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDC + Office/Commercial",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 13 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "♟️ Additional info needed",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "RF",
+        "project": "office odor control project",
+        "dimension_mappings": [
+          {
+            "width": 1200,
+            "height": 1200,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": "office odor control project",
+        "locked_material": "RF",
+        "detected_family": "GDC",
+        "accessories": [],
+        "pending_clarification": "housing_length",
+        "resolved_params": {
+          "detected_application": "APP_OFFICE",
+          "installation_environment": "ENV_INDOOR",
+          "airflow_m3h": "800",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 1200,
+            "filter_height": 1200,
+            "filter_depth": null,
+            "housing_width": 1200,
+            "housing_height": 1200,
+            "housing_length": null,
+            "airflow_m3h": 800,
+            "product_family": "GDC",
+            "product_code": "GDC-1200x1200-R-PG-RF",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": "Office/Commercial",
+        "warnings_count": 0,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "6c6eac32-8ec8-4a5e-af45-d956e1bbfe27",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDC",
+          "locked_material": "RF",
+          "name": "office odor control project",
+          "pending_clarification": "housing_length",
+          "resolved_params": "{\"detected_application\": \"APP_OFFICE\", \"installation_environment\": \"ENV_INDOOR\", \"airflow_m3h\": \"800\", \"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDC",
+            "quantity": 1,
+            "airflow_m3h": 800,
+            "session_id": "6c6eac32-8ec8-4a5e-af45-d956e1bbfe27",
+            "filter_height": 1200,
+            "product_code": "GDC-1200x1200-R-PG-RF",
+            "housing_width": 1200,
+            "filter_width": 1200,
+            "housing_height": 1200,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_6c6eac32-8ec8-4a5e-af45-d956e1bbfe27_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to RF -> Filter 1200x1200mm -> Sized to 1200x1200 -> Code: GDC-1200x1200-R-PG-RF"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "type": "GENERAL",
+          "text": "For your office odor control project, you've selected a GDC 1200x1200 housing in RF stainless steel. The system is exposed to "
+        },
+        {
+          "type": "INFERENCE",
+          "text": "Chemical Vapor Exposure",
+          "inference_logic": "Chemical Vapor Exposure detected via keyword"
+        },
+        {
+          "type": "GENERAL",
+          "text": ", which requires activated carbon adsorption to remove gas-phase contaminants. The GDC housing has a corrosion class of C2."
+        },
+        {
+          "type": "GENERAL",
+          "text": "To finalize the configuration, I need to know the housing length."
+        },
+        {
+          "text": "The selected module (8000 m³/h capacity) is significantly oversized for the requested 800 m³/h (10% utilization). This can lead to uneven air distribution and reduced efficiency. A more appropriate option would be a 300x600 mm module (1000 m³/h capacity).",
+          "type": "GENERAL"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": "750mm",
+      "turn_number": 2,
+      "timestamp": "2026-02-15T20:47:17.072753+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Here is the configuration for your office odor control project:The housing corrosion class is C2.Please note that the module capacity of 8000 m³/h is significantly higher than your required airflow of 800 m³/h. This oversizing can lead to low face velocity, uneven air distribution, and reduced efficiency. Consider a smaller module size for better performance.The selected module (8000 m³/h capacity) is significantly oversized for the requested 800 m³/h (10% utilization). This can lead to uneven air distribution and reduced efficiency. A more appropriate option would be a 300x600 mm module (1000 m³/h capacity).",
+      "turn_number": 2,
+      "timestamp": "2026-02-15T20:48:29.065828+00:00",
+      "clarification": null,
+      "product_card": {
+        "title": "Tag item_1",
+        "specs": {
+          "Product Code": "GDC-1200x1200-750-R-PG-RF",
+          "Housing Size": "1200x1200mm",
+          "Housing Length": "750mm",
+          "Rated Airflow": "8000 m³/h per module (requested: 800 m³/h)",
+          "Weight": "~67 kg"
+        },
+        "warning": null,
+        "confidence": "medium",
+        "actions": [
+          "Add to Quote"
+        ]
+      },
+      "product_cards": [
+        {
+          "title": "Tag item_1",
+          "specs": {
+            "Product Code": "GDC-1200x1200-750-R-PG-RF",
+            "Housing Size": "1200x1200mm",
+            "Housing Length": "750mm",
+            "Rated Airflow": "8000 m³/h per module (requested: 800 m³/h)",
+            "Weight": "~67 kg"
+          },
+          "warning": null,
+          "confidence": "medium",
+          "actions": [
+            "Add to Quote"
+          ]
+        }
+      ],
+      "status_badges": [
+        {
+          "type": "SUCCESS",
+          "text": "COMPLETE"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 4,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 4,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 4.65,
+          "explanation": "The system demonstrated excellent engineering judgment by identifying the risks of severe oversizing (10% utilization) and correctly extracting specific product data (weight, airflow) from the catalog. However, it incorrectly stated the corrosion class as C2 (standard galvanized) despite correctly generating a product code for RF (Stainless Steel), which is C5. The response also contained repetitive text and duplicate product cards.",
+          "dimension_explanations": {
+            "correctness": "Correctly cites GDC 1200x1200 capacity as 8000 m³/h and weight as 67 kg (PDF p.14), but incorrectly labels RF Stainless Steel as corrosion class C2 (should be C5 per p.4).",
+            "completeness": "Fully addresses the user's request, including a necessary clarification for housing length.",
+            "safety": "Proactively warns about the performance risks of low face velocity/channeling due to 10% utilization.",
+            "tone": "Professional, though the response text contained verbatim repetition of the warning paragraph.",
+            "reasoning_quality": "The engineering logic regarding the inefficiency of running a carbon filter at 10% capacity is sound and adds significant value beyond the catalog.",
+            "constraint_adherence": "Correctly allows the RF material option (supported by p.3 general notes) and adheres to size constraints."
+          },
+          "strengths": [
+            "Accurate extraction of specific product data (Flow: 8000 m³/h, Weight: 67 kg) from PDF p.14",
+            "High-quality engineering advice warning against 10% utilization (oversizing)",
+            "Correctly handled the clarification flow for housing length"
+          ],
+          "weaknesses": [
+            "Conflicting information: generated an RF (Stainless) product code but stated standard C2 corrosion class",
+            "Formatting issues: repeated text blocks and duplicate product cards in the final output"
+          ],
+          "pdf_citations": [
+            "GDC 1200x1200: Rek. flöde 8000 m³/h (PDF p.14)",
+            "GDC 1200x1200 (Length 750/800): Vikt 67 kg (PDF p.14)",
+            "RF (Rostfri): Korrosivitetsklass C5 (PDF p.4)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 46.25,
+            "prompt_tokens": 16299,
+            "cached_tokens": 15977,
+            "output_tokens": 628
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 3,
+            "safety": 4,
+            "tone": 4,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.95,
+          "explanation": "The consultant correctly flags that 1200x1200 is heavily oversized for 800 m³/h, but it makes multiple catalog-level mistakes (length option, corrosion class, and weight) and then still outputs a product card that violates the catalog constraints. The engineering concern about very low face velocity is reasonable, but the response fails to actually confirm acceptability or provide a compliant alternative configuration card.",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDC 1200x1200 has rek. flöde 8000 m³/h and weights 67 kg (750/800) and 84 kg (900/950), but the system incorrectly states GDC is C2 and allows a 750 mm length and gives an incorrect weight (~67 kg) for that non-standard length; the low-face-velocity/oversizing reasoning is generally sound.",
+            "completeness": "It asks for length (good) and comments on oversizing, but it does not answer the user’s core request (“confirm acceptability”) with clear criteria, nor does it provide a corrected, catalog-compliant alternative product card (e.g., 300x600 GDC).",
+            "safety": "Appropriately warns about performance risks (maldistribution/low velocity) from extreme oversizing; no hazardous material advice is given that would create immediate safety risk in an office context.",
+            "tone": "Professional and consultative, with clear warnings and a reasonable request for missing parameters.",
+            "reasoning_quality": "Reasoning about oversizing effects is plausible, but it’s weakened by repeating the same point and by mixing in incorrect catalog constraints (length/corrosion class), which undermines the decision logic.",
+            "constraint_adherence": "Violates catalog constraints by generating GDC-1200x1200-750 even though GDC standard lengths are 750/800 and 900/950, and it misapplies corrosion class/material mapping."
+          },
+          "strengths": [
+            "Correctly identifies that 1200x1200 at 800 m³/h is extreme oversizing and may cause poor distribution/efficiency.",
+            "Good clarification behavior by requesting housing length before finalizing."
+          ],
+          "weaknesses": [
+            "Outputs a non-catalog length (750 mm) and an inconsistent/incorrect corrosion class statement for GDC, then marks the case COMPLETE.",
+            "Does not provide a compliant alternative selection card and does not clearly confirm whether the oversized choice is acceptable for odor control (with conditions)."
+          ],
+          "pdf_citations": [
+            "GDC 1200x1200: Rek. flöde = 8000 m³/h; Vikt = 67 kg (750/800) and 84 kg (900/950) (GDC table in provided PDF images).",
+            "GDC standard lengths listed as 750/800 mm and 900/950 mm (GDC section in provided PDF images)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 13.77,
+            "attempt": 1,
+            "prompt_tokens": 37555,
+            "cached_tokens": 17920,
+            "output_tokens": 702
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYAWfM62weTr6KYNQ1Ez6'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDC + Office/Commercial",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 0 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "✅ All parameters resolved",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "RF",
+        "project": "office odor control project",
+        "dimension_mappings": [
+          {
+            "width": 1200,
+            "height": 1200,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": "office odor control project",
+        "locked_material": "RF",
+        "detected_family": "GDC",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "detected_application": "APP_OFFICE",
+          "installation_environment": "ENV_INDOOR",
+          "airflow_m3h": "800",
+          "connection_type": "PG",
+          "housing_length": "750"
+        },
+        "assembly_group": null,
+        "turn_count": 2,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 1200,
+            "filter_height": 1200,
+            "filter_depth": null,
+            "housing_width": 1200,
+            "housing_height": 1200,
+            "housing_length": 750,
+            "airflow_m3h": 800,
+            "product_family": "GDC",
+            "product_code": "GDC-1200x1200-750-R-PG-RF",
+            "quantity": 1,
+            "weight_kg": 67,
+            "modules_needed": 1,
+            "total_weight_kg": 67,
+            "total_airflow_m3h": 800,
+            "is_complete": true,
+            "missing_params": [],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": "Office/Commercial",
+        "warnings_count": 0,
+        "variable_features": 0,
+        "tags_complete": true,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "6c6eac32-8ec8-4a5e-af45-d956e1bbfe27",
+        "project": {
+          "detected_family": "GDC",
+          "resolved_params": "{\"detected_application\": \"APP_OFFICE\", \"installation_environment\": \"ENV_INDOOR\", \"airflow_m3h\": \"800\", \"connection_type\": \"PG\", \"housing_length\": \"750\"}",
+          "assembly_group": null,
+          "locked_material": "RF",
+          "accessories": null,
+          "name": "office odor control project",
+          "pending_clarification": null,
+          "customer": null,
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDC",
+            "quantity": 1,
+            "weight_kg": 67,
+            "airflow_m3h": 800,
+            "session_id": "6c6eac32-8ec8-4a5e-af45-d956e1bbfe27",
+            "filter_height": 1200,
+            "product_code": "GDC-1200x1200-750-R-PG-RF",
+            "housing_width": 1200,
+            "filter_width": 1200,
+            "housing_height": 1200,
+            "tag_id": "item_1",
+            "source_message": 2,
+            "id": "TAG_6c6eac32-8ec8-4a5e-af45-d956e1bbfe27_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to RF -> Filter 1200x1200mm -> Sized to 1200x1200 -> Weight 67kg -> Code: GDC-1200x1200-750-R-PG-RF"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "Here is the configuration for your office odor control project:",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The housing corrosion class is C2.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Please note that the module capacity of 8000 m³/h is significantly higher than your required airflow of 800 m³/h. This oversizing can lead to low face velocity, uneven air distribution, and reduced efficiency. Consider a smaller module size for better performance.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The selected module (8000 m³/h capacity) is significantly oversized for the requested 800 m³/h (10% utilization). This can lead to uneven air distribution and reduced efficiency. A more appropriate option would be a 300x600 mm module (1000 m³/h capacity).",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}
