@@ -21,34 +21,27 @@ from typing import Optional
 logger = logging.getLogger("session_graph")
 
 
-# Dimension mapping: filter dimension -> housing dimension
-DIMENSION_MAP = {
-    287: 300, 305: 300, 300: 300,
-    592: 600, 610: 600, 600: 600,
-    495: 500, 500: 500,
-    900: 900, 1200: 1200,
-}
+# Import from single source of truth (config-aware getters + backward-compat constants)
+from logic.dimension_tables import (
+    DIMENSION_MAP,
+    ORIENTATION_THRESHOLD,
+    derive_housing_length as _derive_housing_length,
+    get_dimension_map,
+    get_orientation_threshold,
+)
 
 
 def _map_filter_to_housing(dim: int) -> int:
     """Map filter dimension to standard housing size."""
-    return DIMENSION_MAP.get(dim, dim)
-
-
-def _derive_housing_length(filter_depth: int, product_family: str = "GDB") -> int:
-    """Derive housing length from filter depth using engineering rules."""
-    if product_family == "GDMI":
-        return 600 if filter_depth <= 450 else 850
-    elif product_family == "GDC":
-        return 750 if filter_depth <= 450 else 900
-    else:  # GDB default
-        return 550 if filter_depth <= 292 else 750
+    return get_dimension_map().get(dim, dim)
 
 
 def _normalize_orientation(width: int, height: int) -> tuple[int, int]:
-    """HVAC rule: larger dimension is always HEIGHT (vertical)."""
-    if width > height:
-        return height, width
+    """Larger dimension is always HEIGHT (vertical) for small modules."""
+    threshold = get_orientation_threshold()
+    if width <= threshold and height <= threshold:
+        if width > height:
+            return height, width
     return width, height
 
 

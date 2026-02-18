@@ -24,7 +24,7 @@ fi
 # Server is down — start it
 BACKEND_DIR="$(cd "$(dirname "$0")/../../backend" && pwd)"
 PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-VENV_PYTHON="$PROJECT_DIR/venv/bin/python"
+VENV_PYTHON="$BACKEND_DIR/venv/bin/python"
 BACKEND_LOG="/tmp/backend.log"
 
 [ -f "$VENV_PYTHON" ] || exit 0

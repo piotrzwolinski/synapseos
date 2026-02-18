@@ -100,8 +100,15 @@ def get_llm_driven_system_prompt() -> str:
 
     This prompt establishes the LLM as the Primary State Manager and
     Reasoning Engine, grounded by CATALOG_KNOWLEDGE from the Graph.
+    Phase 3: Loads from tenant prompt file when available.
     """
     config = get_config()
+
+    # Try tenant prompt file first
+    from config_loader import load_tenant_prompt
+    template = load_tenant_prompt("chat_system")
+    if template:
+        return template.format(company=config.company)
 
     return f"""You are a Senior Sales Engineer at {config.company}.
 You are given a `CATALOG_KNOWLEDGE` JSON and a `CONVERSATION_HISTORY`.
@@ -274,9 +281,18 @@ Always respond in ENGLISH.
 
 
 def get_sales_assistant_prompt() -> str:
-    """Generate the sales assistant system prompt with Guardian rules from config."""
+    """Generate the sales assistant system prompt with Guardian rules from config.
+
+    Phase 3: Loads from tenant prompt file when available.
+    """
     config = get_config()
     guardian_rules = config.get_all_guardian_rules_prompt()
+
+    # Try tenant prompt file first
+    from config_loader import load_tenant_prompt
+    template = load_tenant_prompt("chat_sales")
+    if template:
+        return template.format(company=config.company, guardian_rules=guardian_rules)
 
     return f"""You are a middleware between a Knowledge Graph and a React UI for {config.company}.
 
@@ -1426,9 +1442,10 @@ Return ONLY valid JSON. No markdown, no code blocks.
                         source_message=len(self.chat_history) // 2,
                     )
 
-                # Detect and persist product family
+                # Detect and persist product family (from config)
+                _chat_cfg = get_config()
                 query_upper = message.upper()
-                for family in ['GDMI', 'GDB', 'GDC', 'GDP']:
+                for family in _chat_cfg.product_families or ['GDMI', 'GDB', 'GDC', 'GDP']:
                     if family in query_upper:
                         session_graph_mgr.set_detected_family(session_id, family)
                         break
@@ -1444,9 +1461,10 @@ Return ONLY valid JSON. No markdown, no code blocks.
 
         This is the "Big Data Dump" retrieval step.
         """
-        # Extract product family from query
+        # Extract product family from query (from config)
+        _gd_cfg = get_config()
         query_upper = query.upper()
-        families = ['GDMI', 'GDB', 'GDC', 'GDP', 'GDF', 'GDR']  # GDMI first (longer match)
+        families = _gd_cfg.product_families or ['GDMI', 'GDB', 'GDC', 'GDP', 'GDF', 'GDR']
 
         detected_family = None
         for family in families:
@@ -1455,15 +1473,14 @@ Return ONLY valid JSON. No markdown, no code blocks.
                 break
 
         if not detected_family:
-            # Default to GDB for demo
-            detected_family = "GDB"
+            detected_family = _gd_cfg.default_product_family
 
         logger.info(f"📦 [GRAPH_DATA] Detected product family: {detected_family}")
 
         # Detect application/environment
         query_lower = query.lower()
         detected_app = None
-        app_keywords = {
+        app_keywords = _gd_cfg.fallback_chat_app_keywords or {
             'hospital': 'Hospital', 'szpital': 'Hospital', 'medical': 'Hospital',
             'kitchen': 'Commercial Kitchen', 'restaurant': 'Commercial Kitchen',
             'outdoor': 'Outdoor', 'roof': 'Outdoor', 'rooftop': 'Outdoor',

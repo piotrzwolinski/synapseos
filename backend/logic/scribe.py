@@ -66,6 +66,34 @@ def _build_env_app_mapping(db) -> tuple[str, str]:
     return "\n".join(env_lines), "\n".join(app_lines)
 
 
+def _build_product_inference_text() -> str:
+    """Build product inference hints from config, with hardcoded fallback."""
+    try:
+        from config_loader import get_config
+        cfg = get_config()
+        if cfg.scribe_product_inference:
+            lines = []
+            for hint in cfg.scribe_product_inference:
+                kw_str = " / ".join(f'"{k}"' for k in hint["keywords"])
+                family = hint["product_family"]
+                flex = hint.get("flex_variant")
+                if flex:
+                    lines.append(f'    - {kw_str} → product_family = "{family}" (or "{flex}" if "flex" mentioned)')
+                else:
+                    lines.append(f'    - {kw_str} → product_family = "{family}"')
+            return "\n".join(lines)
+    except Exception:
+        pass
+    # Hardcoded fallback
+    return (
+        '    - "insulated" / "insulation" / "thermal insulation" / "condensation-proof" → product_family = "GDMI"\n'
+        '    - "carbon" / "activated carbon" / "odor" / "gas adsorption" / "VOC" → product_family = "GDC" (or "GDC_FLEX" if "flex" mentioned)\n'
+        '    - "cartridge" / "carbon cartridge" → product_family = "GDC"\n'
+        '    - "pre-filter" / "protector" / "mechanical pre-filtration" → product_family = "GDP"\n'
+        '    - "pocket filter" / "bag filter" / "particle filter" → product_family = "GDB"'
+    )
+
+
 def get_scribe_system_prompt(db=None) -> str:
     """Return the Scribe system prompt, optionally enriched with graph data.
 
@@ -75,11 +103,14 @@ def get_scribe_system_prompt(db=None) -> str:
     if _cached_scribe_prompt:
         return _cached_scribe_prompt
 
+    product_inference = _build_product_inference_text()
+
     if db is not None:
         env_mapping, app_mapping = _build_env_app_mapping(db)
         prompt = _SCRIBE_SYSTEM_PROMPT_TEMPLATE.format(
             env_mapping=env_mapping,
             app_mapping=app_mapping,
+            product_inference=product_inference,
         )
         _cached_scribe_prompt = prompt
         logger.info(f"Scribe prompt built from graph ({len(env_mapping)} env chars, {len(app_mapping)} app chars)")
@@ -89,6 +120,7 @@ def get_scribe_system_prompt(db=None) -> str:
     return _SCRIBE_SYSTEM_PROMPT_TEMPLATE.format(
         env_mapping='     "indoor" → {"installation_environment": "ENV_INDOOR"}, "outdoor" → {"installation_environment": "ENV_OUTDOOR"}',
         app_mapping='     (no application data available)',
+        product_inference=product_inference,
     )
 
 
@@ -179,11 +211,7 @@ RULES:
 13. PRODUCT FAMILY: When the user names a specific product code, extract the product_family INCLUDING any named variant suffix, replacing dashes with underscores. Examples: "GDC-FLEX 600x600" → product_family = "GDC_FLEX". "GDP-900x600" → product_family = "GDP". "GDMI-FLEX 600x600" → product_family = "GDMI_FLEX". Named variants like FLEX, NANO are part of the family identity and MUST be preserved.
     CRITICAL: Material codes (RF, FZ, AZ, ZM, SF) are NOT variant suffixes and MUST NOT be included in product_family. They are separate material selections. Examples: "GDMI-SF" → product_family = "GDMI", material = "SF". "GDC-RF" → product_family = "GDC", material = "RF". "GDB-FZ" → product_family = "GDB", material = "FZ". Only FLEX and NANO are valid variant suffixes.
     PRODUCT INFERENCE: When NO product code is named but the user describes features, infer product_family:
-    - "insulated" / "insulation" / "thermal insulation" / "condensation-proof" → product_family = "GDMI"
-    - "carbon" / "activated carbon" / "odor" / "gas adsorption" / "VOC" → product_family = "GDC" (or "GDC_FLEX" if "flex" mentioned)
-    - "cartridge" / "carbon cartridge" → product_family = "GDC"
-    - "pre-filter" / "protector" / "mechanical pre-filtration" → product_family = "GDP"
-    - "pocket filter" / "bag filter" / "particle filter" → product_family = "GDB"
+{product_inference}
     Only infer when the description clearly maps to one family. If ambiguous, omit.
 14. You are the PRIMARY and SOLE intent extractor. Extract ALL parameters comprehensively — dimensions, airflow, material, constraints, product family, action intent, accessories, project name. Do not assume another system will catch what you miss.
 15. ACTION INTENT: Classify the overall intent into one of:

@@ -24,10 +24,14 @@ import {
   Lock,
   Download,
   MessageSquare,
+  Scale,
+  ThumbsUp,
+  ThumbsDown,
+  AlertTriangle,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
-import { apiUrl, authFetch, getSessionId, resetSessionId, getSessionGraphState, clearSessionGraph, type SessionGraphState } from "@/lib/api";
+import { apiUrl, authFetch, getSessionId, resetSessionId, getSessionGraphState, clearSessionGraph, type SessionGraphState, evaluateResponse, saveJudgeResults } from "@/lib/api";
 import { getUserRole } from "@/lib/auth";
 import SessionGraphViewer from "./session-graph-viewer";
 import { Widget, BotResponse } from "./chat-widgets";
@@ -346,6 +350,107 @@ function DevModeQuestions({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// Judge single result type (mirrors api.ts)
+interface JudgeSingleResult {
+  scores?: Record<string, number>;
+  overall_score?: number;
+  explanation?: string;
+  recommendation?: string;
+  strengths?: string[];
+  weaknesses?: string[];
+}
+
+// Judge Results Panel (inline under each assistant message)
+function JudgeResultsPanel({ results }: { results: Record<string, JudgeSingleResult> }) {
+  const [expanded, setExpanded] = useState(false);
+  const providers = Object.entries(results).filter(([, v]) => v && v.recommendation);
+
+  if (providers.length === 0) return null;
+
+  const recIcon = (rec: string) => {
+    if (rec === "PASS") return <ThumbsUp className="w-3.5 h-3.5 text-emerald-600" />;
+    if (rec === "FAIL") return <ThumbsDown className="w-3.5 h-3.5 text-red-500" />;
+    return <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />;
+  };
+
+  const recColor = (rec: string) => {
+    if (rec === "PASS") return "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400";
+    if (rec === "FAIL") return "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400";
+    return "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400";
+  };
+
+  const providerLabel: Record<string, string> = { gemini: "Gemini", openai: "GPT", anthropic: "Claude" };
+
+  return (
+    <div className="space-y-2">
+      {/* Summary chips */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Scale className="w-3.5 h-3.5 text-violet-500" />
+        {providers.map(([name, result]) => (
+          <span
+            key={name}
+            className={cn(
+              "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md border",
+              recColor(result.recommendation || "")
+            )}
+          >
+            {recIcon(result.recommendation || "")}
+            {providerLabel[name] || name}: {result.overall_score?.toFixed(1)} ({result.recommendation})
+          </span>
+        ))}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 ml-1"
+        >
+          {expanded ? "Hide details" : "Details"}
+        </button>
+      </div>
+
+      {/* Expanded details */}
+      {expanded && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          {providers.map(([name, result]) => (
+            <div key={name} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs space-y-2 border border-slate-200 dark:border-slate-700">
+              <div className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                {recIcon(result.recommendation || "")}
+                {providerLabel[name] || name}
+              </div>
+              {result.scores && (
+                <div className="grid grid-cols-2 gap-1">
+                  {Object.entries(result.scores).map(([dim, score]) => (
+                    <div key={dim} className="flex justify-between">
+                      <span className="text-slate-500 dark:text-slate-400 capitalize">{dim.replace(/_/g, " ")}</span>
+                      <span className={cn(
+                        "font-mono font-medium",
+                        (score as number) >= 4 ? "text-emerald-600" : (score as number) >= 3 ? "text-amber-600" : "text-red-500"
+                      )}>{String(score)}/5</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {result.explanation && (
+                <p className="text-slate-600 dark:text-slate-400 leading-relaxed">{result.explanation}</p>
+              )}
+              {result.strengths && result.strengths.length > 0 && (
+                <div>
+                  <span className="text-emerald-600 font-medium">+</span>{" "}
+                  {result.strengths.join("; ")}
+                </div>
+              )}
+              {result.weaknesses && result.weaknesses.length > 0 && (
+                <div>
+                  <span className="text-red-500 font-medium">−</span>{" "}
+                  {result.weaknesses.join("; ")}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -690,6 +795,10 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const [selectedDetailIdx, setSelectedDetailIdx] = useState<number | null>(null);
   // Track confirmed inferences (for Active Learning)
   const [confirmedInferences, setConfirmedInferences] = useState<Set<number>>(new Set());
+  // Judge evaluation state (per message index)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [judgeResults, setJudgeResults] = useState<Record<number, any>>({});
+  const [judgingIndex, setJudgingIndex] = useState<number | null>(null);
   // Track original query for clarification follow-ups
   const [pendingClarificationContext, setPendingClarificationContext] = useState<{
     originalQuery: string;
@@ -1527,6 +1636,35 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     }
   };
 
+  // Handler: Run 3-LLM judge evaluation on an assistant response
+  const handleRunJudge = async (messageIndex: number) => {
+    // Find the user question (previous message)
+    const userMsg = messages.slice(0, messageIndex).reverse().find(m => m.role === "user");
+    const assistantMsg = messages[messageIndex];
+    if (!userMsg || !assistantMsg) return;
+
+    setJudgingIndex(messageIndex);
+    try {
+      const result = await evaluateResponse(userMsg.content, {
+        content: assistantMsg.content,
+        deepExplainableData: assistantMsg.deepExplainableData,
+      });
+      setJudgeResults(prev => ({ ...prev, [messageIndex]: result }));
+
+      // Persist to graph session
+      try {
+        const sessionId = getSessionId();
+        const turnNumber = Math.floor(messageIndex / 2);
+        await saveJudgeResults(sessionId, turnNumber, result as unknown as Record<string, unknown>);
+      } catch { /* non-fatal */ }
+    } catch (err) {
+      console.error("Judge evaluation failed:", err);
+      setJudgeResults(prev => ({ ...prev, [messageIndex]: { error: String(err) } }));
+    } finally {
+      setJudgingIndex(null);
+    }
+  };
+
   return (
     <div className="flex gap-4">
       {/* Main Chat Panel */}
@@ -1768,6 +1906,36 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                     <WidgetList widgets={message.widgets} onProjectClick={handleProjectClick} />
                   )}
 
+
+                  {/* Judge Evaluation Button + Results */}
+                  {message.role === "assistant" && message.content && (
+                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                      {!judgeResults[index] && judgingIndex !== index && (
+                        <button
+                          onClick={() => handleRunJudge(index)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-700 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-700 transition-all"
+                        >
+                          <Scale className="w-3.5 h-3.5" />
+                          Run 3-LLM Judge
+                        </button>
+                      )}
+                      {judgingIndex === index && (
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-violet-600 dark:text-violet-400">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Evaluating with Gemini + GPT + Claude...
+                        </div>
+                      )}
+                      {judgeResults[index] && !('error' in judgeResults[index]) && (
+                        <JudgeResultsPanel results={judgeResults[index] as Record<string, JudgeSingleResult>} />
+                      )}
+                      {judgeResults[index] && 'error' in judgeResults[index] && (
+                        <div className="text-xs text-red-500 flex items-center gap-1">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          Judge failed: {String(judgeResults[index].error)}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Mode-specific panels (always shown) */}
                   {message.role === "assistant" && message.chatMode === "llm-driven" && (

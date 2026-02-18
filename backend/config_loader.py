@@ -240,6 +240,13 @@ class ClarificationParam(BaseModel):
     prompt: str = ""
 
 
+class MaterialCodeExtended(BaseModel):
+    """Extended material code with aliases and extraction keywords."""
+    code: str
+    aliases: list[str] = Field(default_factory=list)
+    extraction_keywords: list[str] = Field(default_factory=list)
+
+
 # =============================================================================
 # MAIN CONFIGURATION CONTAINER
 # =============================================================================
@@ -297,6 +304,30 @@ class DomainConfig:
     # Assembly configuration (v2.7 — configurable sibling property sync)
     # Properties shared across units in an assembly group (e.g., same duct = same dimensions)
     assembly_shared_properties: list[str] = field(default_factory=list)
+
+    # Dimension & material tables (Phase 2: externalized from dimension_tables.py)
+    dimension_mapping: dict[int, int] = field(default_factory=dict)
+    corrosion_class_map: dict[str, str] = field(default_factory=dict)
+    housing_length_derivation: dict[str, list] = field(default_factory=dict)
+    orientation_threshold: Optional[int] = None
+    material_codes_extended: list = field(default_factory=list)
+    default_material: str = "FZ"
+
+    # Default product family (Phase 4)
+    default_product_family: str = "GDB"
+
+    # Fallback keywords (Phase 4: externalized from retriever.py + chat.py)
+    fallback_application_keywords: dict[str, list[str]] = field(default_factory=dict)
+    fallback_environment_terms: list[str] = field(default_factory=list)
+    fallback_environment_mapping: dict[str, str] = field(default_factory=dict)
+    fallback_env_to_app_inference: dict[str, str] = field(default_factory=dict)
+    fallback_chat_app_keywords: dict[str, str] = field(default_factory=dict)
+
+    # Scribe hints (Phase 5: externalized from scribe.py)
+    scribe_product_inference: list[dict] = field(default_factory=list)
+    scribe_connection_types: dict[str, list[str]] = field(default_factory=dict)
+    scribe_material_hints: dict[str, list[str]] = field(default_factory=dict)
+    scribe_accessory_hints: list[dict] = field(default_factory=list)
 
     def get_all_search_keywords(self) -> list[str]:
         """Get all keywords that should trigger configuration searches."""
@@ -576,8 +607,8 @@ class DomainConfig:
 
 import os
 
-# Available domain configurations
-DOMAIN_CONFIGS = {
+# Legacy domain config mapping (backward compat — prefer tenants/ directory)
+_LEGACY_DOMAIN_CONFIGS = {
     "mann_hummel": "domain_config.yaml",
     "wacker": "domain_config_wacker.yaml",
 }
@@ -585,27 +616,66 @@ DOMAIN_CONFIGS = {
 # Default domain from environment variable or fallback
 DEFAULT_DOMAIN = os.environ.get("DOMAIN_ID", "mann_hummel")
 
+# Base directories
+_BACKEND_DIR = Path(__file__).parent
+_TENANTS_DIR = _BACKEND_DIR / "tenants"
+
+
+def _resolve_config_path(domain_id: str) -> Path:
+    """Resolve config file path for a domain, checking tenants/ first then legacy."""
+    # Prefer tenants/<domain_id>/config.yaml
+    tenant_path = _TENANTS_DIR / domain_id / "config.yaml"
+    if tenant_path.exists():
+        return tenant_path
+
+    # Fallback to legacy root-level config files
+    legacy_filename = _LEGACY_DOMAIN_CONFIGS.get(domain_id, "domain_config.yaml")
+    return _BACKEND_DIR / legacy_filename
+
 
 def get_available_domains() -> list[dict]:
-    """Get list of available domain configurations."""
-    domains = []
-    config_dir = Path(__file__).parent
+    """Get list of available domain configurations.
 
-    for domain_id, filename in DOMAIN_CONFIGS.items():
-        config_path = config_dir / filename
-        if config_path.exists():
-            # Quick load to get domain metadata
-            with open(config_path, 'r', encoding='utf-8') as f:
-                raw = yaml.safe_load(f)
-            domain_meta = raw.get("domain", {})
-            domains.append({
-                "id": domain_id,
-                "name": domain_meta.get("name", domain_id),
-                "company": domain_meta.get("company", "Unknown"),
-                "description": domain_meta.get("description", ""),
-                "version": domain_meta.get("version", "1.0"),
-                "config_file": filename
-            })
+    Discovers tenants from tenants/ directory, with legacy fallback.
+    """
+    domains = []
+    seen_ids = set()
+
+    # Scan tenants/ directory
+    if _TENANTS_DIR.exists():
+        for tenant_dir in sorted(_TENANTS_DIR.iterdir()):
+            config_path = tenant_dir / "config.yaml"
+            if tenant_dir.is_dir() and config_path.exists():
+                domain_id = tenant_dir.name
+                seen_ids.add(domain_id)
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    raw = yaml.safe_load(f)
+                domain_meta = raw.get("domain", {})
+                domains.append({
+                    "id": domain_id,
+                    "name": domain_meta.get("name", domain_id),
+                    "company": domain_meta.get("company", "Unknown"),
+                    "description": domain_meta.get("description", ""),
+                    "version": domain_meta.get("version", "1.0"),
+                    "config_file": str(config_path)
+                })
+
+    # Legacy fallback for domains not in tenants/
+    for domain_id, filename in _LEGACY_DOMAIN_CONFIGS.items():
+        if domain_id not in seen_ids:
+            config_path = _BACKEND_DIR / filename
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    raw = yaml.safe_load(f)
+                domain_meta = raw.get("domain", {})
+                domains.append({
+                    "id": domain_id,
+                    "name": domain_meta.get("name", domain_id),
+                    "company": domain_meta.get("company", "Unknown"),
+                    "description": domain_meta.get("description", ""),
+                    "version": domain_meta.get("version", "1.0"),
+                    "config_file": filename
+                })
 
     return domains
 
@@ -624,8 +694,7 @@ def load_domain_config(config_path: Optional[str] = None, domain_id: Optional[st
         if domain_id is None:
             domain_id = DEFAULT_DOMAIN
 
-        filename = DOMAIN_CONFIGS.get(domain_id, "domain_config.yaml")
-        config_path = Path(__file__).parent / filename
+        config_path = _resolve_config_path(domain_id)
 
     with open(config_path, 'r', encoding='utf-8') as f:
         raw = yaml.safe_load(f)
@@ -803,6 +872,40 @@ def load_domain_config(config_path: Optional[str] = None, domain_id: Optional[st
     assembly_config = raw.get("assembly", {})
     config.assembly_shared_properties = assembly_config.get("shared_properties", [])
 
+    # Dimension & material tables (Phase 2)
+    dim_tables = raw.get("dimension_mapping", {})
+    raw_mapping = dim_tables.get("filter_to_housing", {})
+    config.dimension_mapping = {int(k): int(v) for k, v in raw_mapping.items()}
+
+    config.corrosion_class_map = raw.get("corrosion_class_map", {})
+
+    config.housing_length_derivation = raw.get("housing_length_derivation", {})
+
+    config.orientation_threshold = raw.get("orientation_threshold")
+
+    config.default_material = raw.get("default_material", "FZ")
+
+    for mat in raw.get("material_codes_extended", []):
+        config.material_codes_extended.append(MaterialCodeExtended(**mat))
+
+    # Default product family (Phase 4)
+    config.default_product_family = raw.get("default_product_family", "GDB")
+
+    # Fallback keywords (Phase 4)
+    fb = raw.get("fallback_keywords", {})
+    config.fallback_application_keywords = fb.get("application_keywords", {})
+    config.fallback_environment_terms = fb.get("environment_terms", [])
+    config.fallback_environment_mapping = fb.get("environment_mapping", {})
+    config.fallback_env_to_app_inference = fb.get("env_to_app_inference", {})
+    config.fallback_chat_app_keywords = fb.get("chat_app_keywords", {})
+
+    # Scribe hints (Phase 5)
+    scribe = raw.get("scribe_hints", {})
+    config.scribe_product_inference = scribe.get("product_inference", [])
+    config.scribe_connection_types = scribe.get("connection_types", {})
+    config.scribe_material_hints = scribe.get("material_hints", {})
+    config.scribe_accessory_hints = scribe.get("accessory_hints", [])
+
     return config
 
 
@@ -850,12 +953,14 @@ def set_current_domain(domain_id: str) -> DomainConfig:
         The newly active DomainConfig.
 
     Raises:
-        ValueError: If domain_id is not in DOMAIN_CONFIGS.
+        ValueError: If domain_id cannot be resolved.
     """
     global _current_domain
 
-    if domain_id not in DOMAIN_CONFIGS:
-        available = list(DOMAIN_CONFIGS.keys())
+    # Validate that config can be resolved
+    config_path = _resolve_config_path(domain_id)
+    if not config_path.exists():
+        available = [d["id"] for d in get_available_domains()]
         raise ValueError(f"Unknown domain '{domain_id}'. Available: {available}")
 
     _current_domain = domain_id
@@ -919,6 +1024,39 @@ def get_domain_config_summary() -> dict:
         },
         "prompt_templates": config.prompt_templates,
     }
+
+
+# =============================================================================
+# TENANT PROMPT LOADER (Phase 3)
+# =============================================================================
+
+_prompt_cache: dict[str, str] = {}
+
+
+def load_tenant_prompt(prompt_name: str, domain_id: Optional[str] = None) -> Optional[str]:
+    """Load a prompt template from the tenant's prompts/ directory.
+
+    Args:
+        prompt_name: Filename without extension (e.g., "system_expert")
+        domain_id: Tenant ID. Defaults to current domain.
+
+    Returns:
+        Prompt text if file exists, None otherwise.
+    """
+    if domain_id is None:
+        domain_id = _current_domain
+
+    cache_key = f"{domain_id}:{prompt_name}"
+    if cache_key in _prompt_cache:
+        return _prompt_cache[cache_key]
+
+    prompt_path = _TENANTS_DIR / domain_id / "prompts" / f"{prompt_name}.txt"
+    if not prompt_path.exists():
+        return None
+
+    text = prompt_path.read_text(encoding="utf-8")
+    _prompt_cache[cache_key] = text
+    return text
 
 
 # =============================================================================

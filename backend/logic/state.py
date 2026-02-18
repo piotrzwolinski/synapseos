@@ -73,18 +73,13 @@ class TagSpecification:
 
     def compute_housing_from_filter(self):
         """Map filter dimensions to standard housing sizes."""
-        # Standard mapping: filter dimension -> housing dimension
-        DIMENSION_MAP = {
-            # Width/Height mappings
-            287: 300, 305: 300, 300: 300,
-            592: 600, 610: 600, 600: 600,
-            495: 500, 500: 500,
-        }
+        from logic.dimension_tables import get_dimension_map
+        dim_map = get_dimension_map()
 
         if self.filter_width:
-            self.housing_width = DIMENSION_MAP.get(self.filter_width, self.filter_width)
+            self.housing_width = dim_map.get(self.filter_width, self.filter_width)
         if self.filter_height:
-            self.housing_height = DIMENSION_MAP.get(self.filter_height, self.filter_height)
+            self.housing_height = dim_map.get(self.filter_height, self.filter_height)
 
         # Apply orientation normalization after mapping
         self.normalize_orientation()
@@ -108,7 +103,9 @@ class TagSpecification:
         # where industry convention dictates height >= width.
         # For larger modules (e.g., 1800x900), the sizing engine
         # determines orientation based on spatial constraints.
-        if self.housing_width <= 600 and self.housing_height <= 600:
+        from logic.dimension_tables import get_orientation_threshold
+        threshold = get_orientation_threshold()
+        if self.housing_width <= threshold and self.housing_height <= threshold:
             if self.housing_width > self.housing_height:
                 self.housing_width, self.housing_height = self.housing_height, self.housing_width
                 if self.filter_width and self.filter_height:
@@ -119,24 +116,17 @@ class TagSpecification:
         """Auto-derive housing length from filter depth using engineering rules.
 
         Only runs when housing_length is not already explicitly set.
-
-        Rules (from inventory/engineering specs):
-        - depth <= 150mm -> length = 550mm
-        - 150 < depth <= 292mm -> length = 550mm
-        - 292 < depth <= 450mm -> length = 750mm
-        - depth > 450mm -> length = 900mm
+        Uses unified family-specific derivation from dimension_tables.
         """
         if self.housing_length is not None:
             return
         if self.filter_depth is None:
             return
 
-        if self.filter_depth <= 292:
-            self.housing_length = 550
-        elif self.filter_depth <= 450:
-            self.housing_length = 750
-        else:
-            self.housing_length = 900
+        from logic.dimension_tables import derive_housing_length
+        self.housing_length = derive_housing_length(
+            self.filter_depth, self.product_family or "GDB"
+        )
 
     def check_completeness(self) -> tuple[bool, list[str]]:
         """Check if specification is complete for product selection."""
@@ -324,17 +314,38 @@ class TechnicalState:
             try:
                 self.locked_material = MaterialCode(material.upper())
             except ValueError:
-                # Unknown material code, try to map
-                MATERIAL_ALIASES = {
-                    'STAINLESS': MaterialCode.RF,
-                    'STAINLESS STEEL': MaterialCode.RF,
-                    'ROSTFRI': MaterialCode.RF,
-                    'NIERDZEWNA': MaterialCode.RF,
-                    'GALVANIZED': MaterialCode.FZ,
-                    'ZINC': MaterialCode.FZ,
-                    'CYNK': MaterialCode.FZ,
-                }
-                self.locked_material = MATERIAL_ALIASES.get(material.upper())
+                # Try config-driven aliases first, then hardcoded fallback
+                aliases = self._get_material_aliases()
+                self.locked_material = aliases.get(material.upper())
+
+    @staticmethod
+    def _get_material_aliases() -> dict:
+        """Build material alias map from config, falling back to hardcoded."""
+        try:
+            from config_loader import get_config
+            cfg = get_config()
+            if cfg.material_codes_extended:
+                aliases = {}
+                for mat in cfg.material_codes_extended:
+                    try:
+                        code = MaterialCode(mat.code)
+                    except ValueError:
+                        continue
+                    for alias in mat.aliases:
+                        aliases[alias.upper()] = code
+                return aliases
+        except Exception:
+            pass
+        # Hardcoded fallback
+        return {
+            'STAINLESS': MaterialCode.RF,
+            'STAINLESS STEEL': MaterialCode.RF,
+            'ROSTFRI': MaterialCode.RF,
+            'NIERDZEWNA': MaterialCode.RF,
+            'GALVANIZED': MaterialCode.FZ,
+            'ZINC': MaterialCode.FZ,
+            'CYNK': MaterialCode.FZ,
+        }
 
     def set_project(self, project_name: str):
         """Set project name. Once set, persists."""
@@ -383,8 +394,8 @@ class TechnicalState:
                 lines.append(f"- **Project:** {self.project_name}")
             if self.locked_material:
                 mat_code = self.locked_material.value
-                _corrosion_map = {"FZ": "C3", "AZ": "C4", "ZM": "C5", "RF": "C5", "SF": "C5.1"}
-                corr_class = _corrosion_map.get(mat_code, "unknown")
+                from logic.dimension_tables import get_corrosion_map
+                corr_class = get_corrosion_map().get(mat_code, "unknown")
                 lines.append(f"- **Material:** {mat_code} (corrosion class {corr_class}) ← USE THIS IN ALL PRODUCT CODES")
                 lines.append(f"  ⛔ PROHIBITION: Do NOT use FZ if {mat_code} is specified. Do NOT revert to default.")
             if self.detected_family:
@@ -557,8 +568,9 @@ class TechnicalState:
         injected into the prompt so the LLM copies them verbatim. This prevents
         hallucination of weights, product codes, and corrosion classes.
         """
-        _corrosion_map = {"FZ": "C3", "AZ": "C4", "ZM": "C5", "RF": "C5", "SF": "C5.1"}
-        _known_mats = set(_corrosion_map.keys())
+        from logic.dimension_tables import get_corrosion_map, get_known_material_codes
+        _known_mats = get_known_material_codes()
+        CORROSION_MAP = get_corrosion_map()
         cards = []
         for tag_id, tag in self.tags.items():
             fam = tag.product_family or self.detected_family or "Unknown"
@@ -572,8 +584,12 @@ class TechnicalState:
                 if last_seg in _known_mats:
                     mat_code = last_seg
             if not mat_code:
-                mat_code = "FZ"  # ultimate fallback
-            corr = _corrosion_map.get(mat_code, "")
+                try:
+                    from config_loader import get_config
+                    mat_code = get_config().default_material or "FZ"
+                except Exception:
+                    mat_code = "FZ"
+            corr = CORROSION_MAP.get(mat_code, "")
 
             # Build specs dict — only include known values
             specs = {}
@@ -901,7 +917,13 @@ class TechnicalState:
             fmt_str = code_format
 
         family = (tag.product_family or self.detected_family or "").replace("_", "-")
-        material = tag.material_override or (self.locked_material.value if self.locked_material else "FZ")
+        default_mat = "FZ"
+        try:
+            from config_loader import get_config
+            default_mat = get_config().default_material or "FZ"
+        except Exception:
+            pass
+        material = tag.material_override or (self.locked_material.value if self.locked_material else default_mat)
         connection = self.resolved_params.get("connection_type", "PG")
 
         # Apply connection-specific length offset (e.g., Flange adds 50mm)
@@ -1048,10 +1070,10 @@ class TechnicalState:
         if not self.locked_material:
             return warnings
 
+        from logic.dimension_tables import get_known_material_codes
         expected_mat = self.locked_material.value
         expected_suffix = f"-{expected_mat}"
-        # All known material codes that could appear as suffix
-        known_materials = {"FZ", "AZ", "ZM", "RF", "SF"}
+        known_materials = get_known_material_codes()
 
         for tag_id, tag in self.tags.items():
             if tag.product_code:
@@ -1084,8 +1106,9 @@ class TechnicalState:
         if self.locked_material:
             return []  # Already handled by verify_material_codes
 
+        from logic.dimension_tables import get_known_material_codes
         warnings = []
-        known_materials = {"FZ", "AZ", "ZM", "RF", "SF"}
+        known_materials = get_known_material_codes()
         # Cache per-family lookups
         _cache = {}
 
@@ -1267,20 +1290,35 @@ def extract_material_from_query(query: str) -> Optional[str]:
     import re
     query_lower = query.lower()
 
-    # Order: check longer/multi-word keywords first, then short codes
-    MATERIAL_PATTERNS = {
-        'RF': ['stainless steel', 'stainless', 'nierdzewna', 'rostfri', 'edelstahl', 'inox', 'rf'],
-        'FZ': ['galvanized', 'verzinkt', 'zinc', 'cynk', 'fz'],
-        'ZM': ['zinkmagnesium', 'magnelis', 'zm'],
-        'SF': ['sendzimir', 'sf'],
-    }
+    patterns = _get_material_extraction_patterns()
 
-    for mat_code, keywords in MATERIAL_PATTERNS.items():
+    for mat_code, keywords in patterns.items():
         for kw in keywords:
             if re.search(r'\b' + re.escape(kw) + r'\b', query_lower):
                 return mat_code
 
     return None
+
+
+def _get_material_extraction_patterns() -> dict[str, list[str]]:
+    """Get material extraction patterns from config, falling back to hardcoded."""
+    try:
+        from config_loader import get_config
+        cfg = get_config()
+        if cfg.material_codes_extended:
+            return {
+                mat.code: mat.extraction_keywords
+                for mat in cfg.material_codes_extended
+            }
+    except Exception:
+        pass
+    # Hardcoded fallback
+    return {
+        'RF': ['stainless steel', 'stainless', 'nierdzewna', 'rostfri', 'edelstahl', 'inox', 'rf'],
+        'FZ': ['galvanized', 'verzinkt', 'zinc', 'cynk', 'fz'],
+        'ZM': ['zinkmagnesium', 'magnelis', 'zm'],
+        'SF': ['sendzimir', 'sf'],
+    }
 
 
 def extract_project_from_query(query: str) -> Optional[str]:
