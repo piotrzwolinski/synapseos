@@ -1,0 +1,303 @@
+{
+  "name": "hc_hospital_leakage_class",
+  "description": "[HC] Surgical ward + GDB-FZ → BLOCK (bolted, hygiene), pivot GDMI-ZM",
+  "query": "Surgical ward supply air. Airflow: 3400 m³/h. Duct 600x600 mm. Can we use GDB-FZ?",
+  "session_id": "388365d0-d780-436c-8e71-c1f0ad848961",
+  "duration_s": 64.7,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "Surgical ward supply air. Airflow: 3400 m³/h. Duct 600x600 mm. Can we use GDB-FZ?",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T14:01:51.249140+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "For the surgical ward supply air application, the GDB filter housing with FZ (C3) material is not suitable.The hospital environment exposes the system to Hygiene Requirements, and VDI 6022 recommends C5 corrosion resistance (stainless steel) for hygienic surfaces. The GDB housing itself has corrosion class C2.Therefore, this configuration is BLOCKED because the single-wall uninsulated construction of the GDB filter is not rated for ENV_HOSPITAL installation, which requires higher leakage class and hygiene standards.A verified alternative is the GDMI Modulfilterskåp, which is approved for ENV_HOSPITAL environments.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T14:02:06.210439+00:00",
+      "clarification": null,
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [
+        {
+          "type": "WARNING",
+          "text": "Blocked"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 5.0,
+          "explanation": "The system correctly identifies a critical mismatch between the product (GDB) and the application (Surgical Ward). It applies sound engineering judgment regarding hygiene requirements (VDI 6022) and corrosion resistance, correctly blocking the uninsulated C2 housing. It suggests the correct alternative (GDMI) which is insulated and capable of meeting the requirements.",
+          "dimension_explanations": {
+            "correctness": "Correctly identifies GDB as C2 class and uninsulated (PDF p.8) and GDMI as the insulated alternative (PDF p.11).",
+            "completeness": "Directly answers the user's question with a clear 'No', explains why, and provides a valid alternative.",
+            "safety": "Excellent risk awareness; blocking a basic uninsulated housing for a surgical supply application prevents hygiene and condensation risks.",
+            "tone": "Professional and authoritative.",
+            "reasoning_quality": "The logic linking surgical wards to hygiene requirements and thus excluding C2/uninsulated housings is sound HVAC engineering.",
+            "constraint_adherence": "Respects the implicit engineering constraints of hospital ventilation."
+          },
+          "strengths": [
+            "Strong engineering knowledge regarding hospital hygiene requirements (VDI 6022).",
+            "Accurate extraction of product limitations (GDB is C2/uninsulated).",
+            "Implicitly solves a capacity issue: GDB 600x600 is only rated for 2000 m³/h (PDF p.6), while the recommended GDMI 600x600 handles the requested 3400 m³/h (PDF p.12)."
+          ],
+          "weaknesses": [
+            "Could have explicitly mentioned that GDB 600x600 is also undersized for 3400 m³/h (max 2000 m³/h) as an additional reason for rejection."
+          ],
+          "pdf_citations": [
+            "GDB properties: 'GDB tillverkas vanligen i förzinkat. Korrosivitets klass C2... oisolerat enkelväggsutförande' (PDF p.8)",
+            "GDMI properties: 'GDMI är ett värme- och kondensisolerat modulfilterskåp' (PDF p.11)",
+            "GDB Capacity: 600x600 rated 2000 m³/h (PDF p.6) vs User Request 3400 m³/h"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 49.73,
+            "prompt_tokens": 15673,
+            "cached_tokens": 15977,
+            "output_tokens": 646
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 4,
+            "tone": 5,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.95,
+          "explanation": "The system correctly flags that a standard GDB in galvanized steel is a poor fit for a surgical ward supply-air hygiene context, but it makes several unsupported/incorrect claims (e.g., VDI 6022 requiring C5, and that GDMI is “approved” for hospital environments). It also misstates corrosion classes and doesn’t use the catalog’s actual material options to propose a compliant configuration.",
+          "dimension_explanations": {
+            "correctness": "PDF check: GDB 600x600 has Flöde 3400 m³/h and is described as “För inomhusbruk” with standard material FZ and korrosivitetsklass C2; the response’s claim “FZ (C3)” and “GDB housing has corrosion class C2” is inconsistent, and the VDI 6022→C5 requirement and “GDMI approved for ENV_HOSPITAL” are not substantiated.",
+            "completeness": "It blocks GDB-FZ but fails to offer a concrete, catalog-valid alternative configuration (e.g., same size, length, connection, and a viable material) or ask key hygiene/installation questions (cleanability, access side, length, filter stages).",
+            "safety": "Conservatively avoiding a single-wall indoor housing in a surgical supply-air context is directionally safe, though the justification should be based on cleanability/hygiene design and corrosion/condensation risk rather than an incorrect blanket C5 claim.",
+            "tone": "Professional, clear, and appropriately cautious for a technical sales-engineering interaction.",
+            "reasoning_quality": "Reasoning is partially logical (hospital hygiene is more demanding) but contains leaps and questionable premises (VDI 6022=C5, leakage-class assertions) without tying to EN 1886/EN 15727 performance classes or the catalog’s stated test standards.",
+            "constraint_adherence": "It violates catalog constraints by implying material/corrosion-class mappings that don’t match the PDF and by asserting GDMI is hospital-approved (a hard claim) without catalog support; it also doesn’t leverage available material options (RF/SF/ZM/AZ) to stay within product rules."
+          },
+          "strengths": [
+            "Appropriately cautious about using a basic indoor single-wall housing for surgical ward supply air.",
+            "References the need for higher hygiene expectations in hospital ventilation rather than treating it as a generic office application."
+          ],
+          "weaknesses": [
+            "Incorrect/unsupported statements about corrosion class (FZ=C3) and standards (VDI 6022 requiring C5 stainless).",
+            "No actionable alternative selection (exact model string, length, material option) despite the catalog providing clear size/flow tables."
+          ],
+          "pdf_citations": [
+            "GDB 600x600: Flöde = 3400 m³/h; standard lengths 550/600 and 750/800; described as “För inomhusbruk” and “tillverkas vanligen i förzinkat. Korrosivitets klass C2” (GDB section/table in provided PDF images).",
+            "Material page: Förzinkat Z275 is stated as korrosivitetsklass C3; Rostfri EN 1.4301 (RF) korrosivitetsklass C5; ZM310 korrosivitetsklass C5 (Material page in provided PDF images)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 16.43,
+            "attempt": 1,
+            "prompt_tokens": 37049,
+            "cached_tokens": 32256,
+            "output_tokens": 795
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBsV1MZ7ZDE4Q9eLMrfe'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB + Hospital",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Verified alternatives: GDMI Modulfilterskåp",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 3 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "FZ",
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": "FZ",
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "installation_environment": "ENV_HOSPITAL",
+          "detected_application": "APP_HOSPITAL",
+          "airflow_m3h": "3400",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": 3400,
+            "product_family": "GDB",
+            "product_code": "GDB-600x600-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": "Hospital",
+        "warnings_count": 1,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "388365d0-d780-436c-8e71-c1f0ad848961",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDB",
+          "locked_material": "FZ",
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"installation_environment\": \"ENV_HOSPITAL\", \"detected_application\": \"APP_HOSPITAL\", \"airflow_m3h\": \"3400\", \"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "quantity": 1,
+            "airflow_m3h": 3400,
+            "session_id": "388365d0-d780-436c-8e71-c1f0ad848961",
+            "filter_height": 600,
+            "product_code": "GDB-600x600-R-PG-FZ",
+            "housing_width": 600,
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_388365d0-d780-436c-8e71-c1f0ad848961_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to FZ -> Filter 600x600mm -> Sized to 600x600 -> Code: GDB-600x600-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "For the surgical ward supply air application, the GDB filter housing with FZ (C3) material is not suitable.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The hospital environment exposes the system to ",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Hygiene Requirements",
+          "type": "INFERENCE",
+          "inference_logic": "Hospital environment requires high hygiene standards.",
+          "key_specs": []
+        },
+        {
+          "text": ", and VDI 6022 recommends C5 corrosion resistance (stainless steel) for hygienic surfaces. The GDB housing itself has corrosion class C2.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Therefore, this configuration is BLOCKED because the single-wall uninsulated construction of the GDB filter is not rated for ENV_HOSPITAL installation, which requires higher leakage class and hygiene standards.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "A verified alternative is the GDMI Modulfilterskåp, which is approved for ENV_HOSPITAL environments.",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

@@ -24,7 +24,7 @@ export function LogicRuleCard({ rule }: LogicRuleCardProps) {
       <div className="px-6 py-4 border-b border-slate-700/50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center shadow-lg shadow-green-600/30">
               <Brain className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -64,9 +64,9 @@ export function LogicRuleCard({ rule }: LogicRuleCardProps) {
             </span>
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-blue-500/10 border border-blue-500/30">
-              <Zap className="w-4 h-4 text-blue-400 flex-shrink-0" />
-              <span className="text-sm text-blue-200 font-medium">
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-green-500/10 border border-green-600/30">
+              <Zap className="w-4 h-4 text-green-500 flex-shrink-0" />
+              <span className="text-sm text-green-200 font-medium">
                 {rule.trigger}
               </span>
             </div>

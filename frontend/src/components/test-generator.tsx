@@ -73,9 +73,9 @@ type WizardStep = "configure" | "debate" | "review";
 
 const CATEGORY_COLORS: Record<string, string> = {
   env: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400",
-  assembly: "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400",
+  assembly: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-500",
   atex: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
-  sizing: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400",
+  sizing: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-500",
   material: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
   positive: "bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400",
   clarification: "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400",
@@ -83,7 +83,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const PROVIDER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   openai: { bg: "bg-green-50 dark:bg-green-900/20", text: "text-green-700 dark:text-green-400", border: "border-green-200 dark:border-green-800" },
-  gemini: { bg: "bg-blue-50 dark:bg-blue-900/20", text: "text-blue-700 dark:text-blue-400", border: "border-blue-200 dark:border-blue-800" },
+  gemini: { bg: "bg-green-50 dark:bg-green-900/20", text: "text-green-800 dark:text-green-500", border: "border-green-200 dark:border-green-800" },
   anthropic: { bg: "bg-orange-50 dark:bg-orange-900/20", text: "text-orange-700 dark:text-orange-400", border: "border-orange-200 dark:border-orange-800" },
 };
 
@@ -424,7 +424,7 @@ export function TestGenerator() {
                 }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   step === s.key
-                    ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
+                    ? "bg-green-100 dark:bg-green-950/30 text-green-800 dark:text-green-500"
                     : steps.findIndex((st) => st.key === step) > i
                     ? "bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400"
                     : "bg-slate-50 dark:bg-slate-800 text-slate-400"
@@ -489,7 +489,7 @@ export function TestGenerator() {
                                 return next;
                               });
                             }}
-                            className="w-4 h-4 accent-purple-600"
+                            className="w-4 h-4 accent-green-700"
                           />
                           <div>
                             <span className={`text-sm font-medium ${pk.configured ? colors.text : "text-slate-400"}`}>
@@ -532,7 +532,7 @@ export function TestGenerator() {
                       max={30}
                       value={targetCount}
                       onChange={(e) => setTargetCount(Number(e.target.value))}
-                      className="w-full accent-purple-600"
+                      className="w-full accent-green-700"
                     />
                     <div className="flex justify-between text-xs text-slate-400">
                       <span>5</span>
@@ -550,7 +550,7 @@ export function TestGenerator() {
                           onClick={() => setCategoryFocus(cat)}
                           className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                             categoryFocus === cat
-                              ? "bg-purple-600 text-white"
+                              ? "bg-green-700 text-white"
                               : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                           }`}
                         >
@@ -566,7 +566,7 @@ export function TestGenerator() {
                 <button
                   onClick={startDebate}
                   disabled={selectedProviders.size === 0}
-                  className="px-6 py-2 rounded-lg bg-purple-600 text-white font-medium text-sm hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  className="px-6 py-2 rounded-lg bg-green-700 text-white font-medium text-sm hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                 >
                   <Play className="w-4 h-4" />
                   Start Debate ({selectedProviders.size} LLMs)
@@ -603,7 +603,7 @@ export function TestGenerator() {
                     <div
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
                         debatePhase === phase
-                          ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 ring-2 ring-purple-300 dark:ring-purple-700"
+                          ? "bg-green-100 dark:bg-green-950/30 text-green-800 dark:text-green-500 ring-2 ring-green-300 dark:ring-green-700"
                           : debatePhase === "complete" || steps.findIndex((s) => s.key === "debate") < ["generation", "critique", "synthesis"].indexOf(debatePhase)
                           ? "bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400"
                           : "bg-slate-100 dark:bg-slate-800 text-slate-400"
@@ -627,7 +627,7 @@ export function TestGenerator() {
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-2">
                           <span className={`text-sm font-semibold ${colors.text}`}>{ps.label}</span>
-                          {ps.status === "active" && <Loader2 className="w-4 h-4 animate-spin text-purple-500" />}
+                          {ps.status === "active" && <Loader2 className="w-4 h-4 animate-spin text-green-600" />}
                           {ps.status === "complete" && <CheckCircle2 className="w-4 h-4 text-green-500" />}
                           {ps.status === "error" && <AlertCircle className="w-4 h-4 text-red-500" />}
                         </div>
@@ -669,7 +669,7 @@ export function TestGenerator() {
                       );
                     })}
                     {isStreaming && (
-                      <div className="flex items-center gap-2 text-xs text-purple-500">
+                      <div className="flex items-center gap-2 text-xs text-green-600">
                         <Loader2 className="w-3 h-3 animate-spin" />
                         <span>Streaming...</span>
                       </div>
@@ -683,7 +683,7 @@ export function TestGenerator() {
                 <div className="flex justify-end">
                   <button
                     onClick={() => setStep("review")}
-                    className="px-4 py-2 rounded-lg bg-purple-600 text-white font-medium text-sm hover:bg-purple-700 transition-colors"
+                    className="px-4 py-2 rounded-lg bg-green-700 text-white font-medium text-sm hover:bg-green-800 transition-colors"
                   >
                     Review {finalTests.length} Test Cases
                   </button>
@@ -735,7 +735,7 @@ export function TestGenerator() {
                   <Card
                     key={test.id}
                     className={`cursor-pointer transition-all ${
-                      selectedTests.has(test.id) ? "ring-2 ring-purple-300 border-purple-200" : ""
+                      selectedTests.has(test.id) ? "ring-2 ring-green-300 border-green-200" : ""
                     }`}
                   >
                     <div
@@ -747,7 +747,7 @@ export function TestGenerator() {
                           type="checkbox"
                           checked={selectedTests.has(test.id)}
                           onChange={(e) => { e.stopPropagation(); toggleTest(test.id); }}
-                          className="w-4 h-4 accent-purple-600 flex-shrink-0"
+                          className="w-4 h-4 accent-green-700 flex-shrink-0"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">

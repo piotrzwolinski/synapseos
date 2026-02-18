@@ -339,7 +339,7 @@ export function ExpertReview() {
                   className={cn(
                     "w-full text-left p-3 rounded-lg border transition-colors",
                     selectedId === c.session_id
-                      ? "bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800"
+                      ? "bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800"
                       : "bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-slate-600 dark:hover:bg-slate-700/50"
                   )}
                 >
@@ -468,15 +468,15 @@ export function ExpertReview() {
                           )}
                         >
                           {!isUser && (
-                            <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                              <Bot className="w-4 h-4 text-blue-600" />
+                            <div className="w-7 h-7 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <Bot className="w-4 h-4 text-green-700" />
                             </div>
                           )}
                           <div
                             className={cn(
                               "max-w-[85%] rounded-lg px-3 py-2 text-sm",
                               isUser
-                                ? "bg-blue-600 text-white"
+                                ? "bg-green-700 text-white"
                                 : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
                             )}
                           >

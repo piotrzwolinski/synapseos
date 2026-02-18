@@ -22,12 +22,12 @@ import { apiUrl, authFetch } from "@/lib/api";
 
 // Tab configuration with colors matching the graph visualization
 const TABS = [
-  { id: "projects", label: "Projects", icon: Folder, color: "#3b82f6" },
+  { id: "projects", label: "Projects", icon: Folder, color: "#5B8C3E" },
   { id: "products", label: "Products", icon: Package, color: "#22c55e" },
   { id: "competitors", label: "Competitors", icon: Users, color: "#ef4444" },
   { id: "concepts", label: "Concepts", icon: Lightbulb, color: "#a855f7" },
   { id: "observations", label: "Observations", icon: Eye, color: "#f59e0b" },
-  { id: "actions", label: "Actions", icon: Zap, color: "#06b6d4" },
+  { id: "actions", label: "Actions", icon: Zap, color: "#059669" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -524,7 +524,7 @@ function DetailPanel({ item, tab, tabColor, onNavigate }: DetailPanelProps) {
                 "Projects",
                 <div className="flex flex-wrap">
                   {action.projects.filter(Boolean).map((p) =>
-                    renderBadge(p, "#3b82f6", () => onNavigate("projects", p))
+                    renderBadge(p, "#5B8C3E", () => onNavigate("projects", p))
                   )}
                 </div>
               )}

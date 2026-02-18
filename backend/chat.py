@@ -1,25 +1,18 @@
-import os
 import json
 import re
 import logging
 import time
 import threading
-from google import genai
-from google.genai import types
-from dotenv import load_dotenv
 
 from database import db
 from embeddings import generate_embedding
 from retriever import format_retrieval_context, extract_project_keywords, format_configuration_context, extract_product_codes
 from config_loader import get_config
+from llm_router import llm_call, DEFAULT_MODEL
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("chat")
-
-load_dotenv(dotenv_path="../.env")
-
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 # JSON Output Schema Documentation
 OUTPUT_SCHEMA = """
@@ -948,13 +941,11 @@ Return ONLY valid JSON (no markdown, no explanation outside JSON):
         """Send a message and get a response from Gemini with GraphRAG context."""
         logger.info(f"💬 New message: {message[:80]}...")
 
-        # Build conversation contents
-        contents = []
+        # Build conversation history as text
+        history_text = ""
         for item in self.chat_history:
-            contents.append(types.Content(
-                role=item["role"],
-                parts=[types.Part.from_text(text=item["parts"][0])]
-            ))
+            role = "User" if item["role"] == "user" else "Assistant"
+            history_text += f"\n{role}: {item['parts'][0]}\n"
 
         # Prepare the user message with GraphRAG context
         graph_context = ""
@@ -991,24 +982,20 @@ Return ONLY valid JSON (no markdown, no explanation outside JSON):
 
 {"Use reference_case widgets to cite the historical data above." if has_graph_data else "No historical cases to cite. Provide general guidance in summary."}"""
 
-        contents.append(types.Content(
-            role="user",
-            parts=[types.Part.from_text(text=user_message)]
-        ))
+        full_prompt = history_text + "\n" + user_message if history_text else user_message
 
-        logger.info(f"🤖 Calling Gemini ({self.model_name})...")
-        config_kwargs = {"system_instruction": SALES_ASSISTANT_SYSTEM_PROMPT}
-        # Only use thinking_config for Gemini 3 models (2.0 doesn't support it)
-        if self.thinking_level and "gemini-3" in self.model_name:
-            config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=self.thinking_level)
-        response = client.models.generate_content(
+        logger.info(f"🤖 Calling LLM ({self.model_name})...")
+        result = llm_call(
             model=self.model_name,
-            contents=contents,
-            config=types.GenerateContentConfig(**config_kwargs),
+            user_prompt=full_prompt,
+            system_prompt=SALES_ASSISTANT_SYSTEM_PROMPT,
+            json_mode=True,
         )
+        if result.error:
+            raise Exception(result.error)
 
-        response_text = response.text
-        logger.info(f"✅ Gemini response received ({len(response_text)} chars)")
+        response_text = result.text
+        logger.info(f"✅ LLM response received ({len(response_text)} chars)")
 
         # Clean up response - extract JSON if wrapped in markdown
         response_text = self._extract_json(response_text)
@@ -1099,13 +1086,11 @@ Return ONLY valid JSON (no markdown, no explanation outside JSON):
         """Send a message with pre-computed graph context (for streaming)."""
         logger.info(f"💬 New message (with context): {message[:80]}...")
 
-        # Build conversation contents
-        contents = []
+        # Build conversation history as text
+        history_text = ""
         for item in self.chat_history:
-            contents.append(types.Content(
-                role=item["role"],
-                parts=[types.Part.from_text(text=item["parts"][0])]
-            ))
+            role = "User" if item["role"] == "user" else "Assistant"
+            history_text += f"\n{role}: {item['parts'][0]}\n"
 
         has_graph_data = graph_context and graph_context != "No relevant past cases found in the knowledge base."
 
@@ -1136,31 +1121,26 @@ Return ONLY valid JSON (no markdown, no explanation outside JSON):
 
 {"Use reference_case widgets to cite the historical data above." if has_graph_data else "No historical cases to cite. Provide general guidance in summary."}"""
 
-        contents.append(types.Content(
-            role="user",
-            parts=[types.Part.from_text(text=user_message)]
-        ))
+        full_prompt = history_text + "\n" + user_message if history_text else user_message
 
-        logger.info(f"🤖 Calling Gemini ({self.model_name}, thinking={self.thinking_level})...")
-        t_gemini = time.time()
+        logger.info(f"🤖 Calling LLM ({self.model_name})...")
+        t_llm = time.time()
 
         # Retry logic for rate limiting
         max_retries = 3
         retry_delay = 2
         last_error = None
 
-        config_kwargs = {"system_instruction": SALES_ASSISTANT_SYSTEM_PROMPT}
-        # Only use thinking_config for Gemini 3 models (2.0 doesn't support it)
-        if self.thinking_level and "gemini-3" in self.model_name:
-            config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=self.thinking_level)
-
         for attempt in range(max_retries):
             try:
-                response = client.models.generate_content(
+                result = llm_call(
                     model=self.model_name,
-                    contents=contents,
-                    config=types.GenerateContentConfig(**config_kwargs),
+                    user_prompt=full_prompt,
+                    system_prompt=SALES_ASSISTANT_SYSTEM_PROMPT,
+                    json_mode=True,
                 )
+                if result.error:
+                    raise Exception(result.error)
                 break  # Success, exit retry loop
             except Exception as e:
                 last_error = e
@@ -1177,13 +1157,13 @@ Return ONLY valid JSON (no markdown, no explanation outside JSON):
         else:
             # All retries exhausted
             logger.error(f"❌ API rate limit exceeded after {max_retries} attempts")
-            raise Exception(f"API rate limit exceeded. Please try again in a few seconds or switch to Flash model. Error: {last_error}")
+            raise Exception(f"API rate limit exceeded. Please try again in a few seconds. Error: {last_error}")
 
-        gemini_time = time.time() - t_gemini
+        llm_time = time.time() - t_llm
 
-        response_text = response.text
-        logger.info(f"✅ Gemini response received ({len(response_text)} chars)")
-        logger.info(f"⏱️ TIMING gemini_api ({self.model_name}, {self.thinking_level}): {gemini_time:.2f}s")
+        response_text = result.text
+        logger.info(f"✅ LLM response received ({len(response_text)} chars)")
+        logger.info(f"⏱️ TIMING llm_api ({self.model_name}): {llm_time:.2f}s")
 
         # Clean up response
         response_text = self._extract_json(response_text)
@@ -1253,15 +1233,8 @@ Return ONLY valid JSON (no markdown, no explanation outside JSON):
         # =====================================================================
         # STEP 1: Build full conversation history (THE PROJECT LEDGER)
         # =====================================================================
-        contents = []
-        for item in self.chat_history:
-            contents.append(types.Content(
-                role=item["role"],
-                parts=[types.Part.from_text(text=item["parts"][0])]
-            ))
-
         # =====================================================================
-        # STEP 2: Build CATALOG_KNOWLEDGE context injection
+        # STEP 1 (continued): Build CATALOG_KNOWLEDGE context injection
         # =====================================================================
         catalog_context_str = ""
         if graph_data:
@@ -1364,16 +1337,11 @@ Use this for EXACT weights. Key format: "WIDTHxHEIGHTxLENGTH"
 Return ONLY valid JSON. No markdown, no code blocks.
 """
 
-        contents.append(types.Content(
-            role="user",
-            parts=[types.Part.from_text(text=user_prompt)]
-        ))
-
         # =====================================================================
         # STEP 4: Call LLM with Zero-Hallucination system prompt
         # =====================================================================
-        logger.info(f"🤖 [LLM-DRIVEN] Calling Gemini ({self.model_name})...")
-        t_gemini = time.time()
+        logger.info(f"🤖 [LLM-DRIVEN] Calling LLM ({self.model_name})...")
+        t_llm = time.time()
 
         # Use the new LLM-driven system prompt
         llm_driven_prompt = get_llm_driven_system_prompt()
@@ -1388,14 +1356,14 @@ Return ONLY valid JSON. No markdown, no code blocks.
 
         for attempt in range(max_retries):
             try:
-                response = client.models.generate_content(
+                result = llm_call(
                     model=self.model_name,
-                    contents=contents,
-                    config=types.GenerateContentConfig(
-                        system_instruction=llm_driven_prompt,
-                        response_mime_type="application/json",  # Force JSON output
-                    ),
+                    user_prompt=user_prompt,
+                    system_prompt=llm_driven_prompt,
+                    json_mode=True,
                 )
+                if result.error:
+                    raise Exception(result.error)
                 break
             except Exception as e:
                 last_error = e
@@ -1411,13 +1379,13 @@ Return ONLY valid JSON. No markdown, no code blocks.
         else:
             raise Exception(f"API rate limit exceeded: {last_error}")
 
-        gemini_time = time.time() - t_gemini
-        logger.info(f"⏱️ [LLM-DRIVEN] Gemini response in {gemini_time:.2f}s")
+        llm_time = time.time() - t_llm
+        logger.info(f"⏱️ [LLM-DRIVEN] LLM response in {llm_time:.2f}s")
 
         # =====================================================================
         # STEP 5: Process response and update history
         # =====================================================================
-        response_text = response.text
+        response_text = result.text
         response_text = self._extract_json(response_text)
         response_text = self._validate_and_fix_json(response_text, message)
 

@@ -23,7 +23,7 @@ const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-full bg-slate-900">
-      <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+      <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
     </div>
   ),
 });
@@ -133,8 +133,8 @@ function classifyNode(labels: string[]): "inventory" | "domain" | "playbook" | "
 
 const LAYER_STYLES = {
   inventory: {
-    color: "#3b82f6", // Blue
-    glowColor: "#60a5fa",
+    color: "#5B8C3E", // Blue
+    glowColor: "#7CB356",
     ghostColor: "#1e3a5f",
     label: "Inventory",
     icon: Database,
@@ -262,8 +262,8 @@ function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
 
         {/* Active indicator */}
         {node.isActive && (
-          <div className="mt-4 px-3 py-2 bg-cyan-500/20 border border-cyan-500/30 rounded-lg">
-            <p className="text-xs text-cyan-400 font-medium">
+          <div className="mt-4 px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg">
+            <p className="text-xs text-emerald-400 font-medium">
               Active in current inference
             </p>
           </div>
@@ -515,7 +515,7 @@ export function GlobalGraphViewer({
       // Style based on active state - make ghost links more visible
       const alpha = link.isActive ? 0.8 : 0.2;
       const width = link.isActive ? 2 : 0.5;
-      const color = link.isActive ? "#06b6d4" : "#475569";
+      const color = link.isActive ? "#059669" : "#475569";
 
       ctx.globalAlpha = alpha;
       ctx.strokeStyle = color;
@@ -547,7 +547,7 @@ export function GlobalGraphViewer({
         style={{ height }}
       >
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-cyan-400 mx-auto mb-3" />
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-400 mx-auto mb-3" />
           <p className="text-sm text-slate-400">Loading Knowledge Graph...</p>
         </div>
       </div>
@@ -625,7 +625,7 @@ export function GlobalGraphViewer({
       {/* Header Controls */}
       <div className="absolute top-4 left-4 flex items-center gap-2 z-20">
         <div className="px-3 py-1.5 bg-slate-800/90 backdrop-blur-sm rounded-lg border border-slate-700">
-          <span className="text-xs font-semibold text-cyan-400">
+          <span className="text-xs font-semibold text-emerald-400">
             Global Knowledge Map
           </span>
         </div>
@@ -636,8 +636,8 @@ export function GlobalGraphViewer({
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors",
             focusMode
-              ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-400"
-              : "bg-purple-500/20 border-purple-500/50 text-purple-400"
+              ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
+              : "bg-green-500/20 border-green-600/50 text-green-500"
           )}
         >
           {focusMode ? (
@@ -713,10 +713,10 @@ export function GlobalGraphViewer({
           </div>
           <div className="w-px h-4 bg-slate-700" />
           <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee]" />
+            <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
             <span className="text-xs text-slate-400">
               Active Context:{" "}
-              <span className="text-cyan-400 font-semibold">{stats.active}</span>{" "}
+              <span className="text-emerald-400 font-semibold">{stats.active}</span>{" "}
               nodes
             </span>
           </div>

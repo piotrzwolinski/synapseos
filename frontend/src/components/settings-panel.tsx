@@ -121,8 +121,8 @@ function PromptViewer({ title, content, description }: { title: string; content:
   const hasMore = lines.length > 5;
 
   return (
-    <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/20 overflow-hidden">
-      <div className="p-3 bg-indigo-50 dark:bg-indigo-950/30 border-b border-indigo-100 dark:border-indigo-800 flex items-center justify-between">
+    <div className="rounded-lg border border-green-100 dark:border-green-800 bg-green-50/30 dark:bg-green-950/20 overflow-hidden">
+      <div className="p-3 bg-green-50 dark:bg-green-950/30 border-b border-green-100 dark:border-green-800 flex items-center justify-between">
         <div>
           <h4 className="font-medium text-slate-800 dark:text-slate-200">{title}</h4>
           <p className="text-xs text-slate-500 dark:text-slate-400">{description}</p>
@@ -142,7 +142,7 @@ function PromptViewer({ title, content, description }: { title: string; content:
         {hasMore && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="mt-2 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium"
+            className="mt-2 text-xs text-green-700 dark:text-green-500 hover:text-green-800 dark:hover:text-green-300 font-medium"
           >
             {expanded ? "Show less" : `Show all ${lines.length} lines`}
           </button>
@@ -277,7 +277,7 @@ export function SettingsPanel() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-blue-500" />
+                <Building2 className="w-4 h-4 text-green-600" />
                 Active Domain
               </CardTitle>
               <CardDescription>Switch between configured client domains</CardDescription>
@@ -293,16 +293,16 @@ export function SettingsPanel() {
                       disabled={switching}
                       className={`p-4 rounded-xl border-2 text-left transition-all ${
                         isActive
-                          ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
+                          ? "border-green-600 bg-green-50 dark:bg-green-950/30"
                           : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50"
                       }`}
                     >
                       <div className="flex items-start justify-between">
-                        <div className={`p-2 rounded-lg ${isActive ? "bg-blue-100 dark:bg-blue-900/40" : "bg-slate-100 dark:bg-slate-700"}`}>
+                        <div className={`p-2 rounded-lg ${isActive ? "bg-green-100 dark:bg-green-900/40" : "bg-slate-100 dark:bg-slate-700"}`}>
                           {getDomainIcon(domain.id)}
                         </div>
                         {isActive && (
-                          <Badge className="bg-blue-500 text-white">Active</Badge>
+                          <Badge className="bg-green-500 text-white">Active</Badge>
                         )}
                       </div>
                       <div className="mt-3">
@@ -379,9 +379,9 @@ export function SettingsPanel() {
                 {expandedSections.has("guardian") && (
                   <CardContent className="pt-0">
                     <div className="grid grid-cols-4 gap-3 mb-4">
-                      <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
-                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{config.guardian_rules.material_count}</p>
-                        <p className="text-xs text-blue-600 dark:text-blue-400">Materials</p>
+                      <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
+                        <p className="text-2xl font-bold text-green-700 dark:text-green-500">{config.guardian_rules.material_count}</p>
+                        <p className="text-xs text-green-700 dark:text-green-500">Materials</p>
                       </div>
                       <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800">
                         <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{config.guardian_rules.environment_count}</p>
@@ -391,9 +391,9 @@ export function SettingsPanel() {
                         <p className="text-2xl font-bold text-green-600 dark:text-green-400">{config.guardian_rules.product_rules_count}</p>
                         <p className="text-xs text-green-600 dark:text-green-400">Products</p>
                       </div>
-                      <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800">
-                        <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{config.guardian_rules.accessory_rules_count}</p>
-                        <p className="text-xs text-purple-600 dark:text-purple-400">Accessories</p>
+                      <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-800">
+                        <p className="text-2xl font-bold text-green-700 dark:text-green-500">{config.guardian_rules.accessory_rules_count}</p>
+                        <p className="text-xs text-green-700 dark:text-green-500">Accessories</p>
                       </div>
                     </div>
                   </CardContent>
@@ -408,7 +408,7 @@ export function SettingsPanel() {
                 >
                   <CardHeader className="pb-3 flex flex-row items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <FlaskConical className="w-4 h-4 text-blue-500" />
+                      <FlaskConical className="w-4 h-4 text-green-600" />
                       <CardTitle className="text-base">Material Classes</CardTitle>
                       <Badge variant="outline" className="ml-2">{config.materials.length}</Badge>
                     </div>
@@ -425,7 +425,7 @@ export function SettingsPanel() {
                       {config.materials.map((mat) => (
                         <div key={mat.code} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50">
                           <div className="flex items-center gap-3">
-                            <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-mono">{mat.code}</Badge>
+                            <Badge className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-500 font-mono">{mat.code}</Badge>
                             <span className="text-sm text-slate-700 dark:text-slate-300">{mat.name}</span>
                           </div>
                           <Badge variant="outline">{mat.class}</Badge>
@@ -534,7 +534,7 @@ export function SettingsPanel() {
                 >
                   <CardHeader className="pb-3 flex flex-row items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Database className="w-4 h-4 text-purple-500" />
+                      <Database className="w-4 h-4 text-green-600" />
                       <CardTitle className="text-base">Sample Questions</CardTitle>
                       <Badge variant="outline" className="ml-2">
                         {Object.keys(config.sample_questions).length} categories
@@ -579,7 +579,7 @@ export function SettingsPanel() {
                 >
                   <CardHeader className="pb-3 flex flex-row items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-indigo-500" />
+                      <FileText className="w-4 h-4 text-green-600" />
                       <CardTitle className="text-base">System Prompts</CardTitle>
                       <Badge variant="outline" className="ml-2">3 prompts</Badge>
                     </div>
@@ -620,7 +620,7 @@ export function SettingsPanel() {
                   >
                     <CardHeader className="pb-3 flex flex-row items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Code className="w-4 h-4 text-cyan-500" />
+                        <Code className="w-4 h-4 text-emerald-500" />
                         <CardTitle className="text-base">Warning Templates</CardTitle>
                         <Badge variant="outline" className="ml-2">
                           {Object.keys(config.prompt_templates).length} templates

@@ -683,10 +683,10 @@ export default function BulkOffer() {
     >
       {/* Drag overlay */}
       {isDragging && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm border-2 border-dashed border-violet-500 rounded-lg">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm border-2 border-dashed border-green-600 rounded-lg">
           <div className="text-center">
-            <FileSpreadsheet className="w-16 h-16 text-violet-500 mx-auto mb-3" />
-            <p className="text-lg font-medium text-violet-500">
+            <FileSpreadsheet className="w-16 h-16 text-green-700 mx-auto mb-3" />
+            <p className="text-lg font-medium text-green-700">
               Drop Excel or PDF file here
             </p>
           </div>
@@ -695,7 +695,7 @@ export default function BulkOffer() {
 
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b bg-card">
-        <Package className={cn("w-5 h-5", mode === "cross_reference" ? "text-orange-500" : "text-violet-500")} />
+        <Package className={cn("w-5 h-5", mode === "cross_reference" ? "text-orange-500" : "text-green-700")} />
         <h2 className="font-semibold text-sm">Bulk Offer Creator</h2>
         {/* Mode toggle */}
         <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
@@ -704,7 +704,7 @@ export default function BulkOffer() {
             className={cn(
               "px-2.5 py-1 text-xs rounded transition-colors flex items-center gap-1",
               mode === "standard"
-                ? "bg-violet-600 text-white"
+                ? "bg-green-700 text-white"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -779,7 +779,7 @@ export default function BulkOffer() {
             <div className="flex justify-end">
               <Button
                 onClick={handleSubmitClarifications}
-                className="bg-violet-600 hover:bg-violet-700"
+                className="bg-green-700 hover:bg-green-800"
               >
                 <Send className="w-4 h-4 mr-2" />
                 Submit answers & generate offer
@@ -828,7 +828,7 @@ export default function BulkOffer() {
             }
             className={cn(
               "flex-1 px-3 py-1.5 text-sm border rounded-md bg-background focus:outline-none focus:ring-1",
-              mode === "cross_reference" ? "focus:ring-orange-500" : "focus:ring-violet-500"
+              mode === "cross_reference" ? "focus:ring-orange-500" : "focus:ring-green-600"
             )}
             disabled={isLoading}
           />
@@ -860,8 +860,8 @@ export default function BulkOffer() {
 
 function EmptyState({ onUploadClick, mode }: { onUploadClick: () => void; mode: BulkOfferMode }) {
   const isXRef = mode === "cross_reference";
-  const accentColor = isXRef ? "text-orange-500" : "text-violet-500";
-  const btnClass = isXRef ? "bg-orange-600 hover:bg-orange-700" : "bg-violet-600 hover:bg-violet-700";
+  const accentColor = isXRef ? "text-orange-500" : "text-green-700";
+  const btnClass = isXRef ? "bg-orange-600 hover:bg-orange-700" : "bg-green-700 hover:bg-green-800";
 
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -949,9 +949,9 @@ function MessageBubble({
       {!isUser && (
         <div className={cn(
           "w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-1",
-          isXRef ? "bg-orange-500/10" : "bg-violet-500/10"
+          isXRef ? "bg-orange-500/10" : "bg-green-600/10"
         )}>
-          <Bot className={cn("w-4 h-4", isXRef ? "text-orange-500" : "text-violet-500")} />
+          <Bot className={cn("w-4 h-4", isXRef ? "text-orange-500" : "text-green-700")} />
         </div>
       )}
 
@@ -959,7 +959,7 @@ function MessageBubble({
         className={cn(
           "max-w-[85%] rounded-lg px-4 py-3 text-sm",
           isUser
-            ? isXRef ? "bg-orange-600 text-white" : "bg-violet-600 text-white"
+            ? isXRef ? "bg-orange-600 text-white" : "bg-green-700 text-white"
             : "bg-card border"
         )}
       >
@@ -1020,7 +1020,7 @@ function MessageBubble({
       {isUser && (
         <div className={cn(
           "w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-1",
-          isXRef ? "bg-orange-600" : "bg-violet-600"
+          isXRef ? "bg-orange-600" : "bg-green-700"
         )}>
           <User className="w-4 h-4 text-white" />
         </div>
@@ -1188,9 +1188,9 @@ function LLMAnalysisCard({ analysis }: { analysis: LLMAnalysis }) {
       textClass: "text-amber-600 dark:text-amber-400",
     },
     info: {
-      dot: "bg-blue-500",
+      dot: "bg-green-500",
       label: "Info",
-      textClass: "text-blue-600 dark:text-blue-400",
+      textClass: "text-green-700 dark:text-green-500",
     },
   };
 
@@ -1198,12 +1198,12 @@ function LLMAnalysisCard({ analysis }: { analysis: LLMAnalysis }) {
   const reviewCount = findings.filter((f) => f.severity === "review").length;
 
   return (
-    <Card className="mt-3 p-3 border-l-4 border-violet-500/50 bg-violet-50/5">
+    <Card className="mt-3 p-3 border-l-4 border-green-600/50 bg-green-50/5">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-2 text-xs text-left"
       >
-        <Brain className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+        <Brain className="w-3.5 h-3.5 text-green-700 shrink-0" />
         <span className="font-medium text-sm">AI Analysis</span>
         {/* Severity summary pills */}
         {actionCount > 0 && (
@@ -1219,7 +1219,7 @@ function LLMAnalysisCard({ analysis }: { analysis: LLMAnalysis }) {
           </span>
         )}
         {findings.length > 0 && actionCount === 0 && reviewCount === 0 && (
-          <span className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded-full">
+          <span className="flex items-center gap-1 text-[10px] text-green-700 dark:text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded-full">
             <CheckCircle2 className="w-2.5 h-2.5" />
             All clear
           </span>
@@ -1284,9 +1284,9 @@ function EmailDraftCard({ draft }: { draft: { subject: string; body: string } })
   };
 
   return (
-    <Card className="mt-3 p-3 border-l-4 border-blue-500/50">
+    <Card className="mt-3 p-3 border-l-4 border-green-600/50">
       <div className="flex items-center gap-2 mb-2">
-        <Mail className="w-4 h-4 text-blue-500" />
+        <Mail className="w-4 h-4 text-green-600" />
         <span className="text-sm font-medium">Email Draft</span>
         <Button
           variant="ghost"
@@ -1343,10 +1343,10 @@ function GraphTracePopover({ trace }: { trace: GraphTrace }) {
       <button
         ref={buttonRef}
         onClick={handleOpen}
-        className="p-0.5 rounded hover:bg-violet-100 dark:hover:bg-violet-900/30"
+        className="p-0.5 rounded hover:bg-green-100 dark:hover:bg-green-900/30"
         title="View graph reasoning"
       >
-        <Network className="w-3 h-3 text-violet-500" />
+        <Network className="w-3 h-3 text-green-700" />
       </button>
 
       {open && (
@@ -1357,7 +1357,7 @@ function GraphTracePopover({ trace }: { trace: GraphTrace }) {
             style={{ top: Math.max(8, pos.top), left: Math.max(8, pos.left) }}
           >
             <div className="flex items-center gap-1.5 font-medium mb-2">
-              <Network className="w-3.5 h-3.5 text-violet-500" />
+              <Network className="w-3.5 h-3.5 text-green-700" />
               Graph Reasoning Trace
             </div>
 
@@ -1365,7 +1365,7 @@ function GraphTracePopover({ trace }: { trace: GraphTrace }) {
             <div className="space-y-1 mb-2">
               {trace.reasoning_steps.map((step, i) => (
                 <div key={i} className="flex items-start gap-1.5 text-muted-foreground">
-                  <span className="text-violet-500 font-mono shrink-0">{i + 1}.</span>
+                  <span className="text-green-700 font-mono shrink-0">{i + 1}.</span>
                   <span>{step}</span>
                 </div>
               ))}
@@ -1413,16 +1413,16 @@ function ClarificationCard({
   onChange: (value: string) => void;
 }) {
   const severityIcon = {
-    info: <HelpCircle className="w-4 h-4 text-blue-500" />,
+    info: <HelpCircle className="w-4 h-4 text-green-600" />,
     warning: <AlertTriangle className="w-4 h-4 text-amber-500" />,
     critical: <XCircle className="w-4 h-4 text-red-500" />,
-  }[clarification.severity] || <HelpCircle className="w-4 h-4 text-blue-500" />;
+  }[clarification.severity] || <HelpCircle className="w-4 h-4 text-green-600" />;
 
   const severityBorder = {
-    info: "border-blue-500/30",
+    info: "border-green-600/30",
     warning: "border-amber-500/30",
     critical: "border-red-500/30",
-  }[clarification.severity] || "border-blue-500/30";
+  }[clarification.severity] || "border-green-600/30";
 
   return (
     <Card className={cn("p-3 border-l-4", severityBorder)}>
@@ -1439,7 +1439,7 @@ function ClarificationCard({
             className={cn(
               "text-xs",
               selectedValue === opt.value &&
-                "bg-violet-600 hover:bg-violet-700 text-white"
+                "bg-green-700 hover:bg-green-800 text-white"
             )}
             onClick={() => onChange(opt.value)}
             title={opt.description}
@@ -1466,8 +1466,8 @@ function StreamingProgress({
 }) {
   return (
     <div className="flex gap-3">
-      <div className="w-7 h-7 rounded-full bg-violet-500/10 flex items-center justify-center shrink-0 mt-1">
-        <Loader2 className="w-4 h-4 text-violet-500 animate-spin" />
+      <div className="w-7 h-7 rounded-full bg-green-600/10 flex items-center justify-center shrink-0 mt-1">
+        <Loader2 className="w-4 h-4 text-green-700 animate-spin" />
       </div>
       <Card className="flex-1 p-3 border">
         {progress && (
@@ -1480,7 +1480,7 @@ function StreamingProgress({
             </div>
             <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
               <div
-                className="h-full bg-violet-500 rounded-full transition-all duration-300"
+                className="h-full bg-green-600 rounded-full transition-all duration-300"
                 style={{
                   width: `${(progress.current / progress.total) * 100}%`,
                 }}
@@ -1506,7 +1506,7 @@ function StreamingProgress({
                 {r.unit_id}: {r.duct} → {r.housing || r.detail}
               </span>
               {r.graph_trace && (
-                <Network className="w-3 h-3 text-violet-400 shrink-0" />
+                <Network className="w-3 h-3 text-green-500 shrink-0" />
               )}
               {r.warnings && r.warnings.length > 0 && (
                 <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" />
@@ -1593,7 +1593,7 @@ function OfferResultsTable({
                       Status
                     </th>
                     <th className="px-2 py-1.5 text-left font-medium w-8">
-                      <Network className="w-3 h-3 text-violet-500" />
+                      <Network className="w-3 h-3 text-green-700" />
                     </th>
                   </tr>
                 </thead>
@@ -1602,7 +1602,7 @@ function OfferResultsTable({
                     <tr key={r.row_id} className="border-b last:border-0">
                       <td className="px-2 py-1.5 font-mono">{r.unit_id}</td>
                       <td className="px-2 py-1.5 font-mono">{r.duct}</td>
-                      <td className="px-2 py-1.5 font-mono text-violet-600 dark:text-violet-400">
+                      <td className="px-2 py-1.5 font-mono text-green-700 dark:text-green-500">
                         {r.housing || "-"}
                       </td>
                       <td className="px-2 py-1.5 truncate max-w-[200px]">

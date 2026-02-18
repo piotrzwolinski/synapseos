@@ -584,8 +584,17 @@ def _call_system(question: str, session_id: str = None) -> dict:
 
     # Merge into a flat response dict the judge can evaluate
     response = complete_data.get("response", {})
+
+    # Assemble content_text from content_segments (retriever.py uses segments, not flat text)
+    content_text = response.get("content_text", "")
+    if not content_text:
+        segments = response.get("content_segments", [])
+        content_text = "\n\n".join(
+            s.get("text", "") for s in segments if s.get("text")
+        )
+
     return {
-        "content_text": response.get("content_text", ""),
+        "content_text": content_text,
         "product_card": response.get("product_card"),
         "product_cards": response.get("product_cards"),
         "clarification": response.get("clarification"),
@@ -614,8 +623,17 @@ def _call_system_streaming(question: str, queue: "asyncio.Queue", session_id: st
             complete_data = event
 
     response = complete_data.get("response", {})
+
+    # Assemble content_text from content_segments (retriever.py uses segments, not flat text)
+    content_text = response.get("content_text", "")
+    if not content_text:
+        segments = response.get("content_segments", [])
+        content_text = "\n\n".join(
+            s.get("text", "") for s in segments if s.get("text")
+        )
+
     result = {
-        "content_text": response.get("content_text", ""),
+        "content_text": content_text,
         "product_card": response.get("product_card"),
         "product_cards": response.get("product_cards"),
         "clarification": response.get("clarification"),

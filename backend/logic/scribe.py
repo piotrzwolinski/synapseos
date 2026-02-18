@@ -1,6 +1,6 @@
-"""Semantic Scribe — LLM-Based Intent Extraction Layer (v4.1).
+"""Semantic Scribe — LLM-Based Intent Extraction Layer (v4.2).
 
-Primary intent extraction engine using Gemini 2.0 Flash. Regex is fallback only.
+Primary intent extraction engine using LLM (Gemini or GPT-5.2 via llm_router). Regex is fallback only.
 
 Pipeline:
     [Scribe LLM (primary)] → [resolve_derived_actions()] → merge → [Regex (fallback)]
@@ -10,7 +10,7 @@ Architecture:
     - Primary extractor: Scribe runs FIRST, regex fills gaps only
     - Clarification-aware: Knows what parameter the system asked for
     - Fail-safe: If Scribe fails, regex results stand unchanged
-    - Fast: Gemini 2.0 Flash, 768 tokens, temperature 0.0
+    - Fast: LLM via llm_router, 768 tokens, temperature 0.0
 
 v4.0 changes:
     - Expanded extraction: action_intent, project_name, accessories, housing_length, entity_codes
@@ -20,18 +20,14 @@ v4.0 changes:
 
 import json
 import logging
-import os
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from google import genai
-from google.genai import types
+from llm_router import llm_call, DEFAULT_MODEL
 
 logger = logging.getLogger(__name__)
 
-# Reuse the same Gemini client configuration as retriever.py
-_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-_MODEL = "gemini-2.0-flash"
+_MODEL = DEFAULT_MODEL
 
 # Cached graph-driven mapping for environment + application IDs
 # v3.8.1: Cache invalidated on restart; replacement semantics rule added
@@ -286,8 +282,9 @@ def extract_semantic_intent(
     recent_turns: list[dict],
     technical_state,
     db=None,
+    model: Optional[str] = None,
 ) -> Optional[SemanticIntent]:
-    """Call Gemini Flash to extract structured intent from a conversational query.
+    """Call LLM to extract structured intent from a conversational query.
 
     Args:
         query: Cleaned user message (no [STATE:] or [LOCKED:] wrappers)
@@ -324,19 +321,25 @@ def extract_semantic_intent(
         query=query,
     )
 
+    _scribe_model = model or _MODEL
     try:
-        response = _client.models.generate_content(
-            model=_MODEL,
-            contents=[types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])],
-            config=types.GenerateContentConfig(
-                system_instruction=get_scribe_system_prompt(db=db),
-                response_mime_type="application/json",
-                temperature=0.0,
-                max_output_tokens=768,
-            ),
+        print(f"🔍 [SCRIBE] Calling LLM model={_scribe_model}")
+        result = llm_call(
+            model=_scribe_model,
+            user_prompt=user_prompt,
+            system_prompt=get_scribe_system_prompt(db=db),
+            json_mode=True,
+            temperature=0.0,
+            max_output_tokens=768,
         )
 
-        raw_text = response.text
+        if result.error:
+            print(f"❌ [SCRIBE] LLM error (model={_scribe_model}): {result.error}")
+            logger.warning(f"Scribe LLM call error: {result.error}")
+            return None
+
+        raw_text = result.text
+        print(f"✅ [SCRIBE] Got {len(raw_text)} chars from {_scribe_model} in {result.duration_s}s")
         if not raw_text:
             logger.warning("Scribe returned empty response")
             return None

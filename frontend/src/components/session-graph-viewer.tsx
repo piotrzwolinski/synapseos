@@ -21,7 +21,7 @@ const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-full bg-slate-900">
-      <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+      <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
     </div>
   ),
 });
@@ -118,19 +118,19 @@ function classifySessionNode(labels: string[]): ForceNode["nodeType"] {
 // =============================================================================
 
 const NODE_STYLES: Record<ForceNode["nodeType"], { color: string; glow: string; size: number }> = {
-  session: { color: "#3b82f6", glow: "#60a5fa", size: 10 },
+  session: { color: "#5B8C3E", glow: "#7CB356", size: 10 },
   project: { color: "#10b981", glow: "#34d399", size: 14 },
   tag: { color: "#f59e0b", glow: "#fbbf24", size: 12 },
-  material: { color: "#8b5cf6", glow: "#a78bfa", size: 8 },
-  family: { color: "#06b6d4", glow: "#22d3ee", size: 8 },
+  material: { color: "#4A7A30", glow: "#5B8C3E", size: 8 },
+  family: { color: "#059669", glow: "#34d399", size: 8 },
   dimension: { color: "#6b7280", glow: "#9ca3af", size: 6 },
 };
 
 const REL_COLORS: Record<string, string> = {
   WORKING_ON: "#10b981",
   HAS_UNIT: "#f59e0b",
-  USES_MATERIAL: "#8b5cf6",
-  TARGETS_FAMILY: "#06b6d4",
+  USES_MATERIAL: "#4A7A30",
+  TARGETS_FAMILY: "#059669",
   SIZED_AS: "#6b7280",
 };
 
@@ -271,12 +271,12 @@ export default function SessionGraphViewer({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700 bg-slate-800/50">
         <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-cyan-400" />
+          <Layers className="w-4 h-4 text-emerald-400" />
           <span className="text-sm font-medium text-slate-200">
             Session Graph (Layer 4)
           </span>
           {sessionState && sessionState.tag_count > 0 && (
-            <span className="text-xs bg-cyan-900/50 text-cyan-300 px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-emerald-900/50 text-emerald-300 px-2 py-0.5 rounded-full">
               {sessionState.tag_count} tag{sessionState.tag_count !== 1 ? "s" : ""}
             </span>
           )}
@@ -305,13 +305,13 @@ export default function SessionGraphViewer({
               </div>
             )}
             {sessionState.project.locked_material && (
-              <div className="flex items-center gap-1 text-violet-400">
+              <div className="flex items-center gap-1 text-green-500">
                 <Lock className="w-3 h-3" />
                 <span>{sessionState.project.locked_material}</span>
               </div>
             )}
             {sessionState.project.detected_family && (
-              <div className="flex items-center gap-1 text-cyan-400">
+              <div className="flex items-center gap-1 text-emerald-400">
                 <Database className="w-3 h-3" />
                 <span>{sessionState.project.detected_family}</span>
               </div>
@@ -376,7 +376,7 @@ export default function SessionGraphViewer({
           </div>
         ) : loading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+            <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
           </div>
         ) : data.nodes.length > 0 ? (
           <ForceGraph2D

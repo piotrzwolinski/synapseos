@@ -368,8 +368,8 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case "Software": return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800";
-      case "Data": return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800";
+      case "Software": return "bg-green-50 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
+      case "Data": return "bg-green-50 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
       case "Manual": return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800";
       case "Process": return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800";
       default: return "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
@@ -385,11 +385,11 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
       case "Blocker":
         return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800";
       case "Standard":
-        return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800";
+        return "bg-green-50 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
       case "Workaround":
         return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800";
       case "ProductMapping":
-        return "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800";
+        return "bg-green-50 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
       case "Commercial":
         return "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
       default:
@@ -402,7 +402,7 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
       {/* Header */}
       <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center shadow-lg shadow-green-600/20">
             <Mail className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -449,7 +449,7 @@ export function ThreadIngestor({ devMode, sampleCases, pendingSampleText, onSamp
           <div className="space-y-4 animate-fade-in">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <GitBranch className="w-4 h-4 text-violet-600" />
+                <GitBranch className="w-4 h-4 text-green-700" />
                 <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Graph Export
                 </span>
@@ -524,13 +524,13 @@ From: Jane Doe
 Date: 2024-09-06
 
 The file is a dummy solid..."
-                className="w-full h-64 p-4 text-sm bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 focus:bg-white dark:focus:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:text-slate-200"
+                className="w-full h-64 p-4 text-sm bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600 focus:bg-white dark:focus:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:text-slate-200"
               />
             </div>
             <Button
               onClick={handleSubmit}
               disabled={!threadText.trim()}
-              className="w-full h-12 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 shadow-lg shadow-violet-500/25 rounded-xl text-sm font-medium"
+              className="w-full h-12 bg-gradient-to-r from-green-700 to-green-700 hover:from-green-800 hover:to-green-800 shadow-lg shadow-green-600/25 rounded-xl text-sm font-medium"
             >
               <Zap className="w-4 h-4 mr-2" />
               Analyze Thread
@@ -564,8 +564,8 @@ The file is a dummy solid..."
         {/* Loading */}
         {uploadState === "uploading" && !showExport && (
           <div className="text-center py-16 animate-fade-in">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900 dark:to-purple-900 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-100 to-green-100 dark:from-green-900 dark:to-green-900 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-green-700" />
             </div>
             <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
               Analyzing Thread
@@ -607,23 +607,23 @@ The file is a dummy solid..."
 
             {/* Discovery Review - Forensic Knowledge Candidates */}
             {result.extracted.knowledge_candidates && result.extracted.knowledge_candidates.length > 0 && (
-              <div className="border border-violet-200 dark:border-violet-800 rounded-xl overflow-hidden bg-violet-50/30 dark:bg-violet-950/30">
+              <div className="border border-green-200 dark:border-green-800 rounded-xl overflow-hidden bg-green-50/30 dark:bg-green-950/30">
                 <button
                   onClick={() => setShowDiscoveries(!showDiscoveries)}
-                  className="w-full px-4 py-3 flex items-center justify-between bg-gradient-to-r from-violet-100 to-purple-100 dark:from-violet-900 dark:to-purple-900 hover:from-violet-150 hover:to-purple-150 dark:hover:from-violet-800 dark:hover:to-purple-800 transition-colors"
+                  className="w-full px-4 py-3 flex items-center justify-between bg-gradient-to-r from-green-100 to-green-100 dark:from-green-900 dark:to-green-900 hover:from-green-200 hover:to-green-200 dark:hover:from-green-800 dark:hover:to-green-800 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    <Lightbulb className="w-4 h-4 text-violet-600" />
-                    <span className="text-sm font-semibold text-violet-800 dark:text-violet-200">
+                    <Lightbulb className="w-4 h-4 text-green-700" />
+                    <span className="text-sm font-semibold text-green-800 dark:text-green-200">
                       Discovered Knowledge Sources
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-violet-200 dark:bg-violet-800 text-violet-700 dark:text-violet-300 text-xs font-medium">
+                    <span className="px-2 py-0.5 rounded-full bg-green-200 dark:bg-green-900 text-green-800 dark:text-green-300 text-xs font-medium">
                       {result.extracted.knowledge_candidates.length} found
                     </span>
                   </div>
                   <ChevronDown
                     className={cn(
-                      "w-4 h-4 text-violet-500 transition-transform",
+                      "w-4 h-4 text-green-700 transition-transform",
                       showDiscoveries && "rotate-180"
                     )}
                   />
@@ -631,13 +631,13 @@ The file is a dummy solid..."
 
                 {showDiscoveries && (
                   <div className="p-4 space-y-3">
-                    <p className="text-xs text-violet-600 dark:text-violet-400 mb-3">
+                    <p className="text-xs text-green-700 dark:text-green-500 mb-3">
                       The AI detected these tools, data sources, or processes. Verify to add them to your Knowledge Library.
                     </p>
                     {result.extracted.knowledge_candidates.map((candidate) => (
                       <div
                         key={candidate.id}
-                        className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-violet-100 dark:border-violet-800 shadow-sm"
+                        className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-green-100 dark:border-green-800 shadow-sm"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
@@ -675,7 +675,7 @@ The file is a dummy solid..."
                                   )
                                 }
                               >
-                                <div className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300">
+                                <div className="flex items-center gap-1 text-xs text-green-700 dark:text-green-500 hover:text-green-800 dark:hover:text-green-300">
                                   {expandedCandidate === candidate.id ? (
                                     <ChevronDown className="w-3 h-3" />
                                   ) : (
@@ -685,7 +685,7 @@ The file is a dummy solid..."
                                   View source citation
                                 </div>
                                 {expandedCandidate === candidate.id && (
-                                  <div className="mt-2 pl-3 py-2 border-l-4 border-violet-200 dark:border-violet-700 bg-violet-50 dark:bg-violet-950 rounded-r-lg">
+                                  <div className="mt-2 pl-3 py-2 border-l-4 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950 rounded-r-lg">
                                     <p className="text-xs text-slate-600 dark:text-slate-400 italic">
                                       &ldquo;{candidate.citation}&rdquo;
                                     </p>
@@ -772,7 +772,7 @@ The file is a dummy solid..."
                           key={i}
                           className="flex gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100"
                         >
-                          <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-violet-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">
+                          <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-green-700 to-green-700 text-white flex items-center justify-center text-xs font-bold shadow-sm">
                             {event.step}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -858,7 +858,7 @@ The file is a dummy solid..."
                   size="sm"
                   onClick={() => setMapAction("create_new")}
                   className={cn(
-                    mapAction === "create_new" && "bg-violet-600 hover:bg-violet-700"
+                    mapAction === "create_new" && "bg-green-700 hover:bg-green-800"
                   )}
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
@@ -869,7 +869,7 @@ The file is a dummy solid..."
                   size="sm"
                   onClick={() => setMapAction("map_to_existing")}
                   className={cn(
-                    mapAction === "map_to_existing" && "bg-violet-600 hover:bg-violet-700"
+                    mapAction === "map_to_existing" && "bg-green-700 hover:bg-green-800"
                   )}
                 >
                   <Link2 className="w-4 h-4 mr-2" />
@@ -888,7 +888,7 @@ The file is a dummy solid..."
                       type="text"
                       value={verifiedName}
                       onChange={(e) => setVerifiedName(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
                       placeholder="e.g., HABE Calculation Tool"
                     />
                   </div>
@@ -902,7 +902,7 @@ The file is a dummy solid..."
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       rows={3}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 resize-none"
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600 resize-none"
                       placeholder="What is this tool/data source used for?"
                     />
                   </div>
@@ -916,7 +916,7 @@ The file is a dummy solid..."
                   <select
                     value={selectedSourceId}
                     onChange={(e) => setSelectedSourceId(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
                   >
                     <option value="">-- Select a source --</option>
                     {verifiedSources.map((s) => (
@@ -950,7 +950,7 @@ The file is a dummy solid..."
                   (mapAction === "create_new" && !verifiedName) ||
                   (mapAction === "map_to_existing" && !selectedSourceId)
                 }
-                className="bg-violet-600 hover:bg-violet-700"
+                className="bg-green-700 hover:bg-green-800"
               >
                 {processingCandidate === selectedCandidate.id ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />

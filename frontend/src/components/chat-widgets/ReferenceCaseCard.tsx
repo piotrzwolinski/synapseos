@@ -39,14 +39,14 @@ export function ReferenceCaseCard({ data }: ReferenceCaseCardProps) {
   };
 
   return (
-    <Card className="border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 dark:from-blue-950/30 dark:to-indigo-950/20 shadow-sm overflow-hidden">
+    <Card className="border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50/50 to-green-50/30 dark:from-green-950/30 dark:to-green-950/20 shadow-sm overflow-hidden">
       {/* Accent bar */}
-      <div className="h-1 bg-gradient-to-r from-blue-500 to-indigo-500" />
+      <div className="h-1 bg-gradient-to-r from-green-500 to-green-600" />
 
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold text-blue-900 dark:text-blue-200">
-            <History className="w-5 h-5 text-blue-600" />
+          <CardTitle className="flex items-center gap-2 text-base font-semibold text-green-900 dark:text-green-200">
+            <History className="w-5 h-5 text-green-700" />
             Historical Reference
           </CardTitle>
           <Badge variant="info" className="text-xs">
@@ -93,13 +93,13 @@ export function ReferenceCaseCard({ data }: ReferenceCaseCardProps) {
         </div>
       </CardContent>
 
-      <Separator className="bg-blue-200/50 dark:bg-blue-800/50" />
+      <Separator className="bg-green-200/50 dark:bg-green-900/50" />
 
       <CardFooter className="pt-3">
         <Button
           variant="outline"
           onClick={handleViewThread}
-          className="w-full border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-800 dark:hover:text-blue-300"
+          className="w-full border-green-200 dark:border-green-800 text-green-800 dark:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 hover:text-green-800 dark:hover:text-green-300"
         >
           <ExternalLink className="w-4 h-4 mr-2" />
           {getText(data.link_label) || "View Details"}

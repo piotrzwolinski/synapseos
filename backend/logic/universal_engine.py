@@ -230,6 +230,15 @@ class EngineVerdict:
             and any(iv.severity == "CRITICAL" for iv in self.installation_violations)
         )
 
+        # v3.13: Detect "all products vetoed" (material/trait block without IC violations).
+        # When ALL products are vetoed, asking for config params is counterproductive —
+        # the user needs to change material or product family first.
+        all_products_vetoed = bool(
+            self.ranked_products
+            and all(tm.vetoed for tm in self.ranked_products)
+        )
+        is_blocked = has_critical_violation or all_products_vetoed
+
         # ASSEMBLY SECTION (highest priority — multi-stage system)
         # v3.8: Suppress assembly when critical IC violations exist to avoid
         # self-contradiction (recommending a product that's also blocked).
@@ -266,16 +275,21 @@ class EngineVerdict:
             parts.append("")
 
         # LOGIC GATE EVALUATIONS (v2.0)
+        # v3.13: Suppress "MUST ask" instructions when blocked — config params
+        # are irrelevant until material/product is resolved
         if self.gate_evaluations:
             parts.append("## LOGIC GATE EVALUATIONS")
             for ge in self.gate_evaluations:
                 parts.append(f"- **{ge.gate_name}** [{ge.state}]: Monitors {ge.stressor_name}")
                 if ge.state == "VALIDATION_REQUIRED":
-                    missing_keys = [p.get("property_key", p.get("name", "?")) for p in ge.missing_parameters]
-                    parts.append(f"  Missing data: {', '.join(missing_keys)}")
-                    parts.append(f"  → You MUST ask for this data BEFORE making any recommendation.")
-                    for p in ge.missing_parameters:
-                        parts.append(f"    - {p.get('name', '')}: {p.get('question', '')}")
+                    if is_blocked:
+                        parts.append(f"  (Deferred — resolve material/product block first)")
+                    else:
+                        missing_keys = [p.get("property_key", p.get("name", "?")) for p in ge.missing_parameters]
+                        parts.append(f"  Missing data: {', '.join(missing_keys)}")
+                        parts.append(f"  → You MUST ask for this data BEFORE making any recommendation.")
+                        for p in ge.missing_parameters:
+                            parts.append(f"    - {p.get('name', '')}: {p.get('question', '')}")
                 elif ge.state == "FIRED":
                     parts.append(f"  Physics: {ge.physics_explanation}")
                     parts.append(f"  → CONFIRMED from context. You MUST explicitly name '{ge.stressor_name}' "
@@ -544,7 +558,7 @@ class EngineVerdict:
 
         # MISSING PARAMETERS (variance check — v2.1)
         # Suppressed when product is blocked — asking for config params is counterproductive
-        if self.missing_parameters and not has_critical_violation:
+        if self.missing_parameters and not is_blocked:
             parts.append("## MISSING CONFIGURATION PARAMETERS")
             parts.append("The following parameters MUST be resolved before final configuration:")
             for mp in self.missing_parameters:
@@ -632,6 +646,20 @@ class EngineVerdict:
                         parts.append(f"  Neutralized: {', '.join(tm.traits_neutralized)}")
             parts.append("")
 
+        # v3.13: MATERIAL/PRODUCT BLOCK when all products vetoed for material reasons
+        # (no IC violations = pure material/trait veto). Instruct LLM to focus on
+        # material alternatives rather than asking configuration questions.
+        # Actual material list is injected by the retriever (has DB access).
+        if all_products_vetoed and not has_critical_violation:
+            parts.append("## ⚡ CONFIGURATION BLOCKED — MATERIAL/PRODUCT CHANGE REQUIRED")
+            parts.append("")
+            parts.append("All available products are blocked for the current material/environment combination.")
+            parts.append("DO NOT ask for configuration parameters (airflow, depth, length, etc.).")
+            parts.append("DO NOT ask clarification questions.")
+            parts.append("Instead, suggest specific material upgrades or alternative product families.")
+            parts.append("If material alternatives are listed below, present them to the user.")
+            parts.append("")
+
         # TECHNOLOGY GUIDANCE
         if info_rules:
             parts.append("## TECHNOLOGY GUIDANCE")
@@ -641,7 +669,7 @@ class EngineVerdict:
 
         # CLARIFICATIONS
         # Suppressed when product is blocked — playbook questions irrelevant
-        if self.clarification_questions and not has_critical_violation:
+        if self.clarification_questions and not is_blocked:
             parts.append("## REQUIRED CLARIFICATIONS (from Playbook layer)")
             for q in self.clarification_questions:
                 parts.append(f"- **{q.get('param_name', '')}** [{q.get('intent', '')}] (Priority {q.get('priority', 99)})")
@@ -2503,13 +2531,19 @@ class TraitBasedEngine:
             logger.info("[TraitEngine] Veto not from neutralization — assembly N/A")
             return None
 
-        # Strategy 1: Graph-driven DependencyRule
+        # Graph-driven DependencyRule is the ONLY authority on when assemblies
+        # are needed. If no DependencyRule exists for the detected stressors,
+        # it means the veto cannot be solved by upstream filtration (e.g.
+        # corrosion/material issues need material upgrade, not a pre-filter).
         assembly = self._build_assembly_from_rules(pf_id, user_match, stressors, rules, matches)
         if assembly:
             return assembly
 
-        # Strategy 2: Python inference fallback (original v1.0 logic)
-        return self._build_assembly_from_inference(pf_id, user_match, stressors, rules, matches, neutralization_rules)
+        logger.info(
+            "[TraitEngine] No DependencyRule for detected stressors — "
+            "assembly N/A (material change or family pivot needed instead)"
+        )
+        return None
 
     def _build_assembly_from_rules(
         self,

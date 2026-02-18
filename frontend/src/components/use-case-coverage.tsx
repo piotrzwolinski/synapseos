@@ -293,7 +293,7 @@ const USE_CASES: UseCase[] = [
     title: "Hospital Tender (Multi-Product Bid)",
     description: "Complex competitive tenders requiring multiple product types: HEPA housings, insulated housings, filter banks, and Camfil cross-references.",
     status: "partial",
-    icon: Hospital,
+    icon: Cross,
     products: ["GDR Nano", "GDMI", "Filter banks"],
     parameters: ["Hospital environment", "Camfil equivalents", "Filter banks", "HEPA class"],
     emailCount: 2,
@@ -533,7 +533,7 @@ function UseCaseCard({ useCase }: { useCase: UseCase }) {
     <div className={cn(
       "rounded-xl border transition-all",
       "bg-white dark:bg-slate-900/50",
-      expanded ? "border-blue-200 dark:border-blue-800 shadow-lg shadow-blue-500/5" : "border-slate-200 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600",
+      expanded ? "border-green-200 dark:border-green-800 shadow-lg shadow-green-600/5" : "border-slate-200 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600",
     )}>
       {/* Header */}
       <button
@@ -653,7 +653,7 @@ function UseCaseCard({ useCase }: { useCase: UseCase }) {
             </h4>
             <div className="flex flex-wrap gap-1.5">
               {useCase.parameters.map((param) => (
-                <span key={param} className="text-xs px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-800">
+                <span key={param} className="text-xs px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-500 border border-green-100 dark:border-green-800">
                   {param}
                 </span>
               ))}
@@ -787,7 +787,7 @@ export function UseCaseCoverage() {
             <span className={cn(
               "text-[10px] px-1.5 py-0.5 rounded-full",
               filter === tab.id
-                ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-500"
                 : "bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400",
             )}>
               {tab.count}

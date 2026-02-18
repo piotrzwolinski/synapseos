@@ -63,7 +63,7 @@ const SEVERITY_CONFIG: Record<string, { color: string; icon: React.ComponentType
   CRITICAL: { color: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800", icon: X, order: 0 },
   MAJOR: { color: "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800", icon: AlertTriangle, order: 1 },
   MINOR: { color: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800", icon: AlertCircle, order: 2 },
-  INFO: { color: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800", icon: Info, order: 3 },
+  INFO: { color: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-500 border-green-200 dark:border-green-800", icon: Info, order: 3 },
 };
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -74,7 +74,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 const PROVIDER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   openai: { bg: "bg-green-50 dark:bg-green-900/30", text: "text-green-700 dark:text-green-400", border: "border-green-200 dark:border-green-800" },
-  gemini_pro: { bg: "bg-blue-50 dark:bg-blue-900/30", text: "text-blue-700 dark:text-blue-400", border: "border-blue-200 dark:border-blue-800" },
+  gemini_pro: { bg: "bg-green-50 dark:bg-green-900/30", text: "text-green-800 dark:text-green-500", border: "border-green-200 dark:border-green-800" },
   anthropic_opus: { bg: "bg-orange-50 dark:bg-orange-900/30", text: "text-orange-700 dark:text-orange-400", border: "border-orange-200 dark:border-orange-800" },
 };
 
@@ -382,7 +382,7 @@ export function GraphAudit() {
               className={cn(
                 "px-3 py-1.5 rounded-lg font-medium transition-colors",
                 step === s
-                  ? "bg-blue-600 text-white"
+                  ? "bg-green-700 text-white"
                   : s === "configure" || (s === "results" && report)
                     ? "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 cursor-pointer"
                     : "text-slate-300 dark:text-slate-600 cursor-default"
@@ -466,7 +466,7 @@ export function GraphAudit() {
                 className={cn(
                   "w-full py-3 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2",
                   selectedProviders.size > 0
-                    ? "bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/25"
+                    ? "bg-green-700 hover:bg-green-800 shadow-lg shadow-green-600/25"
                     : "bg-slate-300 dark:bg-slate-700 cursor-not-allowed"
                 )}
               >
@@ -506,7 +506,7 @@ export function GraphAudit() {
                           }
                         } catch { /* non-fatal */ }
                       }}
-                      className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-all flex items-center justify-between text-left"
+                      className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-green-300 dark:hover:border-green-700 hover:bg-green-50/50 dark:hover:bg-green-900/20 transition-all flex items-center justify-between text-left"
                     >
                       <div>
                         <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -546,13 +546,13 @@ export function GraphAudit() {
                     className={cn(
                       "flex-1 h-2 rounded-full transition-colors",
                       isPast && "bg-emerald-400",
-                      isCurrent && "bg-blue-400 animate-pulse",
+                      isCurrent && "bg-green-500 animate-pulse",
                       !isPast && !isCurrent && "bg-slate-200 dark:bg-slate-700"
                     )}
                   />
                   <span className={cn(
                     "text-xs font-medium whitespace-nowrap",
-                    isCurrent ? "text-blue-600 dark:text-blue-400" : isPast ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"
+                    isCurrent ? "text-green-700 dark:text-green-500" : isPast ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"
                   )}>
                     {PHASE_LABELS[phase]?.replace(/Round \d: /, "") || phase}
                   </span>
@@ -579,7 +579,7 @@ export function GraphAudit() {
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-medium text-sm">{PROVIDER_LABELS[name] || name}</span>
-                    {ps?.status === "active" && <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />}
+                    {ps?.status === "active" && <Loader2 className="w-4 h-4 text-green-600 animate-spin" />}
                     {ps?.status === "complete" && <Check className="w-4 h-4 text-emerald-500" />}
                     {ps?.status === "error" && <X className="w-4 h-4 text-red-500" />}
                   </div>
@@ -612,15 +612,15 @@ export function GraphAudit() {
                 <span className={cn(
                   log.type === "error" && "text-red-600 dark:text-red-400",
                   log.type === "system" && "text-slate-600 dark:text-slate-400",
-                  log.type === "finding" && "text-blue-600 dark:text-blue-400",
-                  log.type === "critique" && "text-violet-600 dark:text-violet-400",
+                  log.type === "finding" && "text-green-700 dark:text-green-500",
+                  log.type === "critique" && "text-green-700 dark:text-green-500",
                 )}>
                   {log.message}
                 </span>
               </div>
             ))}
             {isStreaming && (
-              <div className="flex items-center gap-2 text-blue-500 pt-2">
+              <div className="flex items-center gap-2 text-green-600 pt-2">
                 <Loader2 className="w-3 h-3 animate-spin" />
                 <span>Processing...</span>
               </div>
@@ -687,7 +687,7 @@ export function GraphAudit() {
                     className={cn(
                       "px-2.5 py-1 rounded-lg border text-xs font-medium transition-all",
                       cfg.color,
-                      severityFilter === sev && "ring-2 ring-offset-1 ring-blue-400"
+                      severityFilter === sev && "ring-2 ring-offset-1 ring-green-500"
                     )}
                   >
                     {count} {sev.toLowerCase()}
@@ -744,7 +744,7 @@ export function GraphAudit() {
                   placeholder="Search findings..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:border-blue-400"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:border-green-400"
                 />
               </div>
 
@@ -766,7 +766,7 @@ export function GraphAudit() {
                       className={cn(
                         "w-full p-3 rounded-lg border text-left transition-all",
                         isSelected
-                          ? "border-blue-400 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-200 dark:ring-blue-800"
+                          ? "border-green-400 dark:border-green-700 bg-green-50 dark:bg-green-900/30 ring-1 ring-green-200 dark:ring-green-800"
                           : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50"
                       )}
                     >
@@ -775,7 +775,7 @@ export function GraphAudit() {
                           finding.severity === "CRITICAL" && "text-red-500",
                           finding.severity === "MAJOR" && "text-orange-500",
                           finding.severity === "MINOR" && "text-yellow-500",
-                          finding.severity === "INFO" && "text-blue-500",
+                          finding.severity === "INFO" && "text-green-600",
                         )} />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 mb-0.5">
@@ -864,9 +864,9 @@ export function GraphAudit() {
                   </div>
 
                   {/* Recommendation */}
-                  <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
-                    <h5 className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-1">Recommendation</h5>
-                    <p className="text-sm text-blue-900 dark:text-blue-200">{selectedFinding.recommendation}</p>
+                  <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800">
+                    <h5 className="text-xs font-semibold text-green-800 dark:text-green-500 mb-1">Recommendation</h5>
+                    <p className="text-sm text-green-900 dark:text-green-200">{selectedFinding.recommendation}</p>
                   </div>
 
                   {/* Consensus */}

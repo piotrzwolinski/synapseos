@@ -140,9 +140,9 @@ export interface ExplainableResponseData {
 
 // Layer colors and icons
 const LAYER_CONFIG = {
-  1: { name: "Inventory", color: "bg-blue-500", textColor: "text-blue-600 dark:text-blue-400", bgLight: "bg-blue-50 dark:bg-blue-900/30", borderColor: "border-blue-200 dark:border-blue-800" },
+  1: { name: "Inventory", color: "bg-green-500", textColor: "text-green-700 dark:text-green-500", bgLight: "bg-green-50 dark:bg-green-900/30", borderColor: "border-green-200 dark:border-green-800" },
   2: { name: "Physics", color: "bg-amber-500", textColor: "text-amber-600 dark:text-amber-400", bgLight: "bg-amber-50 dark:bg-amber-900/30", borderColor: "border-amber-200 dark:border-amber-800" },
-  3: { name: "Playbook", color: "bg-violet-500", textColor: "text-violet-600 dark:text-violet-400", bgLight: "bg-violet-50 dark:bg-violet-900/30", borderColor: "border-violet-200 dark:border-violet-800" },
+  3: { name: "Playbook", color: "bg-green-500", textColor: "text-green-700 dark:text-green-500", bgLight: "bg-green-50 dark:bg-green-900/30", borderColor: "border-green-200 dark:border-green-800" },
 } as const;
 
 interface GraphTraversalItemProps {
@@ -274,7 +274,7 @@ function GraphTraversalItem({ traversal }: GraphTraversalItemProps) {
                 {traversal.relationships.map((rel, i) => (
                   <span key={i} className="flex items-center gap-0.5">
                     {i > 0 && <span className="text-slate-300 dark:text-slate-600 text-[10px]">•</span>}
-                    <span className="px-1.5 py-0.5 text-[10px] font-mono text-violet-600 bg-violet-50 rounded border border-violet-200 dark:text-violet-400 dark:bg-violet-900/30 dark:border-violet-800">
+                    <span className="px-1.5 py-0.5 text-[10px] font-mono text-green-700 bg-green-50 rounded border border-green-200 dark:text-green-500 dark:bg-green-900/30 dark:border-green-800">
                       :{rel}
                     </span>
                   </span>
@@ -329,7 +329,7 @@ export function ThinkingTimeline({ steps, defaultCollapsed = true }: ThinkingTim
         className="group flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors py-1"
       >
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">
-          <Brain className="w-3 h-3 text-violet-500 dark:text-violet-400" />
+          <Brain className="w-3 h-3 text-green-700 dark:text-green-500" />
           <span className="font-medium">AI Process</span>
           <span className="text-slate-400 dark:text-slate-500">·</span>
           <span>{steps.length} steps</span>
@@ -852,12 +852,12 @@ export function ProductCardComponent({ card, onAction, riskSeverity }: ProductCa
               ? "bg-red-500"
               : isWarning
                 ? "bg-amber-100"
-                : "bg-blue-50"
+                : "bg-green-50"
           )}>
             {isCritical ? (
               <AlertTriangle className="w-4 h-4 text-white" />
             ) : (
-              <Package className={cn("w-4 h-4", isWarning ? "text-amber-600" : "text-blue-600")} />
+              <Package className={cn("w-4 h-4", isWarning ? "text-amber-600" : "text-green-700")} />
             )}
           </div>
           <div className="flex-1">
@@ -976,7 +976,7 @@ export function StatusBadges({ badges }: StatusBadgesProps) {
           className={cn(
             "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
             badge.type === "SUCCESS" && "bg-emerald-50 text-emerald-700 border border-emerald-200",
-            badge.type === "INFO" && "bg-blue-50 text-blue-700 border border-blue-200",
+            badge.type === "INFO" && "bg-green-50 text-green-800 border border-green-200",
             badge.type === "WARNING" && "bg-amber-50 text-amber-700 border border-amber-200"
           )}
         >
@@ -1123,7 +1123,7 @@ export function ClarificationCard({ clarification, onOptionSelect }: Clarificati
   };
 
   return (
-    <div className="border-l-2 border-blue-400 pl-4 py-2">
+    <div className="border-l-2 border-green-400 pl-4 py-2">
       {/* Question */}
       <p className="text-sm font-semibold text-slate-800 mb-0.5">{clarification.question}</p>
 
@@ -1139,7 +1139,7 @@ export function ClarificationCard({ clarification, onOptionSelect }: Clarificati
             <button
               key={idx}
               onClick={() => onOptionSelect?.(option.value, option.description)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-full hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 active:bg-blue-100 transition-all shadow-sm"
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-full hover:bg-green-50 hover:border-green-400 hover:text-green-800 active:bg-green-100 transition-all shadow-sm"
               title={option.description}
             >
               {pillLabel}
@@ -1164,13 +1164,13 @@ export function ClarificationCard({ clarification, onOptionSelect }: Clarificati
               onChange={(e) => setCustomValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleCustomSubmit()}
               placeholder="Enter value..."
-              className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-full focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+              className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-full focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-500"
               autoFocus
             />
             <button
               onClick={handleCustomSubmit}
               disabled={!customValue.trim()}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-full hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 text-sm font-medium text-white bg-green-700 rounded-full hover:bg-green-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
             >
               OK
             </button>
@@ -1288,8 +1288,8 @@ export function DetailPanel({ detail, onClose, onConfirmInference, isConfirmed }
               <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide block mb-2">
                 Source
               </span>
-              <div className="flex items-start gap-2 bg-blue-50/50 rounded-lg p-3">
-                <FileText className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 bg-green-50/50 rounded-lg p-3">
+                <FileText className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                 <div className="min-w-0">
                   {detail.sourceDocument ? (
                     <>
@@ -1487,10 +1487,10 @@ const SOURCE_CONFIG = {
   FILTER: {
     icon: Filter,
     label: "FILTER",
-    bgColor: "bg-indigo-50",
-    borderColor: "border-l-indigo-500",
-    iconColor: "text-indigo-600",
-    badgeColor: "bg-indigo-100 text-indigo-700",
+    bgColor: "bg-green-50",
+    borderColor: "border-l-green-600",
+    iconColor: "text-green-700",
+    badgeColor: "bg-green-100 text-green-800",
   },
 };
 
@@ -1517,7 +1517,7 @@ export function ReasoningChain({
         onClick={() => setCollapsed(!collapsed)}
         className="w-full flex items-center gap-2 px-3 py-2.5 bg-gradient-to-r from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-150 transition-colors"
       >
-        <Brain className="w-4 h-4 text-violet-600" />
+        <Brain className="w-4 h-4 text-green-700" />
         <span className="text-xs font-semibold text-slate-700">
           Reasoning Process ({chain.length} steps)
         </span>

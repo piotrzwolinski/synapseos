@@ -50,9 +50,9 @@ export interface TraversalGraphData {
 // =============================================================================
 
 export const LAYER_COLORS = {
-  1: { bg: "#3b82f6", text: "#1e40af", label: "Inventory", light: "#dbeafe" }, // Blue
+  1: { bg: "#5B8C3E", text: "#2d5a1e", label: "Inventory", light: "#dcfce7" }, // Blue
   2: { bg: "#f59e0b", text: "#92400e", label: "Physics", light: "#fef3c7" }, // Amber
-  3: { bg: "#8b5cf6", text: "#5b21b6", label: "Playbook", light: "#ede9fe" }, // Violet
+  3: { bg: "#4A7A30", text: "#365314", label: "Playbook", light: "#f0fdf4" }, // Violet
 } as const;
 
 // =============================================================================

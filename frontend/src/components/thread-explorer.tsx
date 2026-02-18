@@ -144,11 +144,11 @@ export function ThreadExplorer() {
       case "Blocker":
         return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800";
       case "Standard":
-        return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800";
+        return "bg-green-50 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-500 dark:border-green-800";
       case "Workaround":
         return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800";
       case "ProductMapping":
-        return "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800";
+        return "bg-green-50 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-500 dark:border-green-800";
       case "Commercial":
         return "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800";
       default:

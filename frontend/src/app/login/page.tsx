@@ -50,7 +50,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <Card className="shadow-lg">
           <CardHeader className="text-center pb-2">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-blue-600 mx-auto mb-4">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-green-700 mx-auto mb-4">
               <Lock className="w-7 h-7 text-white" />
             </div>
             <CardTitle className="text-2xl">AI Solutions Finder</CardTitle>

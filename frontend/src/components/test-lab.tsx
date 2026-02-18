@@ -146,16 +146,16 @@ interface TestLabData {
 
 const CATEGORY_COLORS: Record<string, string> = {
   env: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
-  assembly: "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400 border-violet-200 dark:border-violet-800",
+  assembly: "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-500 border-green-200 dark:border-green-800",
   atex: "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800",
-  sizing: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+  sizing: "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-500 border-green-200 dark:border-green-800",
   material: "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800",
   positive: "bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-800",
   clarif: "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800",
   clarification: "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800",
-  environment: "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-400 border-cyan-200 dark:border-cyan-800",
+  environment: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
   complex: "bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-400 border-pink-200 dark:border-pink-800",
-  dimension: "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800",
+  dimension: "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-500 border-green-200 dark:border-green-800",
   capacity: "bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-800",
 };
 
@@ -195,8 +195,8 @@ function assertionConditionLabel(a: TestAssertion): string {
 }
 
 const ASSERTION_CATEGORY_COLORS: Record<string, string> = {
-  detection: "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
-  logic: "bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-800",
+  detection: "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-500 border-green-200 dark:border-green-800",
+  logic: "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-500 border-green-200 dark:border-green-800",
   output: "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
   data: "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800",
 };
@@ -659,7 +659,7 @@ function MultiStepDetail({ test }: { test: TestResult }) {
             {/* User query bubble (right-aligned, blue) */}
             {step.query ? (
               <div className="flex justify-end mb-3">
-                <div className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-3 bg-blue-600 text-white text-sm leading-relaxed shadow-sm">
+                <div className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-3 bg-green-700 text-white text-sm leading-relaxed shadow-sm">
                   {step.query}
                 </div>
               </div>
@@ -766,11 +766,11 @@ function TestDetail({ test }: { test: TestResult }) {
         <button
           title="Run in new chat session"
           onClick={() => window.open(`/?q=${encodeURIComponent(test.query)}`, "_blank")}
-          className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+          className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-green-700 dark:hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors"
         >
           <ExternalLink className="w-3.5 h-3.5" />
         </button>
-        <div className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-3 bg-blue-600 text-white text-sm leading-relaxed shadow-sm">
+        <div className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-3 bg-green-700 text-white text-sm leading-relaxed shadow-sm">
           {test.query}
         </div>
       </div>
@@ -842,7 +842,7 @@ function TestDetail({ test }: { test: TestResult }) {
           {/* Clarification indicator */}
           {test.response.clarification_needed && (
             <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700">
-              <div className="flex items-center gap-1.5 text-xs text-violet-600 dark:text-violet-400">
+              <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-500">
                 <AlertTriangle className="w-3 h-3" />
                 Clarification requested
               </div>
@@ -942,7 +942,7 @@ interface GeneratedQuestion {
 
 const SCORE_COLORS: Record<number, string> = {
   5: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800",
-  4: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800",
+  4: "text-green-700 dark:text-green-500 bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800",
   3: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800",
   2: "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800",
   1: "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800",
@@ -1076,7 +1076,7 @@ function JudgeResultView({ result, question, systemResponse }: {
 
       {/* Question */}
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-3 bg-blue-600 text-white text-sm leading-relaxed shadow-sm">
+        <div className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-3 bg-green-700 text-white text-sm leading-relaxed shadow-sm">
           {question}
         </div>
       </div>
@@ -1343,7 +1343,7 @@ function JudgeTab() {
             className={cn(
               "flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-colors",
               mode === m.id
-                ? "bg-violet-600 text-white"
+                ? "bg-green-700 text-white"
                 : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
             )}
           >
@@ -1367,7 +1367,7 @@ function JudgeTab() {
               onChange={e => setQuestion(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") handleRealTimeJudge(); }}
               placeholder="Enter a question to judge (e.g., 'GDMI for hospital, RF material, 600x600, 3400 m3/h')"
-              className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-300 dark:focus:border-violet-600 dark:placeholder:text-slate-500"
+              className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-300 dark:focus:border-green-700 dark:placeholder:text-slate-500"
               disabled={judging}
             />
             <button
@@ -1377,7 +1377,7 @@ function JudgeTab() {
                 "px-5 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2",
                 judging
                   ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed"
-                  : "bg-violet-600 text-white hover:bg-violet-700"
+                  : "bg-green-700 text-white hover:bg-green-800"
               )}
             >
               {judging ? <Loader2 className="w-4 h-4 animate-spin" /> : <Scale className="w-4 h-4" />}
@@ -1402,11 +1402,11 @@ function JudgeTab() {
             {/* === CHAT MESSAGE 1: User question (right-aligned) === */}
             {phase !== "idle" && (
               <div className="flex justify-end gap-2">
-                <div className="max-w-[80%] rounded-2xl rounded-br-md px-4 py-3 bg-blue-600 text-white text-sm leading-relaxed shadow-sm">
+                <div className="max-w-[80%] rounded-2xl rounded-br-md px-4 py-3 bg-green-700 text-white text-sm leading-relaxed shadow-sm">
                   {question}
                 </div>
-                <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-1">
-                  <User className="w-3.5 h-3.5 text-blue-600" />
+                <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-1">
+                  <User className="w-3.5 h-3.5 text-green-700" />
                 </div>
               </div>
             )}
@@ -1431,7 +1431,7 @@ function JudgeTab() {
                             s.status === "done" || s.status === "complete" ? "bg-emerald-400"
                               : s.status === "warning" ? "bg-amber-400"
                               : s.status === "error" ? "bg-red-400"
-                              : "bg-violet-300"
+                              : "bg-green-300"
                           )} />
                           <span>
                             {s.step && <span className="font-medium text-slate-600 dark:text-slate-300">{s.step}</span>}
@@ -1475,17 +1475,17 @@ function JudgeTab() {
             {/* === CHAT MESSAGE 3: Judge evaluation (left-aligned, violet) === */}
             {(phase === "judging" || phase === "done") && (
               <div className="flex gap-2">
-                <div className="w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center flex-shrink-0 mt-1">
-                  <Scale className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+                <div className="w-7 h-7 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0 mt-1">
+                  <Scale className="w-3.5 h-3.5 text-green-700 dark:text-green-500" />
                 </div>
                 <div className="max-w-[90%] space-y-2">
                   {/* Label */}
-                  <div className="text-[11px] font-medium text-violet-400 dark:text-violet-500">Judge (Gemini 3 Pro)</div>
+                  <div className="text-[11px] font-medium text-green-500 dark:text-green-700">Judge (Gemini 3 Pro)</div>
 
                   {/* Still judging */}
                   {phase === "judging" && (
-                    <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800">
-                      <div className="flex items-center gap-2 text-sm text-violet-600 dark:text-violet-400">
+                    <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
+                      <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-500">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Evaluating response across 6 dimensions...
                       </div>
@@ -1494,7 +1494,7 @@ function JudgeTab() {
 
                   {/* Judge verdict */}
                   {realtimeResult && (
-                    <div className="rounded-2xl rounded-bl-md bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-800 shadow-sm overflow-hidden">
+                    <div className="rounded-2xl rounded-bl-md bg-white dark:bg-slate-800 border border-green-200 dark:border-green-800 shadow-sm overflow-hidden">
                       {/* Score header */}
                       <div className={cn(
                         "px-4 py-3 flex items-center gap-3",
@@ -1596,7 +1596,7 @@ function JudgeTab() {
                 "px-5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2",
                 batchRunning
                   ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
-                  : "bg-violet-600 text-white hover:bg-violet-700"
+                  : "bg-green-700 text-white hover:bg-green-800"
               )}
             >
               {batchRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
@@ -1608,7 +1608,7 @@ function JudgeTab() {
                   <span>{batchProgress.current}/{batchProgress.total} judged</span>
                   <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-violet-500 rounded-full transition-all duration-300"
+                      className="h-full bg-green-500 rounded-full transition-all duration-300"
                       style={{ width: `${batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0}%` }}
                     />
                   </div>
@@ -1764,7 +1764,7 @@ function JudgeTab() {
               <div
                 className={cn(
                   "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
-                  genFile ? "border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-900/20" : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800"
+                  genFile ? "border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-900/20" : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800"
                 )}
                 onClick={() => document.getElementById("judge-pdf-input")?.click()}
               >
@@ -1776,7 +1776,7 @@ function JudgeTab() {
                   onChange={e => setGenFile(e.target.files?.[0] || null)}
                 />
                 {genFile ? (
-                  <div className="flex items-center justify-center gap-2 text-sm text-violet-700 dark:text-violet-400">
+                  <div className="flex items-center justify-center gap-2 text-sm text-green-800 dark:text-green-500">
                     <FileText className="w-4 h-4" />
                     {genFile.name} ({(genFile.size / 1024).toFixed(0)} KB)
                   </div>
@@ -1806,7 +1806,7 @@ function JudgeTab() {
                 "px-5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2",
                 !genFile || generating
                   ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
-                  : "bg-violet-600 text-white hover:bg-violet-700"
+                  : "bg-green-700 text-white hover:bg-green-800"
               )}
             >
               {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
@@ -1832,7 +1832,7 @@ function JudgeTab() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setSelectedGenIds(new Set(genQuestions.map(q => q.id)))}
-                    className="text-xs text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300"
+                    className="text-xs text-green-700 dark:text-green-500 hover:text-green-800 dark:hover:text-green-300"
                   >
                     Select all
                   </button>
@@ -1857,7 +1857,7 @@ function JudgeTab() {
                     className={cn(
                       "rounded-lg border p-3 cursor-pointer transition-colors",
                       selectedGenIds.has(q.id)
-                        ? "border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-900/20"
+                        ? "border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-900/20"
                         : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50"
                     )}
                     onClick={() => setSelectedGenIds(prev => {
@@ -2038,7 +2038,7 @@ export function TestLab() {
         <FlaskConical className="w-10 h-10 text-slate-300 dark:text-slate-600" />
         <p className="text-sm">{error || "No data"}</p>
         <p className="text-xs text-slate-400 dark:text-slate-500">Run: <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">python run_tests.py all --json backend/static/test-results.json</code></p>
-        <button onClick={fetchResults} className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+        <button onClick={fetchResults} className="text-xs text-green-600 hover:text-green-800 dark:text-green-500 dark:hover:text-green-300">
           Retry
         </button>
       </div>
@@ -2128,7 +2128,7 @@ export function TestLab() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search tests..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs bg-white dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 dark:focus:border-blue-600 dark:placeholder:text-slate-500"
+              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs bg-white dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-300 dark:focus:border-green-700 dark:placeholder:text-slate-500"
             />
           </div>
         </div>
@@ -2172,7 +2172,7 @@ export function TestLab() {
                   className={cn(
                     "w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 group",
                     selectedIndex === i
-                      ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
+                      ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
                       : "hover:bg-slate-50 dark:hover:bg-slate-700/50 border border-transparent",
                     test.status === "FAIL" && selectedIndex !== i && "border-l-2 border-l-red-300",
                     test.status === "ERROR" && selectedIndex !== i && "border-l-2 border-l-amber-300",
@@ -2186,7 +2186,7 @@ export function TestLab() {
                   <div className="flex flex-col items-end gap-0.5 shrink-0">
                     <div className="flex items-center gap-1">
                       {test.isMultiStep && (
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-medium border bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-medium border bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-500 border-green-200 dark:border-green-800">
                           {test.steps?.length} steps
                         </span>
                       )}

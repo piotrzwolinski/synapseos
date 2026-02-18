@@ -162,8 +162,8 @@ function StepControls({
           className={cn(
             "p-2 rounded-lg transition-colors",
             isPlaying
-              ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-              : "bg-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
+              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-500"
+              : "bg-slate-200 text-slate-600 hover:bg-green-50 hover:text-green-700 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-green-900/30 dark:hover:text-green-500"
           )}
           title={isPlaying ? "Pause" : "Play"}
         >
@@ -204,7 +204,7 @@ function StepControls({
       {/* Step Counter */}
       <div className="text-xs font-medium text-slate-600 dark:text-slate-400">
         Step{" "}
-        <span className="text-blue-600">
+        <span className="text-green-700">
           {current + 1}/{total}
         </span>
       </div>
@@ -231,7 +231,7 @@ function StepControls({
                 className={cn(
                   "w-full px-3 py-1.5 text-xs text-left transition-colors",
                   speed.value === autoplaySpeed
-                    ? "bg-blue-50 text-blue-700 font-medium"
+                    ? "bg-green-50 text-green-800 font-medium"
                     : "text-slate-600 hover:bg-slate-50"
                 )}
               >
@@ -454,7 +454,7 @@ export function TraversalGraphPlayer({
       if (status === "active") {
         size = 10;
         alpha = 1;
-        glowColor = node.isViolation ? "#ef4444" : "#3b82f6";
+        glowColor = node.isViolation ? "#ef4444" : "#5B8C3E";
       } else if (status === "visited") {
         size = 7;
         alpha = 0.85;
@@ -592,7 +592,7 @@ export function TraversalGraphPlayer({
 
       if (status === "active") {
         const currentStepInfo = graphData.steps[currentStep];
-        lineColor = currentStepInfo?.isViolation ? "#ef4444" : "#3b82f6";
+        lineColor = currentStepInfo?.isViolation ? "#ef4444" : "#5B8C3E";
         lineWidth = 3;
         alpha = 1;
       } else if (status === "visited") {
@@ -680,7 +680,7 @@ export function TraversalGraphPlayer({
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors"
       >
-        <Network className="w-4 h-4 text-blue-600" />
+        <Network className="w-4 h-4 text-green-700" />
         <span className="text-xs font-semibold text-slate-700">
           Graph Traversal Viewer
         </span>

@@ -339,12 +339,12 @@ function getTypeColor(type: string) {
   switch (type) {
     case "Failure Mode": return "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800";
     case "Engineering Requirement": return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800";
-    case "Validation Check": return "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-800";
+    case "Validation Check": return "bg-green-50 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
     case "Physical Limit": return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800";
-    case "Assembly Requirement": return "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-300 dark:border-cyan-800";
-    case "Performance Rating": return "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800";
-    case "Software": return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800";
-    case "Data": return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800";
+    case "Assembly Requirement": return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800";
+    case "Performance Rating": return "bg-green-50 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
+    case "Software": return "bg-green-50 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
+    case "Data": return "bg-green-50 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
     case "Manual": return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800";
     case "Process": return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800";
     default: return "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
@@ -398,7 +398,7 @@ function ProgressTracker({
   return (
     <div className="px-6 py-5">
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center shadow-lg shadow-green-600/20">
           <Sparkles className="w-5 h-5 text-white" />
         </div>
         <div>
@@ -424,7 +424,7 @@ function ProgressTracker({
               `Today's progress`
             )}
           </span>
-          <span className={cn("text-xs font-bold", goalReached ? "text-emerald-600 dark:text-emerald-400" : "text-violet-600 dark:text-violet-400")}>
+          <span className={cn("text-xs font-bold", goalReached ? "text-emerald-600 dark:text-emerald-400" : "text-green-700 dark:text-green-500")}>
             {reviewed}/{goal}
           </span>
         </div>
@@ -434,7 +434,7 @@ function ProgressTracker({
               "h-full rounded-full transition-all duration-700 ease-out",
               goalReached
                 ? "bg-gradient-to-r from-emerald-400 to-emerald-500"
-                : "bg-gradient-to-r from-violet-500 to-purple-500"
+                : "bg-gradient-to-r from-green-500 to-green-600"
             )}
             style={{ width: `${pct}%` }}
           />
@@ -452,13 +452,13 @@ function ProgressTracker({
             <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{stats.total_sources}</span>
             <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Verified</p>
           </div>
-          <div className="p-2.5 rounded-lg bg-violet-50 dark:bg-violet-950 border border-violet-100 dark:border-violet-800 text-center">
-            <span className="text-lg font-bold text-violet-700 dark:text-violet-300">
+          <div className="p-2.5 rounded-lg bg-green-50 dark:bg-green-950 border border-green-100 dark:border-green-800 text-center">
+            <span className="text-lg font-bold text-green-800 dark:text-green-300">
               {stats.total_sources + stats.pending > 0
                 ? Math.round((stats.total_sources / (stats.total_sources + stats.pending)) * 100)
                 : 0}%
             </span>
-            <p className="text-[10px] text-violet-600 dark:text-violet-400 font-medium">Coverage</p>
+            <p className="text-[10px] text-green-700 dark:text-green-500 font-medium">Coverage</p>
           </div>
         </div>
       )}
@@ -495,7 +495,7 @@ function MadLibsEditor({
           onChangeLogic(reassembleLogic(updated));
         }}
         rows={3}
-        className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-violet-300 dark:border-violet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 resize-none leading-relaxed dark:text-slate-200"
+        className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-green-300 dark:border-green-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600 resize-none leading-relaxed dark:text-slate-200"
       />
     );
   }
@@ -528,8 +528,8 @@ function MadLibsEditor({
             className={cn(
               "px-1 py-0.5 rounded font-medium",
               seg.type === "quote"
-                ? "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-300"
-                : "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                : "bg-green-50 text-green-800 dark:bg-green-900 dark:text-green-300"
             )}
           >
             {seg.type === "quote" ? `'${seg.text}'` : `(${seg.text})`}
@@ -563,7 +563,7 @@ function InlineInput({ value, onChange }: { value: string; onChange: (v: string)
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="border-b-2 border-violet-500 bg-violet-50 dark:bg-violet-900 outline-none text-violet-900 dark:text-violet-200 font-medium text-sm px-1 py-0.5 rounded-t"
+        className="border-b-2 border-green-600 bg-green-50 dark:bg-green-900 outline-none text-green-900 dark:text-green-200 font-medium text-sm px-1 py-0.5 rounded-t"
         style={{ width: Math.max(40, width) }}
       />
     </span>
@@ -595,7 +595,7 @@ function ImpactBadge({ candidate }: { candidate: KnowledgeCandidate }) {
         </span>
       )}
       {projects.length > 1 && (
-        <span className="flex items-center gap-1 text-violet-500 dark:text-violet-400 font-medium">
+        <span className="flex items-center gap-1 text-green-700 dark:text-green-500 font-medium">
           <TrendingUp className="w-3 h-3" />
           Cross-project pattern
         </span>
@@ -852,7 +852,7 @@ export function KnowledgeRefinery() {
       <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-900">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center shadow-lg shadow-green-600/20">
               <Zap className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -899,8 +899,8 @@ export function KnowledgeRefinery() {
               onClick={() => dispatch({ type: "SET_VIEW", view: tab.id })}
               className={cn(
                 state.view === tab.id
-                  ? "bg-violet-600 hover:bg-violet-700"
-                  : "hover:bg-violet-50 dark:hover:bg-violet-900/50"
+                  ? "bg-green-700 hover:bg-green-800"
+                  : "hover:bg-green-50 dark:hover:bg-green-900/50"
               )}
             >
               <tab.icon className="w-4 h-4 mr-2" />
@@ -914,7 +914,7 @@ export function KnowledgeRefinery() {
       <div className="flex-1 overflow-hidden">
         {state.loading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-green-700" />
           </div>
         ) : state.error ? (
           <div className="flex flex-col items-center justify-center h-full p-6">
@@ -1028,8 +1028,8 @@ export function KnowledgeRefinery() {
 
                       {/* AI interpretation */}
                       <div className="px-6 pb-4">
-                        <div className="p-4 rounded-xl bg-gradient-to-br from-violet-50/80 to-purple-50/40 dark:from-violet-950/50 dark:to-purple-950/30 border border-violet-100 dark:border-violet-800">
-                          <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 mb-2 flex items-center gap-1.5">
+                        <div className="p-4 rounded-xl bg-gradient-to-br from-green-50/80 to-green-50/40 dark:from-green-950/50 dark:to-green-950/30 border border-green-100 dark:border-green-800">
+                          <p className="text-xs font-semibold text-green-700 dark:text-green-500 mb-2 flex items-center gap-1.5">
                             <Sparkles className="w-3.5 h-3.5" />
                             Engineering Assessment
                             {state.editMode && (
@@ -1049,7 +1049,7 @@ export function KnowledgeRefinery() {
                         <div className="px-6 pb-4">
                           <button
                             onClick={() => dispatch({ type: "TOGGLE_CITATION" })}
-                            className="flex items-center gap-1.5 text-xs text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 transition-colors"
+                            className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-500 hover:text-green-800 dark:hover:text-green-300 transition-colors"
                           >
                             {state.citationExpanded ? (
                               <ChevronDown className="w-3 h-3" />
@@ -1060,7 +1060,7 @@ export function KnowledgeRefinery() {
                             Source citation
                           </button>
                           {state.citationExpanded && (
-                            <div className="mt-2 pl-3 py-2 border-l-4 border-violet-200 dark:border-violet-700 bg-violet-50/50 dark:bg-violet-950/30 rounded-r-lg animate-fade-in">
+                            <div className="mt-2 pl-3 py-2 border-l-4 border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/30 rounded-r-lg animate-fade-in">
                               <p className="text-xs text-slate-600 dark:text-slate-400 italic leading-relaxed">
                                 &ldquo;{currentCandidate.citation}&rdquo;
                               </p>
@@ -1158,7 +1158,7 @@ export function KnowledgeRefinery() {
                   value={state.searchQuery}
                   onChange={(e) => dispatch({ type: "SET_SEARCH", query: e.target.value })}
                   placeholder="Search verified sources..."
-                  className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 dark:text-slate-200 dark:placeholder-slate-500"
+                  className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600 dark:text-slate-200 dark:placeholder-slate-500"
                 />
               </div>
             </div>
@@ -1177,7 +1177,7 @@ export function KnowledgeRefinery() {
                   {filteredSources.map((source) => (
                     <div
                       key={source.id}
-                      className="p-4 rounded-xl border border-slate-200 bg-white hover:border-violet-300 transition-all"
+                      className="p-4 rounded-xl border border-slate-200 bg-white hover:border-green-300 transition-all"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
@@ -1226,7 +1226,7 @@ export function KnowledgeRefinery() {
                   value={state.searchQuery}
                   onChange={(e) => dispatch({ type: "SET_SEARCH", query: e.target.value })}
                   placeholder="Search experts..."
-                  className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                  className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
                 />
               </div>
             </div>
@@ -1245,10 +1245,10 @@ export function KnowledgeRefinery() {
                   {filteredExperts.map((expert) => (
                     <div
                       key={expert.expert_name}
-                      className="p-4 rounded-xl border border-slate-200 bg-white hover:border-violet-300 transition-all"
+                      className="p-4 rounded-xl border border-slate-200 bg-white hover:border-green-300 transition-all"
                     >
                       <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center text-white font-bold text-lg shadow-lg">
                           {expert.expert_name.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1256,7 +1256,7 @@ export function KnowledgeRefinery() {
                           {expert.expert_email && (
                             <p className="text-xs text-slate-400">{expert.expert_email}</p>
                           )}
-                          <div className="flex items-center gap-1 text-xs text-violet-600 mt-1">
+                          <div className="flex items-center gap-1 text-xs text-green-700 mt-1">
                             <BookOpen className="w-3 h-3" />
                             Expert in {expert.source_count} verified source{expert.source_count !== 1 ? "s" : ""}
                           </div>
@@ -1307,7 +1307,7 @@ export function KnowledgeRefinery() {
                   variant={state.verifyAction === "create_new" ? "default" : "outline"}
                   size="sm"
                   onClick={() => dispatch({ type: "SET_VERIFY_ACTION", action: "create_new" })}
-                  className={cn(state.verifyAction === "create_new" && "bg-violet-600 hover:bg-violet-700")}
+                  className={cn(state.verifyAction === "create_new" && "bg-green-700 hover:bg-green-800")}
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
                   Create New
@@ -1316,7 +1316,7 @@ export function KnowledgeRefinery() {
                   variant={state.verifyAction === "map_to_existing" ? "default" : "outline"}
                   size="sm"
                   onClick={() => dispatch({ type: "SET_VERIFY_ACTION", action: "map_to_existing" })}
-                  className={cn(state.verifyAction === "map_to_existing" && "bg-violet-600 hover:bg-violet-700")}
+                  className={cn(state.verifyAction === "map_to_existing" && "bg-green-700 hover:bg-green-800")}
                 >
                   <Link2 className="w-4 h-4 mr-2" />
                   Map to Existing
@@ -1331,7 +1331,7 @@ export function KnowledgeRefinery() {
                       type="text"
                       value={state.verifiedName}
                       onChange={(e) => dispatch({ type: "SET_VERIFIED_NAME", name: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
                       placeholder="e.g., HABE Calculation Tool"
                     />
                   </div>
@@ -1341,7 +1341,7 @@ export function KnowledgeRefinery() {
                       value={state.description}
                       onChange={(e) => dispatch({ type: "SET_DESCRIPTION", desc: e.target.value })}
                       rows={3}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 resize-none"
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600 resize-none"
                       placeholder="What is this tool/data source used for?"
                     />
                   </div>
@@ -1352,7 +1352,7 @@ export function KnowledgeRefinery() {
                   <select
                     value={state.selectedSourceId}
                     onChange={(e) => dispatch({ type: "SET_SELECTED_SOURCE_ID", id: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
                   >
                     <option value="">-- Select a source --</option>
                     {state.verifiedSources.map((s) => (

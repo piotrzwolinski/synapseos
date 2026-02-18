@@ -247,9 +247,9 @@ export function KnowledgeCenter() {
   const getTypeColor = (type: string) => {
     switch (type) {
       case "Software":
-        return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800";
+        return "bg-green-50 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-500 dark:border-green-800";
       case "Data":
-        return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800";
+        return "bg-green-50 text-green-800 border-green-200 dark:bg-green-950/30 dark:text-green-500 dark:border-green-800";
       case "Manual":
         return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800";
       case "Process":
@@ -285,7 +285,7 @@ export function KnowledgeCenter() {
       <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-800">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center shadow-lg shadow-green-600/20">
               <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -330,23 +330,23 @@ export function KnowledgeCenter() {
               </div>
               <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">Verified</p>
             </div>
-            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
+            <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
               <div className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-blue-600" />
-                <span className="text-lg font-bold text-blue-700 dark:text-blue-400">{stats.total_projects}</span>
+                <BarChart3 className="w-4 h-4 text-green-700" />
+                <span className="text-lg font-bold text-green-800 dark:text-green-500">{stats.total_projects}</span>
               </div>
-              <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">Projects</p>
+              <p className="text-xs text-green-700 dark:text-green-500 mt-0.5">Projects</p>
             </div>
-            <div className="p-3 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800">
+            <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-violet-600" />
-                <span className="text-lg font-bold text-violet-700 dark:text-violet-400">
+                <TrendingUp className="w-4 h-4 text-green-700" />
+                <span className="text-lg font-bold text-green-800 dark:text-green-500">
                   {stats.total_candidates > 0
                     ? Math.round((stats.total_sources / (stats.total_sources + stats.pending)) * 100)
                     : 0}%
                 </span>
               </div>
-              <p className="text-xs text-violet-600 dark:text-violet-400 mt-0.5">Coverage</p>
+              <p className="text-xs text-green-700 dark:text-green-500 mt-0.5">Coverage</p>
             </div>
           </div>
         )}
@@ -359,8 +359,8 @@ export function KnowledgeCenter() {
             onClick={() => setViewMode("candidates")}
             className={cn(
               viewMode === "candidates"
-                ? "bg-violet-600 hover:bg-violet-700"
-                : "hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                ? "bg-green-700 hover:bg-green-800"
+                : "hover:bg-green-50 dark:hover:bg-green-900/20"
             )}
           >
             <Clock className="w-4 h-4 mr-2" />
@@ -372,8 +372,8 @@ export function KnowledgeCenter() {
             onClick={() => setViewMode("library")}
             className={cn(
               viewMode === "library"
-                ? "bg-violet-600 hover:bg-violet-700"
-                : "hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                ? "bg-green-700 hover:bg-green-800"
+                : "hover:bg-green-50 dark:hover:bg-green-900/20"
             )}
           >
             <BookOpen className="w-4 h-4 mr-2" />
@@ -385,8 +385,8 @@ export function KnowledgeCenter() {
             onClick={() => setViewMode("experts")}
             className={cn(
               viewMode === "experts"
-                ? "bg-violet-600 hover:bg-violet-700"
-                : "hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                ? "bg-green-700 hover:bg-green-800"
+                : "hover:bg-green-50 dark:hover:bg-green-900/20"
             )}
           >
             <Users className="w-4 h-4 mr-2" />
@@ -408,7 +408,7 @@ export function KnowledgeCenter() {
                 ? "Search discoveries..."
                 : "Search verified sources..."
             }
-            className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 dark:text-slate-200 dark:placeholder-slate-400"
+            className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600 dark:text-slate-200 dark:placeholder-slate-400"
           />
         </div>
       </div>
@@ -417,7 +417,7 @@ export function KnowledgeCenter() {
       <div className="flex-1 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-green-700" />
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center h-full p-6">
@@ -448,7 +448,7 @@ export function KnowledgeCenter() {
                 {filteredCandidates.map((candidate) => (
                   <div
                     key={candidate.id}
-                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-violet-300 dark:hover:border-violet-700 transition-all"
+                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-green-300 dark:hover:border-green-800 transition-all"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -493,7 +493,7 @@ export function KnowledgeCenter() {
                             )
                           }
                         >
-                          <div className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800">
+                          <div className="flex items-center gap-1 text-xs text-green-700 hover:text-green-800">
                             {expandedCard === candidate.id ? (
                               <ChevronDown className="w-3 h-3" />
                             ) : (
@@ -503,7 +503,7 @@ export function KnowledgeCenter() {
                             View source citation
                           </div>
                           {expandedCard === candidate.id && (
-                            <div className="mt-2 pl-3 py-2 border-l-4 border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/20 rounded-r-lg">
+                            <div className="mt-2 pl-3 py-2 border-l-4 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 rounded-r-lg">
                               <p className="text-xs text-slate-600 dark:text-slate-400 italic">
                                 &ldquo;{candidate.citation}&rdquo;
                               </p>
@@ -561,7 +561,7 @@ export function KnowledgeCenter() {
                 {filteredSources.map((source) => (
                   <div
                     key={source.id}
-                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-violet-300 dark:hover:border-violet-700 transition-all"
+                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-green-300 dark:hover:border-green-800 transition-all"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -631,11 +631,11 @@ export function KnowledgeCenter() {
                 {filteredExperts.map((expert) => (
                   <div
                     key={expert.expert_name}
-                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-violet-300 dark:hover:border-violet-700 transition-all"
+                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-green-300 dark:hover:border-green-800 transition-all"
                   >
                     <div className="flex items-start gap-4">
                       {/* Avatar */}
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center text-white font-bold text-lg shadow-lg">
                         {expert.expert_name.charAt(0).toUpperCase()}
                       </div>
 
@@ -647,7 +647,7 @@ export function KnowledgeCenter() {
                         )}
 
                         {/* Expertise Count */}
-                        <div className="flex items-center gap-1 text-xs text-violet-600 mt-1">
+                        <div className="flex items-center gap-1 text-xs text-green-700 mt-1">
                           <BookOpen className="w-3 h-3" />
                           Expert in {expert.source_count} verified source{expert.source_count !== 1 ? "s" : ""}
                         </div>
@@ -701,7 +701,7 @@ export function KnowledgeCenter() {
                   size="sm"
                   onClick={() => setVerifyAction("create_new")}
                   className={cn(
-                    verifyAction === "create_new" && "bg-violet-600 hover:bg-violet-700"
+                    verifyAction === "create_new" && "bg-green-700 hover:bg-green-800"
                   )}
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
@@ -712,7 +712,7 @@ export function KnowledgeCenter() {
                   size="sm"
                   onClick={() => setVerifyAction("map_to_existing")}
                   className={cn(
-                    verifyAction === "map_to_existing" && "bg-violet-600 hover:bg-violet-700"
+                    verifyAction === "map_to_existing" && "bg-green-700 hover:bg-green-800"
                   )}
                 >
                   <Link2 className="w-4 h-4 mr-2" />
@@ -731,7 +731,7 @@ export function KnowledgeCenter() {
                       type="text"
                       value={verifiedName}
                       onChange={(e) => setVerifiedName(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                      className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
                       placeholder="e.g., HABE Calculation Tool"
                     />
                   </div>
@@ -745,7 +745,7 @@ export function KnowledgeCenter() {
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       rows={3}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 resize-none"
+                      className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600 resize-none"
                       placeholder="What is this tool/data source used for?"
                     />
                   </div>
@@ -759,7 +759,7 @@ export function KnowledgeCenter() {
                   <select
                     value={selectedSourceId}
                     onChange={(e) => setSelectedSourceId(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600"
                   >
                     <option value="">-- Select a source --</option>
                     {verifiedSources.map((s) => (
@@ -794,7 +794,7 @@ export function KnowledgeCenter() {
                   (verifyAction === "create_new" && !verifiedName) ||
                   (verifyAction === "map_to_existing" && !selectedSourceId)
                 }
-                className="bg-violet-600 hover:bg-violet-700"
+                className="bg-green-700 hover:bg-green-800"
               >
                 {processingId === selectedCandidate.id ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />

@@ -65,20 +65,20 @@ export function ActionCard({ data }: ActionCardProps) {
               "flex items-start gap-3 p-3 rounded-lg border",
               data.is_locked
                 ? "bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-700"
-                : "bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-800"
+                : "bg-green-50 dark:bg-green-900/30 border-green-100 dark:border-green-800"
             )}
           >
             <BrainCircuit
               className={cn(
                 "w-5 h-5 mt-0.5 flex-shrink-0",
-                data.is_locked ? "text-slate-400" : "text-blue-600"
+                data.is_locked ? "text-slate-400" : "text-green-700"
               )}
             />
             <div className="flex-1 min-w-0">
               <p
                 className={cn(
                   "text-xs font-semibold uppercase tracking-wider mb-1",
-                  data.is_locked ? "text-slate-400 dark:text-slate-500" : "text-blue-700 dark:text-blue-400"
+                  data.is_locked ? "text-slate-400 dark:text-slate-500" : "text-green-800 dark:text-green-500"
                 )}
               >
                 Why this recommendation
@@ -86,7 +86,7 @@ export function ActionCard({ data }: ActionCardProps) {
               <p
                 className={cn(
                   "text-sm leading-relaxed",
-                  data.is_locked ? "text-slate-500 dark:text-slate-400" : "text-blue-900 dark:text-blue-200"
+                  data.is_locked ? "text-slate-500 dark:text-slate-400" : "text-green-900 dark:text-green-200"
                 )}
               >
                 {data.reasoning.source_project && (
@@ -103,7 +103,7 @@ export function ActionCard({ data }: ActionCardProps) {
                 <p
                   className={cn(
                     "text-xs mt-1.5 font-medium",
-                    data.is_locked ? "text-slate-400 dark:text-slate-500" : "text-blue-600 dark:text-blue-400"
+                    data.is_locked ? "text-slate-400 dark:text-slate-500" : "text-green-700 dark:text-green-500"
                   )}
                 >
                   Confidence: {data.reasoning.confidence}

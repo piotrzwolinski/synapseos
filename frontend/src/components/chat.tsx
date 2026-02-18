@@ -22,15 +22,12 @@ import {
   ArrowRight,
   Database,
   Lock,
-  Scale,
   Download,
-  ThumbsUp,
-  ThumbsDown,
   MessageSquare,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
-import { apiUrl, authFetch, getSessionId, resetSessionId, getSessionGraphState, clearSessionGraph, type SessionGraphState, evaluateResponse, type JudgeEvalResult, type JudgeSingleResult, submitExpertReview, saveJudgeResults } from "@/lib/api";
+import { apiUrl, authFetch, getSessionId, resetSessionId, getSessionGraphState, clearSessionGraph, type SessionGraphState } from "@/lib/api";
 import { getUserRole } from "@/lib/auth";
 import SessionGraphViewer from "./session-graph-viewer";
 import { Widget, BotResponse } from "./chat-widgets";
@@ -73,175 +70,6 @@ interface DiagnosticsData {
   graph_paths_count?: number;
 }
 
-const JUDGE_DIM_LABELS: Record<string, string> = {
-  correctness: "COR", completeness: "COM", safety: "SAF",
-  tone: "TON", reasoning_quality: "REA", constraint_adherence: "CON",
-};
-
-const PROVIDER_LABELS: Record<string, string> = { gemini: "Gemini", openai: "GPT-5.2", anthropic: "Claude" };
-
-function recColor(rec: string) {
-  return rec === "PASS"       ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50" :
-         rec === "BORDERLINE" ? "bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50" :
-         rec === "FAIL"       ? "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50" :
-                                "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700";
-}
-
-function recBadgeColor(rec: string) {
-  return rec === "PASS" ? "bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200" :
-         rec === "BORDERLINE" ? "bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200" :
-         rec === "FAIL" ? "bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200" :
-         "bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200";
-}
-
-function JudgeBadge({
-  result,
-  loading,
-  judgeReviews,
-  onJudgeReview,
-}: {
-  result?: JudgeEvalResult;
-  loading?: boolean;
-  judgeReviews?: Record<string, "thumbs_up" | "thumbs_down">;
-  onJudgeReview?: (provider: string, score: "thumbs_up" | "thumbs_down") => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-
-  if (loading) {
-    return (
-      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-50 dark:bg-violet-900/30 border border-violet-100 dark:border-violet-800 text-[11px] text-violet-500 dark:text-violet-400">
-        <Loader2 className="w-3 h-3 animate-spin" />
-        Judging...
-      </div>
-    );
-  }
-
-  if (!result) return null;
-
-  // Collect non-ERROR provider results
-  const providers = (["gemini", "openai", "anthropic"] as const).filter(
-    (k) => result[k] && result[k].recommendation !== "ERROR"
-  );
-
-  if (providers.length === 0) return null;
-
-  return (
-    <div className="mt-1">
-      <div className="inline-flex items-center gap-1.5 flex-wrap">
-        {providers.map((prov) => {
-          const r = result[prov];
-          const review = judgeReviews?.[prov];
-          return (
-            <button
-              key={prov}
-              onClick={() => setExpanded(!expanded)}
-              className={cn(
-                "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors border cursor-pointer",
-                recColor(r.recommendation)
-              )}
-            >
-              <Scale className="w-3 h-3" />
-              <span className="opacity-60">{PROVIDER_LABELS[prov]}</span>
-              {r.overall_score.toFixed(1)}/5
-              <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold", recBadgeColor(r.recommendation))}>
-                {r.recommendation}
-              </span>
-              {review && (
-                review === "thumbs_up"
-                  ? <ThumbsUp className="w-3 h-3 text-emerald-600 ml-0.5" />
-                  : <ThumbsDown className="w-3 h-3 text-red-600 ml-0.5" />
-              )}
-            </button>
-          );
-        })}
-        <button onClick={() => setExpanded(!expanded)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer">
-          {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-        </button>
-      </div>
-      {expanded && (
-        <div className="mt-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-xs space-y-3 max-w-xl">
-          {providers.map((prov) => {
-            const r = result[prov];
-            const u = r.usage;
-            const review = judgeReviews?.[prov];
-            return (
-              <div key={prov}>
-                <div className="flex items-center justify-between mb-1">
-                  <p className="font-semibold text-slate-700 dark:text-slate-300">{PROVIDER_LABELS[prov]}</p>
-                  <div className="flex items-center gap-1.5">
-                    {u && u.duration_s != null && (
-                      <span className="text-[10px] text-slate-400 font-mono">{u.duration_s}s</span>
-                    )}
-                    {/* Per-judge thumbs up/down */}
-                    {onJudgeReview && (
-                      <div className="flex items-center gap-0.5 ml-1">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onJudgeReview(prov, "thumbs_up"); }}
-                          className={cn(
-                            "p-1 rounded transition-colors",
-                            review === "thumbs_up"
-                              ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
-                              : "text-slate-300 dark:text-slate-600 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
-                          )}
-                        >
-                          <ThumbsUp className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onJudgeReview(prov, "thumbs_down"); }}
-                          className={cn(
-                            "p-1 rounded transition-colors",
-                            review === "thumbs_down"
-                              ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-                              : "text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
-                          )}
-                        >
-                          <ThumbsDown className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <p className="text-slate-600 dark:text-slate-400 leading-relaxed mb-1.5">{r.explanation}</p>
-                <div className="flex flex-wrap gap-1.5 mb-1.5">
-                  {Object.entries(r.scores).map(([dim, s]) => (
-                    <span
-                      key={dim}
-                      className={cn(
-                        "px-1.5 py-0.5 rounded text-[10px] font-medium",
-                        s >= 4 ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
-                          : s >= 3 ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
-                          : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
-                      )}
-                    >
-                      {JUDGE_DIM_LABELS[dim] || dim}:{s}
-                    </span>
-                  ))}
-                </div>
-                {r.pdf_citations && r.pdf_citations.length > 0 && (
-                  <div className="mt-1.5 border-t border-slate-100 dark:border-slate-700 pt-1.5">
-                    <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">PDF Citations</p>
-                    <ul className="list-disc list-inside text-[10px] text-slate-500 dark:text-slate-400 space-y-0.5">
-                      {r.pdf_citations.map((c, i) => <li key={i}>{c}</li>)}
-                    </ul>
-                  </div>
-                )}
-                {u && (u.prompt_tokens || u.output_tokens) && (
-                  <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono border-t border-slate-100 dark:border-slate-700 pt-1">
-                    <span>in:{(u.prompt_tokens || 0).toLocaleString()}</span>
-                    {u.cached_tokens ? (
-                      <span className="text-violet-400">cached:{u.cached_tokens.toLocaleString()} ({Math.round((u.cached_tokens / (u.prompt_tokens || 1)) * 100)}%)</span>
-                    ) : null}
-                    <span>out:{(u.output_tokens || 0).toLocaleString()}</span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface Message {
   role: "user" | "assistant";
@@ -264,12 +92,6 @@ interface Message {
     graph_facts_count: number;
     llm_inferences_count: number;
   };
-  // LLM-as-a-Judge auto-evaluation
-  judgeResult?: JudgeEvalResult;
-  judgeLoading?: boolean;
-  judgeMsgId?: string;
-  // Per-judge expert reviews (keyed by provider)
-  judgeReviews?: Record<string, "thumbs_up" | "thumbs_down">;
 }
 
 export interface ChatHandle {
@@ -354,11 +176,11 @@ const QUESTION_CATEGORIES: Record<string, {
   knittel: {
     label: "Knittel Project",
     icon: <span className="text-sm">🔧</span>,
-    gradient: "from-blue-500 to-cyan-500",
-    hoverGradient: "hover:from-blue-600 hover:to-cyan-600",
-    textColor: "text-blue-700 dark:text-blue-400",
-    bgColor: "bg-blue-50 dark:bg-blue-900/20",
-    borderColor: "border-blue-200 dark:border-blue-800",
+    gradient: "from-green-600 to-emerald-500",
+    hoverGradient: "hover:from-green-700 hover:to-emerald-600",
+    textColor: "text-green-800 dark:text-green-400",
+    bgColor: "bg-green-50 dark:bg-green-900/20",
+    borderColor: "border-green-200 dark:border-green-800",
   },
   huddinge: {
     label: "Huddinge Hospital",
@@ -381,11 +203,11 @@ const QUESTION_CATEGORIES: Record<string, {
   catalog: {
     label: "Filter Catalog",
     icon: <span className="text-sm">📄</span>,
-    gradient: "from-violet-500 to-purple-500",
-    hoverGradient: "hover:from-violet-600 hover:to-purple-600",
-    textColor: "text-violet-700 dark:text-violet-400",
-    bgColor: "bg-violet-50 dark:bg-violet-900/20",
-    borderColor: "border-violet-200 dark:border-violet-800",
+    gradient: "from-green-600 to-green-700",
+    hoverGradient: "hover:from-green-700 hover:to-green-800",
+    textColor: "text-green-800 dark:text-green-400",
+    bgColor: "bg-green-50 dark:bg-green-900/20",
+    borderColor: "border-green-200 dark:border-green-800",
   },
   housing: {
     label: "Housing Selection",
@@ -399,8 +221,8 @@ const QUESTION_CATEGORIES: Record<string, {
   maritime: {
     label: "Maritime / Offshore",
     icon: <span className="text-sm">⚓</span>,
-    gradient: "from-sky-500 to-cyan-500",
-    hoverGradient: "hover:from-sky-600 hover:to-cyan-600",
+    gradient: "from-green-500 to-emerald-500",
+    hoverGradient: "hover:from-green-600 hover:to-emerald-600",
     textColor: "text-sky-700 dark:text-sky-400",
     bgColor: "bg-sky-50 dark:bg-sky-900/20",
     borderColor: "border-sky-200 dark:border-sky-800",
@@ -551,17 +373,17 @@ function DevModePanel({ graphPaths, promptPreview }: { graphPaths?: string[]; pr
             className={cn(
               "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors",
               showPaths
-                ? "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-600 dark:hover:text-violet-400"
+                ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-700 dark:hover:text-green-500"
             )}
           >
             {showPaths ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
             Graph Paths ({graphPaths.length})
           </button>
           {showPaths && (
-            <div className="absolute left-0 top-full mt-1 z-10 w-[400px] max-h-[300px] overflow-auto bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-800 rounded-lg shadow-lg p-2 space-y-1">
+            <div className="absolute left-0 top-full mt-1 z-10 w-[400px] max-h-[300px] overflow-auto bg-white dark:bg-slate-800 border border-green-200 dark:border-green-800 rounded-lg shadow-lg p-2 space-y-1">
               {graphPaths.map((path, i) => (
-                <div key={i} className="px-2 py-1.5 bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800 rounded text-[10px] text-violet-800 dark:text-violet-300 font-mono leading-relaxed">
+                <div key={i} className="px-2 py-1.5 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded text-[10px] text-green-800 dark:text-green-300 font-mono leading-relaxed">
                   {path}
                 </div>
               ))}
@@ -631,12 +453,12 @@ function LlmDiagnosticsPanel({ promptPreview, diagnostics }: { promptPreview?: s
   };
 
   return (
-    <div className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-50 to-blue-50/30 dark:from-slate-800 dark:to-blue-900/20 overflow-hidden">
+    <div className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-50 to-green-50/30 dark:from-slate-800 dark:to-green-900/20 overflow-hidden">
       {/* Header with diagnostics summary */}
       <div className="flex items-center justify-between px-3 py-2 bg-white/60 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-700">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-md bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
-            <Cpu className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+          <div className="w-5 h-5 rounded-md bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
+            <Cpu className="w-3 h-3 text-green-700 dark:text-green-400" />
           </div>
           <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">LLM Diagnostics</span>
         </div>
@@ -728,18 +550,18 @@ function GraphTraversalPanel({ graphPaths, diagnostics, promptPreview }: { graph
   if (!graphPaths || graphPaths.length === 0) return null;
 
   return (
-    <div className="mt-3 rounded-xl border border-violet-200 dark:border-violet-800 bg-gradient-to-br from-violet-50/50 to-blue-50/30 dark:from-slate-800 dark:to-violet-900/20 overflow-hidden">
+    <div className="mt-3 rounded-xl border border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50/50 to-green-50/30 dark:from-slate-800 dark:to-green-900/20 overflow-hidden">
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-3 py-2 hover:bg-violet-50/50 dark:hover:bg-violet-900/20 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2 hover:bg-green-50/50 dark:hover:bg-green-900/20 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-md bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
-            <Network className="w-3 h-3 text-violet-600 dark:text-violet-400" />
+          <div className="w-5 h-5 rounded-md bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
+            <Network className="w-3 h-3 text-green-700 dark:text-green-400" />
           </div>
           <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Graph Traversal</span>
-          <span className="px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 text-[10px] font-medium">
+          <span className="px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 text-[10px] font-medium">
             {graphPaths.length} paths
           </span>
         </div>
@@ -763,15 +585,15 @@ function GraphTraversalPanel({ graphPaths, diagnostics, promptPreview }: { graph
 
       {/* Expanded paths */}
       {expanded && (
-        <div className="px-3 pb-3 space-y-1.5 border-t border-violet-100 dark:border-violet-800">
+        <div className="px-3 pb-3 space-y-1.5 border-t border-green-100 dark:border-green-800">
           <div className="pt-2" />
           {graphPaths.map((path, i) => {
             // Parse path like "ProductFamily(GDB) → ProductVariant[23 variants]"
             const parts = path.split(" → ");
             return (
               <div key={i} className="flex items-start gap-2 group">
-                <div className="flex-shrink-0 mt-1 w-4 h-4 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
-                  <span className="text-[8px] text-violet-600 dark:text-violet-400 font-bold">{i + 1}</span>
+                <div className="flex-shrink-0 mt-1 w-4 h-4 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
+                  <span className="text-[8px] text-green-700 dark:text-green-400 font-bold">{i + 1}</span>
                 </div>
                 <div className="flex-1 flex flex-wrap items-center gap-1 text-[10px] font-mono leading-relaxed">
                   {parts.map((part, j) => {
@@ -779,11 +601,11 @@ function GraphTraversalPanel({ graphPaths, diagnostics, promptPreview }: { graph
                     const isNode = part.includes("(") || part.includes("[");
                     return (
                       <span key={j} className="flex items-center gap-1">
-                        {j > 0 && <ArrowRight className="w-3 h-3 text-violet-400 flex-shrink-0" />}
+                        {j > 0 && <ArrowRight className="w-3 h-3 text-green-500 flex-shrink-0" />}
                         <span className={cn(
                           "px-1.5 py-0.5 rounded",
                           isNode
-                            ? "bg-violet-100 dark:bg-violet-900/30 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-800"
+                            ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800"
                             : "text-slate-600 dark:text-slate-400"
                         )}>
                           {part}
@@ -798,7 +620,7 @@ function GraphTraversalPanel({ graphPaths, diagnostics, promptPreview }: { graph
 
           {/* Summary stats */}
           {diagnostics && (
-            <div className="mt-2 pt-2 border-t border-violet-100 dark:border-violet-800 flex flex-wrap gap-3 text-[10px] text-slate-500 dark:text-slate-400">
+            <div className="mt-2 pt-2 border-t border-green-100 dark:border-green-800 flex flex-wrap gap-3 text-[10px] text-slate-500 dark:text-slate-400">
               {diagnostics.variant_count != null && (
                 <span><Database className="w-3 h-3 inline mr-1" />{diagnostics.variant_count} variants loaded</span>
               )}
@@ -813,7 +635,7 @@ function GraphTraversalPanel({ graphPaths, diagnostics, promptPreview }: { graph
 
           {/* Prompt preview (collapsible) */}
           {promptPreview && (
-            <div className="mt-2 pt-2 border-t border-violet-100 dark:border-violet-800">
+            <div className="mt-2 pt-2 border-t border-green-100 dark:border-green-800">
               <button
                 onClick={() => setShowPrompt(!showPrompt)}
                 className={cn(
@@ -1293,9 +1115,6 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           });
         }
 
-        // Generate a unique ID for this message so the judge callback can find it
-        const judgeMsgId = `judge-${Date.now()}`;
-        const isExpertRole = true;
         setMessages((prev) => [
           ...prev,
           {
@@ -1303,70 +1122,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             content: contentText,
             chatMode,
             deepExplainableData: data,
-            judgeLoading: isExpertRole,
-            judgeMsgId,
           },
         ]);
-
-        // Fire LLM judge in background (non-blocking) — expert role only
-        if (isExpertRole) {
-          // Build conversation history: all prior messages + current response
-          const conversationHistory = messages
-            .filter((m) => m.chatMode === "graph-reasoning" || m.role === "user")
-            .map((m) => ({
-              role: m.role as string,
-              content: m.content,
-              product_card: m.deepExplainableData?.product_card || null,
-              product_cards: m.deepExplainableData?.product_cards || null,
-              clarification_needed: m.deepExplainableData?.clarification_needed || false,
-              status_badges: m.deepExplainableData?.status_badges || null,
-            }));
-          // Append the current user message + this assistant response
-          conversationHistory.push({ role: "user", content: userMessage, product_card: null, product_cards: null, clarification_needed: false, status_badges: null });
-          conversationHistory.push({
-            role: "assistant",
-            content: contentText,
-            product_card: data?.product_card || null,
-            product_cards: data?.product_cards || null,
-            clarification_needed: data?.clarification_needed || false,
-            status_badges: data?.status_badges || null,
-          });
-
-          const judgeResponseData = {
-            conversation_history: conversationHistory,
-            content_text: contentText,
-            product_card: data?.product_card || null,
-            product_cards: data?.product_cards || null,
-            clarification_needed: data?.clarification_needed || false,
-            graph_report: capturedGraphReport,
-            inference_steps: dynamicSteps.map(s => ({
-              step: s.id,
-              detail: s.label,
-              status: s.status,
-            })),
-          };
-          // Calculate turn number for this assistant response
-          const currentTurnNumber = messages.filter(m => m.role === "assistant").length + 1;
-          evaluateResponse(userMessage, judgeResponseData)
-            .then((judgeResult) => {
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.judgeMsgId === judgeMsgId ? { ...m, judgeResult, judgeLoading: false } : m
-                )
-              );
-              // Persist judge results to Neo4j (non-blocking)
-              saveJudgeResults(getSessionId(), currentTurnNumber, judgeResult as unknown as Record<string, unknown>)
-                .catch((err) => console.warn("Failed to persist judge results:", err));
-            })
-            .catch((err) => {
-              console.warn("Judge evaluation failed:", err);
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.judgeMsgId === judgeMsgId ? { ...m, judgeLoading: false } : m
-                )
-              );
-            });
-        }
       } else {
         // Use streaming endpoint based on chat mode
         const streamEndpoint = chatMode === "llm-driven" ? "/chat/llm-driven/stream" : "/chat/stream";
@@ -1563,28 +1320,6 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             turn.graph_facts_count = d.graph_facts_count;
             turn.inference_count = d.inference_count;
             turn.timings = d.timings || null;
-          }
-
-          // Judge evaluations (all 3 models)
-          if (msg.judgeResult) {
-            const jr = msg.judgeResult;
-            turn.judge = {} as Record<string, unknown>;
-            for (const prov of ["gemini", "openai", "anthropic"] as const) {
-              const r = jr[prov];
-              if (r && r.recommendation !== "ERROR") {
-                (turn.judge as Record<string, unknown>)[prov] = {
-                  overall_score: r.overall_score,
-                  recommendation: r.recommendation,
-                  scores: r.scores,
-                  explanation: r.explanation,
-                  dimension_explanations: r.dimension_explanations,
-                  strengths: r.strengths,
-                  weaknesses: r.weaknesses,
-                  pdf_citations: r.pdf_citations || [],
-                  usage: r.usage || null,
-                };
-              }
-            }
           }
 
           // Widgets (action proposals, safety guards, etc.)
@@ -1792,40 +1527,6 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     }
   };
 
-  // Per-judge expert review submission
-  const handleJudgeReview = async (msgIndex: number, provider: string, score: "thumbs_up" | "thumbs_down") => {
-    // Optimistically update UI
-    setMessages((prev) =>
-      prev.map((m, i) => {
-        if (i !== msgIndex) return m;
-        const reviews = { ...(m.judgeReviews || {}) };
-        reviews[provider] = score;
-        return { ...m, judgeReviews: reviews };
-      })
-    );
-    // Calculate turn number from message index (count assistant messages up to and including this one)
-    const turnNumber = messages.slice(0, msgIndex + 1).filter(m => m.role === "assistant").length;
-    try {
-      await submitExpertReview(getSessionId(), {
-        comment: "",
-        overall_score: score,
-        provider,
-        turn_number: turnNumber,
-      });
-    } catch (err) {
-      console.error("Failed to submit judge review:", err);
-      // Revert on failure
-      setMessages((prev) =>
-        prev.map((m, i) => {
-          if (i !== msgIndex) return m;
-          const reviews = { ...(m.judgeReviews || {}) };
-          delete reviews[provider];
-          return { ...m, judgeReviews: reviews };
-        })
-      );
-    }
-  };
-
   return (
     <div className="flex gap-4">
       {/* Main Chat Panel */}
@@ -1838,8 +1539,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         <div className="p-6 space-y-6">
           {messages.length === 0 && (
             <div className="text-center py-16">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-100 to-violet-100 dark:from-blue-900/50 dark:to-violet-900/50 flex items-center justify-center">
-                <Bot className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-100 to-green-50 dark:from-green-900/50 dark:to-green-900/50 flex items-center justify-center">
+                <Bot className="w-8 h-8 text-green-700 dark:text-green-400" />
               </div>
               <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
                 How can I help you today?
@@ -1848,13 +1549,22 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                 Ask me about past engineering cases, product recommendations, or
                 technical decisions from our knowledge base.
               </p>
-              <button
-                onClick={() => { setInput("I need a GDB housing, size 600x600, Galvanized FZ, airflow 2500 m\u00B3/h."); inputRef.current?.focus(); }}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700 hover:text-blue-700 dark:hover:text-blue-400 transition-all shadow-sm"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                I need a GDB housing, size 600x600, Galvanized FZ, airflow 2500 m&sup3;/h.
-              </button>
+              <div className="flex flex-col items-center gap-2">
+                <button
+                  onClick={() => { setInput("I need a GDB housing, size 600x600, Galvanized FZ, airflow 2500 m\u00B3/h."); inputRef.current?.focus(); }}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-green-50 dark:hover:bg-green-900/30 hover:border-green-300 dark:hover:border-green-700 hover:text-green-800 dark:hover:text-green-400 transition-all shadow-sm"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  I need a GDB housing, size 600x600, Galvanized FZ, airflow 2500 m&sup3;/h.
+                </button>
+                <button
+                  onClick={() => { setInput("Surgical ward supply air. Airflow: 3400 m\u00B3/h. Duct 600x600 mm. Can we use GDB-FZ?"); inputRef.current?.focus(); }}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-green-50 dark:hover:bg-green-900/30 hover:border-green-300 dark:hover:border-green-700 hover:text-green-800 dark:hover:text-green-400 transition-all shadow-sm"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  Surgical ward supply air. Airflow: 3400 m&sup3;/h. Duct 600x600 mm. Can we use GDB-FZ?
+                </button>
+              </div>
               {/* Explainable mode hint */}
               {explainableMode && (
                 <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-full">
@@ -1879,7 +1589,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                 className={cn(
                   "flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center",
                   message.role === "user"
-                    ? "bg-gradient-to-br from-blue-600 to-blue-700"
+                    ? "bg-gradient-to-br from-green-700 to-green-800"
                     : "bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800"
                 )}
               >
@@ -1938,7 +1648,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                     className={cn(
                       "relative group",
                       message.role === "user"
-                        ? "rounded-2xl px-4 py-3 bg-gradient-to-br from-blue-600 to-blue-700 text-white"
+                        ? "rounded-2xl px-4 py-3 bg-gradient-to-br from-green-700 to-green-800 text-white"
                         : message.deepExplainableData
                           ? "rounded-xl px-4 py-3 bg-slate-50/80 dark:bg-slate-800/80"
                           : "rounded-2xl px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700"
@@ -2058,15 +1768,6 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                     <WidgetList widgets={message.widgets} onProjectClick={handleProjectClick} />
                   )}
 
-                  {/* ========== JUDGE VERDICT (Auto, Graph Reasoning only) ========== */}
-                  {message.role === "assistant" && message.chatMode === "graph-reasoning" && (message.judgeLoading || message.judgeResult) && (
-                    <JudgeBadge
-                      result={message.judgeResult}
-                      loading={message.judgeLoading}
-                      judgeReviews={message.judgeReviews}
-                      onJudgeReview={(provider, score) => handleJudgeReview(index, provider, score)}
-                    />
-                  )}
 
                   {/* Mode-specific panels (always shown) */}
                   {message.role === "assistant" && message.chatMode === "llm-driven" && (
@@ -2099,11 +1800,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           {/* Reasoning indicator */}
           {isLoading && (
             <div className="flex gap-4 animate-fade-in">
-              <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-green-600 to-green-700 flex items-center justify-center shadow-lg shadow-green-600/20">
                 <Brain className="w-4 h-4 text-white animate-pulse" />
               </div>
-              <div className="bg-gradient-to-br from-slate-50 to-blue-50/30 dark:from-slate-800 dark:to-blue-900/20 border border-blue-100/50 dark:border-blue-800/50 rounded-2xl px-4 py-3 min-w-[320px] max-w-[420px]">
-                <div className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-1.5">
+              <div className="bg-gradient-to-br from-slate-50 to-green-50/30 dark:from-slate-800 dark:to-green-900/20 border border-green-100/50 dark:border-green-800/50 rounded-2xl px-4 py-3 min-w-[320px] max-w-[420px]">
+                <div className="text-xs font-medium text-green-700 dark:text-green-400 mb-3 flex items-center gap-1.5">
                   {chatMode === "llm-driven" && <><Cpu className="w-3 h-3" /> LLM Processing...</>}
                   {chatMode === "graphrag" && <><Database className="w-3 h-3" /> LLM + Graph Data Analysis...</>}
                   {chatMode === "graph-reasoning" && <><Network className="w-3 h-3" /> Graph Reasoning Engine...</>}
@@ -2116,7 +1817,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                         {step.status === "done" ? (
                           <span className="text-emerald-500 text-sm">✓</span>
                         ) : step.status === "active" ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-green-600" />
                         ) : (
                           <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
                         )}
@@ -2125,7 +1826,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                         <div
                           className={cn(
                             "text-sm transition-all duration-300",
-                            step.status === "active" && "text-blue-700 dark:text-blue-400 font-medium",
+                            step.status === "active" && "text-green-800 dark:text-green-400 font-medium",
                             step.status === "done" && "text-slate-700 dark:text-slate-300",
                             step.status === "pending" && "text-slate-400 dark:text-slate-500"
                           )}
@@ -2136,7 +1837,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                         {step.status === "done" && step.data?.concepts && step.data.concepts.length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {step.data.concepts.map((concept, i) => (
-                              <span key={i} className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded text-[10px] font-medium">
+                              <span key={i} className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-400 rounded text-[10px] font-medium">
                                 {concept}
                               </span>
                             ))}
@@ -2188,7 +1889,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
 
       {/* Session Graph Panel (collapsible) */}
       {showSessionGraph && sessionGraphState && (
-        <div className="border-t border-cyan-200 bg-gradient-to-b from-slate-900 to-slate-950">
+        <div className="border-t border-green-200 bg-gradient-to-b from-slate-900 to-slate-950">
           <SessionGraphViewer
             sessionState={sessionGraphState}
             height={320}
@@ -2218,7 +1919,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             onKeyDown={handleKeyDown}
             placeholder="Ask about past cases, products, or decisions..."
             rows={1}
-            className="flex-1 px-4 py-3 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 dark:focus:border-blue-500 placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:text-slate-100"
+            className="flex-1 px-4 py-3 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600 dark:focus:border-green-600 placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:text-slate-100"
             disabled={isLoading}
           />
           {messages.length > 0 && (
@@ -2234,7 +1935,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           <Button
             onClick={sendMessage}
             disabled={isLoading || !input.trim()}
-            className="h-[42px] w-[42px] p-0 flex-shrink-0 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/25 rounded-xl"
+            className="h-[42px] w-[42px] p-0 flex-shrink-0 bg-gradient-to-r from-green-700 to-green-800 hover:from-green-800 hover:to-green-900 shadow-lg shadow-green-700/25 rounded-xl"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />

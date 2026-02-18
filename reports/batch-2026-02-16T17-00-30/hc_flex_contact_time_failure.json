@@ -1,0 +1,324 @@
+{
+  "name": "hc_flex_contact_time_failure",
+  "description": "[HC] GDC-FLEX 600x600 @ 3500 m³/h → 200% overload, BLOCK",
+  "query": "We need to remove heavy solvent odors at 3500 m³/h. Duct size: 600x600 mm. Can we use GDC-FLEX 600x600?",
+  "session_id": "36e84a2e-017a-4763-956f-55a794baaacb",
+  "duration_s": 34.8,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "We need to remove heavy solvent odors at 3500 m³/h. Duct size: 600x600 mm. Can we use GDC-FLEX 600x600?",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T15:51:33.689491+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "To remove the heavy solvent odors at 3500 m³/h within a 600x600 mm duct, we will need two GDC FLEX units in parallel.The system is exposed to Chemical Vapor Exposure. Gas/odor/VOC removal requires activated carbon adsorption. Mechanical filters cannot capture gas-phase contaminants. The housing corrosion class is C2.Which housing length is required?Additionally, the requested 3500 airflow_m3h exceeds the recommended flow of 1750 for a single 600x600 module. 2 parallel units are required. Alternatively, a single 1200x600 mm module can handle 3500 m³/h.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T15:51:44.606074+00:00",
+      "clarification": null,
+      "product_card": {
+        "title": "GDC_FLEX-1200x600",
+        "specs": {
+          "Dimensions": "1200x600mm",
+          "Cartridge Capacity": "28 units",
+          "Reference Airflow": "3500.0 m³/h"
+        },
+        "warning": null,
+        "confidence": "medium",
+        "actions": [
+          "Add to Quote"
+        ]
+      },
+      "product_cards": [
+        {
+          "title": "GDC_FLEX-1200x600",
+          "specs": {
+            "Dimensions": "1200x600mm",
+            "Cartridge Capacity": "28 units",
+            "Reference Airflow": "3500.0 m³/h"
+          },
+          "warning": null,
+          "confidence": "medium",
+          "actions": [
+            "Add to Quote"
+          ]
+        }
+      ],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 5,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 5
+          },
+          "overall_score": 5.0,
+          "explanation": "The system correctly identified that the requested airflow (3500 m³/h) significantly exceeds the capacity of the requested housing size (600x600 mm, rated for 1750 m³/h). It correctly proposed the 1200x600 mm unit which matches the required airflow exactly according to the catalog. The engineering logic regarding activated carbon for solvents and the need for lower face velocities (implied by the capacity check) is sound.",
+          "dimension_explanations": {
+            "correctness": "Verified GDC FLEX 1200x600 capacity is 3500 m³/h and 600x600 is 1750 m³/h (PDF p.16 table 'MÅTT').",
+            "completeness": "Addresses the capacity mismatch, suggests the correct alternative size, and asks for the necessary housing length parameter.",
+            "safety": "Correctly identifies that solvent odors require activated carbon (molecular filtration) and ensures airflow does not exceed rated capacity.",
+            "tone": "Professional and direct.",
+            "reasoning_quality": "Clear logic: 3500 > 1750, therefore a larger or double unit is required.",
+            "constraint_adherence": "Strictly adheres to the airflow capacities listed in the PDF."
+          },
+          "strengths": [
+            "Accurate retrieval of airflow capacity data from the PDF table",
+            "Correct engineering judgment to block the user's undersized request",
+            "Proactive suggestion of the correct housing size (1200x600) to meet the airflow requirement"
+          ],
+          "weaknesses": [],
+          "pdf_citations": [
+            "GDC FLEX 600x600: Rek. flöde 1750 m³/h (PDF p.16)",
+            "GDC FLEX 1200x600: Rek. flöde 3500 m³/h (PDF p.16)",
+            "GDC FLEX Corrosion Class: C2 (PDF p.16)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 23.89,
+            "prompt_tokens": 16001,
+            "cached_tokens": 15977,
+            "output_tokens": 561
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 3,
+            "tone": 4,
+            "reasoning_quality": 3,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.55,
+          "explanation": "The sizing logic (3500 m³/h exceeds a single 600x600 GDC FLEX) is directionally correct, but the system cites an incorrect catalog airflow for GDC FLEX 1200x600 and prematurely outputs product cards despite missing required parameters (length, media, environment/material). It also misstates the housing corrosion class as C2 without asking/confirming material selection.",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDC FLEX 1200x600 has Rek. flöde 3500 m³/h and 28 patrons, but the system’s claim that 600x600 is 1750 m³/h is correct while its generic “housing corrosion class is C2” statement is not justified (material-dependent) and the product card is duplicated.",
+            "completeness": "It fails to collect key inputs (housing length 750/900, carbon type/impregnation, expected inlet concentration, temperature/RH, required outlet criteria) before recommending a final configuration.",
+            "safety": "It correctly notes that particulate filters don’t remove VOCs and that carbon adsorption is needed, but it omits critical solvent safety considerations (flammability/ATEX, breakthrough monitoring, prefiltration needs) for “heavy solvent odors.”",
+            "tone": "Professional and mostly clear, but the duplicated product card and abrupt jump to a specific product reduces polish.",
+            "reasoning_quality": "Reasoning about parallelization vs. larger face area is logical, but it mixes in unsupported assertions (corrosion class) and doesn’t explain why length choice matters for media depth/contact time.",
+            "constraint_adherence": "Violates the stated process rule by issuing product cards before resolving missing parameters (notably length) and by not respecting that the user’s duct is 600x600 while recommending 1200x600 without addressing transition/space constraints."
+          },
+          "strengths": [
+            "Correctly identifies activated carbon as the appropriate mechanism for solvent/VOC odor removal and flags that mechanical filters won’t remove gases.",
+            "Correctly recognizes that 3500 m³/h is above a single 600x600 GDC FLEX recommended flow and suggests parallelization or a larger module."
+          ],
+          "weaknesses": [
+            "Premature and duplicated product cards; missing clarification on length (750/900) and key application parameters (media selection, RH/temperature, target outlet).",
+            "Unjustified/incorrectly framed corrosion-class statement (C2) and insufficient safety discussion for solvent applications (ATEX/flammability, monitoring)."
+          ],
+          "pdf_citations": [
+            "GDC FLEX 600x600: Rek. flöde 1750 m³/h, antal patron 14 (catalog table under GDC FLEX).",
+            "GDC FLEX 1200x600: Rek. flöde 3500 m³/h, antal patron 28 (catalog table under GDC FLEX)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 15.46,
+            "attempt": 1,
+            "prompt_tokens": 37300,
+            "cached_tokens": 18944,
+            "output_tokens": 702
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYC1qtWojk8diTdWGsNpD'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDC_FLEX",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 3 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "♟️ Additional info needed",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": null,
+        "detected_family": "GDC_FLEX",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "airflow_m3h": "3500",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": 3500,
+            "product_family": "GDC_FLEX",
+            "product_code": "GDC-FLEX-600x600-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 2,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 0,
+        "variable_features": 1,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "36e84a2e-017a-4763-956f-55a794baaacb",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDC_FLEX",
+          "locked_material": null,
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"airflow_m3h\": \"3500\", \"connection_type\": \"PG\"}",
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDC_FLEX",
+            "quantity": 1,
+            "airflow_m3h": 3500,
+            "session_id": "36e84a2e-017a-4763-956f-55a794baaacb",
+            "filter_height": 600,
+            "product_code": "GDC-FLEX-600x600-R-PG-FZ",
+            "housing_width": 600,
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_36e84a2e-017a-4763-956f-55a794baaacb_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Filter 600x600mm -> Sized to 600x600 -> Code: GDC-FLEX-600x600-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "To remove the heavy solvent odors at 3500 m³/h within a 600x600 mm duct, we will need two GDC FLEX units in parallel.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The system is exposed to ",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Chemical Vapor Exposure",
+          "type": "INFERENCE",
+          "inference_logic": "Stressor: Chemical Vapor Exposure | Required trait: Porous Adsorption"
+        },
+        {
+          "text": ". Gas/odor/VOC removal requires activated carbon adsorption. Mechanical filters cannot capture gas-phase contaminants. The housing corrosion class is C2.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Which housing length is required?",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Additionally, the requested 3500 airflow_m3h exceeds the recommended flow of 1750 for a single 600x600 module. 2 parallel units are required. Alternatively, a single 1200x600 mm module can handle 3500 m³/h.",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

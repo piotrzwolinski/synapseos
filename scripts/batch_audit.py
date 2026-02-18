@@ -395,12 +395,14 @@ def _print_failures(failures: list):
 # Load tests
 # ---------------------------------------------------------------------------
 
-def _load_tests(category: str = None, limit: int = DEFAULT_LIMIT):
+def _load_tests(category: str = None, limit: int = DEFAULT_LIMIT, names: list = None):
     from run_tests import TEST_CASES
     cases = dict(TEST_CASES)
-    if category and category != "all":
+    if names:
+        cases = {k: v for k, v in cases.items() if k in names}
+    elif category and category != "all":
         cases = {k: v for k, v in cases.items() if v.category == category}
-    if limit > 0:
+    if limit > 0 and not names:
         cases = dict(list(cases.items())[:limit])
     return cases
 
@@ -415,11 +417,12 @@ def run_batch(
     max_turns: int = DEFAULT_MAX_TURNS,
     parallel: int = 1,
     judge_names: list = None,
+    names: list = None,
 ):
     if judge_names is None:
         judge_names = ["gemini"]
 
-    cases = _load_tests(category, limit)
+    cases = _load_tests(category, limit, names=names)
     total = len(cases)
     if total == 0:
         print("No tests found.")
@@ -743,11 +746,15 @@ def main():
                         help="Comma-separated judges: gemini,openai,anthropic (default gemini)")
     parser.add_argument("--failures-only", action="store_true",
                         help="Reprint failures from last run")
+    parser.add_argument("--names", type=str, default=None,
+                        help="Comma-separated test names to run (exact match)")
     args = parser.parse_args()
 
     if args.failures_only:
         _show_last_failures()
         return
+
+    names = [n.strip() for n in args.names.split(",") if n.strip()] if args.names else None
 
     run_batch(
         category=args.category,
@@ -755,6 +762,7 @@ def main():
         max_turns=args.max_turns,
         parallel=args.parallel,
         judge_names=[j.strip() for j in args.judges.split(",") if j.strip()],
+        names=names,
     )
 
 

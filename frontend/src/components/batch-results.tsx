@@ -125,10 +125,10 @@ function formatTsShort(ts: number): string {
 // ---------------------------------------------------------------------------
 
 const CHART_COLORS = {
-  gemini: "#a78bfa",   // violet
+  gemini: "#5B8C3E",   // violet
   openai: "#34d399",   // emerald
   anthropic: "#f59e0b", // amber
-  overall: "#60a5fa",  // blue
+  overall: "#7CB356",  // blue
 };
 
 function TrendChart({ batches, selectedBatch, onSelect }: {
@@ -174,7 +174,7 @@ function TrendChart({ batches, selectedBatch, onSelect }: {
   return (
     <div className="bg-white dark:bg-slate-800/60 rounded-xl border border-slate-200/60 dark:border-slate-700/60 p-4 mb-6">
       <div className="flex items-center gap-2 mb-3">
-        <TrendingUp className="w-4 h-4 text-blue-500" />
+        <TrendingUp className="w-4 h-4 text-green-600" />
         <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Score Trend Across Batches</span>
         <span className="text-xs text-slate-400">({data.length} runs)</span>
       </div>
@@ -290,10 +290,10 @@ function BatchOverviewTable({ batches, selectedBatch, onSelect }: {
                   onClick={() => onSelect(b.id)}
                   className={cn(
                     "border-b border-slate-100 dark:border-slate-800 cursor-pointer transition-colors",
-                    isSelected ? "bg-blue-50/60 dark:bg-blue-900/15" : "hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                    isSelected ? "bg-green-50/60 dark:bg-green-900/15" : "hover:bg-slate-50 dark:hover:bg-slate-800/40"
                   )}>
                   <td className="px-4 py-2">
-                    <span className={cn("text-xs", isSelected ? "font-bold text-blue-600 dark:text-blue-400" : "text-slate-600 dark:text-slate-300")}>
+                    <span className={cn("text-xs", isSelected ? "font-bold text-green-700 dark:text-green-500" : "text-slate-600 dark:text-slate-300")}>
                       {formatTs(b.timestamp)}
                     </span>
                   </td>
@@ -480,7 +480,7 @@ function TestDetailPanel({ test }: { test: TestResult }) {
               {/* PDF Citations */}
               {j.pdf_citations.length > 0 && (
                 <div className="mt-2">
-                  <div className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase mb-1">PDF Citations</div>
+                  <div className="text-[10px] font-semibold text-green-700 dark:text-green-500 uppercase mb-1">PDF Citations</div>
                   <ul className="text-xs text-slate-500 dark:text-slate-500 space-y-0.5">
                     {j.pdf_citations.map((c, i) => <li key={i}>{c}</li>)}
                   </ul>
@@ -626,7 +626,7 @@ export function BatchResults() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
       </div>
     );
   }
@@ -667,7 +667,7 @@ export function BatchResults() {
       {/* Selected batch detail */}
       {loadingBatch ? (
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-green-600" />
         </div>
       ) : batchData ? (
         <>
@@ -683,7 +683,7 @@ export function BatchResults() {
                 className={cn(
                   "px-3 py-1 rounded-full text-xs font-medium transition-colors",
                   filterRec === f
-                    ? "bg-blue-600 text-white"
+                    ? "bg-green-700 text-white"
                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                 )}
               >
@@ -715,7 +715,7 @@ export function BatchResults() {
                     onClick={() => setExpandedTest(isExpanded ? null : test.name)}
                     className={cn(
                       "grid grid-cols-[1fr_80px_80px_80px_80px_60px_50px] gap-2 px-4 py-2.5 cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-800",
-                      isExpanded ? "bg-blue-50/50 dark:bg-blue-900/10" : "hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                      isExpanded ? "bg-green-50/50 dark:bg-green-900/10" : "hover:bg-slate-50 dark:hover:bg-slate-800/40"
                     )}
                   >
                     <div className="flex items-center gap-2 min-w-0">

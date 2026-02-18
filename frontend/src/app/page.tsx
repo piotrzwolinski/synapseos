@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Chat } from "@/components/chat";
 import { resetSessionId } from "@/lib/api";
 import { ThreadIngestor } from "@/components/thread-ingestor";
@@ -21,7 +21,7 @@ import {
   Upload,
   Settings,
   Activity,
-  Brain,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Users,
@@ -46,8 +46,9 @@ import {
   Package,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { apiUrl, authFetch } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { AuthGuard } from "@/components/auth-guard";
 import { clearToken } from "@/lib/auth";
 
@@ -61,6 +62,7 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   disabled?: boolean;
+  devOnly?: boolean;
   section?: "main" | "enterprise" | "admin";
 }
 
@@ -456,22 +458,21 @@ Nordic Furniture Group`
 
 const NAV_ITEMS: NavItem[] = [
   { id: "chat", label: "AI Consultant", icon: MessageSquare, section: "main" },
-  { id: "bulk-offer", label: "Bulk Offer", icon: Package, section: "main" },
-  // Hidden for now:
-  // { id: "ingest", label: "Ingest Data", icon: Upload, section: "main" },
-  // { id: "explore", label: "Thread Explorer", icon: FolderSearch, section: "main" },
-  // { id: "knowledge", label: "Knowledge Refinery", icon: BookOpen, section: "main" },
-  { id: "testlab", label: "Test Lab", icon: FlaskConical, section: "main" },
-  // { id: "testgen", label: "Test Generator", icon: Wand2, section: "main" },
-  { id: "capabilities", label: "Capabilities", icon: Compass, section: "main" },
-  { id: "use-cases", label: "Use Cases", icon: BookOpen, section: "main" },
-  { id: "expert-review", label: "Expert Review", icon: ClipboardCheck, section: "main" },
+  { id: "bulk-offer", label: "Bulk Offer", icon: Package, section: "main", devOnly: true },
+  { id: "ingest", label: "Ingest Data", icon: Upload, section: "main" },
+  { id: "explore", label: "Thread Explorer", icon: FolderSearch, section: "main" },
+  { id: "knowledge", label: "Knowledge Refinery", icon: BookOpen, section: "main" },
+  { id: "testlab", label: "Test Lab", icon: FlaskConical, section: "main", devOnly: true },
+  { id: "testgen", label: "Test Generator", icon: Wand2, section: "main", devOnly: true },
+  { id: "capabilities", label: "Capabilities", icon: Compass, section: "main", devOnly: true },
+  { id: "use-cases", label: "Use Cases", icon: BookOpen, section: "main", devOnly: true },
+  { id: "expert-review", label: "Expert Review", icon: ClipboardCheck, section: "main", devOnly: true },
   { id: "analytics", label: "Analytics", icon: BarChart3, disabled: true, section: "enterprise" },
   { id: "workflows", label: "Workflows", icon: Workflow, disabled: true, section: "enterprise" },
   { id: "users", label: "User Management", icon: Users, disabled: true, section: "admin" },
   { id: "integrations", label: "Integrations", icon: Plug, disabled: true, section: "admin" },
-  { id: "audit", label: "Graph Audit", icon: Shield, section: "main" },
-  { id: "batch-results", label: "Batch Results", icon: BarChart3, section: "main" },
+  { id: "audit", label: "Graph Audit", icon: Shield, section: "main", devOnly: true },
+  { id: "batch-results", label: "Batch Results", icon: BarChart3, section: "main", devOnly: true },
   { id: "settings", label: "Settings", icon: Settings, section: "admin" },
 ];
 
@@ -589,8 +590,45 @@ function MainApp() {
   const chatMode: ChatMode = "graph-reasoning";
   const chatRef = useRef<{ clearChat: () => void; testWidgets: () => void } | null>(null);
 
+  // Model switcher state
+  const [availableModels, setAvailableModels] = useState<{ id: string; label: string; provider: string }[]>([]);
+  const [currentModel, setCurrentModel] = useState<string>("");
+  const [showModelMenu, setShowModelMenu] = useState(false);
+  const modelMenuRef = useRef<HTMLDivElement>(null);
+
+  // Fetch available models from backend
+  useEffect(() => {
+    apiFetch("/chat/models").then(r => r.json()).then(data => {
+      setAvailableModels(data.models || []);
+      setCurrentModel(data.current || data.default || "");
+    }).catch(() => {});
+  }, []);
+
+  // Close model menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (modelMenuRef.current && !modelMenuRef.current.contains(e.target as Node)) {
+        setShowModelMenu(false);
+      }
+    };
+    if (showModelMenu) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showModelMenu]);
+
+  const changeModel = async (modelId: string) => {
+    try {
+      const res = await apiFetch("/chat/model", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelId }),
+      });
+      if (res.ok) setCurrentModel(modelId);
+    } catch {}
+    setShowModelMenu(false);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-violet-50/20 dark:from-slate-950 dark:via-blue-950/30 dark:to-violet-950/20 flex">
+    <div className="min-h-screen bg-gradient-to-br from-stone-50 via-green-50/20 to-stone-50 dark:from-slate-950 dark:via-green-950/20 dark:to-slate-950 flex">
       {/* Sidebar */}
       <aside
         className={cn(
@@ -600,13 +638,14 @@ function MainApp() {
       >
         {/* Logo */}
         <div className="h-16 flex items-center px-4 border-b border-slate-200/60 dark:border-slate-700/60">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-              <Brain className="w-5 h-5 text-white" />
-            </div>
-            {!sidebarCollapsed && (
+          <div className="flex items-center gap-3 min-w-0">
+            {sidebarCollapsed ? (
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-700 to-green-600 flex items-center justify-center shadow-lg shadow-green-700/25">
+                <span className="text-white font-bold text-xs">M+H</span>
+              </div>
+            ) : (
               <div className="animate-fade-in">
-                <h1 className="font-bold text-slate-900 dark:text-slate-100">AI Sales Consultant</h1>
+                <Image src="/mh_logo.png" alt="MANN+HUMMEL" width={96} height={24} className="dark:brightness-0 dark:invert" priority />
               </div>
             )}
           </div>
@@ -622,14 +661,14 @@ function MainApp() {
               </span>
             </div>
           )}
-          {NAV_ITEMS.filter(item => item.section === "main").map((item) => (
+          {NAV_ITEMS.filter(item => item.section === "main" && (!item.devOnly || devMode)).map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
                 activeTab === item.id
-                  ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25"
+                  ? "bg-green-700 text-white shadow-lg shadow-green-700/25"
                   : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               )}
             >
@@ -775,7 +814,45 @@ function MainApp() {
 
           {/* Chat Controls - Only show on chat tab */}
           {activeTab === "chat" && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
+              {/* Model Selector */}
+              <div className="relative" ref={modelMenuRef}>
+                <button
+                  onClick={() => setShowModelMenu(!showModelMenu)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <span>{availableModels.find(m => m.id === currentModel)?.label || currentModel || "Model"}</span>
+                  <ChevronDown className={cn("h-3 w-3 transition-transform", showModelMenu && "rotate-180")} />
+                </button>
+                {showModelMenu && (
+                  <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 py-1 z-50">
+                    <div className="px-3 py-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                      Select Model
+                    </div>
+                    {availableModels.map((model) => (
+                      <button
+                        key={model.id}
+                        onClick={() => changeModel(model.id)}
+                        className={cn(
+                          "w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between",
+                          currentModel === model.id && "bg-green-50 dark:bg-green-900/20"
+                        )}
+                      >
+                        <div>
+                          <div className={cn("text-sm font-medium", currentModel === model.id ? "text-green-700 dark:text-green-400" : "text-slate-700 dark:text-slate-300")}>
+                            {model.label}
+                          </div>
+                          <div className="text-[10px] text-slate-400 dark:text-slate-500">{model.provider}</div>
+                        </div>
+                        {currentModel === model.id && <div className="w-1.5 h-1.5 rounded-full bg-green-600" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />
+
               {/* New Session */}
               <button
                 onClick={() => chatRef.current?.clearChat()}

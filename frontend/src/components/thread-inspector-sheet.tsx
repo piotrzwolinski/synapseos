@@ -114,10 +114,10 @@ export function ThreadInspectorSheet({
         };
       case "Standard":
         return {
-          bg: "bg-blue-50 dark:bg-blue-900/20",
-          border: "border-blue-300 dark:border-blue-800",
-          text: "text-blue-700 dark:text-blue-400",
-          icon: "text-blue-500",
+          bg: "bg-green-50 dark:bg-green-900/20",
+          border: "border-green-300 dark:border-green-800",
+          text: "text-green-800 dark:text-green-500",
+          icon: "text-green-600",
         };
       case "Workaround":
         return {
@@ -148,7 +148,7 @@ export function ThreadInspectorSheet({
       <SheetContent side="right" className="w-full sm:max-w-xl p-0">
         <SheetHeader className="p-6 pb-4 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center">
               <FileText className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -165,7 +165,7 @@ export function ThreadInspectorSheet({
             {/* Loading State */}
             {loading && (
               <div className="flex flex-col items-center justify-center py-16">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-3" />
+                <Loader2 className="w-8 h-8 animate-spin text-green-700 mb-3" />
                 <p className="text-sm text-slate-500">Loading email thread...</p>
               </div>
             )}
@@ -181,7 +181,7 @@ export function ThreadInspectorSheet({
             {!loading && !error && data && (
               <div className="space-y-4">
                 {/* Project Header */}
-                <div className="p-4 rounded-xl bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-800 dark:to-blue-900/20 border border-slate-200 dark:border-slate-700">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-slate-50 to-green-50 dark:from-slate-800 dark:to-green-900/20 border border-slate-200 dark:border-slate-700">
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
                     Project Reference
                   </p>
@@ -216,7 +216,7 @@ export function ThreadInspectorSheet({
                         )}
                       >
                         {/* Step indicator */}
-                        <div className="absolute -left-3 top-4 w-6 h-6 rounded-full bg-gradient-to-br from-blue-600 to-violet-600 text-white flex items-center justify-center text-xs font-bold shadow-md">
+                        <div className="absolute -left-3 top-4 w-6 h-6 rounded-full bg-gradient-to-br from-green-700 to-green-700 text-white flex items-center justify-center text-xs font-bold shadow-md">
                           {event.step}
                         </div>
 

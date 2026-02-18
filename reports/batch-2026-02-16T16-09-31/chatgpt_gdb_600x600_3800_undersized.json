@@ -1,0 +1,324 @@
+{
+  "name": "chatgpt_gdb_600x600_3800_undersized",
+  "description": "[ChatGPT] GDB 600x600 at 3800 m³/h → undersized (limit 3400), suggest 600x900",
+  "query": "I need a GDB housing 600x600 for 3800 m³/h airflow. FZ material.",
+  "session_id": "0fddb5db-9483-4147-b88d-08b090a23bcc",
+  "duration_s": 82.2,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "I need a GDB housing 600x600 for 3800 m³/h airflow. FZ material.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T15:06:24.824985+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "To handle the required airflow of 3800 m³/h, two GDB-600x600 housings are needed, arranged in parallel.The requested airflow exceeds the capacity of a single GDB-600x600 module (3400 m³/h).Therefore, two units are required to meet the demand.Here are the specifications for each unit:",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T15:06:45.883523+00:00",
+      "clarification": null,
+      "product_card": {
+        "title": "GDB-600x600",
+        "specs": {
+          "Product Code": "GDB-600x600-R-PG-FZ",
+          "Dimensions": "600x600mm",
+          "Reference Airflow": "3400.0 m³/h",
+          "Weight": "27 kg",
+          "Housing corrosion class": "C2"
+        },
+        "warning": null,
+        "confidence": "medium",
+        "actions": [
+          "Add to Quote"
+        ]
+      },
+      "product_cards": [
+        {
+          "title": "GDB-600x600",
+          "specs": {
+            "Product Code": "GDB-600x600-R-PG-FZ",
+            "Dimensions": "600x600mm",
+            "Reference Airflow": "3400.0 m³/h",
+            "Weight": "27 kg",
+            "Housing corrosion class": "C2"
+          },
+          "warning": null,
+          "confidence": "medium",
+          "actions": [
+            "Add to Quote"
+          ]
+        }
+      ],
+      "status_badges": [],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 5,
+            "completeness": 2,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 2,
+            "constraint_adherence": 2
+          },
+          "overall_score": 3.8,
+          "explanation": "The system correctly identified the airflow capacity limit of the requested unit but failed critical process instructions. It did not ask for the required housing length parameter as explicitly instructed in the prompt, instead implicitly selecting the shorter version. Furthermore, recommending two parallel units for a specific dimensional request (600x600) is poor engineering advice; the correct approach is to suggest the next size up (e.g., 600x900) or warn about pressure drop, as a user asking for 600x600 likely has a specific duct size constraint.",
+          "dimension_explanations": {
+            "correctness": "The airflow capacity (3400 m³/h) and weight (27 kg) correctly match the GDB 600x600 (550 length) data on PDF page 9.",
+            "completeness": "The system failed to ask for the housing length (550mm vs 750mm) and failed to offer the standard engineering solution (upsizing to 600x900).",
+            "safety": "Correctly flagged that 3800 m³/h exceeds the 3400 m³/h rating for a single 600x600 unit.",
+            "tone": "Professional and appropriate.",
+            "reasoning_quality": "Suggesting a parallel bank (1200x600 total face area) for a user requesting a 600x600 component is impractical and robotic logic.",
+            "constraint_adherence": "Violated the explicit instruction: 'If the user provides airflow + dimensions but NOT housing length → the system SHOULD ask for housing length'."
+          },
+          "strengths": [
+            "Accurate extraction of airflow limits and weight from the catalog.",
+            "Correctly identified that the requested airflow exceeded the single-unit capacity."
+          ],
+          "weaknesses": [
+            "Violated prompt instructions by failing to ask for housing length.",
+            "Provided a physically impractical recommendation (parallel units) instead of upsizing.",
+            "Generated an incomplete product code (missing length segment) based on the catalog examples."
+          ],
+          "pdf_citations": [
+            "GDB 600x600 max airflow: 3400 m³/h (PDF p.9 table)",
+            "GDB 600x600 weight (550/600 length): 27 kg (PDF p.9 table)",
+            "GDB material FZ corresponds to Corrosion Class C2 (PDF p.8)"
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 52.81,
+            "prompt_tokens": 15989,
+            "cached_tokens": 15977,
+            "output_tokens": 662
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 3,
+            "tone": 5,
+            "reasoning_quality": 2,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.45,
+          "explanation": "The system correctly identified that a single GDB 600x600 is rated 3400 m³/h and that 3800 m³/h exceeds that, but it made a critical sizing error by recommending two full housings in parallel instead of selecting a larger single housing or a 2-module (1200x600) configuration. It also output an invalid product code (missing length) and duplicated product cards without addressing the required length selection (550/600 vs 750/800).",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDB 600x600 has Flöde 3400 m³/h and weight 27 kg for 550/600 length (and 34 kg for 750/800), so the airflow/weight claim matches one variant, but the recommendation of two complete 600x600 housings for 3800 m³/h is an incorrect/inefficient interpretation of modular sizing and the product code is wrong because length is mandatory.",
+            "completeness": "It failed to ask for/choose the required housing length (550/600 or 750/800) and did not propose the obvious single-housing alternatives (e.g., 900x600 or 1200x600) that meet 3800 m³/h.",
+            "safety": "No major unsafe advice was given, but it omitted practical design cautions (pressure drop/velocity, access space, balancing dampers if parallel) that matter when proposing parallel paths.",
+            "tone": "Professional and clear, with a straightforward explanation of the capacity exceedance.",
+            "reasoning_quality": "The logic jumps from 'exceeds 3400' to 'two housings in parallel' without checking catalog sizes that already cover 3800 m³/h, and it doesn't explain how parallelization would be implemented (plenum, balancing, equal pressure drop).",
+            "constraint_adherence": "Violates catalog ordering constraints by providing a product code without the required length field (e.g., should be GDB-600x600-550 or -750 per PDF examples) and effectively over-specifies by doubling housings rather than selecting a valid single-module size."
+          },
+          "strengths": [
+            "Correctly referenced the GDB-600x600 nominal airflow limit (3400 m³/h) and recognized 3800 m³/h exceeds it.",
+            "Used the correct product family (GDB) and size convention (600x600 as W×H)."
+          ],
+          "weaknesses": [
+            "Incorrect/inefficient sizing recommendation: two full 600x600 housings in parallel is unnecessary when catalog sizes like 900x600 (5100 m³/h) or 1200x600 (6800 m³/h) exist.",
+            "Invalid/incomplete product specification: product code missing length (550/600 or 750/800) and no clarification question before issuing product cards."
+          ],
+          "pdf_citations": [
+            "GDB 600x600: Flöde = 3400 m³/h; Vikt = 27 kg (L=550/600) and 34 kg (L=750/800) (GDB MÅTT table).",
+            "GDB 900x600: Flöde = 5100 m³/h (GDB MÅTT table), which would satisfy 3800 m³/h with one housing."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 17.49,
+            "attempt": 1,
+            "prompt_tokens": 37289,
+            "cached_tokens": 14848,
+            "output_tokens": 794
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYBxQtrbpQiXHRanePbnU'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ OK",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 13 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "clarify",
+          "detail": "♟️ Additional info needed",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "FZ",
+        "dimension_mappings": [
+          {
+            "width": 600,
+            "height": 600,
+            "depth": null
+          }
+        ]
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": "FZ",
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "airflow_m3h": "3800",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": 600,
+            "filter_height": 600,
+            "filter_depth": null,
+            "housing_width": 600,
+            "housing_height": 600,
+            "housing_length": null,
+            "airflow_m3h": 3800,
+            "product_family": "GDB",
+            "product_code": "GDB-600x600-R-PG-FZ",
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 2,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_depth"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 0,
+        "variable_features": 2,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "0fddb5db-9483-4147-b88d-08b090a23bcc",
+        "project": {
+          "detected_family": "GDB",
+          "resolved_params": "{\"airflow_m3h\": \"3800\", \"connection_type\": \"PG\"}",
+          "assembly_group": null,
+          "locked_material": "FZ",
+          "accessories": null,
+          "name": null,
+          "pending_clarification": null,
+          "customer": null,
+          "vetoed_families": null
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "quantity": 1,
+            "airflow_m3h": 3800,
+            "session_id": "0fddb5db-9483-4147-b88d-08b090a23bcc",
+            "filter_height": 600,
+            "product_code": "GDB-600x600-R-PG-FZ",
+            "housing_width": 600,
+            "filter_width": 600,
+            "housing_height": 600,
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_0fddb5db-9483-4147-b88d-08b090a23bcc_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to FZ -> Filter 600x600mm -> Sized to 600x600 -> Code: GDB-600x600-R-PG-FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "To handle the required airflow of 3800 m³/h, two GDB-600x600 housings are needed, arranged in parallel.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The requested airflow exceeds the capacity of a single GDB-600x600 module (3400 m³/h).",
+          "type": "INFERENCE",
+          "inference_logic": "CAPACITY_EXCEEDED"
+        },
+        {
+          "text": "Therefore, two units are required to meet the demand.",
+          "type": "GENERAL"
+        },
+        {
+          "text": "Here are the specifications for each unit:",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

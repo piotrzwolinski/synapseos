@@ -75,9 +75,9 @@ export function GenericTechnicalCard({ data, onProjectClick }: GenericTechnicalC
                 <button
                   onClick={() => onProjectClick?.(data.reasoning!.project_ref)}
                   className={cn(
-                    "flex items-center gap-1 text-blue-700 dark:text-blue-400 transition-colors",
+                    "flex items-center gap-1 text-green-800 dark:text-green-500 transition-colors",
                     onProjectClick
-                      ? "hover:text-blue-900 dark:hover:text-blue-300 hover:underline cursor-pointer"
+                      ? "hover:text-green-900 dark:hover:text-green-300 hover:underline cursor-pointer"
                       : "cursor-default"
                   )}
                   disabled={!onProjectClick}

@@ -400,6 +400,14 @@ class TechnicalState:
             lines.append("")
 
         # =====================================================================
+        # MATERIAL REFERENCE: Compact, always present — prevents hallucination
+        # =====================================================================
+        lines.append("### Material ↔ Corrosion Class Reference")
+        lines.append("FZ=C3, AZ=C4, ZM=C5, RF=C5, SF=C5.1")
+        lines.append("Housing corrosion class is a SEPARATE property of the housing itself (typically C2 for GDB/GDC, C4 for GDMI insulated).")
+        lines.append("")
+
+        # =====================================================================
         # VETOED FAMILIES: Products vetoed by the engine (persisted)
         # =====================================================================
         if self.vetoed_families:
@@ -525,31 +533,84 @@ class TechnicalState:
             lines.append("")
 
         # =====================================================================
-        # IMMEDIATE ACTION: When all data is known
+        # IMMEDIATE ACTION + PRE-COMPUTED ENTITY CARDS
         # =====================================================================
         if self.all_tags_complete():
-            lines.append("### 🎯 ACTION REQUIRED: ALL DATA COMPLETE")
+            lines.append("### 🎯 ALL DATA COMPLETE — DELIVER FINAL ANSWER")
             lines.append("")
-            lines.append("**EVERY TAG ABOVE HAS STATUS ✅ COMPLETE**")
-            lines.append("")
-            lines.append("You MUST output the final recommendation table NOW. DO NOT:")
-            lines.append("- Ask for any additional information")
-            lines.append("- Use filler phrases like 'let me confirm' or 'I understand'")
-            lines.append("- Request clarification on dimensions, airflow, or material")
-            lines.append("")
-            lines.append("Simply output the product codes and weights as shown in the PRE-COMPUTED ANSWER section.")
+            # Pre-compute entity cards — the LLM MUST copy these verbatim
+            import json as _json
+            cards = self._build_entity_cards()
+            lines.append("### PRE-COMPUTED ENTITY CARD (copy EXACTLY into entity_card)")
+            lines.append("```json")
+            lines.append(_json.dumps(cards, indent=2))
+            lines.append("```")
+            lines.append("Use these cards verbatim. Write narrative text explaining the configuration.")
             lines.append("")
 
         return "\n".join(lines)
 
-        lines.append("")
-        lines.append("**CRITICAL RULES:**")
-        lines.append("- NEVER ask for parameters already shown above")
-        lines.append("- Housing Length is AUTO-DERIVED from Filter Depth")
-        lines.append("- Always include the locked material suffix in product codes")
-        lines.append("- When all parameters are known, provide WEIGHT from graph data")
+    def _build_entity_cards(self) -> dict | list:
+        """Pre-compute entity_card(s) from finalized tag data.
 
-        return "\n".join(lines)
+        v4.3: Cards are built in Python from authoritative graph data, then
+        injected into the prompt so the LLM copies them verbatim. This prevents
+        hallucination of weights, product codes, and corrosion classes.
+        """
+        _corrosion_map = {"FZ": "C3", "AZ": "C4", "ZM": "C5", "RF": "C5", "SF": "C5.1"}
+        _known_mats = set(_corrosion_map.keys())
+        cards = []
+        for tag_id, tag in self.tags.items():
+            fam = tag.product_family or self.detected_family or "Unknown"
+            # Extract material from locked state or product code (robust extraction)
+            mat_code = None
+            if self.locked_material:
+                mat_code = self.locked_material.value
+            elif tag.product_code:
+                # Try last segment of product code
+                last_seg = tag.product_code.rsplit("-", 1)[-1]
+                if last_seg in _known_mats:
+                    mat_code = last_seg
+            if not mat_code:
+                mat_code = "FZ"  # ultimate fallback
+            corr = _corrosion_map.get(mat_code, "")
+
+            # Build specs dict — only include known values
+            specs = {}
+            if tag.product_code:
+                specs["Product Code"] = tag.product_code
+            if tag.housing_width and tag.housing_height:
+                specs["Housing Size"] = f"{tag.housing_width}x{tag.housing_height}mm"
+            if tag.housing_length:
+                specs["Housing Length"] = f"{tag.housing_length}mm"
+            specs["Material"] = f"{mat_code} (corrosion class {corr})" if corr else mat_code
+            conn = self.resolved_params.get("connection_type", "PG")
+            specs["Connection"] = conn
+            if tag.airflow_m3h:
+                if tag.modules_needed > 1 and tag.total_airflow_m3h:
+                    specs["Rated Airflow"] = f"{tag.total_airflow_m3h} m³/h ({tag.modules_needed}×{tag.airflow_m3h})"
+                else:
+                    specs["Rated Airflow"] = f"{tag.airflow_m3h} m³/h"
+            if tag.weight_kg:
+                if tag.modules_needed > 1 and tag.total_weight_kg:
+                    specs["Weight"] = f"~{tag.total_weight_kg} kg ({tag.modules_needed}×{tag.weight_kg}kg)"
+                else:
+                    specs["Weight"] = f"~{tag.weight_kg} kg"
+
+            # Build title
+            assembly_label = ""
+            if tag.assembly_role:
+                stage_num = 1 if tag.assembly_role == "PROTECTOR" else 2
+                assembly_label = f"Stage {stage_num} ({tag.assembly_role}): "
+
+            cards.append({
+                "title": f"{assembly_label}{fam} Housing ({tag.housing_width}x{tag.housing_height}mm)",
+                "specs": specs,
+            })
+
+        if len(cards) == 1:
+            return cards[0]
+        return cards
 
     def to_compact_summary(self) -> str:
         """Compact state summary for Semantic Scribe LLM prompt.
@@ -851,6 +912,9 @@ class TechnicalState:
         # Frame depth for GDP-style codes (Ram Djup: 25/50/100mm)
         frame_depth = self.resolved_params.get("frame_depth") or default_frame_depth or ""
 
+        # Side parameter for FLEX products (R = Right, L = Left)
+        side = self.resolved_params.get("side", "R")
+
         placeholders = {
             "family": family,
             "width": str(tag.housing_width or ""),
@@ -859,6 +923,7 @@ class TechnicalState:
             "frame_depth": str(int(frame_depth)) if frame_depth else "",
             "material": material,
             "connection": connection,
+            "side": side,
         }
 
         if fmt_str:
@@ -1007,6 +1072,52 @@ class TechnicalState:
                             f"Tag {tag_id}: Product code '{tag.product_code}' "
                             f"does not end with locked material '{expected_suffix}' (could not auto-fix)"
                         )
+
+        return warnings
+
+    def enforce_available_materials(self, db) -> list[str]:
+        """When locked_material is None, ensure product codes use a material
+        that's actually available for the product family.
+
+        v4.2: Fixes bug where GDMI codes default to FZ but GDMI only supports AZ/ZM.
+        """
+        if self.locked_material:
+            return []  # Already handled by verify_material_codes
+
+        warnings = []
+        known_materials = {"FZ", "AZ", "ZM", "RF", "SF"}
+        # Cache per-family lookups
+        _cache = {}
+
+        for tag_id, tag in self.tags.items():
+            if not tag.product_code:
+                continue
+            fam = tag.product_family or self.detected_family or ""
+            if not fam:
+                continue
+            fam_id = f"FAM_{fam}" if not fam.startswith("FAM_") else fam
+
+            # Get available materials (cached)
+            if fam_id not in _cache:
+                mats = db.get_available_materials(fam_id)
+                _cache[fam_id] = [m["code"] for m in mats] if mats else []
+            available = _cache[fam_id]
+            if not available:
+                continue
+
+            # Check current material suffix
+            parts = tag.product_code.rsplit("-", 1)
+            if len(parts) == 2 and parts[1] in known_materials:
+                current_mat = parts[1]
+                if current_mat not in available:
+                    new_mat = available[0]
+                    old_code = tag.product_code
+                    tag.product_code = f"{parts[0]}-{new_mat}"
+                    warnings.append(
+                        f"Tag {tag_id}: '{old_code}' -> '{tag.product_code}' "
+                        f"({current_mat} not available for {fam}, using {new_mat})"
+                    )
+                    print(f"🔧 [MATERIAL-DEFAULT] {tag_id}: {old_code} -> {tag.product_code}")
 
         return warnings
 

@@ -33,7 +33,7 @@ export function ExpertAttribution({ expert }: ExpertAttributionProps) {
         <div className="flex flex-col items-center text-center">
           {/* Avatar */}
           <div className="relative mb-3">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center shadow-lg">
               <span className="text-xl font-bold text-white">{initials}</span>
             </div>
             <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center shadow-md border-2 border-white dark:border-slate-800">

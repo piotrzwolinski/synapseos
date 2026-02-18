@@ -510,11 +510,18 @@ async def get_model_info(_user: str = Depends(get_current_user)):
     """Get current model information"""
     return session_manager.get_model_info()
 
+@app.get("/chat/models")
+async def get_available_models(_user: str = Depends(get_current_user)):
+    """Get list of available LLM models for the frontend dropdown."""
+    from llm_router import AVAILABLE_MODELS, DEFAULT_MODEL
+    return {"models": AVAILABLE_MODELS, "default": DEFAULT_MODEL, "current": session_manager.model_name}
+
 @app.post("/chat/model")
 async def set_model(request: dict, _user: str = Depends(get_current_user)):
     """Set the Gemini model to use"""
     model = request.get("model", "").strip()
-    valid_models = ["gemini-3-pro-preview", "gemini-3-flash-preview", "gemini-2.0-flash"]
+    from llm_router import AVAILABLE_MODELS
+    valid_models = [m["id"] for m in AVAILABLE_MODELS]
     if model not in valid_models:
         raise HTTPException(status_code=400, detail=f"Invalid model. Must be one of: {valid_models}")
     session_manager.set_model(model)
@@ -1014,7 +1021,7 @@ async def consult_deep_explainable_stream(request: ConsultRequest, _user: str = 
     print(f"{'='*60}\n")
     def generate():
         try:
-            for event in query_deep_explainable_streaming(request.query, session_id=request.session_id):
+            for event in query_deep_explainable_streaming(request.query, session_id=request.session_id, model=session_manager.model_name):
                 yield f"data: {json.dumps(event)}\n\n"
         except Exception as e:
             import traceback

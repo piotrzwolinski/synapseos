@@ -1,0 +1,291 @@
+{
+  "name": "hc_arctic_condensation",
+  "description": "[HC] Rooftop -40°C + GDB-FZ → BLOCK (condensation/freezing), need GDMI",
+  "query": "Rooftop installation in Northern Norway. Outdoor temperature: -40°C. Exhaust air: 20°C / 50% RH. We want GDB-FZ.",
+  "session_id": "9b997d81-3001-4e6e-a98a-4e8f966a7f81",
+  "duration_s": 64.0,
+  "error": null,
+  "turns": [
+    {
+      "role": "user",
+      "content": "Rooftop installation in Northern Norway. Outdoor temperature: -40°C. Exhaust air: 20°C / 50% RH. We want GDB-FZ.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T15:53:48.960278+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "The GDB filter housing with FZ material is not suitable for your rooftop installation in Northern Norway due to the risk of outdoor condensation. The GDB housing has a C2 corrosion class and single-wall uninsulated construction, which does not meet the leakage class and hygiene requirements for outdoor environments. This configuration is blocked. I recommend the GDMI Modulfilterskåp, which is approved for outdoor environments. To proceed with the GDMI configuration, I need two details:What is the minimum expected ambient temperature at the installation site?High humidity reduces carbon adsorption efficiency. Keep relative humidity below 70% for optimal performance.",
+      "turn_number": 1,
+      "timestamp": "2026-02-16T15:54:01.961818+00:00",
+      "clarification": null,
+      "product_card": null,
+      "product_cards": [],
+      "status_badges": [
+        {
+          "type": "WARNING",
+          "text": "Blocked"
+        }
+      ],
+      "judge_results": {
+        "gemini": {
+          "scores": {
+            "correctness": 3,
+            "completeness": 4,
+            "safety": 5,
+            "tone": 5,
+            "reasoning_quality": 5,
+            "constraint_adherence": 4
+          },
+          "overall_score": 4.2,
+          "explanation": "The system correctly blocked a dangerous configuration (uninsulated housing in -40°C), citing sound engineering physics regarding condensation and corrosion. However, it failed to parse the user's provided temperature (asking for it again) and claimed the alternative GDMI is 'approved for outdoor' despite the PDF explicitly stating 'Indoor use'. While the engineering logic to switch to an insulated unit is sound, the specific product claim contradicts the catalog.",
+          "dimension_explanations": {
+            "correctness": "Correctly cites GDB as C2/Indoor (PDF p.8), but incorrectly claims GDMI is approved for outdoor (PDF p.11 says 'För inomhusbruk') and fails to parse the provided -40°C.",
+            "completeness": "Addresses the main safety issue and suggests an alternative, though the request for already-provided data is a minor lapse.",
+            "safety": "Excellent safety intervention; installing a single-wall uninsulated GDB in -40°C would result in catastrophic condensation and icing.",
+            "tone": "Professional and authoritative.",
+            "reasoning_quality": "The engineering logic regarding condensation risks and the need for insulation in Northern Norway is perfect.",
+            "constraint_adherence": "Respects the physical constraints of the application well, even though it technically violates the PDF's 'Indoor' text for the recommended alternative (likely assuming weatherproofing)."
+          },
+          "strengths": [
+            "Correctly identified critical condensation/icing risk for uninsulated housing in -40°C",
+            "Correctly blocked GDB-FZ based on corrosion class (C2) and lack of insulation",
+            "Applied sound engineering judgment to recommend an insulated housing (GDMI) for the temperature delta"
+          ],
+          "weaknesses": [
+            "Failed to parse the explicitly provided temperature (-40°C) and asked for it again",
+            "Contradicted PDF data by claiming GDMI is approved for outdoor use (PDF p.11 says 'För inomhusbruk')",
+            "Included an irrelevant warning about carbon filter humidity when the user did not request carbon filtration"
+          ],
+          "pdf_citations": [
+            "GDB usage: 'För inomhusbruk' (PDF p.8)",
+            "GDB Corrosion: 'Korrosivitets klass C2' (PDF p.8)",
+            "GDMI usage: 'För inomhusbruk' (PDF p.11)"
+          ],
+          "recommendation": "PASS",
+          "usage": {
+            "duration_s": 50.98,
+            "prompt_tokens": 15670,
+            "cached_tokens": 15977,
+            "output_tokens": 622
+          }
+        },
+        "openai": {
+          "scores": {
+            "correctness": 2,
+            "completeness": 2,
+            "safety": 3,
+            "tone": 4,
+            "reasoning_quality": 2,
+            "constraint_adherence": 2
+          },
+          "overall_score": 2.45,
+          "explanation": "The system correctly flags that a single-wall indoor duct housing in galvanized steel is a poor choice for a -40°C rooftop due to condensation/icing and corrosion risk, but it makes multiple factual errors about the catalog (GDB corrosion class and GDMI being outdoor-approved). It also introduces an irrelevant carbon/humidity warning and asks for ambient temperature despite the user already providing -40°C.",
+          "dimension_explanations": {
+            "correctness": "PDF shows GDB is for inomhusbruk and is vanligen FZ with korrosivitetsklass C2 (GDB page), so the system’s claim that GDB is C2 is consistent, but it incorrectly states “GDB has C2 and single-wall uninsulated does not meet leakage/hygiene for outdoor” (leakage/hygiene claim not supported) and wrongly claims GDMI is approved for outdoor environments (PDF says GDMI is also for inomhusbruk).",
+            "completeness": "It blocks the requested configuration but does not propose a valid outdoor-capable alternative within the shown catalog scope (all listed housings are stated for indoor use) nor request key design inputs (airflow, size, required filter type/length).",
+            "safety": "Condensation/icing risk at -40°C with 20°C/50%RH exhaust is a legitimate concern, but the added warning about carbon adsorption/humidity is not applicable to GDB and could mislead.",
+            "tone": "Professional and direct, with a clear block notice and a next-step question (even though the question is redundant).",
+            "reasoning_quality": "Reasoning has logical gaps: it conflates indoor/outdoor suitability with leakage class/hygiene requirements and recommends GDMI as outdoor-approved despite the catalog stating indoor use.",
+            "constraint_adherence": "It appropriately resists an unsafe rooftop use of an indoor single-wall FZ housing, but violates catalog constraints by asserting GDMI is outdoor-approved and by treating the situation as carbon filtration-related."
+          },
+          "strengths": [
+            "Correctly identifies condensation/icing/corrosion risk for a -40°C rooftop with warm, humid exhaust air.",
+            "Uses a clear blocked-configuration pattern and attempts to move toward an alternative."
+          ],
+          "weaknesses": [
+            "Recommends GDMI as outdoor-approved even though the PDF states GDMI is for indoor use; also introduces irrelevant carbon/humidity guidance.",
+            "Redundant clarification request (ambient temperature already given) and missing key sizing/application questions (flow, W×H, filter depth/length, connection type)."
+          ],
+          "pdf_citations": [
+            "GDB: 'För inomhusbruk' and 'GDB tillverkas vanligen i förzinkat. Korrosivitets klass C2.' (GDB section in provided PDF images/text).",
+            "GDMI: 'För inomhusbruk' and 'GDMI tillverkas vanligen i ZM... Korrosivitets klass C4.' (GDMI section in provided PDF images/text)."
+          ],
+          "recommendation": "FAIL",
+          "usage": {
+            "duration_s": 14.62,
+            "attempt": 1,
+            "prompt_tokens": 37050,
+            "cached_tokens": 32256,
+            "output_tokens": 725
+          }
+        },
+        "anthropic": {
+          "scores": {},
+          "overall_score": 0.0,
+          "explanation": "Claude judge failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CYC222EBYMwJkEA1Fkgf7'}",
+          "dimension_explanations": {},
+          "strengths": [],
+          "weaknesses": [],
+          "pdf_citations": [],
+          "recommendation": "ERROR",
+          "usage": {}
+        }
+      },
+      "inference_steps": [
+        {
+          "step": "context",
+          "detail": "🔍 Analyzing project context...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Analyzing intent...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "scribe",
+          "detail": "Resolved 0 derived values",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "context",
+          "detail": "🔍 GDB",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "guardian",
+          "detail": "🛡️ Risk: Use GDMI FLEX",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 Searching products...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "products",
+          "detail": "📦 3 products found",
+          "status": "done",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Generating recommendation...",
+          "status": "active",
+          "data": null
+        },
+        {
+          "step": "thinking",
+          "detail": "👔 Done",
+          "status": "done",
+          "data": null
+        }
+      ],
+      "locked_context": {
+        "material": "FZ"
+      },
+      "technical_state": {
+        "project_name": null,
+        "locked_material": "FZ",
+        "detected_family": "GDB",
+        "accessories": [],
+        "pending_clarification": null,
+        "resolved_params": {
+          "installation_environment": "ENV_OUTDOOR",
+          "connection_type": "PG"
+        },
+        "assembly_group": null,
+        "turn_count": 1,
+        "tags": {
+          "item_1": {
+            "tag_id": "item_1",
+            "filter_width": null,
+            "filter_height": null,
+            "filter_depth": null,
+            "housing_width": null,
+            "housing_height": null,
+            "housing_length": null,
+            "airflow_m3h": null,
+            "product_family": "GDB",
+            "product_code": null,
+            "quantity": 1,
+            "weight_kg": null,
+            "modules_needed": 1,
+            "total_weight_kg": null,
+            "total_airflow_m3h": null,
+            "is_complete": false,
+            "missing_params": [
+              "filter_dimensions",
+              "filter_depth",
+              "airflow"
+            ],
+            "assembly_role": null,
+            "assembly_group_id": null
+          }
+        }
+      },
+      "graph_report": {
+        "application": null,
+        "warnings_count": 14,
+        "variable_features": 3,
+        "tags_complete": false,
+        "tags_count": 1
+      },
+      "session_state": {
+        "session_id": "9b997d81-3001-4e6e-a98a-4e8f966a7f81",
+        "project": {
+          "accessories": null,
+          "assembly_group": null,
+          "customer": null,
+          "detected_family": "GDB",
+          "locked_material": "FZ",
+          "name": null,
+          "pending_clarification": null,
+          "resolved_params": "{\"installation_environment\": \"ENV_OUTDOOR\", \"connection_type\": \"PG\"}",
+          "vetoed_families": "[\"FAM_GDB\", \"FAM_GDP\", \"FAM_GDC\", \"FAM_GDC_FLEX\", \"FAM_PFF\", \"FAM_BFF\", \"FAM_PT\", \"FAM_EXL\", \"FAM_FILTER_PROFIL\", \"FAM_TT\"]"
+        },
+        "tags": [
+          {
+            "product_family": "GDB",
+            "quantity": 1,
+            "session_id": "9b997d81-3001-4e6e-a98a-4e8f966a7f81",
+            "tag_id": "item_1",
+            "source_message": 1,
+            "id": "TAG_9b997d81-3001-4e6e-a98a-4e8f966a7f81_item_1",
+            "is_complete": false
+          }
+        ],
+        "tag_count": 1,
+        "reasoning_paths": [
+          {
+            "tag_id": "item_1",
+            "path": "Material locked to FZ"
+          }
+        ]
+      },
+      "content_segments": [
+        {
+          "text": "The GDB filter housing with FZ material is not suitable for your rooftop installation in Northern Norway due to the risk of outdoor condensation. ",
+          "type": "GENERAL"
+        },
+        {
+          "text": "The GDB housing has a C2 corrosion class and single-wall uninsulated construction, which does not meet the leakage class and hygiene requirements for outdoor environments. ",
+          "type": "INFERENCE",
+          "inference_logic": "Outdoor installation causes condensation on non-insulated metal surfaces. Double-wall insulated housing required to maintain surface above dew point."
+        },
+        {
+          "text": "This configuration is blocked. ",
+          "type": "GENERAL"
+        },
+        {
+          "text": "I recommend the GDMI Modulfilterskåp, which is approved for outdoor environments. To proceed with the GDMI configuration, I need two details:",
+          "type": "GENERAL"
+        },
+        {
+          "text": "What is the minimum expected ambient temperature at the installation site?",
+          "type": "GENERAL"
+        },
+        {
+          "text": "High humidity reduces carbon adsorption efficiency. Keep relative humidity below 70% for optimal performance.",
+          "type": "GENERAL"
+        }
+      ]
+    }
+  ]
+}

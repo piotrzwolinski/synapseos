@@ -16,8 +16,6 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-from google import genai
-from google.genai import types
 from dotenv import load_dotenv
 
 from database import db
@@ -45,9 +43,8 @@ from logic.state import (
 
 load_dotenv(dotenv_path="../.env")
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-LLM_MODEL = "gemini-2.0-flash"
-LLM_MODEL_FAST = "gemini-2.0-flash"  # Fast model for intent detection
+from llm_router import llm_call, DEFAULT_MODEL
+LLM_MODEL = DEFAULT_MODEL
 
 
 # =============================================================================
@@ -891,16 +888,16 @@ Return ONLY a JSON array of strings. No explanation.
 """
 
     try:
-        response = client.models.generate_content(
-            model=LLM_MODEL_FAST,
-            contents=[types.Content(role="user", parts=[types.Part.from_text(text=extraction_prompt)])],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.0,
-            ),
+        result = llm_call(
+            model=LLM_MODEL,
+            user_prompt=extraction_prompt,
+            json_mode=True,
+            temperature=0.0,
         )
+        if result.error:
+            raise Exception(result.error)
 
-        concepts = json.loads(response.text)
+        concepts = json.loads(result.text)
         if isinstance(concepts, list) and len(concepts) > 0:
             # Clean and deduplicate
             cleaned = []
@@ -1649,24 +1646,17 @@ def query_knowledge_graph(user_query: str) -> dict:
     )
 
     # Step 10: LLM synthesis
-    response = client.models.generate_content(
+    _llm_result = llm_call(
         model=LLM_MODEL,
-        contents=[
-            types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=synthesis_prompt)]
-            )
-        ],
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            response_mime_type="application/json",
-            temperature=0.0,
-        ),
+        user_prompt=synthesis_prompt,
+        system_prompt=system_prompt,
+        json_mode=True,
+        temperature=0.0,
     )
 
     # Parse structured response
     try:
-        llm_response = json.loads(response.text)
+        llm_response = json.loads(_llm_result.text)
     except json.JSONDecodeError:
         # Fallback for non-JSON response
         llm_response = {
@@ -1674,7 +1664,7 @@ def query_knowledge_graph(user_query: str) -> dict:
             "policy_analysis": policy_analysis,
             "graph_evidence": [],
             "general_knowledge": "",
-            "final_answer": response.text,
+            "final_answer": _llm_result.text,
             "confidence_level": "low",
             "sources": [],
             "warnings": []
@@ -1969,29 +1959,22 @@ def query_explainable(user_query: str) -> ExplainableResponse:
     )
 
     # Step 11: LLM synthesis
-    response = client.models.generate_content(
+    _llm_result = llm_call(
         model=LLM_MODEL,
-        contents=[
-            types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=synthesis_prompt)]
-            )
-        ],
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            response_mime_type="application/json",
-            temperature=0.0,
-        ),
+        user_prompt=synthesis_prompt,
+        system_prompt=system_prompt,
+        json_mode=True,
+        temperature=0.0,
     )
 
     # Step 12: Parse and validate response
     try:
-        llm_response = json.loads(response.text)
+        llm_response = json.loads(_llm_result.text)
     except json.JSONDecodeError:
         llm_response = {
             "reasoning_chain": [],
             "reasoning_steps": ["Error: Could not parse LLM response"],
-            "final_answer_markdown": response.text,
+            "final_answer_markdown": _llm_result.text,
             "references": {}
         }
 
@@ -2973,7 +2956,7 @@ def _repair_truncated_json(raw: str) -> dict:
     }
 
 
-def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
+def query_deep_explainable(user_query: str, model: str = None) -> "DeepExplainableResponse":
     """Query with Deep Explainability - segmented content with full attribution.
 
     Returns structured JSON with:
@@ -2991,6 +2974,7 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     config = get_config()
+    model = model or DEFAULT_MODEL
     timings = {}
     total_start = time.time()
 
@@ -3278,37 +3262,31 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
 
     # Step 11: LLM synthesis
     t1 = time.time()
-    response = client.models.generate_content(
-        model=LLM_MODEL,
-        contents=[
-            types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=synthesis_prompt)]
-            )
-        ],
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            response_mime_type="application/json",
-            temperature=0.0,
-            max_output_tokens=4096,  # Allow complete JSON responses (2048 caused silent truncation with structured JSON)
-        ),
+    _llm_result = llm_call(
+        model=model,
+        user_prompt=synthesis_prompt,
+        system_prompt=system_prompt,
+        json_mode=True,
+        temperature=0.0,
+        max_output_tokens=4096,
     )
+    if _llm_result.error:
+        raise Exception(_llm_result.error)
+    _raw_text = _llm_result.text
     timings["llm"] = time.time() - t1
     timings["total"] = time.time() - total_start
 
     # TOKEN USAGE LOGGING
-    usage = getattr(response, 'usage_metadata', None)
-    if usage:
-        input_tokens = getattr(usage, 'prompt_token_count', 0)
-        output_tokens = getattr(usage, 'candidates_token_count', 0)
-        total_tokens = getattr(usage, 'total_token_count', 0)
-        print(f"🔢 TOKEN USAGE: input={input_tokens:,}, output={output_tokens:,}, total={total_tokens:,}")
-        if input_tokens > 10000:
-            print(f"⚠️ ALERT: Input tokens ({input_tokens:,}) > 10k - prompt too big!")
-        if output_tokens >= 4000:
-            print(f"⚠️ [TRUNCATION RISK] Output used {output_tokens} tokens (near 4096 limit)")
-        timings["input_tokens"] = input_tokens
-        timings["output_tokens"] = output_tokens
+    input_tokens = _llm_result.input_tokens
+    output_tokens = _llm_result.output_tokens
+    total_tokens = input_tokens + output_tokens
+    print(f"🔢 TOKEN USAGE: input={input_tokens:,}, output={output_tokens:,}, total={total_tokens:,}")
+    if input_tokens > 10000:
+        print(f"⚠️ ALERT: Input tokens ({input_tokens:,}) > 10k - prompt too big!")
+    if output_tokens >= 4000:
+        print(f"⚠️ [TRUNCATION RISK] Output used {output_tokens} tokens (near 4096 limit)")
+    timings["input_tokens"] = input_tokens
+    timings["output_tokens"] = output_tokens
 
     # Log timings
     timing_parts = [f"{k}={v:.2f}s" for k, v in timings.items() if k not in ('total', 'input_tokens', 'output_tokens')]
@@ -3333,18 +3311,18 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
         return result
 
     try:
-        llm_response = json.loads(response.text)
+        llm_response = json.loads(_raw_text)
     except json.JSONDecodeError as e:
         # Try fixing control characters
         try:
-            fixed_text = fix_json_control_chars(response.text)
+            fixed_text = fix_json_control_chars(_raw_text)
             llm_response = json.loads(fixed_text)
         except json.JSONDecodeError:
             # Try to find JSON object directly
-            json_start = response.text.find('{')
+            json_start = _raw_text.find('{')
             if json_start != -1:
                 try:
-                    fixed_text = fix_json_control_chars(response.text[json_start:])
+                    fixed_text = fix_json_control_chars(_raw_text[json_start:])
                     llm_response = json.loads(fixed_text)
                 except json.JSONDecodeError:
                     llm_response = None
@@ -3353,9 +3331,9 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
 
             if llm_response is None:
                 print(f"[ERROR] Failed to parse JSON: {str(e)}")
-                print(f"[DEBUG] Raw response (first 500 chars): {response.text[:500]}")
+                print(f"[DEBUG] Raw response (first 500 chars): {_raw_text[:500]}")
                 # Try the truncation repair as a last resort
-                llm_response = _repair_truncated_json(response.text)
+                llm_response = _repair_truncated_json(_raw_text)
 
     # Step 13: Build response objects with GRAPH TRAVERSAL details
     # Use graph reasoning report to generate steps with traversal info
@@ -3730,7 +3708,7 @@ def query_deep_explainable(user_query: str) -> "DeepExplainableResponse":
     )
 
 
-def query_deep_explainable_streaming(user_query: str, session_id: str = None):
+def query_deep_explainable_streaming(user_query: str, session_id: str = None, model: str = None):
     """Streaming version of deep explainable query with real-time inference chain.
 
     Yields SSE events showing the actual reasoning process:
@@ -3754,6 +3732,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None):
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     config = get_config()
+    model = model or DEFAULT_MODEL
 
     # Layer 4: Session Graph Manager (if session_id provided)
     session_graph_mgr = None
@@ -3914,6 +3893,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None):
             recent_turns=recent_turns,
             technical_state=technical_state,
             db=db,
+            model=model,
         )
 
         if scribe_intent:
@@ -4200,6 +4180,10 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None):
     if technical_state.all_tags_complete():
         material_warnings = technical_state.verify_material_codes()
         for warning in material_warnings:
+            print(f"⚠️ [STATE] {warning}")
+        # v4.2: Also enforce available materials when no material is locked
+        avail_warnings = technical_state.enforce_available_materials(db)
+        for warning in avail_warnings:
             print(f"⚠️ [STATE] {warning}")
 
     # Build locked context for backwards compatibility
@@ -5090,6 +5074,38 @@ The user has chosen to remove the accessory option to fit within their space con
             f"Inform the customer about the available material options."
         )
 
+    # v3.13: Inject material alternatives when blocked (all products vetoed for material)
+    # Query graph for available materials on the user's detected product family
+    _is_blocked = (
+        graph_reasoning_report.suitability
+        and not graph_reasoning_report.suitability.is_suitable
+    )
+    if _is_blocked and technical_state.detected_family:
+        try:
+            _fam_id = f"FAM_{technical_state.detected_family}" if not technical_state.detected_family.startswith("FAM_") else technical_state.detected_family
+            _mat_result = db.driver.execute_query(
+                """
+                MATCH (pf:ProductFamily {id: $fam_id})-[:AVAILABLE_IN_MATERIAL]->(m:Material)
+                RETURN m.id AS id, m.name AS name, m.corrosion_class AS corrosion_class
+                ORDER BY m.corrosion_class DESC
+                """,
+                fam_id=_fam_id
+            )
+            if _mat_result and _mat_result.records:
+                _mat_lines = []
+                for rec in _mat_result.records:
+                    _mat_lines.append(f"  - **{rec['name']}** (corrosion class {rec['corrosion_class']})")
+                _mat_text = (
+                    f"**⚡ AVAILABLE MATERIALS for {technical_state.detected_family}:**\n"
+                    + "\n".join(_mat_lines)
+                    + "\n\nYou MUST suggest these specific material options to the user. "
+                    + "Explain which material(s) meet the environmental requirement."
+                )
+                constraint_contexts.append(_mat_text)
+                print(f"📢 [PROMPT] Injected {len(_mat_result.records)} material alternatives for {technical_state.detected_family}")
+        except Exception as e:
+            logger.warning(f"Failed to fetch material alternatives: {e}")
+
     combined_policies = "\n".join(constraint_contexts) if constraint_contexts else "No additional context."
 
     # Inject material availability warning into system prompt active_policies
@@ -5113,24 +5129,22 @@ The user has chosen to remove the accessory option to fit within their space con
 
     # Call LLM
     try:
-        response = client.models.generate_content(
-            model=LLM_MODEL,
-            contents=synthesis_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                response_mime_type="application/json",
-                temperature=0.0,
-                max_output_tokens=4096,
-            ),
+        _llm_result = llm_call(
+            model=model,
+            user_prompt=synthesis_prompt,
+            system_prompt=system_prompt,
+            json_mode=True,
+            temperature=0.0,
+            max_output_tokens=4096,
         )
-        raw_text = response.text
+        if _llm_result.error:
+            raise Exception(_llm_result.error)
+        raw_text = _llm_result.text
+        print(f"📝 [SYNTHESIS] Model={model}, {len(raw_text)} chars, keys={list(json.loads(raw_text).keys()) if raw_text.strip().startswith('{') else 'NOT_JSON'}")
 
-        # Detect silent truncation: Gemini with response_mime_type="application/json"
-        # auto-closes JSON at token limit, producing valid but incomplete content.
-        usage = getattr(response, 'usage_metadata', None)
-        output_tokens = getattr(usage, 'candidates_token_count', 0) if usage else 0
-        if output_tokens >= 4000:
-            print(f"⚠️ [TRUNCATION RISK] Output used {output_tokens} tokens (near 4096 limit)")
+        # Detect silent truncation
+        if _llm_result.output_tokens >= 4000:
+            print(f"⚠️ [TRUNCATION RISK] Output used {_llm_result.output_tokens} tokens (near 4096 limit)")
 
         try:
             llm_response = json.loads(raw_text)
@@ -5194,6 +5208,12 @@ The user has chosen to remove the accessory option to fit within their space con
             existing_warnings = llm_response.get("policy_warnings", [])
             existing_warnings.extend(material_warnings)
             llm_response["policy_warnings"] = existing_warnings
+
+    # v4.2: Enforce available materials when no material is locked (outside locked_material gate)
+    if not clarification_needed:
+        avail_warnings = technical_state.enforce_available_materials(db)
+        if avail_warnings:
+            print(f"⚠️ [VALIDATION] Available material warnings: {avail_warnings}")
 
     # Inject material availability warning into response
     if material_availability_warning and _unavailable_material_code:
@@ -5323,9 +5343,29 @@ The user has chosen to remove the accessory option to fit within their space con
     # v3.11: Inject WARNING-level trait neutralization warnings (e.g., humidity degrades carbon)
     # The engine detects these but LLM sometimes ignores them during clarification.
     # Inject into policy_warnings so they always surface to the user.
-    if _verdict and _verdict.active_causal_rules:
+    # v3.13: Only inject if the product actually HAS the affected trait (e.g., don't warn
+    # about porous adsorption degradation for a mechanical-only filter housing).
+    # v3.14: Skip ALL warnings when blocked — warnings about the rejected material just add noise.
+    _has_product_context = False
+    _product_traits = set()
+    if _verdict and _verdict.recommended_product:
+        _has_product_context = True
+        _product_traits = set(_verdict.recommended_product.traits_present) | set(_verdict.recommended_product.traits_neutralized)
+    elif _verdict and _verdict.ranked_products:
+        # v3.13: When all products vetoed (no recommended), use user's preferred product
+        _has_product_context = True
+        _user_pf = _verdict.ranked_products[0]
+        _product_traits = set(_user_pf.traits_present) | set(_user_pf.traits_neutralized)
+    if _is_blocked:
+        print(f"🔇 [VALIDATION] Skipping ALL WARNING neutralizations — configuration is blocked")
+    elif _verdict and _verdict.active_causal_rules:
         for rule in _verdict.active_causal_rules:
             if rule.rule_type == "NEUTRALIZED_BY" and rule.severity == "WARNING":
+                # Skip if we know the product and it doesn't have the affected trait
+                # (empty traits = product has no relevant traits, so warning is irrelevant)
+                if _has_product_context and rule.trait_name not in _product_traits:
+                    print(f"🔇 [VALIDATION] Skipped irrelevant WARNING: {rule.stressor_name} → {rule.trait_name} (product lacks trait)")
+                    continue
                 warning_text = (
                     f"⚠️ {rule.explanation} "
                     f"(Stressor: {rule.stressor_name}, affects: {rule.trait_name})"
@@ -5433,13 +5473,17 @@ The user has chosen to remove the accessory option to fit within their space con
 
         # resolved_params check: suppress if missing_attr is already answered
         # (catches gate parameters like atex_zone, chlorine_ppm, etc.)
+        # BUGFIX: Do NOT suppress when the value is None/empty — that means
+        # the param was seen but NOT provided, so clarification IS valid.
         if not suppress_clarification and missing_attr:
             normalized_attr = missing_attr.replace(" ", "_").lower()
-            if normalized_attr in technical_state.resolved_params:
+            rp_value = technical_state.resolved_params.get(normalized_attr)
+            if normalized_attr in technical_state.resolved_params and rp_value is not None and str(rp_value).lower() not in ("none", ""):
                 suppress_clarification = True
                 print(f"🔇 [SUPPRESS] Skipping clarification for '{missing_attr}' "
-                      f"- already in resolved_params: "
-                      f"{technical_state.resolved_params[normalized_attr]}")
+                      f"- already in resolved_params: {rp_value}")
+            elif normalized_attr in technical_state.resolved_params:
+                print(f"🔇 [SUPPRESS] NOT suppressing '{missing_attr}' - resolved_params value is None/empty")
 
         if suppress_clarification:
             # Convert to final answer - we have all the data
@@ -5497,6 +5541,36 @@ The user has chosen to remove the accessory option to fit within their space con
 
     # Handle entity_card (supports both single dict and multi-card array for assemblies)
     entity_card_data = llm_response.get("entity_card") or llm_response.get("product_card")
+
+    # Defense-in-depth: If clarification was suppressed (→ FINAL_ANSWER) but LLM
+    # didn't generate an entity_card (because it was in clarification mode),
+    # build a minimal card from technical state so the user sees a product config.
+    if not entity_card_data and not clarification_needed and technical_state.all_tags_complete():
+        for tag_id, tag in technical_state.tags.items():
+            if tag.product_code:
+                fallback_specs = {}
+                if tag.product_code:
+                    fallback_specs["Product Code"] = tag.product_code
+                if tag.housing_width and tag.housing_height:
+                    fallback_specs["Dimensions"] = f"{tag.housing_width}x{tag.housing_height} mm"
+                if tag.airflow_m3h:
+                    fallback_specs["Airflow"] = f"{tag.airflow_m3h} m³/h"
+                if tag.rated_airflow_m3h:
+                    fallback_specs["Rated Capacity"] = f"{tag.rated_airflow_m3h} m³/h"
+                if tag.housing_length:
+                    fallback_specs["Housing Length"] = f"{tag.housing_length} mm"
+                if tag.weight_kg:
+                    fallback_specs["Weight"] = f"~{tag.weight_kg} kg"
+                if tag.material:
+                    fallback_specs["Material"] = tag.material
+                entity_card_data = {
+                    "title": tag.product_code,
+                    "specs": fallback_specs,
+                    "confidence": "high",
+                }
+                print(f"📋 [FALLBACK] Built entity_card from technical state: {tag.product_code}")
+                break
+
     product_card_dict = None
     product_cards_list = []
     is_assembly = bool(technical_state.assembly_group and technical_state.assembly_group.get("stages"))

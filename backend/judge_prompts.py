@@ -81,6 +81,23 @@ Evaluate engineering claims using your professional knowledge:
 
 Evaluate the system's response across **6 dimensions**, each scored 1-5.
 
+## CALIBRATION GUIDANCE (Read this BEFORE scoring)
+
+Score **5** is the expected score for a good response. Do NOT reserve 5 for perfection — score 5 when:
+- The core product data (family, size, airflow, weight) matches the PDF
+- The engineering reasoning is sound (even if it goes beyond what the PDF states)
+- The response addresses the user's question and moves toward a solution
+
+Score **3-4** only when there is a clear, specific, verifiable error. Vague concerns or stylistic preferences do NOT warrant lowering scores.
+
+Score **1-2** only for dangerous misinformation, fundamentally wrong data, or complete failure to address the question.
+
+**Common scoring traps to AVOID:**
+- Do NOT penalize engineering reasoning that is correct practice but absent from the PDF (e.g., "indoor housing unsuitable outdoors", "650mm shaft too tight for 600mm housing service access"). These are features, not errors.
+- Do NOT penalize oversizing observations. Noting that airflow utilization is low is helpful information, not an error.
+- Do NOT penalize a clarification-stage response for missing a final product card — the conversation is in progress.
+- Do NOT double-count: if one issue affects multiple dimensions, penalize only the MOST relevant dimension.
+
 ---
 
 ## DIMENSION 1: CORRECTNESS (Factual Accuracy)
@@ -88,8 +105,14 @@ Are the product specifications and engineering claims accurate?
 
 Check product specs against the PDF. Check engineering reasoning against your expertise. If the system makes an engineering claim that is correct practice but not in the PDF — that is still correct.
 
+**Two separate tracks:**
+- **Product data track**: Verify dimensions, airflow, weight, material options against the PDF. Only penalize if a specific number is WRONG (e.g., claiming 4000 m³/h when PDF says 3400).
+- **Engineering reasoning track**: Evaluate using your HVAC expertise. Sound engineering reasoning = correct, even if not in the PDF. Only penalize if the reasoning is actually wrong (e.g., "galvanized steel resists marine corrosion").
+
+A response can have a minor data imprecision (e.g., approximate clearance values) AND correct engineering reasoning — in that case, the overall direction matters more than the specific number.
+
 - **5**: All product specs match the PDF; all engineering reasoning is sound
-- **4**: Minor imprecision (e.g., rounded values, slightly off weight) that doesn't affect the recommendation
+- **4**: Minor imprecision (e.g., rounded values, slightly off weight, approximate derived values) that doesn't affect the recommendation
 - **3**: One factual error (wrong spec or wrong engineering claim) that doesn't change the overall direction
 - **2**: Multiple errors OR one critical error (wrong product family, wrong airflow capacity, wrong material suitability)
 - **1**: Invents non-existent products/sizes, fundamentally wrong engineering reasoning, or dangerous misinformation
@@ -135,7 +158,9 @@ Is the technical reasoning transparent, logical, and well-structured?
 ## DIMENSION 6: CONSTRAINT ADHERENCE (Product & Engineering Rules)
 Does the response respect product constraints AND apply sound engineering rules?
 
-- **5**: Respects all product constraints; correctly applies engineering rules for the environment/application
+**Important**: Stating environmental limitations (e.g., "C2 indoor-only for standard FZ material") is CORRECT constraint communication, not a violation. The system correctly informing the user about constraints is a score of 5, not 2.
+
+- **5**: Respects all product constraints; correctly applies engineering rules for the environment/application; clearly communicates constraints to the user
 - **4**: Minor deviation that doesn't affect safety
 - **3**: Suggests a workaround when there's a hard constraint
 - **2**: Violates a material or environment constraint, OR recommends something you'd reject as an engineer

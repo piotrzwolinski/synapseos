@@ -379,7 +379,7 @@ export function GraphWidget({
 
       // Draw glow/shadow for center and selected nodes
       if (node.isCenter || isSelected) {
-        ctx.shadowColor = node.color || "#3b82f6";
+        ctx.shadowColor = node.color || "#5B8C3E";
         ctx.shadowBlur = 12;
       }
 
@@ -413,7 +413,7 @@ export function GraphWidget({
         const badgeSize = 7;
         const badgeX = x + size * 0.75;
         const badgeY = y - size * 0.75;
-        const colors = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#22c55e"];
+        const colors = ["#5B8C3E", "#4A7A30", "#ec4899", "#f59e0b", "#22c55e"];
 
         ctx.beginPath();
         ctx.arc(badgeX, badgeY, badgeSize, 0, 2 * Math.PI);
@@ -549,7 +549,7 @@ export function GraphWidget({
         onClick={() => setCollapsed(!collapsed)}
         className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-700/50 transition-colors"
       >
-        <Network className="w-4 h-4 text-blue-600" />
+        <Network className="w-4 h-4 text-green-700" />
         <span className="font-semibold">Product Ecosystem</span>
         {graphData && (
           <span className="text-slate-400 font-normal">
@@ -580,7 +580,7 @@ export function GraphWidget({
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm z-10">
               <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                <Loader2 className="w-5 h-5 animate-spin text-green-700" />
                 <span>Loading ecosystem...</span>
               </div>
             </div>

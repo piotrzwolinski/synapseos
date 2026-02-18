@@ -31,7 +31,7 @@ const getMatchTypeBadge = (matchType: string) => {
     case "similar":
       return {
         label: "Similar Product",
-        color: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+        color: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-500 border-green-200 dark:border-green-800",
         icon: <Shield className="w-3 h-3" />,
       };
     case "partial":
@@ -83,12 +83,12 @@ export function ComparisonCard({ data, onProjectClick }: ComparisonCardProps) {
   };
 
   return (
-    <Card className="overflow-hidden border-l-4 border-l-blue-500 shadow-md">
+    <Card className="overflow-hidden border-l-4 border-l-green-600 shadow-md">
       {/* Header */}
-      <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/20 border-b border-blue-100 dark:border-blue-800">
+      <div className="px-4 py-3 bg-gradient-to-r from-green-50 to-green-50 dark:from-green-950/30 dark:to-green-950/20 border-b border-green-100 dark:border-green-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-blue-600" />
+            <CheckCircle2 className="w-5 h-5 text-green-700" />
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               {data.title}
             </h3>
@@ -137,7 +137,7 @@ export function ComparisonCard({ data, onProjectClick }: ComparisonCardProps) {
 
           {/* Arrow */}
           <div className="flex-shrink-0">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 flex items-center justify-center shadow-md">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center shadow-md">
               <ArrowRight className="w-5 h-5 text-white" />
             </div>
           </div>
@@ -177,9 +177,9 @@ export function ComparisonCard({ data, onProjectClick }: ComparisonCardProps) {
                   onProjectClick?.(data.historical_proof!.project_ref)
                 }
                 className={cn(
-                  "text-xs font-medium text-blue-700 dark:text-blue-400",
+                  "text-xs font-medium text-green-800 dark:text-green-500",
                   onProjectClick
-                    ? "hover:text-blue-900 dark:hover:text-blue-300 hover:underline cursor-pointer"
+                    ? "hover:text-green-900 dark:hover:text-green-300 hover:underline cursor-pointer"
                     : "cursor-default"
                 )}
                 disabled={!onProjectClick}
@@ -217,7 +217,7 @@ export function ComparisonCard({ data, onProjectClick }: ComparisonCardProps) {
               className={cn(
                 "h-7 text-xs px-3",
                 action.variant === "primary"
-                  ? "bg-blue-600 hover:bg-blue-700"
+                  ? "bg-green-700 hover:bg-green-800"
                   : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50"
               )}
               onClick={() => handleAction(action)}
