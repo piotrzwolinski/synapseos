@@ -498,9 +498,15 @@ def _merge_scribe_into_state(
         if entity.product_family:
             state.merge_tag(tag_ref, product_family=entity.product_family)
 
-        # Material — Scribe is primary
+        # Material — Scribe is primary (only when user names a specific material)
         if entity.material:
             state.lock_material(entity.material)
+
+        # Corrosion class requirement — Scribe extracts class, NOT material
+        # Resolution to specific material happens later when product family is known
+        if entity.required_corrosion_class and not entity.material:
+            state.resolved_params["required_corrosion_class"] = entity.required_corrosion_class
+            print(f"🧠 [SCRIBE] Required corrosion class: {entity.required_corrosion_class} (material will be resolved from graph)")
 
         # Connection type — Scribe is primary
         if entity.connection_type:
@@ -3411,6 +3417,38 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
             technical_state.lock_material(detected_material)
             print(f"🔄 [FALLBACK] Material from regex: {detected_material}")
 
+    # =========================================================================
+    # CORROSION CLASS → MATERIAL RESOLUTION (graph-driven)
+    # When Scribe extracted required_corrosion_class (not a material code),
+    # resolve to available materials for the detected product family from graph.
+    # =========================================================================
+    _req_corr_class = technical_state.resolved_params.get("required_corrosion_class")
+    if _req_corr_class and not technical_state.locked_material and detected_product_family:
+        _fam_id = f"FAM_{detected_product_family}" if not detected_product_family.startswith("FAM_") else detected_product_family
+        _matching_materials = db.get_materials_by_corrosion_class(_fam_id, _req_corr_class)
+        if _matching_materials:
+            if len(_matching_materials) == 1:
+                # Single match → auto-lock
+                _auto_mat = _matching_materials[0]["code"]
+                # Strip MAT_ prefix if present
+                if _auto_mat.startswith("MAT_"):
+                    _auto_mat = _auto_mat[4:]
+                technical_state.lock_material(_auto_mat)
+                print(f"✅ [CORROSION→MATERIAL] {_req_corr_class} → auto-resolved to {_auto_mat} "
+                      f"(only available {_req_corr_class}+ material for {detected_product_family})")
+            else:
+                # Multiple matches → store for LLM to present options, pick cheapest default
+                _mat_names = [f"{m['code']} ({m['name']}, {m.get('corrosion_class', '?')})" for m in _matching_materials]
+                print(f"ℹ️ [CORROSION→MATERIAL] {_req_corr_class} → {len(_matching_materials)} materials available: {', '.join(_mat_names)}")
+                # Store as context for the LLM prompt
+                technical_state.resolved_params["corrosion_material_options"] = [
+                    {"code": m["code"].replace("MAT_", ""), "name": m["name"], "class": m.get("corrosion_class", "")}
+                    for m in _matching_materials
+                ]
+        else:
+            print(f"⚠️ [CORROSION→MATERIAL] No materials meeting {_req_corr_class} available for {detected_product_family}")
+            technical_state.resolved_params["corrosion_no_match"] = _req_corr_class
+
     # Fallback: project name (only if Scribe didn't extract it)
     if not technical_state.project_name:
         detected_project = extract_project_from_query(user_query)
@@ -4516,6 +4554,26 @@ The user has chosen to remove the accessory option to fit within their space con
             f"The user's requested material is NOT available for the recommended product. "
             f"Product codes have been corrected to use an available material. "
             f"Inform the customer about the available material options."
+        )
+
+    # v4.3: Inject corrosion class material options when Scribe extracted class, not material
+    _corr_mat_options = technical_state.resolved_params.get("corrosion_material_options")
+    _corr_no_match = technical_state.resolved_params.get("corrosion_no_match")
+    _req_corr = technical_state.resolved_params.get("required_corrosion_class")
+    if _corr_mat_options and _req_corr:
+        _opt_lines = [f"  - **{o['code']}** ({o['name']}) — corrosion class {o['class']}" for o in _corr_mat_options]
+        constraint_contexts.append(
+            f"**CORROSION CLASS REQUIREMENT: {_req_corr}**\n"
+            f"The customer requires corrosion class {_req_corr}. "
+            f"The following materials meet this requirement and are available for this product:\n"
+            + "\n".join(_opt_lines) + "\n"
+            f"Present these options to the customer and recommend the most suitable one for their environment."
+        )
+    elif _corr_no_match and _req_corr:
+        constraint_contexts.append(
+            f"**⚠️ CORROSION CLASS REQUIREMENT: {_req_corr} — NO MATCH**\n"
+            f"The customer requires corrosion class {_req_corr}, but no available materials "
+            f"for this product meet that class. Inform the customer and suggest alternatives."
         )
 
     # v3.13: Inject material alternatives when blocked (all products vetoed for material)

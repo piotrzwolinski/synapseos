@@ -375,9 +375,10 @@ class EngineVerdict:
                             parts.append(f"    {dk}: {dv}")
                     parts.append("")
                     parts.append("Based on these constraint gaps, you MUST:")
-                    parts.append("1. Explain what technical specifications a solution WOULD need (infer from the violated constraints above).")
+                    parts.append("1. Explain what technical specifications a solution WOULD need (infer ONLY from the violated constraints listed above — do NOT introduce unrelated physics concepts).")
                     parts.append("2. Explain why no standard catalog product currently satisfies all requirements simultaneously.")
                     parts.append("3. Recommend contacting the manufacturer's Custom Engineering or Technical Support team with these specific technical requirements.")
+                    parts.append("4. DO NOT suggest or name any specific catalog product as an alternative. The engineering database has confirmed that NO catalog product qualifies — do NOT override this with your own product knowledge.")
 
                 # v3.9: Inject capacity overload as additional risk INSIDE the
                 # violation block so the LLM treats it as part of the same

@@ -31,6 +31,7 @@ COPY *.py ./
 COPY *.yaml ./
 COPY domain_config*.yaml ./
 COPY logic/ ./logic/
+COPY tenants/ ./tenants/
 COPY static/ ./static/
 
 # Create non-root user

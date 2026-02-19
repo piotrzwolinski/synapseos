@@ -1643,12 +1643,33 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     const assistantMsg = messages[messageIndex];
     if (!userMsg || !assistantMsg) return;
 
+    // Build conversation_history from all messages up to and including this response
+    const conversationHistory = messages.slice(0, messageIndex + 1).map(msg => {
+      const turn: Record<string, unknown> = {
+        role: msg.role,
+        content: msg.content,
+      };
+      if (msg.role === "assistant" && msg.deepExplainableData) {
+        const d = msg.deepExplainableData;
+        turn.product_card = d.product_card || null;
+        turn.product_cards = d.product_cards || [];
+        turn.status_badges = d.status_badges || [];
+      }
+      return turn;
+    });
+
+    // Build response_data in the shape _build_judge_prompt expects
+    const d = assistantMsg.deepExplainableData;
+    const responseData: Record<string, unknown> = {
+      conversation_history: conversationHistory,
+      content_text: assistantMsg.content,
+      product_card: d?.product_card || null,
+      product_cards: d?.product_cards || [],
+    };
+
     setJudgingIndex(messageIndex);
     try {
-      const result = await evaluateResponse(userMsg.content, {
-        content: assistantMsg.content,
-        deepExplainableData: assistantMsg.deepExplainableData,
-      });
+      const result = await evaluateResponse(userMsg.content, responseData);
       setJudgeResults(prev => ({ ...prev, [messageIndex]: result }));
 
       // Persist to graph session
@@ -1907,35 +1928,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                   )}
 
 
-                  {/* Judge Evaluation Button + Results */}
-                  {message.role === "assistant" && message.content && (
-                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                      {!judgeResults[index] && judgingIndex !== index && (
-                        <button
-                          onClick={() => handleRunJudge(index)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-700 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-700 transition-all"
-                        >
-                          <Scale className="w-3.5 h-3.5" />
-                          Run 3-LLM Judge
-                        </button>
-                      )}
-                      {judgingIndex === index && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-violet-600 dark:text-violet-400">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          Evaluating with Gemini + GPT + Claude...
-                        </div>
-                      )}
-                      {judgeResults[index] && !('error' in judgeResults[index]) && (
-                        <JudgeResultsPanel results={judgeResults[index] as Record<string, JudgeSingleResult>} />
-                      )}
-                      {judgeResults[index] && 'error' in judgeResults[index] && (
-                        <div className="text-xs text-red-500 flex items-center gap-1">
-                          <AlertTriangle className="w-3.5 h-3.5" />
-                          Judge failed: {String(judgeResults[index].error)}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {/* Judge Evaluation Button + Results — hidden from UI, functionality preserved */}
 
                   {/* Mode-specific panels (always shown) */}
                   {message.role === "assistant" && message.chatMode === "llm-driven" && (

@@ -339,6 +339,14 @@ def _judge_with_gemini(question: str, response_data: dict) -> JudgeResult:
         else:
             print(f"  [JUDGE] Gemini responded in {duration}s (no usage data)")
     except Exception as e:
+        err_str = str(e)
+        # Stale cache → invalidate and retry with file-ref fallback
+        if cache_name and ("PERMISSION_DENIED" in err_str or "not found" in err_str.lower()
+                           or "403" in err_str):
+            global _GEMINI_CACHE_NAME
+            _GEMINI_CACHE_NAME = None
+            print(f"  [JUDGE] Gemini cache expired/invalid, invalidated. Retrying with file ref...")
+            return _judge_with_gemini(question, response_data)
         print(f"  [JUDGE] Gemini call failed: {e}")
         return JudgeResult(explanation=f"Gemini judge failed: {e}", recommendation="ERROR")
 

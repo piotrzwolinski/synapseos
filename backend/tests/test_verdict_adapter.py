@@ -59,16 +59,16 @@ class TestStressorMapping:
         verdict = EngineVerdict()
         verdict.application_match = {
             "id": "APP_KITCHEN", "name": "Commercial Kitchen",
-            "confidence": 0.95,
+            "keywords": ["kitchen"], "confidence": 0.95,
         }
         report = adapter.adapt(verdict)
-        assert report.application_match is not None
-        assert report.application_match.application_id == "APP_KITCHEN"
+        assert report.application is not None
+        assert report.application.id == "APP_KITCHEN"
 
     def test_no_application_match(self, adapter):
         verdict = EngineVerdict()
         report = adapter.adapt(verdict)
-        assert report.application_match is None
+        assert report.application is None
 
 
 # =============================================================================
@@ -79,7 +79,8 @@ class TestSuitabilityMapping:
     def test_recommended_product_mapped(self, adapter, sample_verdict):
         report = adapter.adapt(sample_verdict)
         assert report.suitability is not None
-        assert report.suitability.recommended_product == "GDB"
+        # SuitabilityResult tracks is_suitable + warnings, not product name directly
+        assert report.suitability.is_suitable is True
 
     def test_vetoed_product_shows_risk(self, adapter):
         verdict = EngineVerdict()
@@ -106,7 +107,7 @@ class TestPivotMapping:
         verdict.auto_pivot_name = "GDB"
         report = adapter.adapt(verdict)
         assert report.product_pivot is not None
-        assert report.product_pivot.to_product == "GDB"
+        assert report.product_pivot.pivoted_to == "GDB"
 
     def test_no_pivot_when_no_veto(self, adapter):
         verdict = EngineVerdict()
@@ -153,8 +154,8 @@ class TestInstallationViolationMapping:
         ]
         verdict.has_installation_block = True
         report = adapter.adapt(verdict)
-        # Should appear in physics risks or risk warnings
-        assert len(report.unmitigated_physics_risks) > 0 or len(report.risk_warnings) > 0
+        # Should appear in physics_risks or suitability warnings
+        assert len(report.physics_risks) > 0 or len(report.suitability.warnings) > 0
 
 
 # =============================================================================

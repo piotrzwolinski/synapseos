@@ -3016,6 +3016,40 @@ class Neo4jConnection:
             print(f"Warning: Could not get available materials: {e}")
             return []
 
+    def get_materials_by_corrosion_class(self, family_id: str, min_corrosion_class: str) -> list:
+        """Get materials available for a product family that meet a minimum corrosion class.
+
+        Uses the Material node's corrosion_class property.
+        Corrosion hierarchy: C3 < C4 < C5 < C5.1
+        Returns list of dicts with 'id', 'name', 'code', 'corrosion_class'.
+        """
+        # Map corrosion classes to numeric for >= comparison
+        class_rank = {"C3": 3, "C4": 4, "C5": 5, "C5.1": 5.1}
+        min_rank = class_rank.get(min_corrosion_class, 5)
+
+        def _query():
+            driver = self.connect()
+            with driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (pf:ProductFamily {id: $fid})-[:AVAILABLE_IN_MATERIAL]->(m:Material)
+                    RETURN m.id AS id, m.name AS name,
+                           COALESCE(m.code, m.id) AS code,
+                           m.corrosion_class AS corrosion_class
+                    ORDER BY m.name
+                """, fid=family_id)
+                return [dict(r) for r in result]
+
+        try:
+            all_materials = self._execute_with_retry(_query)
+            # Filter to materials meeting the minimum corrosion class
+            return [
+                m for m in all_materials
+                if class_rank.get(m.get("corrosion_class", ""), 0) >= min_rank
+            ]
+        except Exception as e:
+            print(f"Warning: Could not get materials by corrosion class: {e}")
+            return []
+
     def get_reference_airflow_for_dimensions(self, width_mm: int, height_mm: int, product_family: str = None) -> dict:
         """Get reference airflow from ProductVariant for given housing dimensions.
 

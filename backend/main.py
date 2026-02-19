@@ -1021,7 +1021,7 @@ async def consult_deep_explainable_stream(request: ConsultRequest, _user: str = 
     print(f"{'='*60}\n")
     def generate():
         try:
-            for event in query_deep_explainable_streaming(request.query, session_id=request.session_id, model=session_manager.model_name):
+            for event in query_deep_explainable_streaming(request.query, session_id=request.session_id):
                 yield f"data: {json.dumps(event)}\n\n"
         except Exception as e:
             import traceback

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Chat } from "@/components/chat";
 import { resetSessionId } from "@/lib/api";
 import { ThreadIngestor } from "@/components/thread-ingestor";
@@ -21,7 +21,6 @@ import {
   Upload,
   Settings,
   Activity,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Users,
@@ -48,7 +47,6 @@ import {
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { apiFetch } from "@/lib/api";
 import { AuthGuard } from "@/components/auth-guard";
 import { clearToken } from "@/lib/auth";
 
@@ -456,6 +454,8 @@ Nordic Furniture Group`
   }
 };
 
+const HIDDEN_NAV_IDS = new Set(["bulk-offer", "ingest", "explore", "knowledge", "testgen", "use-cases", "expert-review", "audit", "batch-results"]);
+
 const NAV_ITEMS: NavItem[] = [
   { id: "chat", label: "AI Consultant", icon: MessageSquare, section: "main" },
   { id: "bulk-offer", label: "Bulk Offer", icon: Package, section: "main", devOnly: true },
@@ -590,42 +590,6 @@ function MainApp() {
   const chatMode: ChatMode = "graph-reasoning";
   const chatRef = useRef<{ clearChat: () => void; testWidgets: () => void } | null>(null);
 
-  // Model switcher state
-  const [availableModels, setAvailableModels] = useState<{ id: string; label: string; provider: string }[]>([]);
-  const [currentModel, setCurrentModel] = useState<string>("");
-  const [showModelMenu, setShowModelMenu] = useState(false);
-  const modelMenuRef = useRef<HTMLDivElement>(null);
-
-  // Fetch available models from backend
-  useEffect(() => {
-    apiFetch("/chat/models").then(r => r.json()).then(data => {
-      setAvailableModels(data.models || []);
-      setCurrentModel(data.current || data.default || "");
-    }).catch(() => {});
-  }, []);
-
-  // Close model menu on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (modelMenuRef.current && !modelMenuRef.current.contains(e.target as Node)) {
-        setShowModelMenu(false);
-      }
-    };
-    if (showModelMenu) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showModelMenu]);
-
-  const changeModel = async (modelId: string) => {
-    try {
-      const res = await apiFetch("/chat/model", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: modelId }),
-      });
-      if (res.ok) setCurrentModel(modelId);
-    } catch {}
-    setShowModelMenu(false);
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-green-50/20 to-stone-50 dark:from-slate-950 dark:via-green-950/20 dark:to-slate-950 flex">
@@ -661,7 +625,7 @@ function MainApp() {
               </span>
             </div>
           )}
-          {NAV_ITEMS.filter(item => item.section === "main" && (!item.devOnly || devMode)).map((item) => (
+          {NAV_ITEMS.filter(item => item.section === "main" && (!item.devOnly || devMode) && !HIDDEN_NAV_IDS.has(item.id)).map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
@@ -815,44 +779,6 @@ function MainApp() {
           {/* Chat Controls - Only show on chat tab */}
           {activeTab === "chat" && (
             <div className="flex items-center gap-2">
-              {/* Model Selector */}
-              <div className="relative" ref={modelMenuRef}>
-                <button
-                  onClick={() => setShowModelMenu(!showModelMenu)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                  <span>{availableModels.find(m => m.id === currentModel)?.label || currentModel || "Model"}</span>
-                  <ChevronDown className={cn("h-3 w-3 transition-transform", showModelMenu && "rotate-180")} />
-                </button>
-                {showModelMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 py-1 z-50">
-                    <div className="px-3 py-1.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">
-                      Select Model
-                    </div>
-                    {availableModels.map((model) => (
-                      <button
-                        key={model.id}
-                        onClick={() => changeModel(model.id)}
-                        className={cn(
-                          "w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between",
-                          currentModel === model.id && "bg-green-50 dark:bg-green-900/20"
-                        )}
-                      >
-                        <div>
-                          <div className={cn("text-sm font-medium", currentModel === model.id ? "text-green-700 dark:text-green-400" : "text-slate-700 dark:text-slate-300")}>
-                            {model.label}
-                          </div>
-                          <div className="text-[10px] text-slate-400 dark:text-slate-500">{model.provider}</div>
-                        </div>
-                        {currentModel === model.id && <div className="w-1.5 h-1.5 rounded-full bg-green-600" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />
-
               {/* New Session */}
               <button
                 onClick={() => chatRef.current?.clearChat()}

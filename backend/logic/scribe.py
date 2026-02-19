@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 _MODEL = DEFAULT_MODEL
 
 # Cached graph-driven mapping for environment + application IDs
-# v3.8.1: Cache invalidated on restart; replacement semantics rule added
+# v3.8.2: Cache invalidated on restart; ENV_COASTAL added to graph
 _cached_scribe_prompt: Optional[str] = None
 
 
@@ -137,6 +137,7 @@ class ScribeEntity:
     airflow_m3h: Optional[int] = None
     product_family: Optional[str] = None
     material: Optional[str] = None
+    required_corrosion_class: Optional[str] = None  # "C3", "C4", "C5", "C5.1" — when user specifies class, not material
     connection_type: Optional[str] = None   # "PG" or "F" (flange)
     housing_length: Optional[int] = None    # explicit housing length (550/600/750/800/900mm)
 
@@ -204,7 +205,10 @@ RULES:
     - If the pending parameter is "airflow" or similar, also put the value in the entity's airflow_m3h field
     - If the pending parameter is "filter_depth", extract depth as integer
     - If the pending parameter is "housing_length", extract length as integer
-11. Extract material codes when mentioned: RF/stainless, FZ/galvanized, AZ/aluzink, ZM/zinkmagnesium, SF/sendzimir.
+11. MATERIAL vs CORROSION CLASS — these are DIFFERENT things. Your job is to extract WHAT the user said, not to resolve it:
+    - If user names a SPECIFIC MATERIAL CODE or material name → set "material": RF/stainless→"RF", FZ/galvanized→"FZ", AZ/aluzink→"AZ", ZM/zinkmagnesium→"ZM", SF/sendzimir→"SF"
+    - If user specifies a CORROSION CLASS (C3, C4, C5, C5.1, "corrosion resistance C5", "class C5") WITHOUT naming a material → set "required_corrosion_class": "C5" (NOT material). Multiple materials can satisfy the same class — that is resolved downstream, NOT by you.
+    - NEVER infer a material from a corrosion class. "C5 corrosion resistance" → required_corrosion_class="C5", material=null. "Stainless steel" → material="RF", required_corrosion_class=null.
     Extract connection_type when mentioned: "PG" / "slip-in" / "PG profile" → "PG", "flange" / "fläns" / "flange connection" → "F". Only extract if user explicitly mentions connection type.
 12. REFERENCE DATA vs USER REQUIREMENTS: Only create entities for items the user is REQUESTING to configure or design. If the user mentions a product's rated capacity as background info (e.g., "the standard model handles 3,400 m³/h"), do NOT create a separate entity for it. The user's REQUESTED values are preceded by "we need", "target", "our requirement", etc. Reference data is preceded by "handles", "rated", "capacity of", "up to", etc.
     REPLACEMENT SEMANTICS: When the user says "instead of X, we want Y" or "replace X with Y" or "rather than X, give me Y", this means REPLACE. Do NOT create entities for X — only create entities for Y. The "instead of" clause is context/reference, NOT a request. Example: "Instead of one 600x600 housing, we want four 300x300 housings" → create 4 entities of 300x300 only. Do NOT create a 600x600 entity.
@@ -257,6 +261,7 @@ OUTPUT JSON SCHEMA:
       "airflow_m3h": 3400,
       "product_family": "GDB",
       "material": "RF",
+      "required_corrosion_class": "C5",
       "connection_type": "PG",
       "housing_length": 550
     }}
@@ -397,6 +402,11 @@ def _parse_scribe_response(data: dict) -> SemanticIntent:
     for ent in data.get("entities", []):
         if not ent.get("tag_ref"):
             continue
+        # Validate corrosion class if present
+        _corr_class = ent.get("required_corrosion_class")
+        if _corr_class and _corr_class not in ("C3", "C4", "C5", "C5.1"):
+            _corr_class = None
+
         entities.append(ScribeEntity(
             tag_ref=ent["tag_ref"],
             action=ent.get("action", "UPDATE"),
@@ -404,6 +414,7 @@ def _parse_scribe_response(data: dict) -> SemanticIntent:
             airflow_m3h=_safe_int(ent.get("airflow_m3h")),
             product_family=ent.get("product_family"),
             material=ent.get("material"),
+            required_corrosion_class=_corr_class,
             connection_type=ent.get("connection_type"),
             housing_length=_safe_int(ent.get("housing_length")),
         ))

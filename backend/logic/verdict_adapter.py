@@ -835,17 +835,20 @@ class VerdictToReportAdapter:
                     ))
 
         # Map corrosion-related DEMANDS_TRAIT to MaterialRequirement
-        corrosion_traits = {
-            "TRAIT_CORROSION_RESISTANCE_C5": ("RF", "Stainless Steel (RF)", "C5"),
-            "TRAIT_CORROSION_RESISTANCE_C5M": ("SF", "Marine-Grade Stainless Steel (SF)", "C5.1"),
-            "TRAIT_CORROSION_RESISTANCE_C3": ("FZ", "Hot-Dip Galvanized (FZ)", "C3"),
+        # Maps trait → minimum corrosion class (NOT a specific material)
+        # Multiple materials can satisfy each class — the retriever resolves
+        # to available materials for the specific product family.
+        corrosion_trait_classes = {
+            "TRAIT_CORROSION_RESISTANCE_C5": "C5",
+            "TRAIT_CORROSION_RESISTANCE_C5M": "C5.1",
+            "TRAIT_CORROSION_RESISTANCE_C3": "C3",
         }
         for rule in verdict.active_causal_rules:
-            if rule.rule_type == "DEMANDS_TRAIT" and rule.trait_id in corrosion_traits:
-                mat_code, mat_name, corr_class = corrosion_traits[rule.trait_id]
+            if rule.rule_type == "DEMANDS_TRAIT" and rule.trait_id in corrosion_trait_classes:
+                corr_class = corrosion_trait_classes[rule.trait_id]
                 required_materials.append(MaterialRequirement(
-                    material_code=mat_code,
-                    material_name=mat_name,
+                    material_code=corr_class,  # class, not specific material
+                    material_name=f"Any material rated {corr_class} or higher",
                     corrosion_class=corr_class,
                     reason=f"{rule.stressor_name}: {rule.explanation}",
                 ))

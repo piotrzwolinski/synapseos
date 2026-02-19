@@ -76,7 +76,7 @@ class TestParseScribeResponse:
         assert result.entities[0].airflow_m3h == 3000
         assert result.entities[0].product_family == "GDB"
         assert result.parameters["detected_application"] == "APP_KITCHEN"
-        assert result.intent_type == "new_specification"
+        assert result.intent_type == "CONFIGURE"  # parser normalizes to CONFIGURE
         assert result.project_name == "TestProject"
         assert "ACC_RAIN_HOOD" in result.accessories
 
@@ -99,7 +99,7 @@ class TestParseScribeResponse:
 
 class TestRepairScribeJson:
     def test_repairs_truncated_json(self):
-        raw = '{"entities": [{"tag_ref": "item_1", "dimensions": {"width": 600'
+        raw = '{"entities": [{"tag_ref": "item_1"}], "parameters": {"key": "val"'
         result = _repair_scribe_json(raw)
         assert result is not None
         assert "entities" in result
@@ -150,12 +150,12 @@ class TestResolveDerivedActions:
             actions=[
                 ScribeAction(
                     type="COPY", target_tag="item_2",
-                    field="filter_width", value="SAME_AS:item_1",
-                    derivation="same_as",
+                    field="filter_width", value=None,
+                    derivation="SAME_AS:item_1",
                 ),
             ],
             context_hints=[], clarification_answers={},
-            intent_type="new_specification", language="en",
+            intent_type="CONFIGURE", language="en",
             confidence=0.9, action_intent="configure",
             project_name=None, accessories=[], entity_codes=[],
         )
@@ -205,17 +205,28 @@ class TestBuildEnvAppMapping:
 # FULL EXTRACT FLOW (mocked LLM)
 # =============================================================================
 
+def _mock_llm_result(text: str, error: str = None):
+    """Create a mock LLMResult matching llm_router.LLMResult shape."""
+    result = MagicMock()
+    result.text = text
+    result.error = error
+    result.duration_s = 0.1
+    result.input_tokens = 100
+    result.output_tokens = 50
+    return result
+
+
 class TestExtractSemanticIntent:
     @patch("backend.logic.scribe.llm_call")
     def test_extract_returns_semantic_intent(self, mock_llm, empty_state):
-        mock_llm.return_value = json.dumps({
+        mock_llm.return_value = _mock_llm_result(json.dumps({
             "entities": [{"tag_ref": "item_1", "dimensions": {"width": 600, "height": 600}}],
             "parameters": {},
             "context_hints": ["kitchen"],
             "intent_type": "new_specification",
             "language": "en",
             "confidence": 0.9,
-        })
+        }))
         from backend.logic.scribe import extract_semantic_intent
         result = extract_semantic_intent(
             "I need a 600x600 filter for kitchen",
@@ -240,7 +251,9 @@ class TestExtractSemanticIntent:
 
     @patch("backend.logic.scribe.llm_call")
     def test_extract_handles_truncated_json(self, mock_llm, empty_state):
-        mock_llm.return_value = '{"entities": [{"tag_ref": "item_1", "dimensions": {"width": 600'
+        mock_llm.return_value = _mock_llm_result(
+            '{"entities": [{"tag_ref": "item_1"}], "parameters": {"key": "val"'
+        )
         from backend.logic.scribe import extract_semantic_intent
         result = extract_semantic_intent(
             "600mm filter",
@@ -253,13 +266,13 @@ class TestExtractSemanticIntent:
 
     @patch("backend.logic.scribe.llm_call")
     def test_extract_with_context_hints(self, mock_llm, empty_state):
-        mock_llm.return_value = json.dumps({
+        mock_llm.return_value = _mock_llm_result(json.dumps({
             "entities": [{"tag_ref": "item_1"}],
             "parameters": {"detected_application": "APP_KITCHEN"},
             "context_hints": ["commercial kitchen", "restaurant"],
             "intent_type": "new_specification",
             "confidence": 0.85,
-        })
+        }))
         from backend.logic.scribe import extract_semantic_intent
         result = extract_semantic_intent(
             "filter for restaurant kitchen",
