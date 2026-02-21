@@ -1369,22 +1369,13 @@ def get_graph_reasoning_report(query: str, product_family: str = None, context: 
     Returns the structured report object for cases where you need
     programmatic access to the reasoning results.
 
-    Default: TraitBasedEngine (has full installation constraint pipeline).
-    Set REASONING_ENGINE=legacy to force the old GraphReasoningEngine
-    (missing IC_ENVIRONMENT_WHITELIST and other critical safety checks).
+    Uses TraitBasedEngine with full installation constraint pipeline.
     """
-    if os.getenv("REASONING_ENGINE", "trait_based") != "legacy":
-        from logic.universal_engine import TraitBasedEngine
-        from logic.verdict_adapter import VerdictToReportAdapter
-        engine = _get_trait_engine()
-        verdict = engine.process_query(query, product_hint=product_family, context=context)
-        return VerdictToReportAdapter().adapt(verdict)
-    else:
-        engine = get_graph_reasoning_engine()
-        return engine.generate_reasoning_report(
-            query, product_family, context,
-            material=material, accessories=accessories
-        )
+    from logic.universal_engine import TraitBasedEngine
+    from logic.verdict_adapter import VerdictToReportAdapter
+    engine = _get_trait_engine()
+    verdict = engine.process_query(query, product_hint=product_family, context=context)
+    return VerdictToReportAdapter().adapt(verdict)
 
 
 # =============================================================================
@@ -2106,16 +2097,6 @@ def query_explainable(user_query: str) -> ExplainableResponse:
 # DEEP EXPLAINABILITY API (Enterprise UI)
 # =============================================================================
 
-def _load_system_expert_prompt() -> str:
-    """Load the expert system prompt from tenant file, falling back to hardcoded."""
-    from config_loader import load_tenant_prompt
-    text = load_tenant_prompt("system_expert")
-    if text:
-        return text
-    # Hardcoded fallback removed — prompt lives in tenants/mann_hummel/prompts/system_expert.txt
-    raise FileNotFoundError("system_expert.txt not found in tenant prompts directory")
-
-
 def _load_system_generic_prompt() -> str:
     """Load the generic system prompt from tenant file, falling back to hardcoded."""
     from config_loader import load_tenant_prompt
@@ -2135,9 +2116,6 @@ def _load_synthesis_prompt() -> str:
 
 
 # Module-level references (lazy-loaded, cached by load_tenant_prompt)
-def _get_expert_prompt():
-    return _load_system_expert_prompt()
-
 def _get_generic_prompt():
     return _load_system_generic_prompt()
 
@@ -2179,13 +2157,10 @@ class _LazyPrompt:
         return getattr(self._ensure_loaded(), name)
 
 
-DEEP_EXPLAINABLE_SYSTEM_PROMPT = _LazyPrompt(_load_system_expert_prompt)
 DEEP_EXPLAINABLE_SYSTEM_PROMPT_GENERIC = _LazyPrompt(_load_system_generic_prompt)
 DEEP_EXPLAINABLE_SYNTHESIS_PROMPT = _LazyPrompt(_load_synthesis_prompt)
 
 
-# Legacy prompt content removed — now in tenants/mann_hummel/prompts/*.txt
-_LEGACY_REMOVED = """Prompt content moved to tenants/mann_hummel/prompts/*.txt"""
 
 
 
@@ -2678,10 +2653,7 @@ def query_deep_explainable(user_query: str, model: str = None) -> "DeepExplainab
         except Exception as e:
             logger.warning(f"Failed to fetch housing corrosion class: {e}")
 
-    if os.getenv("REASONING_ENGINE", "trait_based") != "legacy":
-        system_prompt = DEEP_EXPLAINABLE_SYSTEM_PROMPT_GENERIC.format(active_policies=active_policies_prompt)
-    else:
-        system_prompt = DEEP_EXPLAINABLE_SYSTEM_PROMPT.format(active_policies=active_policies_prompt)
+    system_prompt = DEEP_EXPLAINABLE_SYSTEM_PROMPT_GENERIC.format(active_policies=active_policies_prompt)
     synthesis_prompt = DEEP_EXPLAINABLE_SYNTHESIS_PROMPT.format(
         context=graph_context,
         query=user_query,
@@ -4622,10 +4594,7 @@ The user has chosen to remove the accessory option to fit within their space con
         _override_text = "\n".join(f"  - {o}" for o in _material_overrides_applied)
         _active_policies += f"\n\n⚠️ MATERIAL OVERRIDE (post-pivot):\n{_override_text}\nThe user's requested material is NOT available for the recommended product. Suggest available alternatives."
         print(f"📢 [PROMPT] Post-pivot material override injected: {len(_material_overrides_applied)} tag(s)")
-    if os.getenv("REASONING_ENGINE", "trait_based") != "legacy":
-        system_prompt = DEEP_EXPLAINABLE_SYSTEM_PROMPT_GENERIC.format(active_policies=_active_policies)
-    else:
-        system_prompt = DEEP_EXPLAINABLE_SYSTEM_PROMPT.format(active_policies=_active_policies)
+    system_prompt = DEEP_EXPLAINABLE_SYSTEM_PROMPT_GENERIC.format(active_policies=_active_policies)
     synthesis_prompt = DEEP_EXPLAINABLE_SYNTHESIS_PROMPT.format(
         context=graph_context,
         query=user_query,

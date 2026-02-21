@@ -1037,7 +1037,7 @@ def load_tenant_prompt(prompt_name: str, domain_id: Optional[str] = None) -> Opt
     """Load a prompt template from the tenant's prompts/ directory.
 
     Args:
-        prompt_name: Filename without extension (e.g., "system_expert")
+        prompt_name: Filename without extension (e.g., "system_generic")
         domain_id: Tenant ID. Defaults to current domain.
 
     Returns:
