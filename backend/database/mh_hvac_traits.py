@@ -17,6 +17,7 @@ Usage:
 import os
 import sys
 from dotenv import load_dotenv
+from db_result_helpers import result_to_dicts, result_single, result_value
 
 load_dotenv(dotenv_path="../.env")
 
@@ -587,310 +588,300 @@ CONTEXT_STRESSORS = [
 # SEED FUNCTIONS
 # =============================================================================
 
-def create_physical_traits(driver, database):
+def create_physical_traits(graph):
     """Create PhysicalTrait nodes."""
     print("\n📦 Creating PhysicalTrait nodes...")
-    with driver.session(database=database) as session:
-        for trait in PHYSICAL_TRAITS:
-            session.run("""
-                MERGE (t:PhysicalTrait {id: $id})
-                SET t.name = $name,
-                    t.description = $description,
-                    t.category = $category,
-                    t.keywords = $keywords
-            """, trait)
-            print(f"   ✅ {trait['id']}: {trait['name']}")
+    for trait in PHYSICAL_TRAITS:
+        graph.query("""
+            MERGE (t:PhysicalTrait {id: $id})
+            SET t.name = $name,
+                t.description = $description,
+                t.category = $category,
+                t.keywords = $keywords
+        """, trait)
+        print(f"   ✅ {trait['id']}: {trait['name']}")
     print(f"   Created {len(PHYSICAL_TRAITS)} PhysicalTrait nodes")
 
 
-def create_environmental_stressors(driver, database):
+def create_environmental_stressors(graph):
     """Create EnvironmentalStressor nodes."""
     print("\n🌪️ Creating EnvironmentalStressor nodes...")
-    with driver.session(database=database) as session:
-        for stressor in ENVIRONMENTAL_STRESSORS:
-            session.run("""
-                MERGE (s:EnvironmentalStressor {id: $id})
-                SET s.name = $name,
-                    s.description = $description,
-                    s.category = $category,
-                    s.keywords = $keywords
-            """, stressor)
-            print(f"   ✅ {stressor['id']}: {stressor['name']}")
+    for stressor in ENVIRONMENTAL_STRESSORS:
+        graph.query("""
+            MERGE (s:EnvironmentalStressor {id: $id})
+            SET s.name = $name,
+                s.description = $description,
+                s.category = $category,
+                s.keywords = $keywords
+        """, stressor)
+        print(f"   ✅ {stressor['id']}: {stressor['name']}")
     print(f"   Created {len(ENVIRONMENTAL_STRESSORS)} EnvironmentalStressor nodes")
 
 
-def create_causal_rules(driver, database):
+def create_causal_rules(graph):
     """Create NEUTRALIZED_BY and DEMANDS_TRAIT relationships."""
     print("\n🔗 Creating CausalRule relationships...")
 
-    with driver.session(database=database) as session:
-        # NEUTRALIZED_BY: Trait -> Stressor
-        for rule in NEUTRALIZED_BY_RULES:
-            session.run("""
-                MATCH (t:PhysicalTrait {id: $trait_id})
-                MATCH (s:EnvironmentalStressor {id: $stressor_id})
-                MERGE (t)-[r:NEUTRALIZED_BY]->(s)
-                SET r.severity = $severity,
-                    r.explanation = $explanation
-            """, rule)
-            print(f"   ✅ NEUTRALIZED_BY: {rule['trait_id']} --[{rule['severity']}]--> {rule['stressor_id']}")
+    # NEUTRALIZED_BY: Trait -> Stressor
+    for rule in NEUTRALIZED_BY_RULES:
+        graph.query("""
+            MATCH (t:PhysicalTrait {id: $trait_id})
+            MATCH (s:EnvironmentalStressor {id: $stressor_id})
+            MERGE (t)-[r:NEUTRALIZED_BY]->(s)
+            SET r.severity = $severity,
+                r.explanation = $explanation
+        """, rule)
+        print(f"   ✅ NEUTRALIZED_BY: {rule['trait_id']} --[{rule['severity']}]--> {rule['stressor_id']}")
 
-        # DEMANDS_TRAIT: Stressor -> Trait
-        for rule in DEMANDS_TRAIT_RULES:
-            session.run("""
-                MATCH (s:EnvironmentalStressor {id: $stressor_id})
-                MATCH (t:PhysicalTrait {id: $trait_id})
-                MERGE (s)-[r:DEMANDS_TRAIT]->(t)
-                SET r.severity = $severity,
-                    r.explanation = $explanation
-            """, rule)
-            print(f"   ✅ DEMANDS_TRAIT: {rule['stressor_id']} --[{rule['severity']}]--> {rule['trait_id']}")
+    # DEMANDS_TRAIT: Stressor -> Trait
+    for rule in DEMANDS_TRAIT_RULES:
+        graph.query("""
+            MATCH (s:EnvironmentalStressor {id: $stressor_id})
+            MATCH (t:PhysicalTrait {id: $trait_id})
+            MERGE (s)-[r:DEMANDS_TRAIT]->(t)
+            SET r.severity = $severity,
+                r.explanation = $explanation
+        """, rule)
+        print(f"   ✅ DEMANDS_TRAIT: {rule['stressor_id']} --[{rule['severity']}]--> {rule['trait_id']}")
 
     total = len(NEUTRALIZED_BY_RULES) + len(DEMANDS_TRAIT_RULES)
     print(f"   Created {total} causal rules ({len(NEUTRALIZED_BY_RULES)} NEUTRALIZED_BY + {len(DEMANDS_TRAIT_RULES)} DEMANDS_TRAIT)")
 
 
-def create_bridging_relationships(driver, database):
+def create_bridging_relationships(graph):
     """Connect traits/stressors to existing ProductFamily, Material, Application, Environment nodes."""
     print("\n🌉 Creating bridging relationships to existing schema...")
 
-    with driver.session(database=database) as session:
-        # ProductFamily -> PhysicalTrait (HAS_TRAIT)
-        print("\n   ProductFamily -> PhysicalTrait:")
-        for pt in PRODUCT_TRAITS:
-            result = session.run("""
-                MATCH (pf:ProductFamily {id: $product_id})
-                MATCH (t:PhysicalTrait {id: $trait_id})
-                MERGE (pf)-[r:HAS_TRAIT]->(t)
-                SET r.primary = $primary
-                RETURN pf.name AS pf_name, t.name AS t_name
-            """, pt)
-            record = result.single()
-            if record:
-                marker = " (PRIMARY)" if pt["primary"] else ""
-                print(f"   ✅ {record['pf_name']} -> {record['t_name']}{marker}")
-            else:
-                print(f"   ⚠️ SKIP: {pt['product_id']} or {pt['trait_id']} not found")
+    # ProductFamily -> PhysicalTrait (HAS_TRAIT)
+    print("\n   ProductFamily -> PhysicalTrait:")
+    for pt in PRODUCT_TRAITS:
+        result = graph.query("""
+            MATCH (pf:ProductFamily {id: $product_id})
+            MATCH (t:PhysicalTrait {id: $trait_id})
+            MERGE (pf)-[r:HAS_TRAIT]->(t)
+            SET r.primary = $primary
+            RETURN pf.name AS pf_name, t.name AS t_name
+        """, pt)
+        record = result_single(result)
+        if record:
+            marker = " (PRIMARY)" if pt["primary"] else ""
+            print(f"   ✅ {record['pf_name']} -> {record['t_name']}{marker}")
+        else:
+            print(f"   ⚠️ SKIP: {pt['product_id']} or {pt['trait_id']} not found")
 
-        # Material -> PhysicalTrait (PROVIDES_TRAIT)
-        print("\n   Material -> PhysicalTrait:")
-        for mt in MATERIAL_TRAITS:
-            result = session.run("""
-                MATCH (m:Material {id: $material_id})
-                MATCH (t:PhysicalTrait {id: $trait_id})
-                MERGE (m)-[r:PROVIDES_TRAIT]->(t)
-                RETURN m.name AS m_name, t.name AS t_name
-            """, mt)
-            record = result.single()
-            if record:
-                print(f"   ✅ {record['m_name']} -> {record['t_name']}")
-            else:
-                print(f"   ⚠️ SKIP: {mt['material_id']} or {mt['trait_id']} not found")
+    # Material -> PhysicalTrait (PROVIDES_TRAIT)
+    print("\n   Material -> PhysicalTrait:")
+    for mt in MATERIAL_TRAITS:
+        result = graph.query("""
+            MATCH (m:Material {id: $material_id})
+            MATCH (t:PhysicalTrait {id: $trait_id})
+            MERGE (m)-[r:PROVIDES_TRAIT]->(t)
+            RETURN m.name AS m_name, t.name AS t_name
+        """, mt)
+        record = result_single(result)
+        if record:
+            print(f"   ✅ {record['m_name']} -> {record['t_name']}")
+        else:
+            print(f"   ⚠️ SKIP: {mt['material_id']} or {mt['trait_id']} not found")
 
-        # Application/Environment -> EnvironmentalStressor (EXPOSES_TO)
-        print("\n   Context -> EnvironmentalStressor:")
-        for cs in CONTEXT_STRESSORS:
-            # Try Application first, then Environment
-            result = session.run("""
-                OPTIONAL MATCH (app:Application {id: $context_id})
-                OPTIONAL MATCH (env:Environment {id: $context_id})
-                WITH coalesce(app, env) AS ctx
-                WHERE ctx IS NOT NULL
-                MATCH (s:EnvironmentalStressor {id: $stressor_id})
-                MERGE (ctx)-[r:EXPOSES_TO]->(s)
-                RETURN labels(ctx)[0] AS ctx_type, ctx.name AS ctx_name, s.name AS s_name
-            """, cs)
-            record = result.single()
-            if record:
-                print(f"   ✅ {record['ctx_type']}:{record['ctx_name']} -> {record['s_name']}")
-            else:
-                print(f"   ⚠️ SKIP: {cs['context_id']} or {cs['stressor_id']} not found")
+    # Application/Environment -> EnvironmentalStressor (EXPOSES_TO)
+    print("\n   Context -> EnvironmentalStressor:")
+    for cs in CONTEXT_STRESSORS:
+        # Try Application first, then Environment
+        result = graph.query("""
+            OPTIONAL MATCH (app:Application {id: $context_id})
+            OPTIONAL MATCH (env:Environment {id: $context_id})
+            WITH coalesce(app, env) AS ctx
+            WHERE ctx IS NOT NULL
+            MATCH (s:EnvironmentalStressor {id: $stressor_id})
+            MERGE (ctx)-[r:EXPOSES_TO]->(s)
+            RETURN labels(ctx)[0] AS ctx_type, ctx.name AS ctx_name, s.name AS s_name
+        """, cs)
+        record = result_single(result)
+        if record:
+            print(f"   ✅ {record['ctx_type']}:{record['ctx_name']} -> {record['s_name']}")
+        else:
+            print(f"   ⚠️ SKIP: {cs['context_id']} or {cs['stressor_id']} not found")
 
 
-def create_functional_goals(driver, database):
+def create_functional_goals(graph):
     """Create FunctionalGoal nodes and REQUIRES_TRAIT relationships."""
     print("\n🎯 Creating FunctionalGoal nodes...")
-    with driver.session(database=database) as session:
-        for goal in FUNCTIONAL_GOALS:
-            session.run("""
-                MERGE (g:FunctionalGoal {id: $id})
-                SET g.name = $name,
-                    g.description = $description,
-                    g.keywords = $keywords
-            """, goal)
-            # Create REQUIRES_TRAIT relationship
-            session.run("""
-                MATCH (g:FunctionalGoal {id: $goal_id})
-                MATCH (t:PhysicalTrait {id: $trait_id})
-                MERGE (g)-[:REQUIRES_TRAIT]->(t)
-            """, {"goal_id": goal["id"], "trait_id": goal["required_trait_id"]})
-            print(f"   ✅ {goal['id']}: {goal['name']} → {goal['required_trait_id']}")
+    for goal in FUNCTIONAL_GOALS:
+        graph.query("""
+            MERGE (g:FunctionalGoal {id: $id})
+            SET g.name = $name,
+                g.description = $description,
+                g.keywords = $keywords
+        """, goal)
+        # Create REQUIRES_TRAIT relationship
+        graph.query("""
+            MATCH (g:FunctionalGoal {id: $goal_id})
+            MATCH (t:PhysicalTrait {id: $trait_id})
+            MERGE (g)-[:REQUIRES_TRAIT]->(t)
+        """, {"goal_id": goal["id"], "trait_id": goal["required_trait_id"]})
+        print(f"   ✅ {goal['id']}: {goal['name']} → {goal['required_trait_id']}")
     print(f"   Created {len(FUNCTIONAL_GOALS)} FunctionalGoal nodes")
 
 
-def create_logic_gates(driver, database):
+def create_logic_gates(graph):
     """Create LogicGate and Parameter nodes with MONITORS, REQUIRES_DATA, TRIGGERS_GATE relationships."""
     print("\n🚦 Creating LogicGate nodes...")
-    with driver.session(database=database) as session:
-        for gate in LOGIC_GATES:
-            # Create LogicGate node
-            session.run("""
-                MERGE (g:LogicGate {id: $id})
-                SET g.name = $name,
-                    g.condition_logic = $condition_logic,
-                    g.physics_explanation = $physics_explanation
-            """, gate)
-            print(f"   ✅ {gate['id']}: {gate['name']}")
+    for gate in LOGIC_GATES:
+        # Create LogicGate node
+        graph.query("""
+            MERGE (g:LogicGate {id: $id})
+            SET g.name = $name,
+                g.condition_logic = $condition_logic,
+                g.physics_explanation = $physics_explanation
+        """, gate)
+        print(f"   ✅ {gate['id']}: {gate['name']}")
 
-            # MONITORS -> EnvironmentalStressor
-            session.run("""
+        # MONITORS -> EnvironmentalStressor
+        graph.query("""
+            MATCH (g:LogicGate {id: $gate_id})
+            MATCH (s:EnvironmentalStressor {id: $stressor_id})
+            MERGE (g)-[:MONITORS]->(s)
+        """, {"gate_id": gate["id"], "stressor_id": gate["monitors_stressor_id"]})
+        print(f"      MONITORS → {gate['monitors_stressor_id']}")
+
+        # REQUIRES_DATA -> Parameter nodes
+        for param in gate["requires_data"]:
+            graph.query("""
+                MERGE (p:Parameter {id: $param_id})
+                SET p.name = $name,
+                    p.property_key = $property_key,
+                    p.priority = $priority,
+                    p.question = $question,
+                    p.unit = $unit
+            """, param)
+            graph.query("""
                 MATCH (g:LogicGate {id: $gate_id})
-                MATCH (s:EnvironmentalStressor {id: $stressor_id})
-                MERGE (g)-[:MONITORS]->(s)
-            """, {"gate_id": gate["id"], "stressor_id": gate["monitors_stressor_id"]})
-            print(f"      MONITORS → {gate['monitors_stressor_id']}")
+                MATCH (p:Parameter {id: $param_id})
+                MERGE (g)-[:REQUIRES_DATA]->(p)
+            """, {"gate_id": gate["id"], "param_id": param["param_id"]})
+            print(f"      REQUIRES_DATA → {param['param_id']} ({param['property_key']})")
 
-            # REQUIRES_DATA -> Parameter nodes
-            for param in gate["requires_data"]:
-                session.run("""
-                    MERGE (p:Parameter {id: $param_id})
-                    SET p.name = $name,
-                        p.property_key = $property_key,
-                        p.priority = $priority,
-                        p.question = $question,
-                        p.unit = $unit
-                """, param)
-                session.run("""
-                    MATCH (g:LogicGate {id: $gate_id})
-                    MATCH (p:Parameter {id: $param_id})
-                    MERGE (g)-[:REQUIRES_DATA]->(p)
-                """, {"gate_id": gate["id"], "param_id": param["param_id"]})
-                print(f"      REQUIRES_DATA → {param['param_id']} ({param['property_key']})")
-
-            # Context -[:TRIGGERS_GATE]-> LogicGate
-            for ctx_id in gate["trigger_contexts"]:
-                session.run("""
-                    OPTIONAL MATCH (app:Application {id: $ctx_id})
-                    OPTIONAL MATCH (env:Environment {id: $ctx_id})
-                    WITH coalesce(app, env) AS ctx
-                    WHERE ctx IS NOT NULL
-                    MATCH (g:LogicGate {id: $gate_id})
-                    MERGE (ctx)-[:TRIGGERS_GATE]->(g)
-                """, {"ctx_id": ctx_id, "gate_id": gate["id"]})
-                print(f"      {ctx_id} -TRIGGERS_GATE-> {gate['id']}")
+        # Context -[:TRIGGERS_GATE]-> LogicGate
+        for ctx_id in gate["trigger_contexts"]:
+            graph.query("""
+                OPTIONAL MATCH (app:Application {id: $ctx_id})
+                OPTIONAL MATCH (env:Environment {id: $ctx_id})
+                WITH coalesce(app, env) AS ctx
+                WHERE ctx IS NOT NULL
+                MATCH (g:LogicGate {id: $gate_id})
+                MERGE (ctx)-[:TRIGGERS_GATE]->(g)
+            """, {"ctx_id": ctx_id, "gate_id": gate["id"]})
+            print(f"      {ctx_id} -TRIGGERS_GATE-> {gate['id']}")
 
     print(f"   Created {len(LOGIC_GATES)} LogicGate nodes with parameters")
 
 
-def create_hard_constraints(driver, database):
+def create_hard_constraints(graph):
     """Create HardConstraint nodes linked to ProductFamily via HAS_HARD_CONSTRAINT."""
     print("\n🔒 Creating HardConstraint nodes...")
-    with driver.session(database=database) as session:
-        for i, hc in enumerate(HARD_CONSTRAINTS):
-            hc_id = f"HC_{hc['item_id']}_{hc['property_key']}".upper()
-            session.run("""
-                MERGE (hc:HardConstraint {id: $hc_id})
-                SET hc.property_key = $property_key,
-                    hc.operator = $operator,
-                    hc.value = $value,
-                    hc.error_msg = $error_msg
-            """, {**hc, "hc_id": hc_id})
-            # Link to ProductFamily
-            session.run("""
-                MATCH (pf:ProductFamily {id: $item_id})
-                MATCH (hc:HardConstraint {id: $hc_id})
-                MERGE (pf)-[:HAS_HARD_CONSTRAINT]->(hc)
-            """, {"item_id": hc["item_id"], "hc_id": hc_id})
-            print(f"   ✅ {hc_id}: {hc['item_id']} {hc['property_key']} {hc['operator']} {hc['value']}")
+    for i, hc in enumerate(HARD_CONSTRAINTS):
+        hc_id = f"HC_{hc['item_id']}_{hc['property_key']}".upper()
+        graph.query("""
+            MERGE (hc:HardConstraint {id: $hc_id})
+            SET hc.property_key = $property_key,
+                hc.operator = $operator,
+                hc.value = $value,
+                hc.error_msg = $error_msg
+        """, {**hc, "hc_id": hc_id})
+        # Link to ProductFamily
+        graph.query("""
+            MATCH (pf:ProductFamily {id: $item_id})
+            MATCH (hc:HardConstraint {id: $hc_id})
+            MERGE (pf)-[:HAS_HARD_CONSTRAINT]->(hc)
+        """, {"item_id": hc["item_id"], "hc_id": hc_id})
+        print(f"   ✅ {hc_id}: {hc['item_id']} {hc['property_key']} {hc['operator']} {hc['value']}")
     print(f"   Created {len(HARD_CONSTRAINTS)} HardConstraint nodes")
 
 
-def create_dependency_rules(driver, database):
+def create_dependency_rules(graph):
     """Create DependencyRule nodes with UPSTREAM_REQUIRES_TRAIT, DOWNSTREAM_PROVIDES_TRAIT, TRIGGERED_BY_STRESSOR."""
     print("\n🔗 Creating DependencyRule nodes...")
-    with driver.session(database=database) as session:
-        for rule in DEPENDENCY_RULES:
-            session.run("""
-                MERGE (dr:DependencyRule {id: $id})
-                SET dr.dependency_type = $dependency_type,
-                    dr.description = $description
-            """, rule)
-            # UPSTREAM_REQUIRES_TRAIT -> PhysicalTrait
-            session.run("""
-                MATCH (dr:DependencyRule {id: $rule_id})
-                MATCH (t:PhysicalTrait {id: $trait_id})
-                MERGE (dr)-[:UPSTREAM_REQUIRES_TRAIT]->(t)
-            """, {"rule_id": rule["id"], "trait_id": rule["upstream_trait_id"]})
-            # DOWNSTREAM_PROVIDES_TRAIT -> PhysicalTrait
-            session.run("""
-                MATCH (dr:DependencyRule {id: $rule_id})
-                MATCH (t:PhysicalTrait {id: $trait_id})
-                MERGE (dr)-[:DOWNSTREAM_PROVIDES_TRAIT]->(t)
-            """, {"rule_id": rule["id"], "trait_id": rule["downstream_trait_id"]})
-            # TRIGGERED_BY_STRESSOR -> EnvironmentalStressor
-            session.run("""
-                MATCH (dr:DependencyRule {id: $rule_id})
-                MATCH (s:EnvironmentalStressor {id: $stressor_id})
-                MERGE (dr)-[:TRIGGERED_BY_STRESSOR]->(s)
-            """, {"rule_id": rule["id"], "stressor_id": rule["triggered_by_stressor_id"]})
-            print(f"   ✅ {rule['id']}: {rule['dependency_type']} ({rule['upstream_trait_id']} → {rule['downstream_trait_id']})")
+    for rule in DEPENDENCY_RULES:
+        graph.query("""
+            MERGE (dr:DependencyRule {id: $id})
+            SET dr.dependency_type = $dependency_type,
+                dr.description = $description
+        """, rule)
+        # UPSTREAM_REQUIRES_TRAIT -> PhysicalTrait
+        graph.query("""
+            MATCH (dr:DependencyRule {id: $rule_id})
+            MATCH (t:PhysicalTrait {id: $trait_id})
+            MERGE (dr)-[:UPSTREAM_REQUIRES_TRAIT]->(t)
+        """, {"rule_id": rule["id"], "trait_id": rule["upstream_trait_id"]})
+        # DOWNSTREAM_PROVIDES_TRAIT -> PhysicalTrait
+        graph.query("""
+            MATCH (dr:DependencyRule {id: $rule_id})
+            MATCH (t:PhysicalTrait {id: $trait_id})
+            MERGE (dr)-[:DOWNSTREAM_PROVIDES_TRAIT]->(t)
+        """, {"rule_id": rule["id"], "trait_id": rule["downstream_trait_id"]})
+        # TRIGGERED_BY_STRESSOR -> EnvironmentalStressor
+        graph.query("""
+            MATCH (dr:DependencyRule {id: $rule_id})
+            MATCH (s:EnvironmentalStressor {id: $stressor_id})
+            MERGE (dr)-[:TRIGGERED_BY_STRESSOR]->(s)
+        """, {"rule_id": rule["id"], "stressor_id": rule["triggered_by_stressor_id"]})
+        print(f"   ✅ {rule['id']}: {rule['dependency_type']} ({rule['upstream_trait_id']} → {rule['downstream_trait_id']})")
     print(f"   Created {len(DEPENDENCY_RULES)} DependencyRule nodes")
 
 
-def create_optimization_strategies(driver, database):
+def create_optimization_strategies(graph):
     """Create Strategy nodes linked to ProductFamily via OPTIMIZATION_STRATEGY."""
     print("\n📊 Creating Strategy nodes...")
-    with driver.session(database=database) as session:
-        for strat in OPTIMIZATION_STRATEGIES:
-            strat_id = f"STRAT_{strat['item_id']}_{strat['sort_property']}".upper()
-            session.run("""
-                MERGE (s:Strategy {id: $strat_id})
-                SET s.name = $name,
-                    s.sort_property = $sort_property,
-                    s.sort_order = $sort_order,
-                    s.description = $description
-            """, {**strat, "strat_id": strat_id})
-            # Link to ProductFamily
-            session.run("""
-                MATCH (pf:ProductFamily {id: $item_id})
-                MATCH (s:Strategy {id: $strat_id})
-                MERGE (pf)-[:OPTIMIZATION_STRATEGY]->(s)
-            """, {"item_id": strat["item_id"], "strat_id": strat_id})
-            print(f"   ✅ {strat_id}: {strat['name']} ({strat['sort_property']} {strat['sort_order']})")
+    for strat in OPTIMIZATION_STRATEGIES:
+        strat_id = f"STRAT_{strat['item_id']}_{strat['sort_property']}".upper()
+        graph.query("""
+            MERGE (s:Strategy {id: $strat_id})
+            SET s.name = $name,
+                s.sort_property = $sort_property,
+                s.sort_order = $sort_order,
+                s.description = $description
+        """, {**strat, "strat_id": strat_id})
+        # Link to ProductFamily
+        graph.query("""
+            MATCH (pf:ProductFamily {id: $item_id})
+            MATCH (s:Strategy {id: $strat_id})
+            MERGE (pf)-[:OPTIMIZATION_STRATEGY]->(s)
+        """, {"item_id": strat["item_id"], "strat_id": strat_id})
+        print(f"   ✅ {strat_id}: {strat['name']} ({strat['sort_property']} {strat['sort_order']})")
     print(f"   Created {len(OPTIMIZATION_STRATEGIES)} Strategy nodes")
 
 
-def create_capacity_rules(driver, database):
+def create_capacity_rules(graph):
     """Create CapacityRule nodes linked to ProductFamily via HAS_CAPACITY."""
     print("\n📐 Creating CapacityRule nodes...")
-    with driver.session(database=database) as session:
-        for cap in CAPACITY_RULES:
-            params = {
-                **cap,
-                "capacity_per_component": cap.get("capacity_per_component"),
-                "component_count_key": cap.get("component_count_key"),
-            }
-            session.run("""
-                MERGE (cr:CapacityRule {id: $id})
-                SET cr.module_descriptor = $module_descriptor,
-                    cr.input_requirement = $input_requirement,
-                    cr.output_rating = $output_rating,
-                    cr.assumption = $assumption,
-                    cr.description = $description,
-                    cr.capacity_per_component = $capacity_per_component,
-                    cr.component_count_key = $component_count_key
-            """, params)
-            # Link to ProductFamily
-            session.run("""
-                MATCH (pf:ProductFamily {id: $item_id})
-                MATCH (cr:CapacityRule {id: $id})
-                MERGE (pf)-[:HAS_CAPACITY]->(cr)
-            """, cap)
-            print(f"   ✅ {cap['id']}: {cap['input_requirement']} → {cap['output_rating']} per {cap['module_descriptor']}")
+    for cap in CAPACITY_RULES:
+        params = {
+            **cap,
+            "capacity_per_component": cap.get("capacity_per_component"),
+            "component_count_key": cap.get("component_count_key"),
+        }
+        graph.query("""
+            MERGE (cr:CapacityRule {id: $id})
+            SET cr.module_descriptor = $module_descriptor,
+                cr.input_requirement = $input_requirement,
+                cr.output_rating = $output_rating,
+                cr.assumption = $assumption,
+                cr.description = $description,
+                cr.capacity_per_component = $capacity_per_component,
+                cr.component_count_key = $component_count_key
+        """, params)
+        # Link to ProductFamily
+        graph.query("""
+            MATCH (pf:ProductFamily {id: $item_id})
+            MATCH (cr:CapacityRule {id: $id})
+            MERGE (pf)-[:HAS_CAPACITY]->(cr)
+        """, cap)
+        print(f"   ✅ {cap['id']}: {cap['input_requirement']} → {cap['output_rating']} per {cap['module_descriptor']}")
     print(f"   Created {len(CAPACITY_RULES)} CapacityRule nodes")
 
 
-def fix_gdc_flex_capacity_units(driver, database):
+def fix_gdc_flex_capacity_units(graph):
     """Fix GDC_FLEX SizeProperty capacity_units values.
 
     The FLEX variant has fewer cartridges per module than standard GDC
@@ -911,142 +902,136 @@ def fix_gdc_flex_capacity_units(driver, database):
         "SP_DIM_1200x900_GDC_FLEX_CAPACITY": 40,
         "SP_DIM_1200x1200_GDC_FLEX_CAPACITY": 56,
     }
-    with driver.session(database=database) as session:
-        for sp_id, new_value in corrections.items():
-            session.run("""
-                MATCH (sp:SizeProperty {id: $sp_id})
-                SET sp.value = $new_value
-            """, {"sp_id": sp_id, "new_value": new_value})
-            print(f"   ✅ {sp_id} → {new_value}")
+    for sp_id, new_value in corrections.items():
+        graph.query("""
+            MATCH (sp:SizeProperty {id: $sp_id})
+            SET sp.value = $new_value
+        """, {"sp_id": sp_id, "new_value": new_value})
+        print(f"   ✅ {sp_id} → {new_value}")
     print(f"   Fixed {len(corrections)} SizeProperty nodes")
 
 
-def create_indexes(driver, database):
+def create_indexes(graph):
     """Create indexes for trait-based queries."""
     print("\n📇 Creating indexes...")
-    with driver.session(database=database) as session:
-        indexes = [
-            "CREATE INDEX trait_id IF NOT EXISTS FOR (t:PhysicalTrait) ON (t.id)",
-            "CREATE INDEX trait_name IF NOT EXISTS FOR (t:PhysicalTrait) ON (t.name)",
-            "CREATE INDEX stressor_id IF NOT EXISTS FOR (s:EnvironmentalStressor) ON (s.id)",
-            "CREATE INDEX stressor_name IF NOT EXISTS FOR (s:EnvironmentalStressor) ON (s.name)",
-            "CREATE INDEX goal_id IF NOT EXISTS FOR (g:FunctionalGoal) ON (g.id)",
-            "CREATE INDEX gate_id IF NOT EXISTS FOR (g:LogicGate) ON (g.id)",
-            "CREATE INDEX param_id IF NOT EXISTS FOR (p:Parameter) ON (p.id)",
-            "CREATE INDEX constraint_id IF NOT EXISTS FOR (hc:HardConstraint) ON (hc.id)",
-            "CREATE INDEX dependency_rule_id IF NOT EXISTS FOR (dr:DependencyRule) ON (dr.id)",
-            "CREATE INDEX strategy_id IF NOT EXISTS FOR (s:Strategy) ON (s.id)",
-            "CREATE INDEX capacity_rule_id IF NOT EXISTS FOR (cr:CapacityRule) ON (cr.id)",
-        ]
-        for idx in indexes:
-            session.run(idx)
-            print(f"   ✅ {idx.split('IF NOT EXISTS')[0].strip()}")
+    indexes = [
+        "CREATE INDEX trait_id IF NOT EXISTS FOR (t:PhysicalTrait) ON (t.id)",
+        "CREATE INDEX trait_name IF NOT EXISTS FOR (t:PhysicalTrait) ON (t.name)",
+        "CREATE INDEX stressor_id IF NOT EXISTS FOR (s:EnvironmentalStressor) ON (s.id)",
+        "CREATE INDEX stressor_name IF NOT EXISTS FOR (s:EnvironmentalStressor) ON (s.name)",
+        "CREATE INDEX goal_id IF NOT EXISTS FOR (g:FunctionalGoal) ON (g.id)",
+        "CREATE INDEX gate_id IF NOT EXISTS FOR (g:LogicGate) ON (g.id)",
+        "CREATE INDEX param_id IF NOT EXISTS FOR (p:Parameter) ON (p.id)",
+        "CREATE INDEX constraint_id IF NOT EXISTS FOR (hc:HardConstraint) ON (hc.id)",
+        "CREATE INDEX dependency_rule_id IF NOT EXISTS FOR (dr:DependencyRule) ON (dr.id)",
+        "CREATE INDEX strategy_id IF NOT EXISTS FOR (s:Strategy) ON (s.id)",
+        "CREATE INDEX capacity_rule_id IF NOT EXISTS FOR (cr:CapacityRule) ON (cr.id)",
+    ]
+    for idx in indexes:
+        graph.query(idx)
+        print(f"   ✅ {idx.split('IF NOT EXISTS')[0].strip()}")
 
 
-def verify_trait_graph(driver, database):
+def verify_trait_graph(graph):
     """Verify the trait graph is correctly seeded."""
     print("\n🔍 Verifying trait graph...")
-    with driver.session(database=database) as session:
-        # Count nodes
-        result = session.run("""
-            MATCH (t:PhysicalTrait) RETURN count(t) AS cnt
-        """)
-        trait_count = result.single()["cnt"]
-        print(f"   PhysicalTrait nodes: {trait_count}")
+    # Count nodes
+    result = graph.query("""
+        MATCH (t:PhysicalTrait) RETURN count(t) AS cnt
+    """)
+    trait_count = result_single(result)["cnt"]
+    print(f"   PhysicalTrait nodes: {trait_count}")
 
-        result = session.run("""
-            MATCH (s:EnvironmentalStressor) RETURN count(s) AS cnt
-        """)
-        stressor_count = result.single()["cnt"]
-        print(f"   EnvironmentalStressor nodes: {stressor_count}")
+    result = graph.query("""
+        MATCH (s:EnvironmentalStressor) RETURN count(s) AS cnt
+    """)
+    stressor_count = result_single(result)["cnt"]
+    print(f"   EnvironmentalStressor nodes: {stressor_count}")
 
-        # Count relationships
-        result = session.run("""
-            MATCH ()-[r:NEUTRALIZED_BY]->() RETURN count(r) AS cnt
-        """)
-        neut_count = result.single()["cnt"]
+    # Count relationships
+    result = graph.query("""
+        MATCH ()-[r:NEUTRALIZED_BY]->() RETURN count(r) AS cnt
+    """)
+    neut_count = result_single(result)["cnt"]
 
-        result = session.run("""
-            MATCH ()-[r:DEMANDS_TRAIT]->() RETURN count(r) AS cnt
-        """)
-        demands_count = result.single()["cnt"]
-        print(f"   NEUTRALIZED_BY relationships: {neut_count}")
-        print(f"   DEMANDS_TRAIT relationships: {demands_count}")
+    result = graph.query("""
+        MATCH ()-[r:DEMANDS_TRAIT]->() RETURN count(r) AS cnt
+    """)
+    demands_count = result_single(result)["cnt"]
+    print(f"   NEUTRALIZED_BY relationships: {neut_count}")
+    print(f"   DEMANDS_TRAIT relationships: {demands_count}")
 
-        result = session.run("""
-            MATCH ()-[r:HAS_TRAIT]->() RETURN count(r) AS cnt
-        """)
-        has_trait_count = result.single()["cnt"]
+    result = graph.query("""
+        MATCH ()-[r:HAS_TRAIT]->() RETURN count(r) AS cnt
+    """)
+    has_trait_count = result_single(result)["cnt"]
 
-        result = session.run("""
-            MATCH ()-[r:PROVIDES_TRAIT]->() RETURN count(r) AS cnt
-        """)
-        provides_count = result.single()["cnt"]
+    result = graph.query("""
+        MATCH ()-[r:PROVIDES_TRAIT]->() RETURN count(r) AS cnt
+    """)
+    provides_count = result_single(result)["cnt"]
 
-        result = session.run("""
-            MATCH ()-[r:EXPOSES_TO]->() RETURN count(r) AS cnt
-        """)
-        exposes_count = result.single()["cnt"]
-        print(f"   HAS_TRAIT relationships: {has_trait_count}")
-        print(f"   PROVIDES_TRAIT relationships: {provides_count}")
-        print(f"   EXPOSES_TO relationships: {exposes_count}")
+    result = graph.query("""
+        MATCH ()-[r:EXPOSES_TO]->() RETURN count(r) AS cnt
+    """)
+    exposes_count = result_single(result)["cnt"]
+    print(f"   HAS_TRAIT relationships: {has_trait_count}")
+    print(f"   PROVIDES_TRAIT relationships: {provides_count}")
+    print(f"   EXPOSES_TO relationships: {exposes_count}")
 
-        # v2.0 node counts
-        for label in ["LogicGate", "Parameter", "HardConstraint", "DependencyRule", "Strategy", "CapacityRule"]:
-            result = session.run(f"MATCH (n:{label}) RETURN count(n) AS cnt")
-            cnt = result.single()["cnt"]
-            print(f"   {label} nodes: {cnt}")
+    # v2.0 node counts
+    for label in ["LogicGate", "Parameter", "HardConstraint", "DependencyRule", "Strategy", "CapacityRule"]:
+        result = graph.query(f"MATCH (n:{label}) RETURN count(n) AS cnt")
+        cnt = result_single(result)["cnt"]
+        print(f"   {label} nodes: {cnt}")
 
-        # v2.0 relationship counts
-        for rel_type in ["MONITORS", "REQUIRES_DATA", "TRIGGERS_GATE", "HAS_HARD_CONSTRAINT",
-                         "UPSTREAM_REQUIRES_TRAIT", "DOWNSTREAM_PROVIDES_TRAIT", "TRIGGERED_BY_STRESSOR",
-                         "OPTIMIZATION_STRATEGY", "HAS_CAPACITY"]:
-            result = session.run(f"MATCH ()-[r:{rel_type}]->() RETURN count(r) AS cnt")
-            cnt = result.single()["cnt"]
-            print(f"   {rel_type} relationships: {cnt}")
+    # v2.0 relationship counts
+    for rel_type in ["MONITORS", "REQUIRES_DATA", "TRIGGERS_GATE", "HAS_HARD_CONSTRAINT",
+                     "UPSTREAM_REQUIRES_TRAIT", "DOWNSTREAM_PROVIDES_TRAIT", "TRIGGERED_BY_STRESSOR",
+                     "OPTIMIZATION_STRATEGY", "HAS_CAPACITY"]:
+        result = graph.query(f"MATCH ()-[r:{rel_type}]->() RETURN count(r) AS cnt")
+        cnt = result_single(result)["cnt"]
+        print(f"   {rel_type} relationships: {cnt}")
 
-        # Smoke test: Outdoor + GDB should trigger veto
-        print("\n   🧪 Smoke test: 'outdoor GDB' scenario")
-        result = session.run("""
-            MATCH (env:Environment {id: 'ENV_OUTDOOR'})-[:EXPOSES_TO]->(s:EnvironmentalStressor)
-            MATCH (s)-[r:DEMANDS_TRAIT {severity: 'CRITICAL'}]->(demanded:PhysicalTrait)
-            OPTIONAL MATCH (pf:ProductFamily {id: 'FAM_GDB'})-[:HAS_TRAIT]->(demanded)
-            RETURN s.name AS stressor, demanded.name AS demanded_trait,
-                   CASE WHEN pf IS NULL THEN 'MISSING → VETO' ELSE 'PRESENT → OK' END AS status
-        """)
-        for record in result:
-            print(f"   {record['stressor']} demands {record['demanded_trait']}: {record['status']}")
+    # Smoke test: Outdoor + GDB should trigger veto
+    print("\n   🧪 Smoke test: 'outdoor GDB' scenario")
+    result = graph.query("""
+        MATCH (env:Environment {id: 'ENV_OUTDOOR'})-[:EXPOSES_TO]->(s:EnvironmentalStressor)
+        MATCH (s)-[r:DEMANDS_TRAIT {severity: 'CRITICAL'}]->(demanded:PhysicalTrait)
+        OPTIONAL MATCH (pf:ProductFamily {id: 'FAM_GDB'})-[:HAS_TRAIT]->(demanded)
+        RETURN s.name AS stressor, demanded.name AS demanded_trait,
+               CASE WHEN pf IS NULL THEN 'MISSING → VETO' ELSE 'PRESENT → OK' END AS status
+    """)
+    for record in result_to_dicts(result):
+        print(f"   {record['stressor']} demands {record['demanded_trait']}: {record['status']}")
 
-        # Smoke test: Kitchen + GDC should trigger NEUTRALIZED_BY warning
-        print("\n   🧪 Smoke test: 'kitchen GDC' scenario")
-        result = session.run("""
-            MATCH (app:Application {id: 'APP_KITCHEN'})-[:EXPOSES_TO]->(s:EnvironmentalStressor)
-            MATCH (t:PhysicalTrait)<-[:HAS_TRAIT {primary: true}]-(pf:ProductFamily {id: 'FAM_GDC'})
-            OPTIONAL MATCH (t)-[n:NEUTRALIZED_BY]->(s)
-            WHERE n IS NOT NULL
-            RETURN pf.name AS product, t.name AS trait, s.name AS stressor,
-                   n.severity AS severity, n.explanation AS explanation
-        """)
-        records = list(result)
-        if records:
-            for record in records:
-                print(f"   {record['product']}: {record['trait']} NEUTRALIZED_BY {record['stressor']} [{record['severity']}]")
-        else:
-            print("   No neutralization detected (check trait assignments)")
+    # Smoke test: Kitchen + GDC should trigger NEUTRALIZED_BY warning
+    print("\n   🧪 Smoke test: 'kitchen GDC' scenario")
+    result = graph.query("""
+        MATCH (app:Application {id: 'APP_KITCHEN'})-[:EXPOSES_TO]->(s:EnvironmentalStressor)
+        MATCH (t:PhysicalTrait)<-[:HAS_TRAIT {primary: true}]-(pf:ProductFamily {id: 'FAM_GDC'})
+        OPTIONAL MATCH (t)-[n:NEUTRALIZED_BY]->(s)
+        WHERE n IS NOT NULL
+        RETURN pf.name AS product, t.name AS trait, s.name AS stressor,
+               n.severity AS severity, n.explanation AS explanation
+    """)
+    records = list(result)
+    if records:
+        for record in records:
+            print(f"   {record['product']}: {record['trait']} NEUTRALIZED_BY {record['stressor']} [{record['severity']}]")
+    else:
+        print("   No neutralization detected (check trait assignments)")
 
 
 def main():
-    from neo4j import GraphDatabase
+    from falkordb import FalkorDB
 
-    uri = os.getenv("NEO4J_URI")
-    user = os.getenv("NEO4J_USER")
-    password = os.getenv("NEO4J_PASSWORD")
-    database = os.getenv("NEO4J_DATABASE", "neo4j")
+    host = os.getenv("FALKORDB_HOST", "localhost")
+    port = int(os.getenv("FALKORDB_PORT", 6379))
+    password = os.getenv("FALKORDB_PASSWORD", None)
+    graph_name = os.getenv("FALKORDB_GRAPH", "hvac")
 
-    if not all([uri, user, password]):
-        print("Error: Missing Neo4j connection environment variables")
-        print("Required: NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD")
-        sys.exit(1)
+    # FalkorDB connects with defaults if env vars not set
 
     print("=" * 60)
     print("HVAC TRAIT SEED SCRIPT v2.0 — Neuro-Symbolic Meta-Graph")
@@ -1056,33 +1041,33 @@ def main():
     print("nodes alongside the existing Layer 2 (Physics) schema.")
     print("All operations use MERGE — safe to run multiple times.")
 
-    print(f"\nConnecting to Neo4j at {uri}...")
-    driver = GraphDatabase.driver(uri, auth=(user, password))
+    print(f"\nConnecting to FalkorDB at {uri}...")
+    db = FalkorDB(host=host, port=port, password=password)
+    graph = db.select_graph(graph_name)
 
     try:
-        with driver.session(database=database) as session:
-            result = session.run("RETURN 1 AS test")
-            if result.single()["test"] != 1:
-                raise Exception("Connection test failed")
+        result = graph.query("RETURN 1 AS test")
+        if result_single(result)["test"] != 1:
+            raise Exception("Connection test failed")
         print("Connected successfully!")
 
         # Phase 1: Core trait layer
-        create_physical_traits(driver, database)
-        create_environmental_stressors(driver, database)
-        create_functional_goals(driver, database)
-        create_causal_rules(driver, database)
-        create_bridging_relationships(driver, database)
+        create_physical_traits(graph)
+        create_environmental_stressors(graph)
+        create_functional_goals(graph)
+        create_causal_rules(graph)
+        create_bridging_relationships(graph)
 
         # Phase 2: Logic gates, constraints, dependencies
-        create_logic_gates(driver, database)
-        create_hard_constraints(driver, database)
-        create_dependency_rules(driver, database)
-        create_optimization_strategies(driver, database)
-        create_capacity_rules(driver, database)
-        fix_gdc_flex_capacity_units(driver, database)
+        create_logic_gates(graph)
+        create_hard_constraints(graph)
+        create_dependency_rules(graph)
+        create_optimization_strategies(graph)
+        create_capacity_rules(graph)
+        fix_gdc_flex_capacity_units(graph)
 
-        create_indexes(driver, database)
-        verify_trait_graph(driver, database)
+        create_indexes(graph)
+        verify_trait_graph(graph)
 
         print("\n" + "=" * 60)
         print("TRAIT SEED v2.0 COMPLETE")
@@ -1106,7 +1091,7 @@ def main():
         print("✅ CapacityRule nodes (throughput/sizing from graph)")
 
     finally:
-        driver.close()
+        pass  # FalkorDB connection auto-managed
 
 
 if __name__ == "__main__":

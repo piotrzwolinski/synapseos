@@ -56,7 +56,7 @@ class GraphEngineAdapter:
         Initialize the adapter.
 
         Args:
-            db_connection: Database connection (Neo4j driver or FalkorDB)
+            db_connection: Database connection (FalkorDB graph)
             llm_client: LLM client for narrative generation
         """
         self.engine = UniversalGraphEngine(
@@ -315,18 +315,14 @@ class GraphEngineAdapter:
 # FACTORY FUNCTION
 # =============================================================================
 
-def create_engine_adapter(use_falkordb: bool = True) -> GraphEngineAdapter:
+def create_engine_adapter() -> GraphEngineAdapter:
     """
-    Factory function to create an engine adapter with appropriate connections.
-
-    Args:
-        use_falkordb: Whether to use FalkorDB (True) or Neo4j (False)
+    Factory function to create an engine adapter with FalkorDB connection.
 
     Returns:
         Configured GraphEngineAdapter
     """
-    if use_falkordb:
-        try:
+    try:
             from falkordb import FalkorDB
 
             db = FalkorDB(
@@ -345,33 +341,6 @@ def create_engine_adapter(use_falkordb: bool = True) -> GraphEngineAdapter:
 
             return GraphEngineAdapter(graph, SimpleLLM())
 
-        except ImportError:
-            print("FalkorDB not available, falling back to Neo4j")
-
-    # Neo4j fallback
-    from neo4j import GraphDatabase
-
-    uri = os.getenv("NEO4J_URI")
-    user = os.getenv("NEO4J_USER")
-    password = os.getenv("NEO4J_PASSWORD")
-    database = os.getenv("NEO4J_DATABASE", "neo4j")
-
-    driver = GraphDatabase.driver(uri, auth=(user, password))
-
-    class Neo4jWrapper:
-        def __init__(self, driver, database):
-            self.driver = driver
-            self.database = database
-
-        def query(self, cypher, params=None):
-            with self.driver.session(database=self.database) as session:
-                return list(session.run(cypher, params or {}))
-
-    class SimpleLLM:
-        def generate(self, prompt):
-            import google.generativeai as genai
-            genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-            response = genai.GenerativeModel("gemini-2.0-flash").generate_content(prompt)
-            return response.text
-
-    return GraphEngineAdapter(Neo4jWrapper(driver, database), SimpleLLM())
+    except ImportError:
+        # FalkorDB is the only supported backend
+        raise ImportError("FalkorDB package is required. Install with: pip install falkordb")

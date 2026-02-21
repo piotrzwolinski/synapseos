@@ -52,15 +52,16 @@ class SessionGraphManager:
     """
 
     def __init__(self, db_connection):
-        """Initialize with an existing Neo4jConnection instance."""
+        """Initialize with an existing GraphConnection instance."""
         self.db = db_connection
 
     def _run_query(self, cypher: str, params: dict = None) -> list:
-        """Execute a Cypher query using the db connection's driver."""
+        """Execute a Cypher query using the db connection's graph."""
+        from db_result_helpers import result_to_dicts
         try:
-            with self.db.driver.session(database=self.db.database) as session:
-                result = session.run(cypher, params or {})
-                return [record.data() for record in result]
+            graph = self.db.connect()
+            result = graph.query(cypher, params=params or {})
+            return result_to_dicts(result)
         except Exception as e:
             logger.error(f"Session graph query failed: {e}")
             raise
@@ -68,8 +69,8 @@ class SessionGraphManager:
     def _run_write(self, cypher: str, params: dict = None) -> None:
         """Execute a write transaction."""
         try:
-            with self.db.driver.session(database=self.db.database) as session:
-                session.run(cypher, params or {})
+            graph = self.db.connect()
+            graph.query(cypher, params=params or {})
         except Exception as e:
             logger.error(f"Session graph write failed: {e}")
             raise
@@ -434,7 +435,7 @@ class SessionGraphManager:
             SET {set_clause}
             {completeness_check}
             {sibling_sync}
-            RETURN t {{.*}} AS tag
+            RETURN properties(t) AS tag
         """
 
         result = self._run_query(cypher, params)
@@ -474,7 +475,7 @@ class SessionGraphManager:
             MATCH (s:Session {id: $session_id})
             OPTIONAL MATCH (s)-[:WORKING_ON]->(p:ActiveProject)
             OPTIONAL MATCH (p)-[:HAS_UNIT]->(t:TagUnit)
-            WITH s, p, collect(t {.*}) AS tags
+            WITH s, p, collect(properties(t)) AS tags
             RETURN s.id AS session_id,
                    p {.name, .customer, .locked_material, .detected_family, .pending_clarification, .accessories, .assembly_group, .resolved_params, .vetoed_families} AS project,
                    tags,
@@ -642,37 +643,37 @@ class SessionGraphManager:
             OPTIONAL MATCH (t)-[r5:SIZED_AS]->(d:DimensionModule)
             WITH s, p, t, m, pf, d,
                  collect(DISTINCT {
-                    id: elementId(s),
+                    id: id(s),
                     labels: labels(s),
                     name: 'Session: ' + s.id,
                     properties: s {.id, .user_id, .last_active}
                  }) AS session_nodes,
                  CASE WHEN p IS NOT NULL THEN [{
-                    id: elementId(p),
+                    id: id(p),
                     labels: labels(p),
                     name: coalesce(p.name, 'Unnamed Project'),
                     properties: p {.name, .customer, .locked_material, .detected_family}
                  }] ELSE [] END AS project_nodes,
                  CASE WHEN t IS NOT NULL THEN [{
-                    id: elementId(t),
+                    id: id(t),
                     labels: labels(t),
                     name: 'Tag ' + coalesce(t.tag_id, '?'),
-                    properties: t {.*}
+                    properties: properties(t)
                  }] ELSE [] END AS tag_nodes,
                  CASE WHEN m IS NOT NULL THEN [{
-                    id: elementId(m),
+                    id: id(m),
                     labels: labels(m),
                     name: m.code + ' (' + m.name + ')',
                     properties: m {.code, .name, .corrosion_class}
                  }] ELSE [] END AS mat_nodes,
                  CASE WHEN pf IS NOT NULL THEN [{
-                    id: elementId(pf),
+                    id: id(pf),
                     labels: labels(pf),
                     name: pf.name,
                     properties: pf {.name, .type}
                  }] ELSE [] END AS family_nodes,
                  CASE WHEN d IS NOT NULL THEN [{
-                    id: elementId(d),
+                    id: id(d),
                     labels: labels(d),
                     name: d.label,
                     properties: d {.width_mm, .height_mm, .reference_airflow_m3h, .label}
@@ -695,17 +696,17 @@ class SessionGraphManager:
             OPTIONAL MATCH path5 = (t)-[r5:SIZED_AS]->(d:DimensionModule)
             WITH s, p, t, m, pf, d, r1, r2, r3, r4, r5
             RETURN
-                elementId(s) AS s_id, labels(s) AS s_labels, s {.id, .user_id} AS s_props,
-                elementId(p) AS p_id, labels(p) AS p_labels, p {.name, .customer, .locked_material, .detected_family} AS p_props,
-                elementId(t) AS t_id, labels(t) AS t_labels, t {.*} AS t_props,
-                elementId(m) AS m_id, labels(m) AS m_labels, m {.code, .name, .corrosion_class} AS m_props,
-                elementId(pf) AS pf_id, labels(pf) AS pf_labels, pf {.name, .type} AS pf_props,
-                elementId(d) AS d_id, labels(d) AS d_labels, d {.label, .width_mm, .height_mm} AS d_props,
-                elementId(r1) AS r1_id, type(r1) AS r1_type,
-                elementId(r2) AS r2_id, type(r2) AS r2_type,
-                elementId(r3) AS r3_id, type(r3) AS r3_type,
-                elementId(r4) AS r4_id, type(r4) AS r4_type,
-                elementId(r5) AS r5_id, type(r5) AS r5_type
+                id(s) AS s_id, labels(s) AS s_labels, s {.id, .user_id} AS s_props,
+                id(p) AS p_id, labels(p) AS p_labels, p {.name, .customer, .locked_material, .detected_family} AS p_props,
+                id(t) AS t_id, labels(t) AS t_labels, properties(t) AS t_props,
+                id(m) AS m_id, labels(m) AS m_labels, m {.code, .name, .corrosion_class} AS m_props,
+                id(pf) AS pf_id, labels(pf) AS pf_labels, pf {.name, .type} AS pf_props,
+                id(d) AS d_id, labels(d) AS d_labels, d {.label, .width_mm, .height_mm} AS d_props,
+                id(r1) AS r1_id, type(r1) AS r1_type,
+                id(r2) AS r2_id, type(r2) AS r2_type,
+                id(r3) AS r3_id, type(r3) AS r3_type,
+                id(r4) AS r4_id, type(r4) AS r4_type,
+                id(r5) AS r5_id, type(r5) AS r5_type
         """, {"session_id": session_id})
 
         for row in graph_result:

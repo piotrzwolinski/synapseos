@@ -17,7 +17,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
-from neo4j import GraphDatabase
+from db_result_helpers import result_to_dicts, result_single, result_value
+from falkordb import FalkorDB
 
 load_dotenv(dotenv_path="../.env")
 
@@ -105,7 +106,7 @@ TT_TRANSITIONS = [
 ]
 
 
-def add_airflow_variable_features(session):
+def add_airflow_variable_features(graph):
     """Section 1a: Add airflow as mandatory VariableFeature on all product families."""
 
     print("\n" + "=" * 60)
@@ -116,7 +117,7 @@ def add_airflow_variable_features(session):
         feat_id = f"FEAT_AIRFLOW_{fam['family_code']}"
         print(f"\n   Adding {feat_id}...")
 
-        session.run("""
+        graph.query("""
             MATCH (pf:ProductFamily {id: $family_id})
 
             MERGE (f:VariableFeature {id: $feat_id})
@@ -137,7 +138,7 @@ def add_airflow_variable_features(session):
         print(f"   \u2713 {feat_id} linked to {fam['family_id']}")
 
 
-def add_connection_type_variable_features(session):
+def add_connection_type_variable_features(graph):
     """Section 1b: Add connection type as auto-resolved VariableFeature (default PG)."""
 
     print("\n" + "=" * 60)
@@ -146,7 +147,7 @@ def add_connection_type_variable_features(session):
 
     # Create shared FeatureOption nodes (PG and Flange)
     print("\n   Creating connection FeatureOption nodes...")
-    session.run("""
+    graph.query("""
         MERGE (opt_pg:FeatureOption {id: 'OPT_FEAT_CONN_PG'})
         SET opt_pg.name = 'PG 20mm (Standard)',
             opt_pg.value = 'PG',
@@ -168,7 +169,7 @@ def add_connection_type_variable_features(session):
         feat_id = f"FEAT_CONNECTION_{family_code}"
         print(f"\n   Adding {feat_id}...")
 
-        session.run("""
+        graph.query("""
             MATCH (pf:ProductFamily {id: $family_id})
 
             MERGE (f:VariableFeature {id: $feat_id})
@@ -196,19 +197,19 @@ def add_connection_type_variable_features(session):
         print(f"   \u2713 {feat_id} linked to {fam_id}")
 
 
-def fix_gdmi_material(session):
+def fix_gdmi_material(graph):
     """Section 1c: Remove RF (stainless steel) from GDMI — 'Ej i Rostfritt'."""
 
     print("\n" + "=" * 60)
     print("1c. FIX GDMI MATERIAL (remove RF)")
     print("=" * 60)
 
-    result = session.run("""
+    result = graph.query("""
         MATCH (gdmi:ProductFamily {id: 'FAM_GDMI'})-[r:AVAILABLE_IN_MATERIAL]->(m:Material {id: 'MAT_RF'})
         DELETE r
         RETURN count(r) AS deleted
     """)
-    record = result.single()
+    record = result_single(result)
     deleted = record["deleted"] if record else 0
     if deleted > 0:
         print(f"   \u2713 Removed AVAILABLE_IN_MATERIAL relationship (FAM_GDMI -> MAT_RF)")
@@ -216,53 +217,53 @@ def fix_gdmi_material(session):
         print("   \u2139 No RF relationship found on GDMI (already clean)")
 
     # Verify remaining materials
-    result = session.run("""
+    result = graph.query("""
         MATCH (gdmi:ProductFamily {id: 'FAM_GDMI'})-[:AVAILABLE_IN_MATERIAL]->(m:Material)
         RETURN collect(m.id) AS materials
     """)
-    record = result.single()
+    record = result_single(result)
     print(f"   GDMI materials now: {record['materials'] if record else '?'}")
 
 
-def update_code_formats(session):
+def update_code_formats(graph):
     """Section 1d: Change hardcoded PG to {connection} placeholder in code_format."""
 
     print("\n" + "=" * 60)
     print("1d. UPDATE CODE_FORMAT TEMPLATES")
     print("=" * 60)
 
-    result = session.run("""
+    result = graph.query("""
         MATCH (pf:ProductFamily)
         WHERE pf.code_format IS NOT NULL AND pf.code_format CONTAINS '-PG-'
         SET pf.code_format = replace(pf.code_format, '-PG-', '-{connection}-')
         RETURN pf.id AS family_id, pf.code_format AS new_format
     """)
 
-    for record in result:
+    for record in result_to_dicts(result):
         print(f"   \u2713 {record['family_id']}: {record['new_format']}")
 
 
-def update_option_nodes(session):
+def update_option_nodes(graph):
     """Section 1e: Add length_offset_mm to existing Option nodes."""
 
     print("\n" + "=" * 60)
     print("1e. UPDATE OPTION NODES WITH LENGTH OFFSET")
     print("=" * 60)
 
-    session.run("""
+    graph.query("""
         MATCH (opt:Option {id: 'OPT_CONN_PG'})
         SET opt.length_offset_mm = 0
     """)
     print("   \u2713 OPT_CONN_PG: length_offset_mm = 0")
 
-    session.run("""
+    graph.query("""
         MATCH (opt:Option {id: 'OPT_CONN_FL'})
         SET opt.length_offset_mm = 50
     """)
     print("   \u2713 OPT_CONN_FL: length_offset_mm = 50")
 
 
-def add_transition_pieces(session):
+def add_transition_pieces(graph):
     """Section 1f: Add PT/TT transition piece catalog data."""
 
     print("\n" + "=" * 60)
@@ -273,7 +274,7 @@ def add_transition_pieces(session):
     print("\n   Adding PT (Plan) transitions...")
     for pt in PT_TRANSITIONS:
         node_id = f"PT-{pt['housing']}-{pt['duct_mm']}"
-        session.run("""
+        graph.query("""
             MERGE (tp:TransitionPiece {id: $id})
             SET tp.name = $name,
                 tp.type = 'PT',
@@ -296,7 +297,7 @@ def add_transition_pieces(session):
     print("   Adding TT (Conical) transitions...")
     for tt in TT_TRANSITIONS:
         node_id = f"TT-{tt['housing']}-{tt['duct_mm']}"
-        session.run("""
+        graph.query("""
             MERGE (tp:TransitionPiece {id: $id})
             SET tp.name = $name,
                 tp.type = 'TT',
@@ -317,7 +318,7 @@ def add_transition_pieces(session):
 
     # Link transitions to compatible product families
     print("   Linking transitions to product families...")
-    session.run("""
+    graph.query("""
         MATCH (tp:TransitionPiece)
         MATCH (pf:ProductFamily)
         WHERE pf.id IN ['FAM_GDP', 'FAM_GDB', 'FAM_GDMI', 'FAM_GDC', 'FAM_GDC_FLEX']
@@ -326,7 +327,7 @@ def add_transition_pieces(session):
     print("   \u2713 All transitions linked to product families")
 
 
-def verify_schema(session):
+def verify_schema(graph):
     """Verify the complete schema after all changes."""
 
     print("\n" + "=" * 60)
@@ -334,7 +335,7 @@ def verify_schema(session):
     print("=" * 60)
 
     # VariableFeatures per family
-    result = session.run("""
+    result = graph.query("""
         MATCH (pf:ProductFamily)-[:HAS_VARIABLE_FEATURE]->(f:VariableFeature)
         OPTIONAL MATCH (f)-[:HAS_OPTION]->(o:FeatureOption)
         WITH pf, f, collect(o.value) AS options
@@ -346,71 +347,68 @@ def verify_schema(session):
         ORDER BY pf.id, f.name
     """)
     print("\n   Variable Features:")
-    for r in result:
+    for r in result_to_dicts(result):
         auto = " (auto-resolve)" if r["auto_resolve"] else " (MANDATORY)"
         opts = f" options={r['options']}" if r["options"] and r["options"][0] else ""
         print(f"   {r['family']}: {r['feature']} [{r['param']}]{auto}{opts}")
 
     # Code formats
-    result = session.run("""
+    result = graph.query("""
         MATCH (pf:ProductFamily)
         WHERE pf.code_format IS NOT NULL
         RETURN pf.id AS family, pf.code_format AS fmt
         ORDER BY pf.id
     """)
     print("\n   Code Formats:")
-    for r in result:
+    for r in result_to_dicts(result):
         print(f"   {r['family']}: {r['fmt']}")
 
     # GDMI materials
-    result = session.run("""
+    result = graph.query("""
         MATCH (g:ProductFamily {id: 'FAM_GDMI'})-[r:AVAILABLE_IN_MATERIAL]->(m:Material)
         RETURN m.id AS material, r.is_default AS is_default
     """)
     print("\n   GDMI Materials:")
-    for r in result:
+    for r in result_to_dicts(result):
         default = " (default)" if r["is_default"] else ""
         print(f"   {r['material']}{default}")
 
     # Transition pieces count
-    result = session.run("""
+    result = graph.query("""
         MATCH (tp:TransitionPiece)
         RETURN tp.type AS type, count(tp) AS count
         ORDER BY tp.type
     """)
     print("\n   Transition Pieces:")
-    for r in result:
+    for r in result_to_dicts(result):
         print(f"   {r['type']}: {r['count']} nodes")
 
 
 def main():
-    uri = os.getenv("NEO4J_URI")
-    user = os.getenv("NEO4J_USER")
-    password = os.getenv("NEO4J_PASSWORD")
-    database = os.getenv("NEO4J_DATABASE", "neo4j")
+    host = os.getenv("FALKORDB_HOST", "localhost")
+    port = int(os.getenv("FALKORDB_PORT", 6379))
+    password = os.getenv("FALKORDB_PASSWORD", None)
+    graph_name = os.getenv("FALKORDB_GRAPH", "hvac")
 
-    if not all([uri, user, password]):
-        print("Error: Missing Neo4j connection environment variables")
-        sys.exit(1)
+    # FalkorDB connects with defaults if env vars not set
 
-    print(f"Connecting to Neo4j at {uri}...")
-    driver = GraphDatabase.driver(uri, auth=(user, password))
+    print(f"Connecting to FalkorDB at {host}:{port}...")
+    db = FalkorDB(host=host, port=port, password=password)
+    graph = db.select_graph(graph_name)
 
     try:
-        with driver.session(database=database) as session:
-            result = session.run("RETURN 1 AS test")
-            if result.single()["test"] != 1:
-                raise Exception("Connection test failed")
+        result = graph.query("RETURN 1 AS test")
+        if result_single(result)["test"] != 1:
+            raise Exception("Connection test failed")
         print("Connected successfully!")
 
-        with driver.session(database=database) as session:
-            add_airflow_variable_features(session)
-            add_connection_type_variable_features(session)
-            fix_gdmi_material(session)
-            update_code_formats(session)
-            update_option_nodes(session)
-            add_transition_pieces(session)
-            verify_schema(session)
+        add_airflow_variable_features(graph)
+        add_connection_type_variable_features(graph)
+        fix_gdmi_material(graph)
+        update_code_formats(graph)
+        update_option_nodes(graph)
+        add_transition_pieces(graph)
+        verify_schema(graph)
 
         print("\n" + "=" * 60)
         print("CATALOG ENRICHMENT COMPLETE")
@@ -428,7 +426,7 @@ def main():
         traceback.print_exc()
         sys.exit(1)
     finally:
-        driver.close()
+        pass  # FalkorDB connection auto-managed
 
 
 if __name__ == "__main__":

@@ -1,86 +1,102 @@
 #!/usr/bin/env python3
-"""Apply Neo4j indexes for performance optimization."""
+"""Apply FalkorDB indexes for performance optimization."""
 
 import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from neo4j import GraphDatabase
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
 
-# Configuration
-NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "testpassword")
-NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", "neo4j")
+from database import db
 
 
 def apply_indexes():
-    """Apply all fulltext and b-tree indexes."""
-    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+    """Apply all fulltext, vector, and range indexes."""
+    graph = db.connect()
 
-    # Fulltext indexes for CONTAINS queries (critical for performance)
+    # Fulltext indexes (FalkorDB syntax)
     fulltext_indexes = [
-        # ProductVariant fulltext index (config_search was 6.48s)
-        ('product_variant_fulltext', 'ProductVariant', ['name', 'family', 'options_json']),
-        # FilterCartridge fulltext index
-        ('filter_cartridge_fulltext', 'FilterCartridge', ['name', 'model_name']),
-        # FilterConsumable fulltext index
-        ('filter_consumable_fulltext', 'FilterConsumable', ['part_number', 'model_name', 'filter_type']),
-        # MaterialSpecification fulltext index
-        ('material_spec_fulltext', 'MaterialSpecification', ['code', 'full_name', 'name', 'description']),
-        # Project fulltext index (project_search was 4.28s)
-        ('project_fulltext', 'Project', ['name']),
-        # Concept fulltext index (for hybrid retrieval)
-        ('concept_fulltext', 'Concept', ['name', 'description', 'text']),
-        # Keyword fulltext index
-        ('keyword_fulltext', 'Keyword', ['name']),
+        ('ProductVariant', ['name', 'family', 'options_json']),
+        ('FilterConsumable', ['part_number', 'model_name', 'filter_type']),
+        ('MaterialSpecification', ['code', 'full_name', 'name', 'description']),
+        ('Concept', ['name', 'description', 'text']),
+        ('Keyword', ['name']),
     ]
 
-    # B-tree indexes for exact lookups
-    btree_indexes = [
-        ('product_variant_name', 'ProductVariant', 'name'),
-        ('product_family_id', 'ProductFamily', 'id'),
-        ('product_family_name', 'ProductFamily', 'name'),
-        ('material_code', 'Material', 'code'),
-        ('application_id', 'Application', 'id'),
-        ('application_name', 'Application', 'name'),
-        ('option_code', 'Option', 'code'),
-        ('variable_feature_id', 'VariableFeature', 'id'),
-        ('project_name', 'Project', 'name'),
+    # Range indexes (FalkorDB syntax: CREATE INDEX FOR (n:Label) ON (n.prop))
+    range_indexes = [
+        ('ProductVariant', 'name'),
+        ('ProductFamily', 'id'),
+        ('ProductFamily', 'name'),
+        ('Material', 'code'),
+        ('Application', 'id'),
+        ('Application', 'name'),
+        ('Option', 'code'),
+        ('VariableFeature', 'id'),
+        ('Environment', 'id'),
+        ('Environment', 'name'),
+        ('DimensionModule', 'width'),
+        ('DimensionModule', 'height'),
+        ('Trait', 'name'),
+        ('Stressor', 'name'),
+        ('CausalRule', 'id'),
+        ('CapacityRule', 'id'),
+        ('InstallationConstraint', 'id'),
+        ('SizeProperty', 'id'),
     ]
 
-    with driver.session(database=NEO4J_DATABASE) as session:
-        print("Applying fulltext indexes...")
-        for idx_name, label, properties in fulltext_indexes:
-            props_str = ', '.join([f'n.{p}' for p in properties])
-            query = f"""
-                CREATE FULLTEXT INDEX {idx_name} IF NOT EXISTS
-                FOR (n:{label}) ON EACH [{props_str}]
-            """
-            try:
-                session.run(query)
-                print(f"  ✓ {idx_name} on {label}[{', '.join(properties)}]")
-            except Exception as e:
-                print(f"  ✗ {idx_name}: {e}")
+    print("Applying fulltext indexes...")
+    for label, properties in fulltext_indexes:
+        props_str = ', '.join(f"'{p}'" for p in properties)
+        query = f"CALL db.idx.fulltext.createNodeIndex('{label}', {props_str})"
+        try:
+            graph.query(query)
+            print(f"  + {label}[{', '.join(properties)}]")
+        except Exception as e:
+            err = str(e)
+            if 'already indexed' in err.lower() or 'already exists' in err.lower():
+                print(f"  = {label}[{', '.join(properties)}] (already exists)")
+            else:
+                print(f"  x {label}: {e}")
 
-        print("\nApplying b-tree indexes...")
-        for idx_name, label, prop in btree_indexes:
-            query = f"""
-                CREATE INDEX {idx_name} IF NOT EXISTS FOR (n:{label}) ON (n.{prop})
-            """
-            try:
-                session.run(query)
-                print(f"  ✓ {idx_name} on {label}.{prop}")
-            except Exception as e:
-                print(f"  ✗ {idx_name}: {e}")
+    print("\nApplying range indexes...")
+    for label, prop in range_indexes:
+        query = f"CREATE INDEX FOR (n:{label}) ON (n.{prop})"
+        try:
+            graph.query(query)
+            print(f"  + {label}.{prop}")
+        except Exception as e:
+            err = str(e)
+            if 'already indexed' in err.lower() or 'already exists' in err.lower():
+                print(f"  = {label}.{prop} (already exists)")
+            else:
+                print(f"  x {label}.{prop}: {e}")
 
-        print("\nListing all indexes:")
-        result = session.run("SHOW INDEXES")
-        for record in result:
-            print(f"  - {record['name']}: {record['labelsOrTypes']} state={record['state']}")
+    # Vector indexes (for semantic search)
+    vector_indexes = [
+        ('Concept', 'embedding', 3072),
+        ('Keyword', 'embedding', 3072),
+        ('Application', 'embedding', 3072),
+    ]
 
-    driver.close()
-    print("\nDone! Indexes applied successfully.")
+    print("\nApplying vector indexes...")
+    for label, prop, dim in vector_indexes:
+        query = (
+            f"CREATE VECTOR INDEX FOR (n:{label}) ON (n.{prop}) "
+            f"OPTIONS {{dimension: {dim}, similarityFunction: 'cosine'}}"
+        )
+        try:
+            graph.query(query)
+            print(f"  + {label}.{prop} (dim={dim})")
+        except Exception as e:
+            err = str(e)
+            if 'already indexed' in err.lower() or 'already exists' in err.lower():
+                print(f"  = {label}.{prop} (already exists)")
+            else:
+                print(f"  x {label}.{prop}: {e}")
+
+    print("\nDone!")
 
 
 if __name__ == "__main__":

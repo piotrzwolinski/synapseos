@@ -14,9 +14,9 @@ from fastapi.testclient import TestClient
 def client():
     """FastAPI test client with mocked DB and auth disabled."""
     with patch.dict("os.environ", {
-             "NEO4J_URI": "bolt://test:7687",
-             "NEO4J_USER": "neo4j",
-             "NEO4J_PASSWORD": "test",
+             "FALKORDB_HOST": "localhost",
+             "FALKORDB_PORT": "6379",
+             "FALKORDB_GRAPH": "hvac_test",
              "GEMINI_API_KEY": "test-key",
              "JWT_SECRET": "test-secret",
              "AUTH_DISABLED": "true",
@@ -27,7 +27,7 @@ def client():
         importlib.reload(backend.auth)
 
         # Patch DB to avoid real connections
-        with patch("backend.database.Neo4jConnection") as MockDB:
+        with patch("database.GraphConnection") as MockDB:
             mock_db = MagicMock()
             mock_db.verify_connection.return_value = True
             mock_db.get_node_count.return_value = 100

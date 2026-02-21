@@ -115,13 +115,12 @@ def state_fully_populated():
 # =============================================================================
 
 def _make_mock_db():
-    """Create a comprehensive mock of Neo4jConnection with realistic return shapes.
+    """Create a comprehensive mock of GraphConnection with realistic return shapes.
 
-    This mock defines the CONTRACT that any DB backend (Neo4j, FalkorDB, etc.) must satisfy.
+    This mock defines the CONTRACT that the DB backend (FalkorDB) must satisfy.
     Each method returns data in the exact shape the engine/retriever/session_graph expects.
     """
     db = MagicMock()
-    db.database = "neo4j"
 
     # --- Graph stats ---
     db.get_node_count.return_value = 150
@@ -295,10 +294,10 @@ def _make_mock_db():
 
 @pytest.fixture
 def mock_db():
-    """Mock Neo4jConnection with realistic return shapes.
+    """Mock GraphConnection with realistic return shapes.
 
-    This is the DB contract fixture. When migrating to FalkorDB,
-    the real DB must produce data matching these shapes.
+    This is the DB contract fixture. The real FalkorDB-backed DB
+    must produce data matching these shapes.
     """
     return _make_mock_db()
 

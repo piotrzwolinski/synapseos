@@ -17,16 +17,16 @@ import pytest
 
 # Skip entire module if no database connection
 pytestmark = pytest.mark.skipif(
-    not os.getenv("NEO4J_URI"),
-    reason="NEO4J_URI not set — skipping live DB contract tests"
+    not os.getenv("FALKORDB_HOST"),
+    reason="FALKORDB_HOST not set — skipping live DB contract tests"
 )
 
 
 @pytest.fixture(scope="module")
 def live_db():
     """Get a real database connection for contract testing."""
-    from backend.database import Neo4jConnection
-    db = Neo4jConnection()
+    from backend.database import GraphConnection
+    db = GraphConnection()
     db.connect()
     yield db
     db.close()
@@ -369,3 +369,314 @@ class TestSessionGraphManagerContract:
         assert rp is not None
         assert rp.get("connection_type") == "PG"
         session_mgr.clear_session("__test_params__")
+
+
+# =============================================================================
+# GOALS & LOGIC GATES — core engine input
+# =============================================================================
+
+class TestGoalsAndGatesContract:
+    def test_goals_by_keywords_shape(self, live_db):
+        result = live_db.get_goals_by_keywords(["kitchen", "ventilation"])
+        assert isinstance(result, list)
+        # May be empty but shape must be list of dicts if any
+        if result:
+            g = result[0]
+            assert isinstance(g, dict)
+
+    def test_logic_gates_for_stressors_shape(self, live_db):
+        result = live_db.get_logic_gates_for_stressors(["STR_GREASE"])
+        assert isinstance(result, list)
+        if result:
+            gate = result[0]
+            assert isinstance(gate, dict)
+
+    def test_gates_triggered_by_context_shape(self, live_db):
+        result = live_db.get_gates_triggered_by_context(["APP_KITCHEN"])
+        assert isinstance(result, list)
+
+    def test_empty_stressor_ids_gates(self, live_db):
+        result = live_db.get_logic_gates_for_stressors([])
+        assert isinstance(result, list)
+
+
+# =============================================================================
+# DEPENDENCY RULES
+# =============================================================================
+
+class TestDependencyRuleContract:
+    def test_dependency_rules_shape(self, live_db):
+        result = live_db.get_dependency_rules_for_stressors(["STR_GREASE"])
+        assert isinstance(result, list)
+        if result:
+            r = result[0]
+            assert isinstance(r, dict)
+
+    def test_empty_stressor_ids_returns_empty(self, live_db):
+        result = live_db.get_dependency_rules_for_stressors([])
+        assert isinstance(result, list)
+
+
+# =============================================================================
+# OPTIMIZATION STRATEGY
+# =============================================================================
+
+class TestOptimizationContract:
+    def test_optimization_strategy_shape(self, live_db):
+        families = live_db.get_all_product_families_with_traits()
+        if families:
+            fam_id = families[0]["product_id"]
+            result = live_db.get_optimization_strategy(fam_id)
+            # Can be None or dict
+            assert result is None or isinstance(result, dict)
+
+
+# =============================================================================
+# SIZE-DETERMINED PROPERTIES
+# =============================================================================
+
+class TestSizeDeterminedPropsContract:
+    def test_size_determined_properties_shape(self, live_db):
+        families = live_db.get_all_product_families_with_traits()
+        if families:
+            fam_id = families[0]["product_id"]
+            result = live_db.get_size_determined_properties(fam_id, 600, 600)
+            assert isinstance(result, dict)
+
+
+# =============================================================================
+# ALTERNATIVES (sales recovery) — 5 methods
+# =============================================================================
+
+class TestAlternativesContract:
+    def test_space_constraint_alternatives_shape(self, live_db):
+        families = live_db.get_all_product_families_with_traits()
+        if families:
+            fam_id = families[0]["product_id"]
+            result = live_db.find_alternatives_for_space_constraint(
+                product_family_id=fam_id,
+                max_width=1200, max_height=600,
+            )
+            assert isinstance(result, list)
+
+    def test_environment_alternatives_shape(self, live_db):
+        families = live_db.get_all_product_families_with_traits()
+        if families:
+            fam_id = families[0]["product_id"]
+            result = live_db.find_alternatives_for_environment_constraint(
+                product_family_id=fam_id,
+                environment_id="ENV_OUTDOOR",
+            )
+            assert isinstance(result, list)
+
+    def test_material_threshold_alternatives_shape(self, live_db):
+        families = live_db.get_all_product_families_with_traits()
+        if families:
+            fam_id = families[0]["product_id"]
+            result = live_db.find_material_alternatives_for_threshold(
+                product_family_id=fam_id,
+                current_material="FZ",
+                violation_type="corrosion_class",
+            )
+            assert isinstance(result, list)
+
+    def test_other_products_material_threshold_shape(self, live_db):
+        families = live_db.get_all_product_families_with_traits()
+        if families:
+            fam_id = families[0]["product_id"]
+            result = live_db.find_other_products_for_material_threshold(
+                product_family_id=fam_id,
+                required_trait_ids=["TRAIT_PARTICLE"],
+            )
+            assert isinstance(result, list)
+
+    def test_higher_capacity_alternatives_shape(self, live_db):
+        families = live_db.get_all_product_families_with_traits()
+        if families:
+            fam_id = families[0]["product_id"]
+            result = live_db.find_products_with_higher_capacity(
+                product_family_id=fam_id,
+                current_airflow=3000,
+            )
+            assert isinstance(result, list)
+
+
+# =============================================================================
+# ENVIRONMENT DETECTION
+# =============================================================================
+
+class TestEnvironmentContract:
+    def test_detect_environment_shape(self, live_db):
+        result = live_db.detect_environment_from_keywords(["outdoor", "rooftop"])
+        # Can be None or dict
+        assert result is None or isinstance(result, dict)
+
+    def test_resolve_hierarchy_shape(self, live_db):
+        result = live_db.resolve_environment_hierarchy("ENV_OUTDOOR")
+        assert isinstance(result, list)
+
+
+# =============================================================================
+# CONTEXTUAL CLARIFICATIONS
+# =============================================================================
+
+class TestContextualClarificationContract:
+    def test_contextual_clarifications_shape(self, live_db):
+        result = live_db.get_contextual_clarifications("APP_KITCHEN")
+        assert isinstance(result, list)
+
+    def test_contextual_clarifications_with_family(self, live_db):
+        families = live_db.get_all_product_families_with_traits()
+        if families:
+            fam_name = families[0]["product_name"]
+            result = live_db.get_contextual_clarifications("APP_KITCHEN", product_family=fam_name)
+            assert isinstance(result, list)
+
+
+# =============================================================================
+# PRODUCT DETAIL METHODS
+# =============================================================================
+
+class TestProductDetailContract:
+    def test_default_length_variant_shape(self, live_db):
+        families = live_db.get_all_product_families_with_traits()
+        if families:
+            fam_id = families[0]["product_id"]
+            result = live_db.get_default_length_variant(fam_id)
+            assert result is None or isinstance(result, (int, float))
+
+    def test_product_family_code_format_shape(self, live_db):
+        families = live_db.get_all_product_families_with_traits()
+        if families:
+            fam_id = families[0]["product_id"]
+            result = live_db.get_product_family_code_format(fam_id)
+            assert result is None or isinstance(result, dict)
+
+    def test_connection_length_offset_shape(self, live_db):
+        result = live_db.get_connection_length_offset("PG")
+        assert result is None or isinstance(result, (int, float))
+
+    def test_reference_airflow_shape(self, live_db):
+        result = live_db.get_reference_airflow_for_dimensions(600, 600)
+        assert result is None or isinstance(result, dict)
+
+
+# =============================================================================
+# MATERIAL SUITABILITY
+# =============================================================================
+
+class TestMaterialSuitabilityContract:
+    def test_check_material_suitability_shape(self, live_db):
+        result = live_db.check_material_suitability("Commercial Kitchen", "FZ")
+        assert isinstance(result, dict)
+
+    def test_material_property_shape(self, live_db):
+        families = live_db.get_all_product_families_with_traits()
+        if families:
+            fam_id = families[0]["product_id"]
+            result = live_db.get_material_property(fam_id, "RF", "corrosion_class")
+            # Can be None or any value
+            pass
+
+
+# =============================================================================
+# ACCESSORY METHODS
+# =============================================================================
+
+class TestAccessoryContract:
+    def test_all_accessory_codes_shape(self, live_db):
+        result = live_db.get_all_accessory_codes()
+        assert isinstance(result, list)
+
+    def test_accessory_compatibility_shape(self, live_db):
+        result = live_db.get_accessory_compatibility("ACC_DRAIN", "GDB")
+        assert isinstance(result, dict)
+
+
+# =============================================================================
+# EXPERT REVIEW METHODS — uses peek() and {.*}
+# =============================================================================
+
+class TestExpertReviewContract:
+    def test_get_expert_conversations_shape(self, live_db):
+        result = live_db.get_expert_conversations(limit=5, offset=0)
+        assert isinstance(result, dict)
+        assert "conversations" in result
+        assert "total" in result
+
+    def test_get_expert_reviews_summary_shape(self, live_db):
+        result = live_db.get_expert_reviews_summary()
+        assert isinstance(result, dict)
+        assert "total" in result
+
+    def test_get_conversation_detail_shape(self, live_db):
+        result = live_db.get_conversation_detail("nonexistent_session")
+        assert isinstance(result, dict)
+
+
+# =============================================================================
+# GRAPH REASONING CONTEXT
+# =============================================================================
+
+class TestGraphReasoningContextContract:
+    def test_graph_reasoning_context_shape(self, live_db):
+        result = live_db.get_graph_reasoning_context("Commercial Kitchen", "GDB")
+        assert isinstance(result, dict)
+
+    def test_product_family_data_dump_shape(self, live_db):
+        result = live_db.get_product_family_data_dump("GDB")
+        assert isinstance(result, dict)
+
+
+# =============================================================================
+# PHYSICS RISKS
+# =============================================================================
+
+class TestPhysicsRisksContract:
+    def test_unmitigated_risks_shape(self, live_db):
+        result = live_db.check_unmitigated_physics_risks("GDB")
+        assert isinstance(result, list)
+
+    def test_safe_alternative_for_risk_shape(self, live_db):
+        result = live_db.get_safe_alternative_for_risk("RISK_NONEXISTENT")
+        assert isinstance(result, list)
+
+
+# =============================================================================
+# SEMANTIC RULES
+# =============================================================================
+
+class TestSemanticRulesContract:
+    def test_semantic_rules_shape(self, live_db):
+        result = live_db.get_semantic_rules()
+        assert isinstance(result, list)
+
+    def test_graph_rules_as_candidates_shape(self, live_db):
+        result = live_db.get_graph_rules_as_candidates()
+        assert isinstance(result, list)
+
+
+# =============================================================================
+# VARIABLE FEATURES
+# =============================================================================
+
+class TestVariableFeaturesContract:
+    def test_variable_features_shape(self, live_db):
+        families = live_db.get_all_product_families_with_traits()
+        if families:
+            fam_name = families[0]["product_name"]
+            result = live_db.get_variable_features(fam_name)
+            assert isinstance(result, list)
+
+
+# =============================================================================
+# SPATIAL FEASIBILITY
+# =============================================================================
+
+class TestSpatialFeasibilityContract:
+    def test_validate_spatial_feasibility_shape(self, live_db):
+        families = live_db.get_all_product_families_with_traits()
+        if families:
+            fam_id = families[0]["product_id"]
+            result = live_db.validate_spatial_feasibility(fam_id, 600, 600)
+            assert isinstance(result, list)

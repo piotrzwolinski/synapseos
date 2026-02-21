@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Neo4j Graph Backup Script
+FalkorDB Graph Backup Script
 
 Exports all nodes and relationships as Cypher statements to a timestamped file.
 Run this BEFORE any schema migrations to ensure rollback capability.
@@ -14,79 +14,75 @@ import sys
 import json
 from datetime import datetime
 from dotenv import load_dotenv
+from db_result_helpers import result_to_dicts, result_single, result_value
 
 load_dotenv(dotenv_path="../.env")
 
 
-def export_nodes(session):
+def export_nodes(graph):
     """Export all nodes with labels and properties."""
-    result = session.run("""
+    result = graph.query("""
         MATCH (n)
-        RETURN labels(n) AS labels, properties(n) AS props, elementId(n) AS eid
+        RETURN labels(n) AS labels, properties(n) AS props, id(n) AS eid
     """)
     nodes = []
-    for record in result:
+    for record in result_to_dicts(result):
         nodes.append({
             "labels": record["labels"],
-            "props": dict(record["props"]),
+            "props": dict(record["props"]) if isinstance(record["props"], dict) else record["props"],
             "eid": record["eid"]
         })
     return nodes
 
 
-def export_relationships(session):
+def export_relationships(graph):
     """Export all relationships with types, properties, and endpoint IDs."""
-    result = session.run("""
+    result = graph.query("""
         MATCH (a)-[r]->(b)
         RETURN labels(a) AS a_labels, properties(a) AS a_props,
                type(r) AS rel_type, properties(r) AS rel_props,
                labels(b) AS b_labels, properties(b) AS b_props
     """)
     rels = []
-    for record in result:
+    for record in result_to_dicts(result):
         rels.append({
             "a_labels": record["a_labels"],
-            "a_props": dict(record["a_props"]),
+            "a_props": dict(record["a_props"]) if isinstance(record["a_props"], dict) else record["a_props"],
             "rel_type": record["rel_type"],
-            "rel_props": dict(record["rel_props"]),
+            "rel_props": dict(record["rel_props"]) if isinstance(record["rel_props"], dict) else record["rel_props"],
             "b_labels": record["b_labels"],
-            "b_props": dict(record["b_props"])
+            "b_props": dict(record["b_props"]) if isinstance(record["b_props"], dict) else record["b_props"],
         })
     return rels
 
 
-def get_counts(session):
+def get_counts(graph):
     """Get node and relationship counts by label/type."""
-    node_counts = session.run("""
+    node_result = graph.query("""
         MATCH (n)
         WITH labels(n) AS lbls
         UNWIND lbls AS label
         RETURN label, count(*) AS cnt
         ORDER BY cnt DESC
     """)
-    rel_counts = session.run("""
+    rel_result = graph.query("""
         MATCH ()-[r]->()
         RETURN type(r) AS rel_type, count(*) AS cnt
         ORDER BY cnt DESC
     """)
     return (
-        [(r["label"], r["cnt"]) for r in node_counts],
-        [(r["rel_type"], r["cnt"]) for r in rel_counts]
+        [(r["label"], r["cnt"]) for r in result_to_dicts(node_result)],
+        [(r["rel_type"], r["cnt"]) for r in result_to_dicts(rel_result)]
     )
 
 
 def main():
-    from neo4j import GraphDatabase
+    from falkordb import FalkorDB
 
-    uri = os.getenv("NEO4J_URI")
-    user = os.getenv("NEO4J_USER")
-    password = os.getenv("NEO4J_PASSWORD")
-    database = os.getenv("NEO4J_DATABASE", "neo4j")
-
-    if not all([uri, user, password]):
-        print("Error: Missing Neo4j connection environment variables")
-        print("Required: NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD")
-        sys.exit(1)
+    host = os.getenv("FALKORDB_HOST", "localhost")
+    port = int(os.getenv("FALKORDB_PORT", 6379))
+    password = os.getenv("FALKORDB_PASSWORD", None)
+    graph_name = os.getenv("FALKORDB_GRAPH", "hvac")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_dir = os.path.join(os.path.dirname(__file__), "backups")
@@ -94,47 +90,47 @@ def main():
     backup_path = os.path.join(backup_dir, f"graph_backup_{timestamp}.json")
 
     print("=" * 60)
-    print(f"NEO4J GRAPH BACKUP — {timestamp}")
+    print(f"FALKORDB GRAPH BACKUP -- {timestamp}")
     print("=" * 60)
-    print(f"\nConnecting to Neo4j at {uri}...")
+    print(f"\nConnecting to FalkorDB at {host}:{port}...")
 
-    driver = GraphDatabase.driver(uri, auth=(user, password))
+    db = FalkorDB(host=host, port=port, password=password)
+    graph = db.select_graph(graph_name)
 
     try:
-        with driver.session(database=database) as session:
-            # Verify connection
-            result = session.run("RETURN 1 AS test")
-            if result.single()["test"] != 1:
-                raise Exception("Connection test failed")
-            print("Connected successfully!")
+        # Verify connection
+        result = graph.query("RETURN 1 AS test")
+        if result_single(result)["test"] != 1:
+            raise Exception("Connection test failed")
+        print("Connected successfully!")
 
-            # Get counts first
-            print("\nCurrent graph statistics:")
-            node_counts, rel_counts = get_counts(session)
-            total_nodes = 0
-            for label, cnt in node_counts:
-                print(f"  :{label} = {cnt} nodes")
-                total_nodes += cnt
-            total_rels = 0
-            for rel_type, cnt in rel_counts:
-                print(f"  [:{rel_type}] = {cnt} relationships")
-                total_rels += cnt
-            print(f"\n  Total: {total_nodes} nodes, {total_rels} relationships")
+        # Get counts first
+        print("\nCurrent graph statistics:")
+        node_counts, rel_counts = get_counts(graph)
+        total_nodes = 0
+        for label, cnt in node_counts:
+            print(f"  :{label} = {cnt} nodes")
+            total_nodes += cnt
+        total_rels = 0
+        for rel_type, cnt in rel_counts:
+            print(f"  [:{rel_type}] = {cnt} relationships")
+            total_rels += cnt
+        print(f"\n  Total: {total_nodes} nodes, {total_rels} relationships")
 
-            # Export
-            print(f"\nExporting nodes...")
-            nodes = export_nodes(session)
-            print(f"  Exported {len(nodes)} nodes")
+        # Export
+        print("\nExporting nodes...")
+        nodes = export_nodes(graph)
+        print(f"  Exported {len(nodes)} nodes")
 
-            print(f"Exporting relationships...")
-            rels = export_relationships(session)
-            print(f"  Exported {len(rels)} relationships")
+        print("Exporting relationships...")
+        rels = export_relationships(graph)
+        print(f"  Exported {len(rels)} relationships")
 
         # Write backup
         backup_data = {
             "timestamp": timestamp,
-            "neo4j_uri": uri,
-            "database": database,
+            "falkordb_host": f"{host}:{port}",
+            "graph": graph_name,
             "stats": {
                 "node_counts": {label: cnt for label, cnt in node_counts},
                 "rel_counts": {rel_type: cnt for rel_type, cnt in rel_counts},
@@ -150,14 +146,15 @@ def main():
 
         file_size_mb = os.path.getsize(backup_path) / (1024 * 1024)
         print(f"\n{'=' * 60}")
-        print(f"BACKUP COMPLETE")
+        print("BACKUP COMPLETE")
         print(f"{'=' * 60}")
         print(f"File: {backup_path}")
         print(f"Size: {file_size_mb:.2f} MB")
         print(f"Nodes: {len(nodes)}, Relationships: {len(rels)}")
 
-    finally:
-        driver.close()
+    except Exception as e:
+        print(f"\nError: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

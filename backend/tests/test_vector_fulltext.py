@@ -145,16 +145,16 @@ class TestSemanticRulesUnit:
 # =============================================================================
 
 pytestmark_live = pytest.mark.skipif(
-    not os.getenv("NEO4J_URI"),
-    reason="NEO4J_URI not set — skipping live vector/fulltext tests"
+    not os.getenv("FALKORDB_HOST"),
+    reason="FALKORDB_HOST not set — skipping live vector/fulltext tests"
 )
 
 
 @pytest.fixture(scope="module")
 def live_db():
     """Real DB connection for live tests."""
-    from backend.database import Neo4jConnection
-    db = Neo4jConnection()
+    from backend.database import GraphConnection
+    db = GraphConnection()
     db.connect()
     yield db
     db.close()

@@ -642,38 +642,17 @@ def seed_hvac_data(db_connection):
 
 def main():
     """Main entry point."""
-    # Try FalkorDB first, fall back to Neo4j
-    try:
-        from falkordb import FalkorDB
-        print("📊 Connecting to FalkorDB...")
-        db = FalkorDB(host=os.getenv("FALKORDB_HOST", "localhost"),
-                      port=int(os.getenv("FALKORDB_PORT", 6379)))
-        graph = db.select_graph("hvac")
-        seed_hvac_data(graph)
-    except ImportError:
-        print("FalkorDB not available, trying Neo4j...")
-        from neo4j import GraphDatabase
+    from falkordb import FalkorDB
 
-        uri = os.getenv("NEO4J_URI")
-        user = os.getenv("NEO4J_USER")
-        password = os.getenv("NEO4J_PASSWORD")
-        database = os.getenv("NEO4J_DATABASE", "neo4j")
+    host = os.getenv("FALKORDB_HOST", "localhost")
+    port = int(os.getenv("FALKORDB_PORT", 6379))
+    password = os.getenv("FALKORDB_PASSWORD", None)
+    graph_name = os.getenv("FALKORDB_GRAPH", "hvac")
 
-        print(f"📊 Connecting to Neo4j at {uri}...")
-        driver = GraphDatabase.driver(uri, auth=(user, password))
-
-        class Neo4jWrapper:
-            def __init__(self, driver, database):
-                self.driver = driver
-                self.database = database
-
-            def query(self, cypher, params=None):
-                with self.driver.session(database=self.database) as session:
-                    return list(session.run(cypher, params or {}))
-
-        wrapper = Neo4jWrapper(driver, database)
-        seed_hvac_data(wrapper)
-        driver.close()
+    print(f"📊 Connecting to FalkorDB at {host}:{port}...")
+    db = FalkorDB(host=host, port=port, password=password)
+    graph = db.select_graph(graph_name)
+    seed_hvac_data(graph)
 
 
 if __name__ == "__main__":

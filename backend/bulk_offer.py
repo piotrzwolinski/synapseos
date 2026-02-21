@@ -24,6 +24,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from google import genai
 from google.genai import types
+from db_result_helpers import result_to_dicts, result_single, result_value
 
 logger = logging.getLogger(__name__)
 
@@ -556,21 +557,20 @@ def _load_housing_variants(db) -> list[dict]:
     if _variants_cache:
         return _variants_cache
 
-    driver = db.connect()
-    with driver.session(database=db.database) as session:
-        result = session.run("""
-            MATCH (pv:ProductVariant)
-            WHERE pv.product_family STARTS WITH 'FAM_GDMI'
-            RETURN pv.name AS name,
-                   pv.width_mm AS width_mm,
-                   pv.height_mm AS height_mm,
-                   pv.product_family AS family,
-                   pv.reference_airflow_m3h AS airflow,
-                   pv.weight_kg AS weight_kg,
-                   pv.housing_length_mm AS housing_length
-            ORDER BY pv.width_mm, pv.height_mm
-        """)
-        _variants_cache = [dict(r) for r in result]
+    graph = db.connect()
+    result = graph.query("""
+        MATCH (pv:ProductVariant)
+        WHERE pv.product_family STARTS WITH 'FAM_GDMI'
+        RETURN pv.name AS name,
+               pv.width_mm AS width_mm,
+               pv.height_mm AS height_mm,
+               pv.product_family AS family,
+               pv.reference_airflow_m3h AS airflow,
+               pv.weight_kg AS weight_kg,
+               pv.housing_length_mm AS housing_length
+        ORDER BY pv.width_mm, pv.height_mm
+    """)
+    _variants_cache = result_to_dicts(result)
     return _variants_cache
 
 
@@ -580,17 +580,16 @@ def _load_capacity_rules(db) -> list[dict]:
     if _capacity_cache:
         return _capacity_cache
 
-    driver = db.connect()
-    with driver.session(database=db.database) as session:
-        result = session.run("""
-            MATCH (cr:CapacityRule)
-            WHERE cr.id STARTS WITH 'CAP_GDMI'
-              AND NOT cr.id CONTAINS 'FLEX'
-            RETURN cr.id AS id,
-                   cr.module_descriptor AS module_descriptor,
-                   cr.output_rating AS output_rating
-        """)
-        _capacity_cache = [dict(r) for r in result]
+    graph = db.connect()
+    result = graph.query("""
+        MATCH (cr:CapacityRule)
+        WHERE cr.id STARTS WITH 'CAP_GDMI'
+          AND NOT cr.id CONTAINS 'FLEX'
+        RETURN cr.id AS id,
+               cr.module_descriptor AS module_descriptor,
+               cr.output_rating AS output_rating
+    """)
+    _capacity_cache = result_to_dicts(result)
     return _capacity_cache
 
 
@@ -629,19 +628,18 @@ def _get_capacity(width_mm: int, height_mm: int, capacity_rules: list[dict]) -> 
 
 def _load_filters_for_class(filter_class: str, db) -> dict:
     """Load demo filters grouped by slot type."""
-    driver = db.connect()
-    with driver.session(database=db.database) as session:
-        result = session.run("""
-            MATCH (fc:FilterConsumable {source: "BULK_OFFER_DEMO", filter_class: $fc})
-            RETURN fc.name AS name,
-                   fc.model_name AS model_name,
-                   fc.filter_class AS filter_class,
-                   fc.dimensions AS dimensions,
-                   fc.part_number AS part_number,
-                   fc.module_width AS module_width,
-                   fc.module_height AS module_height
-        """, fc=filter_class)
-        filters = [dict(r) for r in result]
+    graph = db.connect()
+    result = graph.query("""
+        MATCH (fc:FilterConsumable {source: "BULK_OFFER_DEMO", filter_class: $fc})
+        RETURN fc.name AS name,
+               fc.model_name AS model_name,
+               fc.filter_class AS filter_class,
+               fc.dimensions AS dimensions,
+               fc.part_number AS part_number,
+               fc.module_width AS module_width,
+               fc.module_height AS module_height
+    """, fc=filter_class)
+    filters = result_to_dicts(result)
 
     grouped = {"full": None, "half_width": None, "half_height": None}
     for f in filters:
@@ -1363,41 +1361,39 @@ def _load_competitor_context(db) -> list[dict]:
     if _competitor_cache:
         return _competitor_cache
 
-    driver = db.connect()
-    with driver.session(database=db.database) as session:
-        result = session.run("""
-            MATCH (cp:CompetitorProduct)
-            OPTIONAL MATCH (cp)-[r:CROSS_REFERENCES]->(target)
-            RETURN cp.id AS id, cp.manufacturer AS manufacturer,
-                   cp.product_line AS product_line, cp.model AS model,
-                   cp.category AS category, cp.iso_class AS iso_class,
-                   cp.width_mm AS width_mm, cp.height_mm AS height_mm,
-                   cp.depth_mm AS depth_mm, cp.aliases AS aliases,
-                   collect(CASE WHEN target IS NOT NULL THEN {
-                     target_name: COALESCE(target.name, target.id),
-                     target_code: target.part_number,
-                     confidence: r.confidence,
-                     match_type: r.match_type,
-                     dimension_note: r.dimension_note,
-                     performance_note: r.performance_note
-                   } END) AS mappings
-        """)
-        _competitor_cache = [dict(r) for r in result]
+    graph = db.connect()
+    result = graph.query("""
+        MATCH (cp:CompetitorProduct)
+        OPTIONAL MATCH (cp)-[r:CROSS_REFERENCES]->(target)
+        RETURN cp.id AS id, cp.manufacturer AS manufacturer,
+               cp.product_line AS product_line, cp.model AS model,
+               cp.category AS category, cp.iso_class AS iso_class,
+               cp.width_mm AS width_mm, cp.height_mm AS height_mm,
+               cp.depth_mm AS depth_mm, cp.aliases AS aliases,
+               collect(CASE WHEN target IS NOT NULL THEN {
+                 target_name: COALESCE(target.name, target.id),
+                 target_code: target.part_number,
+                 confidence: r.confidence,
+                 match_type: r.match_type,
+                 dimension_note: r.dimension_note,
+                 performance_note: r.performance_note
+               } END) AS mappings
+    """)
+    _competitor_cache = result_to_dicts(result)
     return _competitor_cache
 
 
 def _load_all_mh_filters(db) -> list[dict]:
     """Load all MH filter consumables for LLM context."""
-    driver = db.connect()
-    with driver.session(database=db.database) as session:
-        result = session.run("""
-            MATCH (fc:FilterConsumable)
-            WHERE fc.source = 'BULK_OFFER_DEMO'
-            RETURN fc.name AS name, fc.model_name AS model_name,
-                   fc.filter_class AS filter_class, fc.dimensions AS dimensions,
-                   fc.part_number AS part_number, fc.filter_type AS filter_type
-        """)
-        return [dict(r) for r in result]
+    graph = db.connect()
+    result = graph.query("""
+        MATCH (fc:FilterConsumable)
+        WHERE fc.source = 'BULK_OFFER_DEMO'
+        RETURN fc.name AS name, fc.model_name AS model_name,
+               fc.filter_class AS filter_class, fc.dimensions AS dimensions,
+               fc.part_number AS part_number, fc.filter_type AS filter_type
+    """)
+    return result_to_dicts(result)
 
 
 # ---------------------------------------------------------------------------
@@ -1640,80 +1636,78 @@ def match_competitor_items(items: list[CompetitorItem], db) -> list[CrossRefResu
 
 def _graph_lookup_competitor(item: CompetitorItem, db, trace: GraphTrace) -> Optional[dict]:
     """Try exact model + class match in the CompetitorProduct graph."""
-    driver = db.connect()
-    with driver.session(database=db.database) as session:
-        result = session.run("""
-            MATCH (cp:CompetitorProduct)-[r:CROSS_REFERENCES]->(target)
-            WHERE cp.manufacturer = $manufacturer
-              AND (cp.model = $model
-                   OR $model IN cp.aliases
-                   OR ANY(alias IN cp.aliases WHERE toLower(alias) = toLower($model)))
-              AND (cp.iso_class = $iso_class OR $iso_class = '' OR cp.iso_class IS NULL)
-            RETURN cp.model AS competitor_model,
-                   labels(target)[0] AS target_type,
-                   COALESCE(target.name, target.id) AS target_name,
-                   target.part_number AS part_number,
-                   r.confidence AS confidence,
-                   r.match_type AS match_type,
-                   r.dimension_note AS dimension_note,
-                   r.performance_note AS performance_note
-            ORDER BY r.confidence DESC
-            LIMIT 1
-        """, manufacturer=item.competitor_manufacturer,
-             model=item.competitor_model,
-             iso_class=item.iso_class or "")
+    graph = db.connect()
+    result = graph.query("""
+        MATCH (cp:CompetitorProduct)-[r:CROSS_REFERENCES]->(target)
+        WHERE cp.manufacturer = $manufacturer
+          AND (cp.model = $model
+               OR $model IN cp.aliases
+               OR ANY(alias IN cp.aliases WHERE toLower(alias) = toLower($model)))
+          AND (cp.iso_class = $iso_class OR $iso_class = '' OR cp.iso_class IS NULL)
+        RETURN cp.model AS competitor_model,
+               labels(target)[0] AS target_type,
+               COALESCE(target.name, target.id) AS target_name,
+               target.part_number AS part_number,
+               r.confidence AS confidence,
+               r.match_type AS match_type,
+               r.dimension_note AS dimension_note,
+               r.performance_note AS performance_note
+        ORDER BY r.confidence DESC
+        LIMIT 1
+    """, manufacturer=item.competitor_manufacturer,
+         model=item.competitor_model,
+         iso_class=item.iso_class or "")
 
-        record = result.single()
-        if record:
-            d = dict(record)
-            trace.nodes_consulted.append({
-                "type": "CompetitorProduct",
-                "id": item.competitor_model,
-                "detail": f"Graph match → {d['target_name']}"
-            })
-            trace.reasoning_steps.append(
-                f"Graph match: {d['competitor_model']} → {d['target_name']} "
-                f"(confidence: {d['confidence']:.0%})"
-            )
-            trace.rules_applied.append({
-                "rule": "Graph Cross-Reference",
-                "description": f"{d['match_type']}: {d.get('dimension_note', '')}"
-            })
-            return d
+    record = result_single(result)
+    if record:
+        d = dict(record)
+        trace.nodes_consulted.append({
+            "type": "CompetitorProduct",
+            "id": item.competitor_model,
+            "detail": f"Graph match → {d['target_name']}"
+        })
+        trace.reasoning_steps.append(
+            f"Graph match: {d['competitor_model']} → {d['target_name']} "
+            f"(confidence: {d['confidence']:.0%})"
+        )
+        trace.rules_applied.append({
+            "rule": "Graph Cross-Reference",
+            "description": f"{d['match_type']}: {d.get('dimension_note', '')}"
+        })
+        return d
     return None
 
 
 def _graph_fuzzy_lookup(item: CompetitorItem, db, trace: GraphTrace) -> Optional[dict]:
     """Fuzzy match by category + approximate dimensions."""
-    driver = db.connect()
-    with driver.session(database=db.database) as session:
-        result = session.run("""
-            MATCH (cp:CompetitorProduct)-[r:CROSS_REFERENCES]->(target)
-            WHERE cp.manufacturer = $manufacturer
-              AND cp.category = $category
-              AND abs(cp.width_mm - $w) <= 20
-              AND abs(cp.height_mm - $h) <= 20
-            RETURN cp.model AS competitor_model,
-                   COALESCE(target.name, target.id) AS target_name,
-                   target.part_number AS part_number,
-                   r.confidence AS confidence,
-                   r.match_type AS match_type,
-                   r.dimension_note AS dimension_note,
-                   r.performance_note AS performance_note
-            ORDER BY r.confidence DESC
-            LIMIT 1
-        """, manufacturer=item.competitor_manufacturer,
-             category=item.category,
-             w=item.width_mm, h=item.height_mm)
+    graph = db.connect()
+    result = graph.query("""
+        MATCH (cp:CompetitorProduct)-[r:CROSS_REFERENCES]->(target)
+        WHERE cp.manufacturer = $manufacturer
+          AND cp.category = $category
+          AND abs(cp.width_mm - $w) <= 20
+          AND abs(cp.height_mm - $h) <= 20
+        RETURN cp.model AS competitor_model,
+               COALESCE(target.name, target.id) AS target_name,
+               target.part_number AS part_number,
+               r.confidence AS confidence,
+               r.match_type AS match_type,
+               r.dimension_note AS dimension_note,
+               r.performance_note AS performance_note
+        ORDER BY r.confidence DESC
+        LIMIT 1
+    """, manufacturer=item.competitor_manufacturer,
+         category=item.category,
+         w=item.width_mm, h=item.height_mm)
 
-        record = result.single()
-        if record:
-            d = dict(record)
-            trace.reasoning_steps.append(
-                f"Fuzzy graph: category={item.category}, dims ~{item.width_mm}x{item.height_mm} "
-                f"→ {d['target_name']} (confidence: {d['confidence']:.0%})"
-            )
-            return d
+    record = result_single(result)
+    if record:
+        d = dict(record)
+        trace.reasoning_steps.append(
+            f"Fuzzy graph: category={item.category}, dims ~{item.width_mm}x{item.height_mm} "
+            f"→ {d['target_name']} (confidence: {d['confidence']:.0%})"
+        )
+        return d
     return None
 
 

@@ -28,6 +28,7 @@ from graph_audit_prompts import (
     CRITIQUE_PROMPT,
     SYNTHESIS_PROMPT,
 )
+from db_result_helpers import result_to_dicts
 
 logger = logging.getLogger(__name__)
 
@@ -36,434 +37,414 @@ os.makedirs(REPORTS_DIR, exist_ok=True)
 
 
 def build_graph_data_snapshot(db_connection) -> str:
-    """Query Neo4j for all Layer 1 & 2 data and format as a structured markdown string."""
-    driver = db_connection.connect()
+    """Query the graph for all Layer 1 & 2 data and format as a structured markdown string."""
+    graph = db_connection.connect()
     sections = []
 
-    with driver.session(database=db_connection.database) as session:
-        # 1. Product Families with materials
-        pf_records = session.run("""
-            MATCH (pf:ProductFamily)
-            OPTIONAL MATCH (pf)-[r:AVAILABLE_IN_MATERIAL]->(m:Material)
-            WITH pf, collect(DISTINCT {code: m.code, is_default: r.is_default, on_request: r.on_request}) AS materials
-            OPTIONAL MATCH (pf)-[:HAS_LENGTH_VARIANT]->(vl)
-            WITH pf, materials, collect(DISTINCT {mm: vl.length_mm, f40_mm: vl.length_f40_mm, max_cartridge_length: vl.max_cartridge_length_mm, max_filter_depth: vl.max_filter_depth_mm, is_default: vl.is_default, description: vl.description, order_code_length: vl.order_code_length, compatibility_modes: vl.compatibility_modes}) AS lengths
-            OPTIONAL MATCH (pf)-[:HAS_OPTION]->(opt)
-            WITH pf, materials, lengths, collect(DISTINCT {code: opt.code, name: opt.name, length_variant_link: opt.length_variant_link}) AS options
-            OPTIONAL MATCH (pf)-[:HAS_VARIABLE_FEATURE]->(vf)
-            WITH pf, materials, lengths, options, collect(DISTINCT {name: vf.feature_name, property_key: vf.property_key, values: vf.allowed_values}) AS features
-            OPTIONAL MATCH (pf)-[:HAS_STANDARD_FEATURE]->(sf)
-            RETURN pf, materials, lengths, options, features,
-                   collect(DISTINCT sf.feature_name) AS standard_features
-            ORDER BY pf.selection_priority
-        """).data()
+    # 1. Product Families with materials
+    pf_records = result_to_dicts(graph.query("""
+        MATCH (pf:ProductFamily)
+        OPTIONAL MATCH (pf)-[r:AVAILABLE_IN_MATERIAL]->(m:Material)
+        WITH pf, collect(DISTINCT {code: m.code, is_default: r.is_default, on_request: r.on_request}) AS materials
+        OPTIONAL MATCH (pf)-[:HAS_LENGTH_VARIANT]->(vl)
+        WITH pf, materials, collect(DISTINCT {mm: vl.length_mm, f40_mm: vl.length_f40_mm, max_cartridge_length: vl.max_cartridge_length_mm, max_filter_depth: vl.max_filter_depth_mm, is_default: vl.is_default, description: vl.description, order_code_length: vl.order_code_length, compatibility_modes: vl.compatibility_modes}) AS lengths
+        OPTIONAL MATCH (pf)-[:HAS_OPTION]->(opt)
+        WITH pf, materials, lengths, collect(DISTINCT {code: opt.code, name: opt.name, length_variant_link: opt.length_variant_link}) AS options
+        OPTIONAL MATCH (pf)-[:HAS_VARIABLE_FEATURE]->(vf)
+        WITH pf, materials, lengths, options, collect(DISTINCT {name: vf.feature_name, property_key: vf.property_key, values: vf.allowed_values}) AS features
+        OPTIONAL MATCH (pf)-[:HAS_STANDARD_FEATURE]->(sf)
+        RETURN pf, materials, lengths, options, features,
+               collect(DISTINCT sf.feature_name) AS standard_features
+        ORDER BY pf.selection_priority
+    """))
 
-        if pf_records:
-            sections.append("## PRODUCT FAMILIES IN GRAPH (Layer 1)\n")
-            for i, rec in enumerate(pf_records, 1):
-                pf = rec["pf"]
-                props = dict(pf) if hasattr(pf, '__iter__') else pf
-                name = props.get("name", props.get("id", "Unknown"))
-                fam_id = props.get("id", "")
-                sections.append(f"### {i}. {name} ({fam_id})")
-                sections.append(f"- Type: {props.get('display_name', 'N/A')}")
-                if props.get("construction_type"):
-                    sections.append(f"- Construction: {props['construction_type']} (source: {props.get('construction_type_source', 'N/A')})")
-                if props.get("corrosion_class"):
-                    sections.append(f"- Corrosion class: {props['corrosion_class']}")
-                if props.get("indoor_only") is not None:
-                    sections.append(f"- Indoor only: {props['indoor_only']}")
-                if props.get("outdoor_safe") is not None:
-                    sections.append(f"- Outdoor safe: {props['outdoor_safe']}")
-                if props.get("selection_priority") is not None:
-                    sections.append(f"- Selection priority: {props['selection_priority']}")
-                if props.get("code_format"):
-                    sections.append(f"- Code format: {props['code_format']}")
-                if props.get("service_access_type"):
-                    sections.append(f"- Service access: {props['service_access_type']}")
-                if props.get("door_insulation"):
-                    sections.append(f"- Door insulation: {props['door_insulation']}")
-                if props.get("hinge_type"):
-                    sections.append(f"- Hinge type: {props['hinge_type']}, Lock type: {props.get('lock_type', 'N/A')}")
-                if props.get("corrosion_class_note"):
-                    sections.append(f"- Corrosion note: {props['corrosion_class_note']}")
-                if props.get("max_filter_depth_mm"):
-                    sections.append(f"- Max filter depth: {props['max_filter_depth_mm']}mm")
-                if props.get("default_frame_depth"):
-                    sections.append(f"- Default frame depth: {props['default_frame_depth']}mm, available: {props.get('available_frame_depths', 'N/A')}")
-                if props.get("airflow_basis"):
-                    sections.append(f"- Airflow basis: {props['airflow_basis']}")
-                if props.get("housing_construction"):
-                    sections.append(f"- Housing construction: {props['housing_construction']}, Door construction: {props.get('door_construction', 'N/A')}")
-                if props.get("accepted_filter_frame_thickness_mm"):
-                    sections.append(f"- Accepted filter frame: {props['accepted_filter_frame_thickness_mm']}mm")
-                if props.get("mounting_type"):
-                    sections.append(f"- Mounting: {props['mounting_type']}, Filter bank: {props.get('supports_filter_bank', False)}, Frame thickness: {props.get('compatible_filter_frame_thickness_mm', 'N/A')}mm")
-                if props.get("compatible_filter_types"):
-                    sections.append(f"- Compatible filters: {props['compatible_filter_types']} - {props.get('filter_description', '')}")
-                if props.get("material_exclusions"):
-                    sections.append(f"- Material exclusions: {props['material_exclusions']} ({props.get('material_exclusion_note', '')})")
-                if props.get("available_depths_mm"):
-                    sections.append(f"- Available depths: {props['available_depths_mm']}mm")
-                if props.get("source_conflicts"):
-                    for sc in props["source_conflicts"]:
-                        sections.append(f"- SOURCE CONFLICT: {sc}")
+    if pf_records:
+        sections.append("## PRODUCT FAMILIES IN GRAPH (Layer 1)\n")
+        for i, rec in enumerate(pf_records, 1):
+            pf = rec["pf"]
+            props = dict(pf) if hasattr(pf, '__iter__') else pf
+            name = props.get("name", props.get("id", "Unknown"))
+            fam_id = props.get("id", "")
+            sections.append(f"### {i}. {name} ({fam_id})")
+            sections.append(f"- Type: {props.get('display_name', 'N/A')}")
+            if props.get("construction_type"):
+                sections.append(f"- Construction: {props['construction_type']} (source: {props.get('construction_type_source', 'N/A')})")
+            if props.get("corrosion_class"):
+                sections.append(f"- Corrosion class: {props['corrosion_class']}")
+            if props.get("indoor_only") is not None:
+                sections.append(f"- Indoor only: {props['indoor_only']}")
+            if props.get("outdoor_safe") is not None:
+                sections.append(f"- Outdoor safe: {props['outdoor_safe']}")
+            if props.get("selection_priority") is not None:
+                sections.append(f"- Selection priority: {props['selection_priority']}")
+            if props.get("code_format"):
+                sections.append(f"- Code format: {props['code_format']}")
+            if props.get("service_access_type"):
+                sections.append(f"- Service access: {props['service_access_type']}")
+            if props.get("door_insulation"):
+                sections.append(f"- Door insulation: {props['door_insulation']}")
+            if props.get("hinge_type"):
+                sections.append(f"- Hinge type: {props['hinge_type']}, Lock type: {props.get('lock_type', 'N/A')}")
+            if props.get("corrosion_class_note"):
+                sections.append(f"- Corrosion note: {props['corrosion_class_note']}")
+            if props.get("max_filter_depth_mm"):
+                sections.append(f"- Max filter depth: {props['max_filter_depth_mm']}mm")
+            if props.get("default_frame_depth"):
+                sections.append(f"- Default frame depth: {props['default_frame_depth']}mm, available: {props.get('available_frame_depths', 'N/A')}")
+            if props.get("airflow_basis"):
+                sections.append(f"- Airflow basis: {props['airflow_basis']}")
+            if props.get("housing_construction"):
+                sections.append(f"- Housing construction: {props['housing_construction']}, Door construction: {props.get('door_construction', 'N/A')}")
+            if props.get("accepted_filter_frame_thickness_mm"):
+                sections.append(f"- Accepted filter frame: {props['accepted_filter_frame_thickness_mm']}mm")
+            if props.get("mounting_type"):
+                sections.append(f"- Mounting: {props['mounting_type']}, Filter bank: {props.get('supports_filter_bank', False)}, Frame thickness: {props.get('compatible_filter_frame_thickness_mm', 'N/A')}mm")
+            if props.get("compatible_filter_types"):
+                sections.append(f"- Compatible filters: {props['compatible_filter_types']} - {props.get('filter_description', '')}")
+            if props.get("material_exclusions"):
+                sections.append(f"- Material exclusions: {props['material_exclusions']} ({props.get('material_exclusion_note', '')})")
+            if props.get("available_depths_mm"):
+                sections.append(f"- Available depths: {props['available_depths_mm']}mm")
+            if props.get("source_conflicts"):
+                for sc in props["source_conflicts"]:
+                    sections.append(f"- SOURCE CONFLICT: {sc}")
 
-                # Materials
-                mats = rec.get("materials", [])
-                mats = [m for m in mats if m.get("code")]
-                if mats:
-                    mat_strs = []
-                    for m in mats:
-                        s = m["code"]
-                        if m.get("is_default"):
-                            s += " (default)"
-                        elif m.get("on_request"):
-                            s += " (on request)"
-                        mat_strs.append(s)
-                    sections.append(f"- Available materials: {', '.join(mat_strs)}")
+            # Materials
+            mats = rec.get("materials", [])
+            mats = [m for m in mats if m.get("code")]
+            if mats:
+                mat_strs = []
+                for m in mats:
+                    s = m["code"]
+                    if m.get("is_default"):
+                        s += " (default)"
+                    elif m.get("on_request"):
+                        s += " (on request)"
+                    mat_strs.append(s)
+                sections.append(f"- Available materials: {', '.join(mat_strs)}")
 
-                # Lengths
-                lens = rec.get("lengths", [])
-                lens = [l for l in lens if l.get("mm")]
-                if lens:
-                    len_strs = []
-                    for l in lens:
-                        pg = l['mm']
-                        f40 = l.get('f40_mm')
-                        s = f"{pg}/{f40}mm (PG/F40)" if f40 and f40 != pg else f"{pg}mm"
-                        if l.get("order_code_length"):
-                            s += f" [code: {l['order_code_length']}]"
-                        if l.get("max_cartridge_length"):
-                            s += f" [max cartridge length {l['max_cartridge_length']}mm]"
-                        elif l.get("max_filter_depth"):
-                            s += f" [max filter depth {l['max_filter_depth']}mm]"
-                        if l.get("compatibility_modes"):
-                            s += f" [modes: {l['compatibility_modes']}]"
-                        if l.get("description"):
-                            s += f" - {l['description']}"
-                        if l.get("is_default"):
-                            s += " [default]"
-                        len_strs.append(s)
-                    sections.append(f"- Length variants: {', '.join(len_strs)}")
+            # Lengths
+            lens = rec.get("lengths", [])
+            lens = [l for l in lens if l.get("mm")]
+            if lens:
+                len_strs = []
+                for l in lens:
+                    pg = l['mm']
+                    f40 = l.get('f40_mm')
+                    s = f"{pg}/{f40}mm (PG/F40)" if f40 and f40 != pg else f"{pg}mm"
+                    if l.get("order_code_length"):
+                        s += f" [code: {l['order_code_length']}]"
+                    if l.get("max_cartridge_length"):
+                        s += f" [max cartridge length {l['max_cartridge_length']}mm]"
+                    elif l.get("max_filter_depth"):
+                        s += f" [max filter depth {l['max_filter_depth']}mm]"
+                    if l.get("compatibility_modes"):
+                        s += f" [modes: {l['compatibility_modes']}]"
+                    if l.get("description"):
+                        s += f" - {l['description']}"
+                    if l.get("is_default"):
+                        s += " [default]"
+                    len_strs.append(s)
+                sections.append(f"- Length variants: {', '.join(len_strs)}")
 
-                # Options
-                opts = rec.get("options", [])
-                opts = [o for o in opts if o.get("code") or o.get("name")]
-                if opts:
-                    opt_strs = []
-                    for o in opts:
-                        s = f"{o.get('name', '')} (code: {o.get('code', 'N/A')})"
-                        if o.get("length_variant_link"):
-                            s += f" [length: {o['length_variant_link']}]"
-                        opt_strs.append(s)
-                    sections.append(f"- Options: {', '.join(opt_strs)}")
+            # Options
+            opts = rec.get("options", [])
+            opts = [o for o in opts if o.get("code") or o.get("name")]
+            if opts:
+                opt_strs = []
+                for o in opts:
+                    s = f"{o.get('name', '')} (code: {o.get('code', 'N/A')})"
+                    if o.get("length_variant_link"):
+                        s += f" [length: {o['length_variant_link']}]"
+                    opt_strs.append(s)
+                sections.append(f"- Options: {', '.join(opt_strs)}")
 
-                # Features
-                feats = rec.get("features", [])
-                feats = [f for f in feats if f.get("name")]
-                if feats:
-                    feat_strs = [f"{f.get('name', '')} (values: {f.get('values', 'N/A')})" for f in feats]
-                    sections.append(f"- Variable features: {', '.join(feat_strs)}")
+            # Features
+            feats = rec.get("features", [])
+            feats = [f for f in feats if f.get("name")]
+            if feats:
+                feat_strs = [f"{f.get('name', '')} (values: {f.get('values', 'N/A')})" for f in feats]
+                sections.append(f"- Variable features: {', '.join(feat_strs)}")
 
-                # Standard features
-                std_feats = rec.get("standard_features", [])
-                std_feats = [f for f in std_feats if f]
-                if std_feats:
-                    sections.append(f"- Standard features: {', '.join(std_feats)}")
+            # Standard features
+            std_feats = rec.get("standard_features", [])
+            std_feats = [f for f in std_feats if f]
+            if std_feats:
+                sections.append(f"- Standard features: {', '.join(std_feats)}")
 
-                sections.append("")
+            sections.append("")
 
-        # 2. DimensionModules (sizes + airflow + weights + all properties) grouped by family
-        dm_records = session.run("""
-            MATCH (pf:ProductFamily)-[:AVAILABLE_IN_SIZE]->(dm:DimensionModule)
-            RETURN pf.name AS family, pf.id AS family_id,
-                   dm.width_mm AS width, dm.height_mm AS height,
-                   dm.reference_airflow_m3h AS airflow,
-                   dm.unit_weight_kg AS weight,
-                   dm.reference_length_mm AS ref_length,
-                   dm.reference_length_f40_mm AS ref_length_f40,
-                   dm.reference_length_long_mm AS ref_length_long,
-                   dm.reference_length_long_f40_mm AS ref_length_long_f40,
-                   dm.unit_weight_kg_750 AS weight_750,
-                   dm.unit_weight_kg_900 AS weight_900,
-                   dm.unit_weight_kg_600 AS weight_600,
-                   dm.unit_weight_kg_850 AS weight_850,
-                   dm.unit_weight_kg_1100 AS weight_1100,
-                   dm.cartridge_count AS cartridge_count,
-                   dm.nippelmatt_mm AS nippelmatt,
-                   dm.standard_length_mm AS std_length,
-                   dm.filter_module_quarter AS fm_quarter,
-                   dm.filter_module_half AS fm_half,
-                   dm.filter_module_full AS fm_full,
-                   dm.round_duct_diameter_mm AS duct_diameter,
-                   dm.depth_mm AS depth,
-                   dm.pff_frame_count AS pff_frames,
-                   dm.pff_frame_size AS pff_frame_size,
-                   dm.passar_filter_width AS passar_w,
-                   dm.passar_filter_height AS passar_h,
-                   dm.exact_width_mm AS exact_w,
-                   dm.exact_height_mm AS exact_h,
-                   dm.data_quality_flag AS dq_flag,
-                   dm.data_quality_note AS dq_note
-            ORDER BY pf.name, dm.width_mm, dm.height_mm
-        """).data()
+    # 2. DimensionModules (sizes + airflow + weights + all properties) grouped by family
+    dm_records = result_to_dicts(graph.query("""
+        MATCH (pf:ProductFamily)-[:AVAILABLE_IN_SIZE]->(dm:DimensionModule)
+        RETURN pf.name AS family, pf.id AS family_id,
+               dm.width_mm AS width, dm.height_mm AS height,
+               dm.reference_airflow_m3h AS airflow,
+               dm.unit_weight_kg AS weight,
+               dm.reference_length_mm AS ref_length,
+               dm.reference_length_f40_mm AS ref_length_f40,
+               dm.reference_length_long_mm AS ref_length_long,
+               dm.reference_length_long_f40_mm AS ref_length_long_f40,
+               dm.unit_weight_kg_750 AS weight_750,
+               dm.unit_weight_kg_900 AS weight_900,
+               dm.unit_weight_kg_600 AS weight_600,
+               dm.unit_weight_kg_850 AS weight_850,
+               dm.unit_weight_kg_1100 AS weight_1100,
+               dm.cartridge_count AS cartridge_count,
+               dm.nippelmatt_mm AS nippelmatt,
+               dm.standard_length_mm AS std_length,
+               dm.filter_module_quarter AS fm_quarter,
+               dm.filter_module_half AS fm_half,
+               dm.filter_module_full AS fm_full,
+               dm.round_duct_diameter_mm AS duct_diameter,
+               dm.depth_mm AS depth,
+               dm.pff_frame_count AS pff_frames,
+               dm.pff_frame_size AS pff_frame_size,
+               dm.passar_filter_width AS passar_w,
+               dm.passar_filter_height AS passar_h,
+               dm.exact_width_mm AS exact_w,
+               dm.exact_height_mm AS exact_h,
+               dm.data_quality_flag AS dq_flag,
+               dm.data_quality_note AS dq_note
+        ORDER BY pf.name, dm.width_mm, dm.height_mm
+    """))
 
-        if dm_records:
-            sections.append("## DIMENSION MODULES / SIZES (Layer 1)\n")
-            current_family = None
-            for rec in dm_records:
-                if rec["family"] != current_family:
-                    current_family = rec["family"]
-                    sections.append(f"\n### {current_family}")
-                    fam_recs = [r for r in dm_records if r["family"] == current_family]
-                    has_dual_weight = any(r.get("weight_750") or r.get("weight_900") or r.get("weight_600") or r.get("weight_850") or r.get("weight_1100") for r in fam_recs)
-                    has_cartridge = any(r.get("cartridge_count") for r in fam_recs)
-                    has_nippelmatt = any(r.get("nippelmatt") for r in fam_recs)
-                    has_modules = any(r.get("fm_full") is not None for r in fam_recs)
-                    has_duct = any(r.get("duct_diameter") for r in fam_recs)
-                    has_depth = any(r.get("depth") for r in fam_recs)
-                    has_pff = any(r.get("pff_frames") for r in fam_recs)
-                    has_passar = any(r.get("passar_w") for r in fam_recs)
-                    has_exact = any(r.get("exact_w") for r in fam_recs)
+    if dm_records:
+        sections.append("## DIMENSION MODULES / SIZES (Layer 1)\n")
+        current_family = None
+        for rec in dm_records:
+            if rec["family"] != current_family:
+                current_family = rec["family"]
+                sections.append(f"\n### {current_family}")
+                fam_recs = [r for r in dm_records if r["family"] == current_family]
+                has_dual_weight = any(r.get("weight_750") or r.get("weight_900") or r.get("weight_600") or r.get("weight_850") or r.get("weight_1100") for r in fam_recs)
+                has_cartridge = any(r.get("cartridge_count") for r in fam_recs)
+                has_nippelmatt = any(r.get("nippelmatt") for r in fam_recs)
+                has_modules = any(r.get("fm_full") is not None for r in fam_recs)
+                has_duct = any(r.get("duct_diameter") for r in fam_recs)
+                has_depth = any(r.get("depth") for r in fam_recs)
+                has_pff = any(r.get("pff_frames") for r in fam_recs)
+                has_passar = any(r.get("passar_w") for r in fam_recs)
+                has_exact = any(r.get("exact_w") for r in fam_recs)
 
-                    header = "| Size (WxH) | Airflow (m³/h) | Weight (kg) | Ref Length PG/F40 (mm) |"
-                    sep = "|------------|----------------|-------------|------------------------|"
-                    if has_dual_weight:
-                        long_len = ""
-                        for r in fam_recs:
-                            if r.get("weight_750"): long_len = "750"; break
-                            if r.get("weight_900"): long_len = "900"; break
-                            if r.get("weight_850"): long_len = "850"; break
-                            if r.get("weight_1100"): long_len = "1100"; break
-                        wt_label = f" Weight Long (kg {long_len}) |" if long_len else " Weight Long (kg) |"
-                        header += wt_label
-                        sep += "-" * (len(wt_label) - 2) + "|"
-                    if has_cartridge:
-                        header += " Cartridges |"
-                        sep += "------------|"
-                    if has_nippelmatt:
-                        header += " Nippelmått Ø (mm) | Std Length (mm) |"
-                        sep += "--------------------|-----------------|"
-                    if has_modules:
-                        header += " Modules (¼/½/1) |"
-                        sep += "------------------|"
-                    if has_duct:
-                        header += " Duct Ø (mm) |"
-                        sep += "--------------|"
-                    if has_depth:
-                        header += " Depth (mm) |"
-                        sep += "-------------|"
-                    if has_pff:
-                        header += " PFF Frames | PFF Size |"
-                        sep += "------------|----------|"
-                    if has_passar:
-                        header += " Passar Filter |"
-                        sep += "---------------|"
-                    if has_exact:
-                        header += " Exact (BxH) |"
-                        sep += "--------------|"
-                    sections.append(header)
-                    sections.append(sep)
-
-                w = rec.get("width", "?")
-                h = rec.get("height", "?")
-                af = rec.get("airflow", "N/A")
-                wt = rec.get("weight", "N/A")
-                rl = rec.get("ref_length", "N/A")
-                rl_f40 = rec.get("ref_length_f40", "")
-                ref_str = f"{rl}" + (f"/{rl_f40}" if rl_f40 else "")
-                rl_long = rec.get("ref_length_long", "")
-                rl_long_f40 = rec.get("ref_length_long_f40", "")
-                if rl_long:
-                    ref_str += f" & {rl_long}" + (f"/{rl_long_f40}" if rl_long_f40 else "")
-
-                row = f"| {w}x{h} | {af} | {wt} | {ref_str} |"
-
+                header = "| Size (WxH) | Airflow (m³/h) | Weight (kg) | Ref Length PG/F40 (mm) |"
+                sep = "|------------|----------------|-------------|------------------------|"
                 if has_dual_weight:
-                    wt2 = rec.get("weight_750") or rec.get("weight_900") or rec.get("weight_600") or rec.get("weight_850") or rec.get("weight_1100") or "N/A"
-                    row += f" {wt2} |"
+                    long_len = ""
+                    for r in fam_recs:
+                        if r.get("weight_750"): long_len = "750"; break
+                        if r.get("weight_900"): long_len = "900"; break
+                        if r.get("weight_850"): long_len = "850"; break
+                        if r.get("weight_1100"): long_len = "1100"; break
+                    wt_label = f" Weight Long (kg {long_len}) |" if long_len else " Weight Long (kg) |"
+                    header += wt_label
+                    sep += "-" * (len(wt_label) - 2) + "|"
                 if has_cartridge:
-                    row += f" {rec.get('cartridge_count', 'N/A')} |"
+                    header += " Cartridges |"
+                    sep += "------------|"
                 if has_nippelmatt:
-                    row += f" {rec.get('nippelmatt', 'N/A')} | {rec.get('std_length', 'N/A')} |"
+                    header += " Nippelmått Ø (mm) | Std Length (mm) |"
+                    sep += "--------------------|-----------------|"
                 if has_modules:
-                    fmq = rec.get("fm_quarter", 0) or 0
-                    fmh = rec.get("fm_half", 0) or 0
-                    fmf = rec.get("fm_full", 0) or 0
-                    row += f" {fmq}/{fmh}/{fmf} |"
+                    header += " Modules (¼/½/1) |"
+                    sep += "------------------|"
                 if has_duct:
-                    row += f" {rec.get('duct_diameter', 'N/A')} |"
+                    header += " Duct Ø (mm) |"
+                    sep += "--------------|"
                 if has_depth:
-                    row += f" {rec.get('depth', 'N/A')} |"
+                    header += " Depth (mm) |"
+                    sep += "-------------|"
                 if has_pff:
-                    row += f" {rec.get('pff_frames', 'N/A')} | {rec.get('pff_frame_size', 'N/A')} |"
+                    header += " PFF Frames | PFF Size |"
+                    sep += "------------|----------|"
                 if has_passar:
-                    pw = rec.get('passar_w', '')
-                    ph = rec.get('passar_h', '')
-                    row += f" {pw}x{ph} |" if pw else " N/A |"
+                    header += " Passar Filter |"
+                    sep += "---------------|"
                 if has_exact:
-                    ew = rec.get('exact_w', '')
-                    eh = rec.get('exact_h', '')
-                    row += f" {ew}x{eh} |" if ew else " N/A |"
-                if rec.get('dq_flag'):
-                    row += f" ⚠ {rec['dq_flag']}"
-                    if rec.get('dq_note'):
-                        row += f" ({rec['dq_note']})"
+                    header += " Exact (BxH) |"
+                    sep += "--------------|"
+                sections.append(header)
+                sections.append(sep)
 
-                sections.append(row)
-            sections.append("")
+            w = rec.get("width", "?")
+            h = rec.get("height", "?")
+            af = rec.get("airflow", "N/A")
+            wt = rec.get("weight", "N/A")
+            rl = rec.get("ref_length", "N/A")
+            rl_f40 = rec.get("ref_length_f40", "")
+            ref_str = f"{rl}" + (f"/{rl_f40}" if rl_f40 else "")
+            rl_long = rec.get("ref_length_long", "")
+            rl_long_f40 = rec.get("ref_length_long_f40", "")
+            if rl_long:
+                ref_str += f" & {rl_long}" + (f"/{rl_long_f40}" if rl_long_f40 else "")
 
-        # 3. Materials table
-        mat_records = session.run("""
-            MATCH (m:Material)
-            RETURN m.code AS code, m.name AS name,
-                   m.corrosion_class AS corrosion_class,
-                   m.steel_specification AS steel_spec
-            ORDER BY m.code
-        """).data()
+            row = f"| {w}x{h} | {af} | {wt} | {ref_str} |"
 
-        if mat_records:
-            sections.append("## MATERIALS IN GRAPH (Layer 1)\n")
-            sections.append("| Code | Name | Corrosion Class | Steel Spec |")
-            sections.append("|------|------|----------------|------------|")
-            for rec in mat_records:
-                sections.append(f"| {rec.get('code', '?')} | {rec.get('name', '?')} | {rec.get('corrosion_class', '?')} | {rec.get('steel_spec', '-')} |")
-            sections.append("")
+            if has_dual_weight:
+                wt2 = rec.get("weight_750") or rec.get("weight_900") or rec.get("weight_600") or rec.get("weight_850") or rec.get("weight_1100") or "N/A"
+                row += f" {wt2} |"
+            if has_cartridge:
+                row += f" {rec.get('cartridge_count', 'N/A')} |"
+            if has_nippelmatt:
+                row += f" {rec.get('nippelmatt', 'N/A')} | {rec.get('std_length', 'N/A')} |"
+            if has_modules:
+                fmq = rec.get("fm_quarter", 0) or 0
+                fmh = rec.get("fm_half", 0) or 0
+                fmf = rec.get("fm_full", 0) or 0
+                row += f" {fmq}/{fmh}/{fmf} |"
+            if has_duct:
+                row += f" {rec.get('duct_diameter', 'N/A')} |"
+            if has_depth:
+                row += f" {rec.get('depth', 'N/A')} |"
+            if has_pff:
+                row += f" {rec.get('pff_frames', 'N/A')} | {rec.get('pff_frame_size', 'N/A')} |"
+            if has_passar:
+                pw = rec.get('passar_w', '')
+                ph = rec.get('passar_h', '')
+                row += f" {pw}x{ph} |" if pw else " N/A |"
+            if has_exact:
+                ew = rec.get('exact_w', '')
+                eh = rec.get('exact_h', '')
+                row += f" {ew}x{eh} |" if ew else " N/A |"
+            if rec.get('dq_flag'):
+                row += f" ⚠ {rec['dq_flag']}"
+                if rec.get('dq_note'):
+                    row += f" ({rec['dq_note']})"
 
-        # 4. Capacity rules (cartridge counts)
-        cap_records = session.run("""
-            MATCH (pf:ProductFamily)-[:HAS_CAPACITY]->(cr:CapacityRule)
-            RETURN pf.name AS family,
-                   cr.module_descriptor AS module_descriptor,
-                   cr.cartridge_count AS cartridge_count,
-                   cr.capacity_per_component AS capacity_per_component
-            ORDER BY pf.name, cr.module_descriptor
-        """).data()
+            sections.append(row)
+        sections.append("")
 
-        if cap_records:
-            sections.append("## CAPACITY RULES (Layer 1)\n")
-            sections.append("| Family | Module | Cartridge Count | Capacity/Component |")
-            sections.append("|--------|--------|-----------------|--------------------|")
-            for rec in cap_records:
-                sections.append(f"| {rec.get('family', '?')} | {rec.get('module_descriptor', '?')} | {rec.get('cartridge_count', '?')} | {rec.get('capacity_per_component', '?')} |")
-            sections.append("")
+    # 3. Materials table
+    mat_records = result_to_dicts(graph.query("""
+        MATCH (m:Material)
+        RETURN m.code AS code, m.name AS name,
+               m.corrosion_class AS corrosion_class,
+               m.steel_specification AS steel_spec
+        ORDER BY m.code
+    """))
 
-        # 5. Environments
-        env_records = session.run("""
-            MATCH (e:Environment)
-            RETURN e.id AS id, e.name AS name, e.keywords AS keywords,
-                   e.temperature_variation AS temp_var,
-                   e.humidity_exposure AS humidity
-            ORDER BY e.id
-        """).data()
+    if mat_records:
+        sections.append("## MATERIALS IN GRAPH (Layer 1)\n")
+        sections.append("| Code | Name | Corrosion Class | Steel Spec |")
+        sections.append("|------|------|----------------|------------|")
+        for rec in mat_records:
+            sections.append(f"| {rec.get('code', '?')} | {rec.get('name', '?')} | {rec.get('corrosion_class', '?')} | {rec.get('steel_spec', '-')} |")
+        sections.append("")
 
-        if env_records:
-            sections.append("## ENVIRONMENTS (Layer 2)\n")
-            for rec in env_records:
-                kw = rec.get("keywords", [])
-                kw_str = f" (keywords: {', '.join(kw)})" if kw else ""
-                sections.append(f"- **{rec.get('id', '?')}**: {rec.get('name', '?')}{kw_str}")
-            sections.append("")
+    # 4. Capacity rules (cartridge counts)
+    cap_records = result_to_dicts(graph.query("""
+        MATCH (pf:ProductFamily)-[:HAS_CAPACITY]->(cr:CapacityRule)
+        RETURN pf.name AS family,
+               cr.module_descriptor AS module_descriptor,
+               cr.cartridge_count AS cartridge_count,
+               cr.capacity_per_component AS capacity_per_component
+        ORDER BY pf.name, cr.module_descriptor
+    """))
 
-        # 6. Applications
-        app_records = session.run("""
-            MATCH (a:Application)
-            RETURN a.id AS id, a.name AS name, a.keywords AS keywords
-            ORDER BY a.id
-        """).data()
+    if cap_records:
+        sections.append("## CAPACITY RULES (Layer 1)\n")
+        sections.append("| Family | Module | Cartridge Count | Capacity/Component |")
+        sections.append("|--------|--------|-----------------|--------------------|")
+        for rec in cap_records:
+            sections.append(f"| {rec.get('family', '?')} | {rec.get('module_descriptor', '?')} | {rec.get('cartridge_count', '?')} | {rec.get('capacity_per_component', '?')} |")
+        sections.append("")
 
-        if app_records:
-            sections.append("## APPLICATIONS (Layer 2)\n")
-            for rec in app_records:
-                kw = rec.get("keywords", [])
-                kw_str = f" (keywords: {', '.join(kw)})" if kw else ""
-                sections.append(f"- **{rec.get('id', '?')}**: {rec.get('name', '?')}{kw_str}")
-            sections.append("")
+    # 5. Environments
+    env_records = result_to_dicts(graph.query("""
+        MATCH (e:Environment)
+        RETURN e.id AS id, e.name AS name, e.keywords AS keywords,
+               e.temperature_variation AS temp_var,
+               e.humidity_exposure AS humidity
+        ORDER BY e.id
+    """))
 
-        # 7. Environmental Stressors
-        stressor_records = session.run("""
-            MATCH (es:EnvironmentalStressor)
-            RETURN es.id AS id, es.name AS name, es.severity AS severity,
-                   es.demands AS demands
-            ORDER BY es.id
-        """).data()
+    if env_records:
+        sections.append("## ENVIRONMENTS (Layer 2)\n")
+        for rec in env_records:
+            kw = rec.get("keywords", [])
+            kw_str = f" (keywords: {', '.join(kw)})" if kw else ""
+            sections.append(f"- **{rec.get('id', '?')}**: {rec.get('name', '?')}{kw_str}")
+        sections.append("")
 
-        if stressor_records:
-            sections.append("## ENVIRONMENTAL STRESSORS (Layer 2)\n")
-            for rec in stressor_records:
-                demands = rec.get("demands", "N/A")
-                sections.append(f"- **{rec.get('name', '?')}** ({rec.get('severity', '?')}): {demands}")
-            sections.append("")
+    # 6. Applications
+    app_records = result_to_dicts(graph.query("""
+        MATCH (a:Application)
+        RETURN a.id AS id, a.name AS name, a.keywords AS keywords
+        ORDER BY a.id
+    """))
 
-        # 8. Installation Constraints
-        ic_records = session.run("""
-            MATCH (ic:InstallationConstraint)
-            RETURN ic.id AS id, ic.name AS name, ic.type AS type,
-                   ic.description AS description
-            ORDER BY ic.id
-        """).data()
+    if app_records:
+        sections.append("## APPLICATIONS (Layer 2)\n")
+        for rec in app_records:
+            kw = rec.get("keywords", [])
+            kw_str = f" (keywords: {', '.join(kw)})" if kw else ""
+            sections.append(f"- **{rec.get('id', '?')}**: {rec.get('name', '?')}{kw_str}")
+        sections.append("")
 
-        if ic_records:
-            sections.append("## INSTALLATION CONSTRAINTS (Layer 2)\n")
-            for rec in ic_records:
-                sections.append(f"- **{rec.get('name', '?')}** (type: {rec.get('type', '?')}): {rec.get('description', 'N/A')}")
-            sections.append("")
+    # 7. Environmental Stressors
+    stressor_records = result_to_dicts(graph.query("""
+        MATCH (es:EnvironmentalStressor)
+        RETURN es.id AS id, es.name AS name, es.severity AS severity,
+               es.demands AS demands
+        ORDER BY es.id
+    """))
 
-        # 9. Dependency Rules
-        dep_records = session.run("""
-            MATCH (dr:DependencyRule)
-            RETURN dr.id AS id, dr.name AS name, dr.description AS description
-            ORDER BY dr.id
-        """).data()
+    if stressor_records:
+        sections.append("## ENVIRONMENTAL STRESSORS (Layer 2)\n")
+        for rec in stressor_records:
+            demands = rec.get("demands", "N/A")
+            sections.append(f"- **{rec.get('name', '?')}** ({rec.get('severity', '?')}): {demands}")
+        sections.append("")
 
-        if dep_records:
-            sections.append("## DEPENDENCY RULES (Layer 2)\n")
-            for rec in dep_records:
-                sections.append(f"- **{rec.get('name', '?')}**: {rec.get('description', 'N/A')}")
-            sections.append("")
+    # 8. Installation Constraints
+    ic_records = result_to_dicts(graph.query("""
+        MATCH (ic:InstallationConstraint)
+        RETURN ic.id AS id, ic.name AS name, ic.type AS type,
+               ic.description AS description
+        ORDER BY ic.id
+    """))
 
-        # 10. Node type counts (for completeness check)
-        count_records = session.run("""
-            CALL {
-                MATCH (pf:ProductFamily) RETURN 'ProductFamily' AS label, count(pf) AS cnt
-                UNION ALL
-                MATCH (dm:DimensionModule) RETURN 'DimensionModule' AS label, count(dm) AS cnt
-                UNION ALL
-                MATCH (m:Material) RETURN 'Material' AS label, count(m) AS cnt
-                UNION ALL
-                MATCH (e:Environment) RETURN 'Environment' AS label, count(e) AS cnt
-                UNION ALL
-                MATCH (a:Application) RETURN 'Application' AS label, count(a) AS cnt
-                UNION ALL
-                MATCH (es:EnvironmentalStressor) RETURN 'EnvironmentalStressor' AS label, count(es) AS cnt
-                UNION ALL
-                MATCH (cr:CapacityRule) RETURN 'CapacityRule' AS label, count(cr) AS cnt
-                UNION ALL
-                MATCH (dr:DependencyRule) RETURN 'DependencyRule' AS label, count(dr) AS cnt
-                UNION ALL
-                MATCH (ic:InstallationConstraint) RETURN 'InstallationConstraint' AS label, count(ic) AS cnt
-                UNION ALL
-                MATCH (s:Stressor) RETURN 'Stressor' AS label, count(s) AS cnt
-                UNION ALL
-                MATCH (cr:CausalRule) RETURN 'CausalRule' AS label, count(cr) AS cnt
-                UNION ALL
-                MATCH (ar:AssemblyRule) RETURN 'AssemblyRule' AS label, count(ar) AS cnt
-                UNION ALL
-                MATCH (t:Trait) RETURN 'Trait' AS label, count(t) AS cnt
-                UNION ALL
-                MATCH (sp:SizeProperty) RETURN 'SizeProperty' AS label, count(sp) AS cnt
-            }
-            RETURN label, cnt ORDER BY label
-        """).data()
+    if ic_records:
+        sections.append("## INSTALLATION CONSTRAINTS (Layer 2)\n")
+        for rec in ic_records:
+            sections.append(f"- **{rec.get('name', '?')}** (type: {rec.get('type', '?')}): {rec.get('description', 'N/A')}")
+        sections.append("")
 
-        if count_records:
-            sections.append("## NODE TYPE COUNTS\n")
-            sections.append("| Node Type | Count |")
-            sections.append("|-----------|-------|")
-            for rec in count_records:
-                sections.append(f"| {rec['label']} | {rec['cnt']} |")
-            sections.append("")
+    # 9. Dependency Rules
+    dep_records = result_to_dicts(graph.query("""
+        MATCH (dr:DependencyRule)
+        RETURN dr.id AS id, dr.name AS name, dr.description AS description
+        ORDER BY dr.id
+    """))
+
+    if dep_records:
+        sections.append("## DEPENDENCY RULES (Layer 2)\n")
+        for rec in dep_records:
+            sections.append(f"- **{rec.get('name', '?')}**: {rec.get('description', 'N/A')}")
+        sections.append("")
+
+    # 10. Node type counts (individual queries — FalkorDB doesn't support CALL {} subqueries)
+    node_labels = [
+        "ProductFamily", "DimensionModule", "Material", "Environment",
+        "Application", "EnvironmentalStressor", "CapacityRule", "DependencyRule",
+        "InstallationConstraint", "Stressor", "CausalRule", "AssemblyRule",
+        "Trait", "SizeProperty",
+    ]
+    count_records = []
+    for label in sorted(node_labels):
+        rows = result_to_dicts(graph.query(
+            f"MATCH (n:{label}) RETURN '{label}' AS label, count(n) AS cnt"
+        ))
+        if rows:
+            count_records.append(rows[0])
+
+    if count_records:
+        sections.append("## NODE TYPE COUNTS\n")
+        sections.append("| Node Type | Count |")
+        sections.append("|-----------|-------|")
+        for rec in count_records:
+            sections.append(f"| {rec['label']} | {rec['cnt']} |")
+        sections.append("")
 
     return "\n".join(sections)
 

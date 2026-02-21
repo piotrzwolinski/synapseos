@@ -2660,13 +2660,14 @@ def query_deep_explainable(user_query: str, model: str = None) -> "DeepExplainab
     if detected_product_family:
         try:
             _pf_id = f"FAM_{detected_product_family}" if not detected_product_family.startswith("FAM_") else detected_product_family
-            _pf_rec = db.driver.execute_query(
+            from db_result_helpers import result_single
+            _pf_rec = result_single(db.connect().query(
                 "MATCH (pf:ProductFamily {id: $pf_id}) RETURN pf.corrosion_class AS cc, pf.indoor_only AS io",
-                pf_id=_pf_id
-            )
-            if _pf_rec and _pf_rec.records:
-                _cc = _pf_rec.records[0].get("cc")
-                _io = _pf_rec.records[0].get("io")
+                params={"pf_id": _pf_id}
+            ))
+            if _pf_rec:
+                _cc = _pf_rec.get("cc")
+                _io = _pf_rec.get("io")
                 if _cc:
                     active_policies_prompt += (
                         f"\n\n## HOUSING SPECIFICATION\n"
@@ -4510,13 +4511,14 @@ The user has chosen to remove the accessory option to fit within their space con
     if technical_state.detected_family:
         try:
             _pf_id = f"FAM_{technical_state.detected_family}" if not technical_state.detected_family.startswith("FAM_") else technical_state.detected_family
-            _pf_rec = db.driver.execute_query(
+            from db_result_helpers import result_single
+            _pf_rec = result_single(db.connect().query(
                 "MATCH (pf:ProductFamily {id: $pf_id}) RETURN pf.corrosion_class AS cc, pf.indoor_only AS io",
-                pf_id=_pf_id
-            )
-            if _pf_rec and _pf_rec.records:
-                _cc = _pf_rec.records[0].get("cc")
-                _io = _pf_rec.records[0].get("io")
+                params={"pf_id": _pf_id}
+            ))
+            if _pf_rec:
+                _cc = _pf_rec.get("cc")
+                _io = _pf_rec.get("io")
                 if _cc:
                     graph_reasoning_context += (
                         f"\n\n## HOUSING SPECIFICATION\n"
@@ -4585,17 +4587,18 @@ The user has chosen to remove the accessory option to fit within their space con
     if _is_blocked and technical_state.detected_family:
         try:
             _fam_id = f"FAM_{technical_state.detected_family}" if not technical_state.detected_family.startswith("FAM_") else technical_state.detected_family
-            _mat_result = db.driver.execute_query(
+            from db_result_helpers import result_to_dicts
+            _mat_records = result_to_dicts(db.connect().query(
                 """
                 MATCH (pf:ProductFamily {id: $fam_id})-[:AVAILABLE_IN_MATERIAL]->(m:Material)
                 RETURN m.id AS id, m.name AS name, m.corrosion_class AS corrosion_class
                 ORDER BY m.corrosion_class DESC
                 """,
-                fam_id=_fam_id
-            )
-            if _mat_result and _mat_result.records:
+                params={"fam_id": _fam_id}
+            ))
+            if _mat_records:
                 _mat_lines = []
-                for rec in _mat_result.records:
+                for rec in _mat_records:
                     _mat_lines.append(f"  - **{rec['name']}** (corrosion class {rec['corrosion_class']})")
                 _mat_text = (
                     f"**⚡ AVAILABLE MATERIALS for {technical_state.detected_family}:**\n"

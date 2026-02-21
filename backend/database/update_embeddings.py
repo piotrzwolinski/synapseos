@@ -21,7 +21,8 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
-from neo4j import GraphDatabase
+from db_result_helpers import result_to_dicts, result_single, result_value
+from falkordb import FalkorDB
 
 load_dotenv(dotenv_path="../.env")
 
@@ -58,7 +59,7 @@ def get_embedding(text: str) -> list[float]:
         return result['embedding']
 
 
-def create_vector_indexes(driver, database: str):
+def create_vector_indexes(graph):
     """Create vector indexes for semantic search on domain nodes."""
     indexes = [
         (APPLICATION_INDEX, "Application"),
@@ -66,194 +67,190 @@ def create_vector_indexes(driver, database: str):
         (SUBSTANCE_INDEX, "Substance"),
     ]
 
-    with driver.session(database=database) as session:
-        for index_name, label in indexes:
-            try:
-                # Try to create the vector index (IF NOT EXISTS handles duplicates)
-                session.run(f"""
-                    CREATE VECTOR INDEX {index_name} IF NOT EXISTS
-                    FOR (n:{label})
-                    ON (n.embedding)
-                    OPTIONS {{
-                        indexConfig: {{
-                            `vector.dimensions`: {EMBEDDING_DIMENSIONS},
-                            `vector.similarity_function`: 'cosine'
-                        }}
+    for index_name, label in indexes:
+        try:
+            # Try to create the vector index (IF NOT EXISTS handles duplicates)
+            graph.query(f"""
+                CREATE VECTOR INDEX {index_name} IF NOT EXISTS
+                FOR (n:{label})
+                ON (n.embedding)
+                OPTIONS {{
+                    indexConfig: {{
+                        `vector.dimensions`: {EMBEDDING_DIMENSIONS},
+                        `vector.similarity_function`: 'cosine'
                     }}
-                """)
-                print(f"   Created/verified vector index: {index_name} on {label}")
+                }}
+            """)
+            print(f"   Created/verified vector index: {index_name} on {label}")
 
-            except Exception as e:
-                error_msg = str(e).lower()
-                if "already exists" in error_msg or "equivalent" in error_msg:
-                    print(f"   Index '{index_name}' already exists")
-                else:
-                    print(f"   Warning: Could not create index {index_name}: {e}")
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "already exists" in error_msg or "equivalent" in error_msg:
+                print(f"   Index '{index_name}' already exists")
+            else:
+                print(f"   Warning: Could not create index {index_name}: {e}")
 
 
-def update_application_embeddings(driver, database: str):
+def update_application_embeddings(graph):
     """Add embeddings to Application nodes."""
     print("\n   Fetching Application nodes...")
 
-    with driver.session(database=database) as session:
-        # Get all applications
-        result = session.run("""
-            MATCH (app:Application)
-            WHERE app.embedding IS NULL
-            RETURN app.id AS id, app.name AS name, app.keywords AS keywords
-        """)
+    # Get all applications
+    result = graph.query("""
+        MATCH (app:Application)
+        WHERE app.embedding IS NULL
+        RETURN app.id AS id, app.name AS name, app.keywords AS keywords
+    """)
 
-        applications = list(result)
+    applications = list(result)
 
-        if not applications:
-            print("   No Application nodes need embeddings (already embedded or none exist)")
-            return 0
+    if not applications:
+        print("   No Application nodes need embeddings (already embedded or none exist)")
+        return 0
 
-        print(f"   Found {len(applications)} Application nodes to embed...")
+    print(f"   Found {len(applications)} Application nodes to embed...")
 
-        embedded_count = 0
-        for app in applications:
-            app_id = app["id"]
-            name = app["name"]
-            keywords = app["keywords"] or []
+    embedded_count = 0
+    for app in applications:
+        app_id = app["id"]
+        name = app["name"]
+        keywords = app["keywords"] or []
 
-            # Create rich text for embedding: name + keywords + semantic expansion
-            # This improves semantic matching (e.g., "Surgery Center" -> "Hospital")
-            text_for_embedding = f"{name}. Keywords: {', '.join(keywords)}."
+        # Create rich text for embedding: name + keywords + semantic expansion
+        # This improves semantic matching (e.g., "Surgery Center" -> "Hospital")
+        text_for_embedding = f"{name}. Keywords: {', '.join(keywords)}."
 
-            # Add semantic context based on domain knowledge
-            semantic_expansions = {
-                "Hospital": "medical facility, healthcare, surgery center, clinic, operating room, patient care, hygiene critical environment",
-                "Swimming Pool": "aquatic facility, chlorinated water, natatorium, water park, leisure pool, swim center",
-                "Commercial Kitchen": "food service, restaurant kitchen, culinary facility, food preparation, cooking area",
-                "Paint Shop": "painting facility, spray booth, coating, finishing, automotive painting, industrial coating",
-                "Marine/Offshore": "ship, vessel, offshore platform, maritime, sea environment, coastal, salt spray",
-                "Laboratory": "research facility, cleanroom, pharmaceutical, scientific, sterile environment",
-                "Office/Commercial": "workplace, business center, corporate, commercial building, standard environment"
-            }
+        # Add semantic context based on domain knowledge
+        semantic_expansions = {
+            "Hospital": "medical facility, healthcare, surgery center, clinic, operating room, patient care, hygiene critical environment",
+            "Swimming Pool": "aquatic facility, chlorinated water, natatorium, water park, leisure pool, swim center",
+            "Commercial Kitchen": "food service, restaurant kitchen, culinary facility, food preparation, cooking area",
+            "Paint Shop": "painting facility, spray booth, coating, finishing, automotive painting, industrial coating",
+            "Marine/Offshore": "ship, vessel, offshore platform, maritime, sea environment, coastal, salt spray",
+            "Laboratory": "research facility, cleanroom, pharmaceutical, scientific, sterile environment",
+            "Office/Commercial": "workplace, business center, corporate, commercial building, standard environment"
+        }
 
-            if name in semantic_expansions:
-                text_for_embedding += f" Related concepts: {semantic_expansions[name]}"
+        if name in semantic_expansions:
+            text_for_embedding += f" Related concepts: {semantic_expansions[name]}"
 
-            try:
-                embedding = get_embedding(text_for_embedding)
+        try:
+            embedding = get_embedding(text_for_embedding)
 
-                # Update the node with embedding
-                # Neo4j accepts float arrays directly as properties
-                session.run("""
-                    MATCH (app:Application {id: $id})
-                    SET app.embedding = $embedding,
-                        app.embedding_text = $text
-                """, id=app_id, embedding=embedding, text=text_for_embedding)
+            # Update the node with embedding
+            # Neo4j accepts float arrays directly as properties
+            graph.query("""
+                MATCH (app:Application {id: $id})
+                SET app.embedding = $embedding,
+                    app.embedding_text = $text
+            """, id=app_id, embedding=embedding, text=text_for_embedding)
 
-                embedded_count += 1
-                print(f"      Embedded: {name}")
+            embedded_count += 1
+            print(f"      Embedded: {name}")
 
-            except Exception as e:
-                print(f"      Error embedding {name}: {e}")
+        except Exception as e:
+            print(f"      Error embedding {name}: {e}")
 
-        return embedded_count
+    return embedded_count
 
 
-def update_risk_embeddings(driver, database: str):
+def update_risk_embeddings(graph):
     """Add embeddings to Risk nodes."""
     print("\n   Fetching Risk nodes...")
 
-    with driver.session(database=database) as session:
-        result = session.run("""
-            MATCH (r:Risk)
-            WHERE r.embedding IS NULL
-            RETURN r.id AS id, r.name AS name, r.desc AS description, r.severity AS severity
-        """)
+    result = graph.query("""
+        MATCH (r:Risk)
+        WHERE r.embedding IS NULL
+        RETURN r.id AS id, r.name AS name, r.desc AS description, r.severity AS severity
+    """)
 
-        risks = list(result)
+    risks = list(result)
 
-        if not risks:
-            print("   No Risk nodes need embeddings")
-            return 0
+    if not risks:
+        print("   No Risk nodes need embeddings")
+        return 0
 
-        print(f"   Found {len(risks)} Risk nodes to embed...")
+    print(f"   Found {len(risks)} Risk nodes to embed...")
 
-        embedded_count = 0
-        for risk in risks:
-            risk_id = risk["id"]
-            name = risk["name"]
-            description = risk["description"] or ""
-            severity = risk["severity"] or ""
+    embedded_count = 0
+    for risk in risks:
+        risk_id = risk["id"]
+        name = risk["name"]
+        description = risk["description"] or ""
+        severity = risk["severity"] or ""
 
-            text_for_embedding = f"Risk: {name}. {description}. Severity: {severity}"
+        text_for_embedding = f"Risk: {name}. {description}. Severity: {severity}"
 
-            try:
-                embedding = get_embedding(text_for_embedding)
+        try:
+            embedding = get_embedding(text_for_embedding)
 
-                session.run("""
-                    MATCH (r:Risk {id: $id})
-                    SET r.embedding = $embedding,
-                        r.embedding_text = $text
-                """, id=risk_id, embedding=embedding, text=text_for_embedding)
+            graph.query("""
+                MATCH (r:Risk {id: $id})
+                SET r.embedding = $embedding,
+                    r.embedding_text = $text
+            """, id=risk_id, embedding=embedding, text=text_for_embedding)
 
-                embedded_count += 1
-                print(f"      Embedded: {name}")
+            embedded_count += 1
+            print(f"      Embedded: {name}")
 
-            except Exception as e:
-                print(f"      Error embedding {name}: {e}")
+        except Exception as e:
+            print(f"      Error embedding {name}: {e}")
 
-        return embedded_count
+    return embedded_count
 
 
-def update_substance_embeddings(driver, database: str):
+def update_substance_embeddings(graph):
     """Add embeddings to Substance nodes."""
     print("\n   Fetching Substance nodes...")
 
-    with driver.session(database=database) as session:
-        result = session.run("""
-            MATCH (s:Substance)
-            WHERE s.embedding IS NULL
-            RETURN s.id AS id, s.name AS name
-        """)
+    result = graph.query("""
+        MATCH (s:Substance)
+        WHERE s.embedding IS NULL
+        RETURN s.id AS id, s.name AS name
+    """)
 
-        substances = list(result)
+    substances = list(result)
 
-        if not substances:
-            print("   No Substance nodes need embeddings")
-            return 0
+    if not substances:
+        print("   No Substance nodes need embeddings")
+        return 0
 
-        print(f"   Found {len(substances)} Substance nodes to embed...")
+    print(f"   Found {len(substances)} Substance nodes to embed...")
 
-        embedded_count = 0
-        for sub in substances:
-            sub_id = sub["id"]
-            name = sub["name"]
+    embedded_count = 0
+    for sub in substances:
+        sub_id = sub["id"]
+        name = sub["name"]
 
-            # Add context for substances
-            substance_context = {
-                "Chlorine": "chemical disinfectant, pool treatment, corrosive gas, bleach",
-                "Salt Spray": "marine environment, coastal, sea salt, sodium chloride aerosol",
-                "Grease": "cooking oil, kitchen exhaust, lipids, animal fat",
-                "Water Vapor": "humidity, moisture, condensation, steam",
-                "Paint Mist": "overspray, coating particles, aerosol paint, VOC",
-                "Solvent Gases": "volatile organic compounds, paint thinner, chemical fumes"
-            }
+        # Add context for substances
+        substance_context = {
+            "Chlorine": "chemical disinfectant, pool treatment, corrosive gas, bleach",
+            "Salt Spray": "marine environment, coastal, sea salt, sodium chloride aerosol",
+            "Grease": "cooking oil, kitchen exhaust, lipids, animal fat",
+            "Water Vapor": "humidity, moisture, condensation, steam",
+            "Paint Mist": "overspray, coating particles, aerosol paint, VOC",
+            "Solvent Gases": "volatile organic compounds, paint thinner, chemical fumes"
+        }
 
-            context = substance_context.get(name, "")
-            text_for_embedding = f"Substance: {name}. {context}" if context else f"Substance: {name}"
+        context = substance_context.get(name, "")
+        text_for_embedding = f"Substance: {name}. {context}" if context else f"Substance: {name}"
 
-            try:
-                embedding = get_embedding(text_for_embedding)
+        try:
+            embedding = get_embedding(text_for_embedding)
 
-                session.run("""
-                    MATCH (s:Substance {id: $id})
-                    SET s.embedding = $embedding,
-                        s.embedding_text = $text
-                """, id=sub_id, embedding=embedding, text=text_for_embedding)
+            graph.query("""
+                MATCH (s:Substance {id: $id})
+                SET s.embedding = $embedding,
+                    s.embedding_text = $text
+            """, id=sub_id, embedding=embedding, text=text_for_embedding)
 
-                embedded_count += 1
-                print(f"      Embedded: {name}")
+            embedded_count += 1
+            print(f"      Embedded: {name}")
 
-            except Exception as e:
-                print(f"      Error embedding {name}: {e}")
+        except Exception as e:
+            print(f"      Error embedding {name}: {e}")
 
-        return embedded_count
+    return embedded_count
 
 
 def main():
@@ -263,50 +260,47 @@ def main():
     print("=" * 60)
 
     # Connect to Neo4j
-    uri = os.getenv("NEO4J_URI")
-    user = os.getenv("NEO4J_USER")
-    password = os.getenv("NEO4J_PASSWORD")
-    database = os.getenv("NEO4J_DATABASE", "neo4j")
+    host = os.getenv("FALKORDB_HOST", "localhost")
+    port = int(os.getenv("FALKORDB_PORT", 6379))
+    password = os.getenv("FALKORDB_PASSWORD", None)
+    graph_name = os.getenv("FALKORDB_GRAPH", "hvac")
 
-    if not all([uri, user, password]):
-        print("Error: Missing Neo4j connection environment variables")
-        print("Required: NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD")
-        sys.exit(1)
+    # FalkorDB connects with defaults if env vars not set
 
-    print(f"\nConnecting to Neo4j at {uri}...")
-    driver = GraphDatabase.driver(uri, auth=(user, password))
+    print(f"\nConnecting to FalkorDB at {uri}...")
+    db = FalkorDB(host=host, port=port, password=password)
+    graph = db.select_graph(graph_name)
 
     try:
         # Verify connection
-        with driver.session(database=database) as session:
-            result = session.run("RETURN 1 AS test")
-            if result.single()["test"] != 1:
-                raise Exception("Connection test failed")
+        result = graph.query("RETURN 1 AS test")
+        if result_single(result)["test"] != 1:
+            raise Exception("Connection test failed")
         print("   Connected successfully!")
 
         # Step 1: Create vector indexes
         print("\n" + "-" * 40)
         print("STEP 1: Creating Vector Indexes")
         print("-" * 40)
-        create_vector_indexes(driver, database)
+        create_vector_indexes(graph)
 
         # Step 2: Embed Application nodes
         print("\n" + "-" * 40)
         print("STEP 2: Embedding Application Nodes")
         print("-" * 40)
-        app_count = update_application_embeddings(driver, database)
+        app_count = update_application_embeddings(graph)
 
         # Step 3: Embed Risk nodes
         print("\n" + "-" * 40)
         print("STEP 3: Embedding Risk Nodes")
         print("-" * 40)
-        risk_count = update_risk_embeddings(driver, database)
+        risk_count = update_risk_embeddings(graph)
 
         # Step 4: Embed Substance nodes
         print("\n" + "-" * 40)
         print("STEP 4: Embedding Substance Nodes")
         print("-" * 40)
-        sub_count = update_substance_embeddings(driver, database)
+        sub_count = update_substance_embeddings(graph)
 
         # Summary
         print("\n" + "=" * 60)
@@ -323,7 +317,7 @@ def main():
         print(f"\nError during migration: {e}")
         sys.exit(1)
     finally:
-        driver.close()
+        pass  # FalkorDB connection auto-managed
 
 
 if __name__ == "__main__":

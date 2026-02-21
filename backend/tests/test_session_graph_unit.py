@@ -17,23 +17,23 @@ from backend.logic.session_graph import SessionGraphManager
 
 
 @pytest.fixture
-def mock_driver():
-    """Mock Neo4j driver with session context manager."""
-    driver = MagicMock()
-    session = MagicMock()
-    driver.session.return_value.__enter__ = MagicMock(return_value=session)
-    driver.session.return_value.__exit__ = MagicMock(return_value=False)
-    return driver, session
+def mock_graph():
+    """Mock FalkorDB graph for SessionGraphManager."""
+    graph = MagicMock()
+    # Default: empty result (result_to_dicts returns [])
+    mock_result = MagicMock()
+    mock_result.result_set = None
+    mock_result.header = []
+    graph.query.return_value = mock_result
+    return graph
 
 
 @pytest.fixture
-def sgm(mock_driver):
-    """SessionGraphManager with mocked driver."""
-    driver, session = mock_driver
+def sgm(mock_graph):
+    """SessionGraphManager with mocked FalkorDB graph."""
     db = MagicMock()
-    db.driver = driver
-    db.database = "neo4j"
-    return SessionGraphManager(db), session
+    db.connect.return_value = mock_graph
+    return SessionGraphManager(db), mock_graph
 
 
 # =============================================================================
@@ -42,24 +42,23 @@ def sgm(mock_driver):
 
 class TestSessionLifecycle:
     def test_ensure_session_calls_merge(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         mgr.ensure_session("test_session_1")
-        session.run.assert_called_once()
-        cypher = session.run.call_args[0][0]
+        mock_graph.query.assert_called_once()
+        cypher = mock_graph.query.call_args[0][0]
         assert "MERGE (s:Session {id: $session_id})" in cypher
-        params = session.run.call_args[0][1]
+        params = mock_graph.query.call_args[1]["params"]
         assert params["session_id"] == "test_session_1"
 
     def test_clear_session_detach_deletes(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         mgr.clear_session("test_session_1")
-        cypher = session.run.call_args[0][0]
+        cypher = mock_graph.query.call_args[0][0]
         assert "DETACH DELETE" in cypher
         assert "Session {id: $session_id}" in cypher
 
     def test_cleanup_stale_sessions_uses_cutoff(self, sgm):
-        mgr, session = sgm
-        session.run.return_value = iter([{"cleaned": 3}])
+        mgr, mock_graph = sgm
         # Mock _run_query to return list of dicts
         mgr._run_query = MagicMock(return_value=[{"cleaned": 3}])
         cleaned = mgr.cleanup_stale_sessions(max_age_ms=3600000)
@@ -72,60 +71,60 @@ class TestSessionLifecycle:
 
 class TestProjectManagement:
     def test_set_project_creates_active_project(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         mgr.set_project("sess1", "MyProject", customer="Acme")
-        cypher = session.run.call_args[0][0]
+        cypher = mock_graph.query.call_args[0][0]
         assert "ActiveProject" in cypher
         assert "MERGE" in cypher
-        params = session.run.call_args[0][1]
+        params = mock_graph.query.call_args[1]["params"]
         assert params["project_name"] == "MyProject"
         assert params["customer"] == "Acme"
 
     def test_lock_material_links_to_layer1(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         mgr.lock_material("sess1", "RF")
-        cypher = session.run.call_args[0][0]
+        cypher = mock_graph.query.call_args[0][0]
         assert "USES_MATERIAL" in cypher
         assert "Material {code: $material_code}" in cypher
-        params = session.run.call_args[0][1]
+        params = mock_graph.query.call_args[1]["params"]
         assert params["material_code"] == "RF"
 
     def test_lock_material_uppercases_code(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         mgr.lock_material("sess1", "rf")
-        params = session.run.call_args[0][1]
+        params = mock_graph.query.call_args[1]["params"]
         assert params["material_code"] == "RF"
 
     def test_set_detected_family_links_to_layer1(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         mgr.set_detected_family("sess1", "GDB")
-        cypher = session.run.call_args[0][0]
+        cypher = mock_graph.query.call_args[0][0]
         assert "TARGETS_FAMILY" in cypher
         assert "ProductFamily {id: $family_id}" in cypher
-        params = session.run.call_args[0][1]
+        params = mock_graph.query.call_args[1]["params"]
         assert params["family"] == "GDB"
         assert params["family_id"] == "FAM_GDB"
 
     def test_set_pending_clarification(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         mgr.set_pending_clarification("sess1", "door_side")
-        params = session.run.call_args[0][1]
+        params = mock_graph.query.call_args[1]["params"]
         assert params["param_name"] == "door_side"
 
     def test_clear_pending_clarification(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         mgr.set_pending_clarification("sess1", None)
-        params = session.run.call_args[0][1]
+        params = mock_graph.query.call_args[1]["params"]
         assert params["param_name"] is None
 
     def test_set_accessories(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         mgr.set_accessories("sess1", ["ACC_RAIN_HOOD", "ACC_FILTER_RACK"])
-        params = session.run.call_args[0][1]
+        params = mock_graph.query.call_args[1]["params"]
         assert params["accessories"] == ["ACC_RAIN_HOOD", "ACC_FILTER_RACK"]
 
     def test_set_assembly_group_stores_json(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         assembly = {
             "group_id": "asm_1",
             "stages": [
@@ -134,22 +133,22 @@ class TestProjectManagement:
             ],
         }
         mgr.set_assembly_group("sess1", assembly)
-        params = session.run.call_args[0][1]
+        params = mock_graph.query.call_args[1]["params"]
         parsed = json.loads(params["assembly_json"])
         assert parsed["group_id"] == "asm_1"
         assert len(parsed["stages"]) == 2
 
     def test_set_resolved_params_stores_json(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         mgr.set_resolved_params("sess1", {"connection_type": "PG", "door_side": "R"})
-        params = session.run.call_args[0][1]
+        params = mock_graph.query.call_args[1]["params"]
         parsed = json.loads(params["params_json"])
         assert parsed["connection_type"] == "PG"
 
     def test_set_vetoed_families_stores_json(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         mgr.set_vetoed_families("sess1", ["FAM_GDC_FLEX", "FAM_GDMI"])
-        params = session.run.call_args[0][1]
+        params = mock_graph.query.call_args[1]["params"]
         parsed = json.loads(params["vetoed_json"])
         assert "FAM_GDC_FLEX" in parsed
 
@@ -160,20 +159,20 @@ class TestProjectManagement:
 
 class TestConversationHistory:
     def test_store_turn_creates_node(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         mgr.store_turn("sess1", "user", "Hello, I need a filter", 1)
-        cypher = session.run.call_args[0][0]
+        cypher = mock_graph.query.call_args[0][0]
         assert "ConversationTurn" in cypher
         assert "MERGE" in cypher
-        params = session.run.call_args[0][1]
+        params = mock_graph.query.call_args[1]["params"]
         assert params["role"] == "user"
         assert params["turn_number"] == 1
 
     def test_store_turn_truncates_message(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         long_msg = "x" * 3000
         mgr.store_turn("sess1", "user", long_msg, 1)
-        params = session.run.call_args[0][1]
+        params = mock_graph.query.call_args[1]["params"]
         assert len(params["message"]) == 2000
 
     def test_get_recent_turns_reverses_order(self, sgm):
@@ -344,22 +343,22 @@ class TestStateRetrieval:
 # =============================================================================
 
 class TestForeachPatterns:
-    """FalkorDB doesn't support FOREACH — these tests document every usage
-    so they can be systematically replaced during migration."""
+    """Document FOREACH usage — FalkorDB may not support it; these track which
+    methods use FOREACH so they can be tested against live FalkorDB."""
 
     def test_lock_material_uses_foreach(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         mgr.lock_material("sess1", "RF")
-        cypher = session.run.call_args[0][0]
+        cypher = mock_graph.query.call_args[0][0]
         assert "FOREACH" in cypher, \
-            "lock_material must use FOREACH — migration target for FalkorDB"
+            "lock_material uses FOREACH — verify against live FalkorDB"
 
     def test_set_detected_family_uses_foreach(self, sgm):
-        mgr, session = sgm
+        mgr, mock_graph = sgm
         mgr.set_detected_family("sess1", "GDB")
-        cypher = session.run.call_args[0][0]
+        cypher = mock_graph.query.call_args[0][0]
         assert "FOREACH" in cypher, \
-            "set_detected_family must use FOREACH — migration target for FalkorDB"
+            "set_detected_family uses FOREACH — verify against live FalkorDB"
 
     def test_upsert_tag_dimension_link_uses_foreach(self, sgm):
         mgr, _ = sgm
@@ -370,4 +369,4 @@ class TestForeachPatterns:
         mgr.upsert_tag("sess1", "item_1", filter_width=600, filter_height=600)
         link_cypher = mgr._run_write.call_args[0][0]
         assert "FOREACH" in link_cypher, \
-            "upsert_tag DimensionModule link uses FOREACH — migration target"
+            "upsert_tag DimensionModule link uses FOREACH — verify against live FalkorDB"

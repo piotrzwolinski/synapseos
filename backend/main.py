@@ -1059,15 +1059,15 @@ async def consult_universal_stream(request: ConsultRequest, _user: str = Depends
 
             llm_client = genai_client.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-            # Wrap Neo4jConnection with a .query() adapter for the universal engine
+            # Wrap GraphConnection with a .query() adapter for the universal engine
             class DbQueryAdapter:
-                def __init__(self, neo4j_conn):
-                    self._conn = neo4j_conn
+                def __init__(self, conn):
+                    self._conn = conn
                 def query(self, cypher, params=None):
-                    driver = self._conn.connect()
-                    with driver.session(database=self._conn.database) as session:
-                        result = session.run(cypher, parameters=params or {})
-                        return [dict(r) for r in result]
+                    from db_result_helpers import result_to_dicts
+                    graph = self._conn.connect()
+                    result = graph.query(cypher, params=params or {})
+                    return result_to_dicts(result)
 
             db_adapter = DbQueryAdapter(db)
             adapter = GraphEngineAdapter(db_connection=db_adapter, llm_client=llm_client)
