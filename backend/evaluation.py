@@ -206,34 +206,6 @@ Zwróć TYLKO valid JSON."""
 
 BASE_URL = "http://localhost:8000"
 
-async def set_model(model: str) -> bool:
-    """Set the model via API."""
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                f"{BASE_URL}/chat/model",
-                json={"model": model},
-                timeout=10.0
-            )
-            return response.status_code == 200
-        except Exception as e:
-            print(f"Error setting model: {e}")
-            return False
-
-
-async def set_thinking_level(level: str) -> bool:
-    """Set thinking level via API."""
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                f"{BASE_URL}/chat/thinking",
-                json={"level": level},
-                timeout=10.0
-            )
-            return response.status_code == 200
-        except Exception as e:
-            print(f"Error setting thinking level: {e}")
-            return False
 
 
 async def query_system(question: str) -> tuple[dict, float]:
@@ -396,9 +368,6 @@ async def run_evaluation():
             print(f"Configuration: {config_name}")
             print(f"{'='*60}")
 
-            # Set configuration
-            await set_model(model_id)
-            await set_thinking_level(thinking_id)
 
             for test_case in TEST_CASES:
                 print(f"\n  [{test_case.id}] {test_case.question[:50]}...")

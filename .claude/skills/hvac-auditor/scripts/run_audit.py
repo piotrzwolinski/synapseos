@@ -277,9 +277,8 @@ def main():
 
     # Clear session
     try:
-        requests.post(
-            f"{BASE_URL}/chat/clear",
-            json={"session_id": session_id},
+        requests.delete(
+            f"{BASE_URL}/session/{session_id}",
             headers={"Authorization": f"Bearer {token}"},
             timeout=5,
         )

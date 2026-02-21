@@ -124,28 +124,6 @@ class TestSessionEndpoints:
 
 
 # =============================================================================
-# CHAT ENDPOINTS
-# =============================================================================
-
-class TestChatEndpoints:
-    def test_chat_accepts_message_shape(self, client):
-        """Test that /chat accepts the correct request shape."""
-        resp = client.post(
-            "/chat",
-            json={"message": "Hello", "session_id": "test"},
-        )
-        # 200 on success, 500 when chat backend unavailable in test env
-        assert resp.status_code in (200, 500)
-
-    def test_chat_clear(self, client):
-        resp = client.post(
-            "/chat/clear",
-            json={"session_id": "test"},
-        )
-        assert resp.status_code in (200, 422, 500)
-
-
-# =============================================================================
 # CONFIG ENDPOINTS
 # =============================================================================
 
@@ -180,12 +158,3 @@ class TestRequestShapes:
         req2 = ConsultRequest(query="test", session_id="sess1")
         assert req2.session_id == "sess1"
 
-    def test_chat_message_shape(self):
-        """ChatMessage must accept message + session_id with default."""
-        from backend.main import ChatMessage
-        msg = ChatMessage(message="hello")
-        assert msg.message == "hello"
-        assert msg.session_id == "default"
-
-        msg2 = ChatMessage(message="hi", session_id="custom")
-        assert msg2.session_id == "custom"

@@ -50,8 +50,6 @@ import { cn } from "@/lib/utils";
 import { AuthGuard } from "@/components/auth-guard";
 import { clearToken } from "@/lib/auth";
 
-type ChatMode = "llm-driven" | "graphrag" | "graph-reasoning" | "neuro-symbolic";
-
 type TabType = "chat" | "ingest" | "explore" | "knowledge" | "testlab" | "testgen" | "capabilities" | "expert-review" | "analytics" | "workflows" | "users" | "integrations" | "audit" | "batch-results" | "bulk-offer" | "use-cases" | "settings";
 type IngestSubTab = "threads" | "docs";
 
@@ -584,10 +582,8 @@ function MainApp() {
   const [autoSubmit, setAutoSubmit] = useState(() => !!pendingQuestion);
   const [pendingSampleText, setPendingSampleText] = useState<string | null>(null);
 
-  // Chat settings (lifted from Chat component)
-  const [explainableMode] = useState(false);  // Use regular chat with widgets
+  // Chat settings
   const expertMode = true;
-  const chatMode: ChatMode = "graph-reasoning";
   const chatRef = useRef<{ clearChat: () => void; testWidgets: () => void } | null>(null);
 
 
@@ -806,10 +802,8 @@ function MainApp() {
                 externalQuestion={pendingQuestion || undefined}
                 autoSubmit={autoSubmit}
                 onQuestionConsumed={() => { setPendingQuestion(null); setAutoSubmit(false); }}
-                explainableMode={explainableMode}
                 expertMode={expertMode}
                 onExpertModeChange={() => {}}
-                chatMode={chatMode}
               />
             )}
             {activeTab === "ingest" && (

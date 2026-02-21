@@ -30,6 +30,5 @@ Frontend runs on http://localhost:3000
 
 ## API Endpoints
 
-- `POST /chat` - Send a message to the chatbot
-- `POST /chat/clear` - Clear chat history
+- `POST /consult/deep-explainable/stream` - Graph Reasoning (SSE streaming)
 - `GET /graph/stats` - Get Neo4j graph statistics
