@@ -15,11 +15,11 @@ from enum import Enum
 
 
 class MaterialCode(str, Enum):
-    """Material codes for housing variants."""
-    RF = "RF"  # Stainless Steel (Rostfri)
-    FZ = "FZ"  # Galvanized
-    ZM = "ZM"  # Zinc-Magnesium
-    SF = "SF"  # Sendzimir
+    """Material codes for product variants."""
+    RF = "RF"
+    FZ = "FZ"
+    ZM = "ZM"
+    SF = "SF"
 
 
 @dataclass
@@ -41,8 +41,8 @@ class TagSpecification:
     airflow_m3h: Optional[int] = None
 
     # Product selection
-    product_family: Optional[str] = None  # GDB, GDC, GDP, GDMI
-    product_code: Optional[str] = None    # Full code: GDB-300x600-550-R-PG-RF
+    product_family: Optional[str] = None  # Product family identifier
+    product_code: Optional[str] = None    # Full product code
 
     # Additional specs
     quantity: int = 1
@@ -55,7 +55,7 @@ class TagSpecification:
     rated_airflow_m3h: Optional[int] = None    # Catalog rated capacity per module (from DimensionModule)
 
     # Material (per-tag override when global locked_material is incompatible)
-    material_override: Optional[str] = None   # e.g., "AZ" if locked "FZ" isn't available for this tag's family
+    material_override: Optional[str] = None   # Override when global locked material is incompatible with this tag's family
 
     # Assembly membership (multi-stage filtration)
     assembly_role: Optional[str] = None       # "PROTECTOR" or "TARGET"
@@ -85,16 +85,12 @@ class TagSpecification:
         self.normalize_orientation()
 
     def normalize_orientation(self):
-        """Normalize housing dimensions to enforce HVAC industry standard.
+        """Normalize dimensions to enforce orientation standard.
 
-        HVAC RULE: For small modular housings (up to 600x600), the LARGER
-        dimension is ALWAYS the HEIGHT (vertical). This is critical for:
-        - 305x610 filter → 300x600 housing → 600mm is HEIGHT (vertical)
-        - 610x305 filter → 300x600 housing → 600mm is HEIGHT (vertical)
-
-        For larger housings (any dimension > 600mm), the orientation is
-        determined by the sizing arrangement and user constraints (e.g.,
-        max_height_mm), so we do NOT swap.
+        For small modular units (up to threshold), the LARGER dimension
+        is ALWAYS the HEIGHT (vertical). For larger units the orientation
+        is determined by the sizing arrangement and user constraints.
+        Threshold loaded from domain config.
         """
         if not self.housing_width or not self.housing_height:
             return
@@ -124,8 +120,10 @@ class TagSpecification:
             return
 
         from logic.dimension_tables import derive_housing_length
+        from config_loader import get_config
+        _default_family = get_config().default_product_family or ""
         self.housing_length = derive_housing_length(
-            self.filter_depth, self.product_family or "GDB"
+            self.filter_depth, self.product_family or _default_family
         )
 
     def check_completeness(self) -> tuple[bool, list[str]]:
@@ -168,7 +166,7 @@ class TechnicalState:
     last_resolved_params: list[str] = field(default_factory=list)
 
     # Product family detection
-    detected_family: Optional[str] = None  # GDB, GDC, etc.
+    detected_family: Optional[str] = None  # Detected from user query or graph
 
     # Accessories
     accessories: list[str] = field(default_factory=list)
@@ -183,11 +181,11 @@ class TechnicalState:
     # Assembly tracking (multi-stage filtration)
     assembly_group: Optional[dict] = None
     # Structure: {"group_id": "assembly_item_1", "rationale": "...",
-    #   "stages": [{"role": "PROTECTOR", "product_family": "GDP", "tag_id": "item_1_stage_1"}, ...]}
+    #   "stages": [{"role": "PROTECTOR", "product_family": "FAMILY_X", "tag_id": "item_1_stage_1"}, ...]}
 
     # Veto persistence: product families vetoed by the engine (persisted across turns)
     vetoed_families: list[str] = field(default_factory=list)
-    # e.g., ["FAM_GDC_FLEX"] — engine veto for this session, remembered on continuation turns
+    # e.g., ["FAM_EXAMPLE"] — engine veto for this session, remembered on continuation turns
 
     def merge_tag(self, tag_id: str, **kwargs) -> TagSpecification:
         """Merge new data into a tag specification.
@@ -245,7 +243,7 @@ class TechnicalState:
             if not pf_name:
                 pf_id = getattr(stage, 'product_family_id', '') or ''
                 pf_name = pf_id.replace("FAM_", "")
-            # Normalize: "GDP Planfilterskåp" → "GDP" (strip descriptive suffix)
+            # Normalize: "FAMILY Description" → "FAMILY" (strip descriptive suffix)
             if ' ' in pf_name:
                 pf_name = pf_name.split()[0]
 
@@ -336,16 +334,8 @@ class TechnicalState:
                 return aliases
         except Exception:
             pass
-        # Hardcoded fallback
-        return {
-            'STAINLESS': MaterialCode.RF,
-            'STAINLESS STEEL': MaterialCode.RF,
-            'ROSTFRI': MaterialCode.RF,
-            'NIERDZEWNA': MaterialCode.RF,
-            'GALVANIZED': MaterialCode.FZ,
-            'ZINC': MaterialCode.FZ,
-            'CYNK': MaterialCode.FZ,
-        }
+        # Empty fallback — all aliases come from tenant config
+        return {}
 
     def set_project(self, project_name: str):
         """Set project name. Once set, persists."""
@@ -400,8 +390,6 @@ class TechnicalState:
                 lines.append(f"  ⛔ PROHIBITION: Do NOT use FZ if {mat_code} is specified. Do NOT revert to default.")
             if self.detected_family:
                 lines.append(f"- **Product Family:** {self.detected_family}")
-                if self.detected_family in ("GDMI", "GDMI_FLEX"):
-                    lines.append(f"  (Indoor use only per catalog)")
             if self.accessories:
                 lines.append(f"- **Accessories:** {', '.join(self.accessories)}")
             if self.resolved_params:
@@ -411,12 +399,15 @@ class TechnicalState:
             lines.append("")
 
         # =====================================================================
-        # MATERIAL REFERENCE: Compact, always present — prevents hallucination
+        # MATERIAL REFERENCE: Built dynamically from config — no hardcoded data
         # =====================================================================
-        lines.append("### Material ↔ Corrosion Class Reference")
-        lines.append("FZ=C3, AZ=C4, ZM=C5, RF=C5, SF=C5.1")
-        lines.append("Housing corrosion class is a SEPARATE property of the housing itself (typically C2 for GDB/GDC, C4 for GDMI insulated).")
-        lines.append("")
+        from logic.dimension_tables import get_corrosion_map
+        corr_map = get_corrosion_map()
+        if corr_map:
+            ref = ", ".join(f"{k}={v}" for k, v in corr_map.items())
+            lines.append("### Material ↔ Corrosion Class Reference")
+            lines.append(ref)
+            lines.append("")
 
         # =====================================================================
         # VETOED FAMILIES: Products vetoed by the engine (persisted)
@@ -586,9 +577,9 @@ class TechnicalState:
             if not mat_code:
                 try:
                     from config_loader import get_config
-                    mat_code = get_config().default_material or "FZ"
+                    mat_code = get_config().default_material or ""
                 except Exception:
-                    mat_code = "FZ"
+                    mat_code = ""
             corr = CORROSION_MAP.get(mat_code, "")
 
             # Build specs dict — only include known values
@@ -901,7 +892,7 @@ class TechnicalState:
 
         The code_format comes from ProductFamily.code_format in the graph.
         Accepts either a string template or a dict with 'fmt' and optional
-        'default_frame_depth' (for GDP-style codes where the code uses frame
+        'default_frame_depth' (for products where the code uses frame
         depth instead of housing length).
 
         Python fills {placeholder} tokens from tag state — no domain logic here.
@@ -917,10 +908,10 @@ class TechnicalState:
             fmt_str = code_format
 
         family = (tag.product_family or self.detected_family or "").replace("_", "-")
-        default_mat = "FZ"
+        default_mat = ""
         try:
             from config_loader import get_config
-            default_mat = get_config().default_material or "FZ"
+            default_mat = get_config().default_material or ""
         except Exception:
             pass
         material = tag.material_override or (self.locked_material.value if self.locked_material else default_mat)
@@ -931,7 +922,7 @@ class TechnicalState:
         length_offset = int(self.resolved_params.get("connection_length_offset", 0))
         effective_length = length + length_offset if length else 0
 
-        # Frame depth for GDP-style codes (Ram Djup: 25/50/100mm)
+        # Frame depth for products that use frame depth in code format
         frame_depth = self.resolved_params.get("frame_depth") or default_frame_depth or ""
 
         # Side parameter for FLEX products (R = Right, L = Left)
@@ -970,7 +961,7 @@ class TechnicalState:
         """Infer housing_length from product code or length variant default.
 
         v4.1: Fixes weight lookup bug where housing_length stays None even when
-        the product code contains a length (e.g., GDB-900x900-750-R-PG-FZ).
+        the product code contains a length (e.g., FAMILY-900x900-750-...).
         Called before weight lookup to ensure correct short/long selection.
         """
         if tag.housing_length is not None:
@@ -1101,7 +1092,7 @@ class TechnicalState:
         """When locked_material is None, ensure product codes use a material
         that's actually available for the product family.
 
-        v4.2: Fixes bug where GDMI codes default to FZ but GDMI only supports AZ/ZM.
+        v4.2: Fixes bug where some product codes default to a material not available for that family.
         """
         if self.locked_material:
             return []  # Already handled by verify_material_codes
@@ -1312,13 +1303,8 @@ def _get_material_extraction_patterns() -> dict[str, list[str]]:
             }
     except Exception:
         pass
-    # Hardcoded fallback
-    return {
-        'RF': ['stainless steel', 'stainless', 'nierdzewna', 'rostfri', 'edelstahl', 'inox', 'rf'],
-        'FZ': ['galvanized', 'verzinkt', 'zinc', 'cynk', 'fz'],
-        'ZM': ['zinkmagnesium', 'magnelis', 'zm'],
-        'SF': ['sendzimir', 'sf'],
-    }
+    # Empty fallback — all extraction patterns come from tenant config
+    return {}
 
 
 def extract_project_from_query(query: str) -> Optional[str]:

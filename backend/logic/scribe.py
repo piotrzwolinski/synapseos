@@ -6,7 +6,7 @@ Pipeline:
     [Scribe LLM (primary)] → [resolve_derived_actions()] → merge → [Regex (fallback)]
 
 Architecture:
-    - Domain-agnostic: No product names or HVAC terms in prompts or logic
+    - Domain-agnostic: No product names or domain terms in prompts or logic
     - Primary extractor: Scribe runs FIRST, regex fills gaps only
     - Clarification-aware: Knows what parameter the system asked for
     - Fail-safe: If Scribe fails, regex results stand unchanged
@@ -84,14 +84,8 @@ def _build_product_inference_text() -> str:
             return "\n".join(lines)
     except Exception:
         pass
-    # Hardcoded fallback
-    return (
-        '    - "insulated" / "insulation" / "thermal insulation" / "condensation-proof" → product_family = "GDMI"\n'
-        '    - "carbon" / "activated carbon" / "odor" / "gas adsorption" / "VOC" → product_family = "GDC" (or "GDC_FLEX" if "flex" mentioned)\n'
-        '    - "cartridge" / "carbon cartridge" → product_family = "GDC"\n'
-        '    - "pre-filter" / "protector" / "mechanical pre-filtration" → product_family = "GDP"\n'
-        '    - "pocket filter" / "bag filter" / "particle filter" → product_family = "GDB"'
-    )
+    # Empty fallback — all product inference hints come from tenant config
+    return ""
 
 
 def get_scribe_system_prompt(db=None) -> str:
@@ -206,14 +200,14 @@ RULES:
     - If the pending parameter is "filter_depth", extract depth as integer
     - If the pending parameter is "housing_length", extract length as integer
 11. MATERIAL vs CORROSION CLASS — these are DIFFERENT things. Your job is to extract WHAT the user said, not to resolve it:
-    - If user names a SPECIFIC MATERIAL CODE or material name → set "material": RF/stainless→"RF", FZ/galvanized→"FZ", AZ/aluzink→"AZ", ZM/zinkmagnesium→"ZM", SF/sendzimir→"SF"
+    - If user names a SPECIFIC MATERIAL CODE or material name → set "material" to the code. Map common names to codes using domain knowledge from context.
     - If user specifies a CORROSION CLASS (C3, C4, C5, C5.1, "corrosion resistance C5", "class C5") WITHOUT naming a material → set "required_corrosion_class": "C5" (NOT material). Multiple materials can satisfy the same class — that is resolved downstream, NOT by you.
-    - NEVER infer a material from a corrosion class. "C5 corrosion resistance" → required_corrosion_class="C5", material=null. "Stainless steel" → material="RF", required_corrosion_class=null.
+    - NEVER infer a material from a corrosion class. "C5 corrosion resistance" → required_corrosion_class="C5", material=null.
     Extract connection_type when mentioned: "PG" / "slip-in" / "PG profile" → "PG", "flange" / "fläns" / "flange connection" → "F". Only extract if user explicitly mentions connection type.
 12. REFERENCE DATA vs USER REQUIREMENTS: Only create entities for items the user is REQUESTING to configure or design. If the user mentions a product's rated capacity as background info (e.g., "the standard model handles 3,400 m³/h"), do NOT create a separate entity for it. The user's REQUESTED values are preceded by "we need", "target", "our requirement", etc. Reference data is preceded by "handles", "rated", "capacity of", "up to", etc.
     REPLACEMENT SEMANTICS: When the user says "instead of X, we want Y" or "replace X with Y" or "rather than X, give me Y", this means REPLACE. Do NOT create entities for X — only create entities for Y. The "instead of" clause is context/reference, NOT a request. Example: "Instead of one 600x600 housing, we want four 300x300 housings" → create 4 entities of 300x300 only. Do NOT create a 600x600 entity.
-13. PRODUCT FAMILY: When the user names a specific product code, extract the product_family INCLUDING any named variant suffix, replacing dashes with underscores. Examples: "GDC-FLEX 600x600" → product_family = "GDC_FLEX". "GDP-900x600" → product_family = "GDP". "GDMI-FLEX 600x600" → product_family = "GDMI_FLEX". Named variants like FLEX, NANO are part of the family identity and MUST be preserved.
-    CRITICAL: Material codes (RF, FZ, AZ, ZM, SF) are NOT variant suffixes and MUST NOT be included in product_family. They are separate material selections. Examples: "GDMI-SF" → product_family = "GDMI", material = "SF". "GDC-RF" → product_family = "GDC", material = "RF". "GDB-FZ" → product_family = "GDB", material = "FZ". Only FLEX and NANO are valid variant suffixes.
+13. PRODUCT FAMILY: When the user names a specific product code, extract the product_family INCLUDING any named variant suffix, replacing dashes with underscores. Named variants like FLEX, NANO are part of the family identity and MUST be preserved.
+    CRITICAL: Material codes are NOT variant suffixes and MUST NOT be included in product_family. They are separate material selections. If the code ends with a material code, split it: family goes in product_family, material goes in material field.
     PRODUCT INFERENCE: When NO product code is named but the user describes features, infer product_family:
 {product_inference}
     Only infer when the description clearly maps to one family. If ambiguous, omit.
@@ -232,12 +226,12 @@ RULES:
     - Round duct connections: "O500mm" / "500mm round duct" / "circular duct 500" → "Round duct OXXXMM" (with diameter)
     - Transition piece: "transition piece" / "reducer" / "adapter" → "Transition"
     Output as "accessories" array in top-level JSON. Only include if user explicitly requests them.
-18. HOUSING LENGTH: When the user specifies a housing length value (typically 550, 600, 750, 800, or 900mm), extract it.
+18. HOUSING LENGTH: When the user specifies a housing length value, extract it.
     - Per-entity: put in entity's "housing_length" field
     - Global: put in "parameters.housing_length"
-    Housing length is DISTINCT from filter depth. Filter depth goes in dimensions.depth; housing length is the longitudinal dimension of the housing unit itself.
-    - Bag/pocket filter depth: "600mm bag filters" / "bag filters 600 mm long" / "filter depth 600" → dimensions.depth = 600. This is the physical length of the filter element inserted into the housing.
-19. ENTITY CODES: When the user mentions specific product codes or family names (e.g., "GDB", "GDC-FLEX", "GDC-600x600", "GDP-900x600-1200"), extract them as "entity_codes" array in top-level JSON. Include the raw code as mentioned."""
+    Housing length is DISTINCT from filter depth. Filter depth goes in dimensions.depth; housing length is the longitudinal dimension of the unit itself.
+    - Filter depth: "600mm filters" / "filters 600 mm long" / "filter depth 600" → dimensions.depth = 600.
+19. ENTITY CODES: When the user mentions specific product codes or family names, extract them as "entity_codes" array in top-level JSON. Include the raw code as mentioned."""
 
 _SCRIBE_USER_TEMPLATE = """CURRENT PROJECT STATE:
 {compact_state}
@@ -259,8 +253,8 @@ OUTPUT JSON SCHEMA:
       "action": "CREATE|UPDATE|DELETE",
       "dimensions": {{"width": 600, "height": 900, "depth": 292}},
       "airflow_m3h": 3400,
-      "product_family": "GDB",
-      "material": "RF",
+      "product_family": "FAMILY_CODE",
+      "material": "MATERIAL_CODE",
       "required_corrosion_class": "C5",
       "connection_type": "PG",
       "housing_length": 550
@@ -272,7 +266,7 @@ OUTPUT JSON SCHEMA:
     "available_space_mm": 650,
     "filter_depth": 600,
     "installation_environment": "ENV_INDOOR",
-    "detected_application": "APP_KITCHEN",
+    "detected_application": "APP_XXX",
     "chlorine_ppm": 60,
     "atex_zone": "22"
   }},
@@ -292,7 +286,7 @@ OUTPUT JSON SCHEMA:
   "action_intent": "select|compare|configure|troubleshoot|general_info",
   "project_name": "Nouryon",
   "accessories": ["EXL", "Round duct O500mm"],
-  "entity_codes": ["GDB", "GDC-600x600"],
+  "entity_codes": ["FAMILY_A", "FAMILY_B-600x600"],
   "context_hints": ["bakery", "flour_dust"],
   "language": "en",
   "confidence": 0.85

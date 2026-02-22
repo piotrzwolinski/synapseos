@@ -112,12 +112,15 @@ def detect_intent_fast(query: str) -> QueryIntent:
 
     # 2. Extract product codes (from config product families)
     _cfg = get_config()
-    _families_re = "|".join(re.escape(f) for f in _cfg.product_families) if _cfg.product_families else "GDB|GDMI|GDC|GDP|GDF|GDR|PFF|BFF|EXL"
-    product_pattern = r'\b(' + _families_re + r')[-\s]?(\d{2,4})?[xX]?(\d{2,4})?\b'
-    product_matches = re.findall(product_pattern, query, re.IGNORECASE)
-    entity_references = [m[0].upper() for m in product_matches] if product_matches else []
+    _families_re = "|".join(re.escape(f) for f in _cfg.product_families) if _cfg.product_families else ""
+    if _families_re:
+        product_pattern = r'\b(' + _families_re + r')[-\s]?(\d{2,4})?[xX]?(\d{2,4})?\b'
+        product_matches = re.findall(product_pattern, query, re.IGNORECASE)
+        entity_references = [m[0].upper() for m in product_matches] if product_matches else []
+    else:
+        entity_references = []
 
-    # Also catch full product codes like "GDB-600x600-750"
+    # Also catch full product codes like "FAMILY-WxH-L"
     full_code_pattern = r'\b([A-Z]{2,4}-\d{2,4}[xX]\d{2,4}(?:-\d{2,4})?)\b'
     full_codes = re.findall(full_code_pattern, query, re.IGNORECASE)
     entity_references.extend([c.upper() for c in full_codes])
@@ -127,13 +130,7 @@ def detect_intent_fast(query: str) -> QueryIntent:
     numeric_constraints = _extract_numeric_constraints_fallback(query)
 
     # 4. Detect application/environment keywords (from config)
-    _app_kw = _cfg.fallback_application_keywords or {
-        'hospital': ['hospital', 'szpital', 'medical', 'clinic', 'klinik'],
-        'kitchen': ['kitchen', 'kuchnia', 'restaurant', 'restauracja', 'food'],
-        'office': ['office', 'biuro', 'commercial', 'komercyjny'],
-        'industrial': ['industrial', 'przemysłowy', 'factory', 'fabryka'],
-        'cleanroom': ['cleanroom', 'czyste pomieszczenie', 'pharma', 'farmaceut'],
-    }
+    _app_kw = _cfg.fallback_application_keywords or {}
     context_keywords = []
     for app, keywords in _app_kw.items():
         if any(kw in query_lower for kw in keywords):
@@ -598,8 +595,14 @@ def _merge_scribe_into_state(
         _routed = False
         pk = param_key.lower().strip()
 
-        # Route airflow to tag attribute
-        if pk in ('airflow', 'airflow_m3h', 'przepływ'):
+        # Route known parameters to tag attributes using config-driven aliases
+        _cfg_routing = get_config()
+
+        _airflow_aliases = _cfg_routing.get_parameter_aliases("airflow") or ('airflow', 'airflow_m3h')
+        _depth_aliases = _cfg_routing.get_parameter_aliases("filter_depth") or ('filter_depth', 'depth')
+        _length_aliases = _cfg_routing.get_parameter_aliases("housing_length") or ('housing_length', 'length')
+
+        if pk in _airflow_aliases:
             int_val = _safe_int_val(value)
             if int_val and 500 <= int_val <= 100000:
                 for _tid, _tag in state.tags.items():
@@ -608,10 +611,9 @@ def _merge_scribe_into_state(
                         print(f"🧠 [SCRIBE] Clarification → airflow_m3h={int_val} on {_tid}")
                 _routed = True
                 state.pending_clarification = _consume_pending_parts(
-                    state.pending_clarification, ['airflow', 'przepływ'])
+                    state.pending_clarification, list(_airflow_aliases))
 
-        # Route filter_depth to tag attribute
-        elif pk in ('filter_depth', 'depth'):
+        elif pk in _depth_aliases:
             int_val = _safe_int_val(value)
             if int_val:
                 for _tid, _tag in state.tags.items():
@@ -620,10 +622,9 @@ def _merge_scribe_into_state(
                         print(f"🧠 [SCRIBE] Clarification → filter_depth={int_val} on {_tid}")
                 _routed = True
                 state.pending_clarification = _consume_pending_parts(
-                    state.pending_clarification, ['depth', 'filter_depth'])
+                    state.pending_clarification, list(_depth_aliases))
 
-        # Route housing_length to tag attribute (overrides auto-derived)
-        elif pk in ('housing_length', 'length', 'längd'):
+        elif pk in _length_aliases:
             int_val = _safe_int_val(value)
             if int_val:
                 for _tid, _tag in state.tags.items():
@@ -631,7 +632,7 @@ def _merge_scribe_into_state(
                     print(f"🧠 [SCRIBE] Clarification → housing_length={int_val} on {_tid}")
                 _routed = True
                 state.pending_clarification = _consume_pending_parts(
-                    state.pending_clarification, ['length', 'housing', 'längd'])
+                    state.pending_clarification, list(_length_aliases))
 
         # Generic → resolved_params
         if not _routed:
@@ -883,8 +884,8 @@ EXAMPLES:
 Input: "Klient potrzebuje filtrów do nowej Lakierni Proszkowej w fabryce mebli"
 Output: ["Lakiernia Proszkowa", "Malarnia Proszkowa", "Powder Coating", "Paint Shop", "Fabryka Mebli", "Furniture Factory"]
 
-Input: "Czy obudowa GDB nadaje się do basenu?"
-Output: ["Basen", "Swimming Pool", "Pływalnia", "Aquapark", "GDB"]
+Input: "Czy obudowa [PRODUCT] nadaje się do basenu?"
+Output: ["Basen", "Swimming Pool", "Pływalnia", "Aquapark", "[PRODUCT]"]
 
 Input: "Potrzebuję wentylacji dla szpitalnego oddziału intensywnej terapii"
 Output: ["Szpital", "Hospital", "OIOM", "Oddział Intensywnej Terapii", "ICU", "Healthcare"]
@@ -2231,8 +2232,8 @@ def _generate_airflow_options_from_graph(technical_state, db_conn) -> list[dict]
     """Generate airflow clarification options from ProductVariant graph data.
 
     v4.0: Uses family-specific ProductVariant airflow values instead of
-    shared DimensionModule pool. This prevents GDB contamination in
-    airflow suggestions for GDP, GDC, PFF, etc.
+    shared DimensionModule pool. This prevents cross-family contamination in
+    airflow suggestions for other product families.
     """
     options = []
     seen_airflows = set()
@@ -2586,9 +2587,9 @@ def query_deep_explainable(user_query: str, model: str = None) -> "DeepExplainab
     # Extract product family for graph reasoning
     detected_product_family = None
     _pf_cfg = get_config()
-    _pf_families = _pf_cfg.product_families or ['GDC-FLEX', 'GDB', 'GDC', 'GDP', 'GDMI', 'GDF', 'GDR', 'PFF', 'BFF']
+    _pf_families = _pf_cfg.product_families or []
     for code in entity_codes:
-        # Longest match first: GDC-FLEX must match before GDC
+        # Longest match first: FAMILY-VARIANT must match before FAMILY
         for family in _pf_families:
             if family in code.upper():
                 detected_product_family = family.replace('-', '_')
@@ -2884,7 +2885,7 @@ def query_deep_explainable(user_query: str, model: str = None) -> "DeepExplainab
 
         # Determine message based on risk type and severity
         if "incompatible" in risk_description.lower() or "mismatch" in risk_description.lower():
-            # Configuration incompatibility (e.g., GDC + EXL)
+            # Configuration incompatibility (e.g., incompatible product+feature)
             warnings.append(f"Configuration Mismatch: {risk_description}" if risk_description else "Configuration Mismatch: Selected options are incompatible.")
         elif "material" in risk_description.lower() or "hygiene" in risk_description.lower() or "corrosion" in risk_description.lower():
             # Material/safety warning (e.g., FZ in hospital)
@@ -3363,7 +3364,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
     # Product family from Scribe entities (already set above in merge), then entity codes
     if not detected_product_family:
         _pf_cfg2 = get_config()
-        _pf_families2 = _pf_cfg2.product_families or ['GDC-FLEX', 'GDB', 'GDC', 'GDP', 'GDMI', 'GDF', 'GDR', 'PFF', 'BFF']
+        _pf_families2 = _pf_cfg2.product_families or []
         for code in entity_codes:
             for family in _pf_families2:
                 if family in code.upper():
@@ -3946,7 +3947,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
         technical_state._sync_assembly_params()
 
         # Apply auto-resolve defaults to each assembly stage's product family
-        # (e.g., GDP pre-filter always uses 250mm housing_length from graph)
+        # (e.g., some products use fixed housing_length from graph)
         for stage in technical_state.assembly_group["stages"]:
             tag_id = stage["tag_id"]
             pf_name = stage.get("product_family", "")
@@ -3971,7 +3972,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
                 logger.warning(f"[ASSEMBLY] Auto-resolve failed for {pf_name}: {e}")
 
         # Apply HardConstraint overrides to assembly tags (v3.0b)
-        # When engine corrected e.g. housing_length_mm for GDC from 250→750,
+        # When engine corrected housing_length_mm for a product,
         # propagate the corrected value to the appropriate assembly stage tags
         if graph_reasoning_report._verdict.constraint_overrides:
             for override in graph_reasoning_report._verdict.constraint_overrides:
@@ -4096,7 +4097,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
     # POST-ENGINE MATERIAL RE-VALIDATION: After product pivot or assembly
     # creation, verify locked_material is available for each tag's product
     # family. If not, select the first available material for that tag.
-    # This handles pivots (e.g., GDC→GDMI where FZ is not available).
+    # This handles pivots (e.g., product A→B where material is not available).
     # =========================================================================
     _mat_code = technical_state.locked_material.value if technical_state.locked_material else None
     _material_overrides_applied = []
@@ -4123,7 +4124,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
                       f"using {_fallback_code} for {_tag_id}")
 
     # Pre-build product codes for ALL tags — always rebuild to reflect constraint overrides
-    # Runs after constraints so GDC gets housing_length=750 before code is built
+    # Runs after constraints so product gets correct housing_length before code is built
     for _tag_id, _tag in technical_state.tags.items():
         if _tag.product_family and _tag.housing_width and _tag.housing_height:
             _fam = _tag.product_family or technical_state.detected_family or ""
@@ -4137,7 +4138,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
     # =========================================================================
     # Build LOCKED CONTEXT for injection using TechnicalState
     # MUST run AFTER product code rebuild so LLM receives final codes
-    # (e.g., GDC-600x600-750-R-PG-FZ, not GDC-600x600-R-PG-FZ)
+    # (e.g., FAMILY-600x600-750-..., not FAMILY-600x600-...)
     # =========================================================================
     if technical_state.tags or locked_material or locked_project:
         locked_context = technical_state.to_prompt_context()
@@ -4185,7 +4186,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
     all_conflicts = []  # Collect all conflicts with severity
 
     # CHECK 1: Accessory Compatibility (HIGHEST PRIORITY)
-    # If GDC + Polis is impossible, don't suggest "increase space"
+    # If product + feature is impossible, don't suggest "increase space"
     incompatible_accessories = [
         c for c in graph_reasoning_report.accessory_compatibility
         if not c.is_compatible

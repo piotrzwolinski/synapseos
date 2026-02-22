@@ -1171,7 +1171,7 @@ class ApproveTestsRequest(PydanticBaseModel):
 
 
 GENERATED_TESTS_FILE = STATIC_DIR / "generated-tests.json"
-PRODUCT_CATALOG_PDF = Path(__file__).parent.parent / "testdata" / "filter_housings_sweden.pdf"
+PRODUCT_CATALOG_PDF = Path(os.getenv("PRODUCT_CATALOG_PDF", ""))
 
 
 @app.get("/config/api-keys")
@@ -1605,7 +1605,7 @@ async def graph_audit_debate_stream(
     from llm_providers import get_audit_providers
 
     # Load PDF
-    pdf_path = os.path.join(os.path.dirname(__file__), "..", "testdata", "filter_housings_sweden.pdf")
+    pdf_path = str(PRODUCT_CATALOG_PDF)
     if not os.path.exists(pdf_path):
         raise HTTPException(404, f"PDF catalog not found at {pdf_path}")
 
@@ -1708,7 +1708,7 @@ async def list_graph_audit_results(
 # Bulk Offer endpoints
 # ---------------------------------------------------------------------------
 
-from bulk_offer import (
+from tenants.mann_hummel.bulk_offer import (
     parse_excel, parse_pdf_order, analyze_order, llm_analyze_order,
     generate_offer_streaming, generate_offer_excel, llm_interpret_refinement,
     draft_offer_email, OfferConfig, _offer_sessions, _load_housing_variants,
@@ -1721,10 +1721,10 @@ from bulk_offer import (
 
 class BulkGenerateRequest(BaseModel):
     offer_id: str
-    material_code: str = "AZ"
-    housing_length: int = 850
-    filter_class: str = "ePM1 65%"
-    product_family: str = "GDMI"
+    material_code: str = ""
+    housing_length: int = 0
+    filter_class: str = ""
+    product_family: str = ""
     overrides: dict = {}
 
 

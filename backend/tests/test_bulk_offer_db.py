@@ -74,8 +74,8 @@ class TestLoadHousingVariants:
         ]
         mock_graph.query.return_value = _make_falkordb_result(variant_data)
 
-        from bulk_offer import _load_housing_variants
-        import bulk_offer
+        from tenants.mann_hummel.bulk_offer import _load_housing_variants
+        import tenants.mann_hummel.bulk_offer as bulk_offer
         bulk_offer._variants_cache = None
 
         result = _load_housing_variants(db)
@@ -88,11 +88,11 @@ class TestLoadHousingVariants:
 
     def test_uses_cache_on_second_call(self):
         """Verify caching works — second call doesn't hit DB."""
-        import bulk_offer
+        import tenants.mann_hummel.bulk_offer as bulk_offer
         bulk_offer._variants_cache = [{"name": "cached", "width_mm": 600}]
 
         db = MagicMock()
-        from bulk_offer import _load_housing_variants
+        from tenants.mann_hummel.bulk_offer import _load_housing_variants
         result = _load_housing_variants(db)
         assert result[0]["name"] == "cached"
         db.connect.assert_not_called()
@@ -116,7 +116,7 @@ class TestLoadCapacityRules:
         ]
         mock_graph.query.return_value = _make_falkordb_result(rule_data)
 
-        import bulk_offer
+        import tenants.mann_hummel.bulk_offer as bulk_offer
         bulk_offer._capacity_cache = None
 
         result = bulk_offer._load_capacity_rules(db)
@@ -146,7 +146,7 @@ class TestLoadFiltersForClass:
         ]
         mock_graph.query.return_value = _make_falkordb_result(filter_data)
 
-        from bulk_offer import _load_filters_for_class
+        from tenants.mann_hummel.bulk_offer import _load_filters_for_class
         result = _load_filters_for_class("F7", db)
 
         assert result["full"]["name"] == "F7 Full"
@@ -176,7 +176,7 @@ class TestGraphLookupCompetitor:
         }
         mock_graph.query.return_value = _make_falkordb_single_result(match_data)
 
-        from bulk_offer import _graph_lookup_competitor, CompetitorItem, GraphTrace
+        from tenants.mann_hummel.bulk_offer import _graph_lookup_competitor, CompetitorItem, GraphTrace
         item = CompetitorItem(
             line_id=1,
             raw_text="XYZ-600 panel filter",
@@ -202,7 +202,7 @@ class TestGraphLookupCompetitor:
 
         mock_graph.query.return_value = _make_falkordb_single_result(None)
 
-        from bulk_offer import _graph_lookup_competitor, CompetitorItem, GraphTrace
+        from tenants.mann_hummel.bulk_offer import _graph_lookup_competitor, CompetitorItem, GraphTrace
         item = CompetitorItem(
             line_id=2,
             raw_text="NOEXIST unknown",
@@ -242,7 +242,7 @@ class TestGraphFuzzyLookup:
         }
         mock_graph.query.return_value = _make_falkordb_single_result(match_data)
 
-        from bulk_offer import _graph_fuzzy_lookup, CompetitorItem, GraphTrace
+        from tenants.mann_hummel.bulk_offer import _graph_fuzzy_lookup, CompetitorItem, GraphTrace
         item = CompetitorItem(
             line_id=3,
             raw_text="ABC-610 panel filter",
@@ -266,7 +266,7 @@ class TestGraphFuzzyLookup:
 
         mock_graph.query.return_value = _make_falkordb_single_result(None)
 
-        from bulk_offer import _graph_fuzzy_lookup, CompetitorItem, GraphTrace
+        from tenants.mann_hummel.bulk_offer import _graph_fuzzy_lookup, CompetitorItem, GraphTrace
         item = CompetitorItem(
             line_id=4,
             raw_text="NOEXIST unknown",
@@ -293,7 +293,7 @@ class TestBulkOfferPureLogic:
     """Test pure functions in bulk_offer.py that don't touch the DB."""
 
     def test_find_best_variant_exact_match(self):
-        from bulk_offer import _find_best_variant
+        from tenants.mann_hummel.bulk_offer import _find_best_variant
         variants = [
             {"family": "FAM_GDMI", "width_mm": 300, "height_mm": 600, "airflow": 1700},
             {"family": "FAM_GDMI", "width_mm": 600, "height_mm": 600, "airflow": 3400},
@@ -303,7 +303,7 @@ class TestBulkOfferPureLogic:
         assert result["width_mm"] == 600
 
     def test_find_best_variant_smallest_fitting(self):
-        from bulk_offer import _find_best_variant
+        from tenants.mann_hummel.bulk_offer import _find_best_variant
         variants = [
             {"family": "FAM_GDMI", "width_mm": 600, "height_mm": 600, "airflow": 3400},
             {"family": "FAM_GDMI", "width_mm": 900, "height_mm": 600, "airflow": 5100},
@@ -312,7 +312,7 @@ class TestBulkOfferPureLogic:
         assert result["width_mm"] == 600  # smallest that fits
 
     def test_find_best_variant_no_fit_returns_largest(self):
-        from bulk_offer import _find_best_variant
+        from tenants.mann_hummel.bulk_offer import _find_best_variant
         variants = [
             {"family": "FAM_GDMI", "width_mm": 300, "height_mm": 600, "airflow": 1700},
             {"family": "FAM_GDMI", "width_mm": 600, "height_mm": 600, "airflow": 3400},
@@ -321,7 +321,7 @@ class TestBulkOfferPureLogic:
         assert result["width_mm"] == 600  # largest available
 
     def test_get_capacity_exact(self):
-        from bulk_offer import _get_capacity
+        from tenants.mann_hummel.bulk_offer import _get_capacity
         rules = [
             {"module_descriptor": "600x600", "output_rating": 3400.0},
             {"module_descriptor": "300x600", "output_rating": 1700.0},
@@ -330,7 +330,7 @@ class TestBulkOfferPureLogic:
         assert _get_capacity(300, 600, rules) == 1700.0
 
     def test_get_capacity_computed(self):
-        from bulk_offer import _get_capacity
+        from tenants.mann_hummel.bulk_offer import _get_capacity
         # No exact match → compute from base modules
         cap = _get_capacity(1200, 600, [])
         assert cap == 3400.0 * 2  # 2 horizontal modules

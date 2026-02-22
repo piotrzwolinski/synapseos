@@ -311,10 +311,13 @@ class DomainConfig:
     housing_length_derivation: dict[str, list] = field(default_factory=dict)
     orientation_threshold: Optional[int] = None
     material_codes_extended: list = field(default_factory=list)
-    default_material: str = "FZ"
+    default_material: str = ""
+
+    # Sizing rules (reference airflow per product family & size)
+    sizing_rules: dict[str, dict] = field(default_factory=dict)
 
     # Default product family (Phase 4)
-    default_product_family: str = "GDB"
+    default_product_family: str = ""
 
     # Fallback keywords (Phase 4: externalized from retriever.py + chat.py)
     fallback_application_keywords: dict[str, list[str]] = field(default_factory=dict)
@@ -328,6 +331,18 @@ class DomainConfig:
     scribe_connection_types: dict[str, list[str]] = field(default_factory=dict)
     scribe_material_hints: dict[str, list[str]] = field(default_factory=dict)
     scribe_accessory_hints: list[dict] = field(default_factory=list)
+
+    # Graph name for FalkorDB (tenant-specific graph)
+    graph_name: str = "default"
+
+    # Parameter routing (maps user-facing aliases to internal field names)
+    parameter_routing: dict[str, dict] = field(default_factory=dict)
+
+    def get_parameter_aliases(self, param_key: str) -> tuple[str, ...]:
+        """Get user-facing aliases for a parameter from config."""
+        if self.parameter_routing and param_key in self.parameter_routing:
+            return tuple(self.parameter_routing[param_key].get("aliases", []))
+        return ()
 
     def get_all_search_keywords(self) -> list[str]:
         """Get all keywords that should trigger configuration searches."""
@@ -708,6 +723,7 @@ def load_domain_config(config_path: Optional[str] = None, domain_id: Optional[st
     config.company = domain.get("company", "")
     config.description = domain.get("description", "")
     config.version = domain.get("version", "1.0")
+    config.graph_name = domain.get("graph_name", "default")
 
     # Load entity patterns
     entity_patterns = raw.get("entity_patterns", {})
@@ -888,6 +904,16 @@ def load_domain_config(config_path: Optional[str] = None, domain_id: Optional[st
     for mat in raw.get("material_codes_extended", []):
         config.material_codes_extended.append(MaterialCodeExtended(**mat))
 
+    # Sizing rules
+    raw_sizing = raw.get("sizing_rules", {})
+    for family_code, rule_data in raw_sizing.items():
+        sizes = rule_data.get("sizes", {})
+        # Ensure size values are ints
+        config.sizing_rules[family_code] = {
+            "reference": rule_data.get("reference", ""),
+            "sizes": {k: int(v) for k, v in sizes.items()}
+        }
+
     # Default product family (Phase 4)
     config.default_product_family = raw.get("default_product_family", "GDB")
 
@@ -905,6 +931,9 @@ def load_domain_config(config_path: Optional[str] = None, domain_id: Optional[st
     config.scribe_connection_types = scribe.get("connection_types", {})
     config.scribe_material_hints = scribe.get("material_hints", {})
     config.scribe_accessory_hints = scribe.get("accessory_hints", [])
+
+    # Parameter routing
+    config.parameter_routing = raw.get("parameter_routing", {})
 
     return config
 

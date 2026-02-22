@@ -1000,7 +1000,7 @@ class TraitBasedEngine:
             ))
 
         # Sort by coverage score DESC, then by graph-driven selection_priority ASC
-        # This ensures GDC (priority 20) beats GDC-FLEX (priority 22) at equal coverage
+        # Lower selection_priority wins at equal coverage (graph-driven priority)
         matches.sort(key=lambda m: (-m.coverage_score, m.selection_priority))
         return matches
 
@@ -1269,8 +1269,8 @@ class TraitBasedEngine:
 
         # v3.7: Cross-violation dedup — if the product itself is blocked by an
         # environment constraint (SET_MEMBERSHIP), remove "same-product material swap"
-        # alternatives from other violations. E.g., "GDB in SF" is invalid when
-        # GDB fails ENV_HOSPITAL whitelist — a material change doesn't fix env block.
+        # alternatives from other violations. If a product fails an environment
+        # whitelist, a material change on that product doesn't fix the env block.
         if len(violations) > 1:
             product_blocked = any(
                 v.constraint_type == "SET_MEMBERSHIP" for v in violations
@@ -1715,7 +1715,7 @@ class TraitBasedEngine:
         """
         if violation.details.get("is_variant_constraint"):
             # v3.8: Convert compatible variants into AlternativeProduct objects
-            # so the LLM receives concrete suggestions (e.g. "use GDB-750 instead")
+            # so the LLM receives concrete alternative suggestions
             compatible = violation.details.get("compatible_variants", [])
             if not compatible:
                 return []
@@ -1976,7 +1976,7 @@ class TraitBasedEngine:
         primary_axis="depth_mm", secondary_axis="height_mm" and it works.
 
         Args:
-            item_id: ProductFamily ID (e.g., 'FAM_GDP')
+            item_id: ProductFamily ID (e.g., 'FAM_XXX')
             context: Dict with airflow_m3h, max_width_mm, etc.
 
         Returns:
@@ -2196,8 +2196,8 @@ class TraitBasedEngine:
 
         # --- Spatial arrangement (pure math on graph-supplied axes) ---
         # Use actual module width for arrangement geometry.
-        # expansion_unit (Strategy property) is an abstract grid step (e.g. 600 for GDB),
-        # but the selected module may be wider (e.g. 1800mm). Physical arrangement
+        # expansion_unit (Strategy property) is an abstract grid step,
+        # but the selected module may be wider. Physical arrangement
         # dimensions must reflect the real module width, not the grid step.
         exp_unit = module_primary
         if max_primary and exp_unit > 0 and modules_needed > 1:
@@ -2349,7 +2349,7 @@ class TraitBasedEngine:
         All property names come from graph — no hardcoded parameter awareness.
 
         Args:
-            item_id: ProductFamily ID or short code (e.g., 'GDB' or 'FAM_GDB')
+            item_id: ProductFamily ID or short code (e.g., 'XXX' or 'FAM_XXX')
             context: Current project state dict with resolved values
 
         Returns:
@@ -2787,7 +2787,7 @@ class TraitBasedEngine:
             questions.sort(key=lambda q: q.get("priority", 99))
             return questions
 
-        # Extract product family code from ID (FAM_GDB -> GDB)
+        # Extract product family code from ID (FAM_XXX -> XXX)
         pf_code = recommended.product_family_id.replace("FAM_", "")
 
         # Get required parameters
@@ -3094,7 +3094,7 @@ class TraitBasedEngine:
 
         Args:
             query: User's natural language query
-            product_hint: Optional pre-detected product family (e.g., "GDB")
+            product_hint: Optional pre-detected product family code
             context: Dict of already-known parameter values
 
         Returns:

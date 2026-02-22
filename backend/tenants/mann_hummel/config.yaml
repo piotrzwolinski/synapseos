@@ -11,6 +11,7 @@ domain:
   company: "Mann+Hummel"
   description: "Sales Engineering Assistant for industrial air filtration products"
   version: "2.0"
+  graph_name: "hvac"
 
 # =============================================================================
 # ENTITY PATTERNS
@@ -1033,6 +1034,32 @@ material_codes_extended:
 default_material: "FZ"
 
 # =============================================================================
+# SIZING RULES (reference airflow per product family & size)
+# =============================================================================
+sizing_rules:
+  GDB:
+    reference: "3400 m3/h per 1/1 module (592x592mm) at 1.5 m/s"
+    sizes:
+      "300x300": 850
+      "600x600": 3400
+      "900x600": 5000
+  GDMI:
+    reference: "3400 m3/h per 1/1 module at 1.5 m/s"
+    sizes:
+      "300x300": 850
+      "600x600": 3400
+      "900x600": 5000
+  GDC:
+    reference: "2000-3000 m3/h per 600x600 module"
+    sizes:
+      "600x600": 2500
+      "900x600": 4000
+  GDP:
+    reference: "3000-4000 m3/h per 600x600"
+    sizes:
+      "600x600": 3500
+
+# =============================================================================
 # DEFAULT PRODUCT FAMILY
 # =============================================================================
 default_product_family: "GDB"
@@ -1165,3 +1192,17 @@ scribe_hints:
       keywords: ["round duct", "circular duct"]
     - code: "Transition"
       keywords: ["transition piece", "reducer", "adapter"]
+
+# =============================================================================
+# PARAMETER ROUTING (maps user-facing aliases to internal field names)
+# =============================================================================
+parameter_routing:
+  airflow:
+    field: "airflow_m3h"
+    aliases: ["airflow", "airflow_m3h", "przepływ", "luftflöde"]
+  filter_depth:
+    field: "filter_depth"
+    aliases: ["filter_depth", "depth", "djup"]
+  housing_length:
+    field: "housing_length"
+    aliases: ["housing_length", "length", "längd", "długość"]

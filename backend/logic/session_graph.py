@@ -361,7 +361,13 @@ class SessionGraphManager:
         # to match catalog convention (Bredd × Höjd). Normalization was swapping
         # dimensions (e.g., 1800x900 → 900x1800) causing wrong weight/DimensionModule lookup.
 
-        family = product_family or "GDB"
+        from config_loader import get_config
+        _default_fam = ""
+        try:
+            _default_fam = get_config().default_product_family or ""
+        except Exception:
+            pass
+        family = product_family or _default_fam
         housing_length = None
         if filter_depth:
             housing_length = _derive_housing_length(filter_depth, family)

@@ -329,7 +329,9 @@ def create_engine_adapter() -> GraphEngineAdapter:
                 host=os.getenv("FALKORDB_HOST", "localhost"),
                 port=int(os.getenv("FALKORDB_PORT", 6379))
             )
-            graph = db.select_graph("hvac")
+            from config_loader import get_config
+            _graph_name = os.getenv("FALKORDB_GRAPH", get_config().graph_name or "default")
+            graph = db.select_graph(_graph_name)
 
             # Simple LLM wrapper
             class SimpleLLM:

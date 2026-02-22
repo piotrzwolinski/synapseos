@@ -1,36 +1,19 @@
 """Single source of truth for dimension/material/derivation tables.
 
-Phase 1: Consolidates duplicate data structures from state.py and session_graph.py.
-Phase 2: Config-aware getters load from tenant config when available, with hardcoded
-fallbacks for tests and bootstrapping.
+Config-aware getters load ALL data from tenant config at runtime.
+Module-level constants are empty — no domain knowledge in background IP.
 """
 
+from typing import Optional
+
 # =============================================================================
-# HARDCODED FALLBACKS (used when config isn't loaded or lacks these fields)
+# EMPTY DEFAULTS (all data comes from tenant config at runtime)
 # =============================================================================
 
-# Filter dimension → housing dimension mapping (superset of both state.py and session_graph.py)
-DIMENSION_MAP = {
-    287: 300, 305: 300, 300: 300,
-    592: 600, 610: 600, 600: 600,
-    495: 500, 500: 500,
-    900: 900, 1200: 1200,
-}
-
-# Material code → corrosion class mapping
-CORROSION_MAP = {
-    "FZ": "C3",
-    "AZ": "C4",
-    "ZM": "C5",
-    "RF": "C5",
-    "SF": "C5.1",
-}
-
-# All known material codes
-KNOWN_MATERIAL_CODES = {"FZ", "AZ", "ZM", "RF", "SF"}
-
-# Orientation normalization threshold (max dimension for auto-swap)
-ORIENTATION_THRESHOLD = 600
+DIMENSION_MAP = {}
+CORROSION_MAP = {}
+KNOWN_MATERIAL_CODES = set()
+ORIENTATION_THRESHOLD = 600  # generic numeric default
 
 
 # =============================================================================
@@ -82,10 +65,10 @@ def get_orientation_threshold() -> int:
 # HOUSING LENGTH DERIVATION
 # =============================================================================
 
-def derive_housing_length(filter_depth: int, product_family: str = "GDB") -> int:
-    """Derive housing length from filter depth using engineering rules.
+def derive_housing_length(filter_depth: int, product_family: str = "") -> Optional[int]:
+    """Derive housing length from filter depth using config-supplied rules.
 
-    Reads breakpoints from config when available, otherwise uses hardcoded logic.
+    Returns None if config is unavailable and no derivation is possible.
     """
     cfg = _get_config_safe()
     if cfg and cfg.housing_length_derivation:
@@ -93,34 +76,22 @@ def derive_housing_length(filter_depth: int, product_family: str = "GDB") -> int
     return _derive_hardcoded(filter_depth, product_family)
 
 
-def _derive_from_config(depth: int, family: str, rules: dict) -> int:
+def _derive_from_config(depth: int, family: str, rules: dict) -> Optional[int]:
     """Derive housing length using config-supplied breakpoint rules."""
-    family = (family or "GDB").upper().replace("-", "_")
-    # Try exact match, then strip _FLEX suffix, then fall back to GDB
+    family = (family or "").upper().replace("-", "_")
+    # Try exact match, then strip _FLEX suffix, then first available rule set
     breakpoints = (
         rules.get(family)
         or rules.get(family.replace("_FLEX", ""))
-        or rules.get("GDB", [])
+        or (list(rules.values())[0] if rules else [])
     )
     for bp in breakpoints:
         if depth <= bp["max_depth"]:
             return bp["length"]
     # Past all breakpoints → return last entry
-    return breakpoints[-1]["length"] if breakpoints else 900
+    return breakpoints[-1]["length"] if breakpoints else None
 
 
-def _derive_hardcoded(depth: int, family: str) -> int:
-    """Derive housing length using hardcoded rules (fallback)."""
-    family = (family or "GDB").upper().replace("-", "_")
-
-    if family in ("GDMI", "GDMI_FLEX"):
-        return 600 if depth <= 450 else 850
-    elif family in ("GDC", "GDC_FLEX"):
-        return 750 if depth <= 450 else 900
-    else:  # GDB and all other families
-        if depth <= 292:
-            return 550
-        elif depth <= 450:
-            return 750
-        else:
-            return 900
+def _derive_hardcoded(depth: int, family: str) -> Optional[int]:
+    """Fallback when config not loaded. Returns None — caller must handle."""
+    return None

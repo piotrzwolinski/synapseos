@@ -39,7 +39,7 @@ class TraitBasedReport(GraphReasoningReport):
     """GraphReasoningReport subclass with trait-based reasoning steps and prompt injection.
 
     Overrides to_reasoning_summary_steps() to render stressor/trait/veto logic
-    instead of HVAC-specific material/vulnerability chains.
+    instead of domain-specific material/vulnerability chains.
 
     Overrides to_prompt_injection() to use the EngineVerdict's own method which
     is more tailored to trait-based output.

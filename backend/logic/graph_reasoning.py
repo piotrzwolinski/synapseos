@@ -104,7 +104,7 @@ class AccessoryCompatibilityResult:
     """Result of accessory compatibility check.
 
     Used by the Strict Compatibility Validator to block invalid combinations
-    like GDC + EXL (carbon housing with bag filter locks).
+    like incompatible product+feature combination.
     """
     accessory_code: str
     accessory_name: str
@@ -113,7 +113,7 @@ class AccessoryCompatibilityResult:
     status: str  # ALLOWED, BLOCKED, NOT_ALLOWED, UNKNOWN
     reason: Optional[str] = None
     compatible_alternatives: list[str] = field(default_factory=list)
-    uses_mounting_system: Optional[str] = None  # e.g., 'Bayonet' for GDC
+    uses_mounting_system: Optional[str] = None  # e.g., 'Bayonet' for specific families
 
 
 @dataclass
@@ -123,8 +123,8 @@ class UnmitigatedPhysicsRisk:
     Used by the "Mitigation Path Validator" to block configurations
     where physics dictates a risk but the product lacks mitigation.
 
-    Example: GDB (non-insulated) in Outdoor environment (causes Condensation)
-    without Thermal Insulation feature -> BLOCK, suggest GDMI.
+    Example: Non-insulated product in Outdoor environment (causes Condensation)
+    without Thermal Insulation feature -> BLOCK, suggest insulated variant.
 
     This moves physics logic FROM the LLM TO the Graph for robustness.
     """
@@ -188,8 +188,8 @@ class ProductPivot:
     the required mitigation, the system automatically pivots to a safe product.
     This is NON-NEGOTIABLE - physics cannot be overridden by user arguments.
     """
-    original_product: str           # What user requested (e.g., "GDB")
-    pivoted_to: str                 # What system selected (e.g., "GDMI")
+    original_product: str           # What user requested (e.g., "FAMILY_A")
+    pivoted_to: str                 # What system selected (e.g., "FAMILY_B")
     reason: str                     # Risk that triggered pivot
     physics_explanation: str        # Why this is non-negotiable
     user_misconception: Optional[str]  # Counter to user's wrong argument
@@ -377,7 +377,7 @@ class GraphReasoningReport:
 
         This method shows the complete reasoning chain, not just endpoints.
         Each traversal includes:
-        - The full path through the graph (e.g., "GDB → FZ → VulnerableTo → Corrosion")
+        - The full path through the graph (e.g., "Family → Material → VulnerableTo → Stressor")
         - Human-readable explanation of WHY this path matters
         - All intermediate nodes visited
         """
@@ -605,7 +605,7 @@ class GraphReasoningReport:
                 "layer": 2,
                 "layer_name": "Physics & Rules",
                 "operation": "Material Suitability Check",
-                "cypher_pattern": "MATCH (requested:Material {code:'FZ'}), (app)-[:REQUIRES_RESISTANCE]->(req)<-[:MEETS]-(suitable:Material)",
+                "cypher_pattern": "MATCH (requested:Material {code:'XXX'}), (app)-[:REQUIRES_RESISTANCE]->(req)<-[:MEETS]-(suitable:Material)",
                 "nodes_visited": [
                     "RequestedMaterial:FZ",
                     f"Application:{self.application.name}",
@@ -667,7 +667,7 @@ class GraphReasoningReport:
             trigger_reason = clarif.triggered_by or "Product sizing requirement"
 
             path_chain = [
-                f"ProductFamily:GDB",
+                f"ProductFamily:XXX",
                 "──REQUIRES_PARAMETER──▶",
                 f"Parameter:{clarif.param_name}",
                 "──TRIGGERS_STRATEGY──▶",
@@ -682,7 +682,7 @@ class GraphReasoningReport:
                 "operation": f"Data Strategy: {clarif.param_name}",
                 "cypher_pattern": f"MATCH (pf:ProductFamily)-[:REQUIRES_PARAMETER]->(p:Parameter {{name: '{clarif.param_name}'}})-[:TRIGGERS_STRATEGY]->(s:Strategy)",
                 "nodes_visited": [
-                    "ProductFamily:GDB",
+                    "ProductFamily:XXX",
                     f"Parameter:{clarif.param_name}",
                     f"Strategy:{strategy_name}",
                     f"Question:{clarif.question_id}"
@@ -771,7 +771,7 @@ class GraphReasoningReport:
         if self.clarifications:
             for clarif in self.clarifications[:2]:
                 path_chain = [
-                    f"ProductFamily:GDB",
+                    f"ProductFamily:XXX",
                     "──REQUIRES_PARAMETER──▶",
                     f"Parameter:{clarif.param_name}",
                     "──ASKED_VIA──▶",
@@ -784,7 +784,7 @@ class GraphReasoningReport:
                     "operation": f"Need: {clarif.param_name}",
                     "cypher_pattern": f"MATCH (pf:ProductFamily)-[:REQUIRES_PARAMETER]->(p:Parameter {{name:'{clarif.param_name}'}})-[:ASKED_VIA]->(q:Question)",
                     "nodes_visited": [
-                        "ProductFamily:GDB",
+                        "ProductFamily:XXX",
                         f"Parameter:{clarif.param_name}",
                         f"Question:{clarif.question_id}"
                     ],
@@ -916,9 +916,9 @@ class GraphReasoningEngine:
         find potential conflicts between the product/material and application.
 
         Args:
-            product_family: Product family code (e.g., 'GDB', 'GDC')
+            product_family: Product family code (e.g., 'FAMILY_A', 'FAMILY_B')
             application: Detected application context
-            requested_material: Material code requested by user (e.g., 'FZ', 'RF')
+            requested_material: Material code requested by user (e.g., 'MAT_A', 'MAT_B')
 
         Returns:
             SuitabilityResult with warnings and requirements
@@ -1008,7 +1008,17 @@ class GraphReasoningEngine:
                         ))
 
         # Step 4: Check for outdoor environment + non-insulated housing
-        if product_family in ['GDB', 'GDC', 'GDP']:
+        # Derive affected families from config installation_warnings
+        from config_loader import get_config
+        cfg = get_config()
+        outdoor_affected_families = set()
+        outdoor_alternative = None
+        for warn in cfg.installation_warnings:
+            if any(t in ['outdoor', 'rooftop'] for t in warn.trigger):
+                outdoor_affected_families.update(warn.products_affected)
+                if warn.alternative:
+                    outdoor_alternative = warn.alternative
+        if product_family in outdoor_affected_families:
             outdoor_check = self.db.check_outdoor_suitability(product_family)
             if outdoor_check and outdoor_check.get('has_condensation_risk'):
                 # Check if application mentions outdoor keywords
@@ -1020,7 +1030,7 @@ class GraphReasoningEngine:
                         severity='CRITICAL',
                         description=f"Non-insulated {product_family} in outdoor/rooftop installation",
                         consequence='Water damage inside housing, filter damage, accelerated corrosion',
-                        mitigation='Use GDMI insulated housing instead',
+                        mitigation=f'Use insulated variant instead' + (f' ({outdoor_alternative})' if outdoor_alternative else ''),
                         graph_path=f"(ENV_OUTDOOR)-[:HAS_RISK]->(RISK_COND)<-[:VULNERABLE_TO]-({product_family})"
                     ))
 
@@ -1044,7 +1054,7 @@ class GraphReasoningEngine:
         We cannot bend physics to accommodate user preferences.
 
         Args:
-            product_family: Product family code (e.g., 'GDC')
+            product_family: Product family code (e.g., 'FAMILY_X')
             selected_options: List of option IDs/names selected by user (e.g., ['Polis'])
             user_max_length_mm: User's max available space constraint (e.g., 800)
             housing_length_mm: Currently selected housing length (e.g., 750)
@@ -1127,7 +1137,7 @@ class GraphReasoningEngine:
         If housing_length can be derived from filter_depth, it's auto-resolved.
 
         Args:
-            product_family: Product family code (e.g., 'GDB', 'GDMI')
+            product_family: Product family code (e.g., 'FAMILY_A', 'FAMILY_B')
             context: Dict of already-known values to check against
             technical_state: TechnicalState object with cumulative session data
 
@@ -1244,12 +1254,12 @@ class GraphReasoningEngine:
         STRICT ALLOW-LIST: If there's no explicit HAS_COMPATIBLE_ACCESSORY
         relationship in the graph, the combination is NOT allowed.
 
-        This prevents configuration hallucinations like GDC + EXL
-        (carbon filter housing with bag filter locking mechanism).
+        This prevents configuration hallucinations like incompatible product+feature
+        combinations that are not in the allow-list.
 
         Args:
-            product_family: Product family code (e.g., 'GDB', 'GDC')
-            accessories: List of accessory codes to validate (e.g., ['EXL', 'L'])
+            product_family: Product family code (e.g., 'FAMILY_A', 'FAMILY_B')
+            accessories: List of accessory codes to validate
 
         Returns:
             List of AccessoryCompatibilityResult for each accessory
@@ -1300,7 +1310,7 @@ class GraphReasoningEngine:
         User arguments like "the air is warm" CANNOT override physics.
 
         Args:
-            product_family: Product family code (e.g., 'GDB', 'GDMI')
+            product_family: Product family code (e.g., 'FAMILY_A', 'FAMILY_B')
             query: User's query to detect environment keywords
 
         Returns:
@@ -1438,57 +1448,24 @@ class GraphReasoningEngine:
         Returns:
             Dict with sizing formula and reference values, or None
         """
-        # This could be extended to query SizingRule nodes
-        # For now, return standard reference values
-        sizing_rules = {
-            'GDB': {
-                'reference': '3400 m³/h per 1/1 module (592×592mm) at 1.5 m/s',
-                'sizes': {
-                    '300x300': 850,
-                    '600x600': 3400,
-                    '900x600': 5000
-                }
-            },
-            'GDMI': {
-                'reference': '3400 m³/h per 1/1 module at 1.5 m/s',
-                'sizes': {
-                    '300x300': 850,
-                    '600x600': 3400,
-                    '900x600': 5000
-                }
-            },
-            'GDC': {
-                'reference': '2000-3000 m³/h per 600×600 module',
-                'sizes': {
-                    '600x600': 2500,
-                    '900x600': 4000
-                }
-            },
-            'GDP': {
-                'reference': '3000-4000 m³/h per 600×600',
-                'sizes': {
-                    '600x600': 3500
-                }
-            }
-        }
-        return sizing_rules.get(product_family)
+        # Load sizing rules from tenant config (domain-agnostic)
+        from config_loader import get_config
+        cfg = get_config()
+        return cfg.sizing_rules.get(product_family)
 
     def _extract_material_regex_fallback(self, query: str) -> Optional[str]:
         """FALLBACK: Regex-based material extraction. Only called when Scribe/state has no material."""
-        query_upper = query.upper()
-
-        # Material patterns with their codes
-        material_patterns = {
-            'FZ': [r'\bFZ\b', r'galvanized', r'zinc', r'cynk', r'ocynk'],
-            'ZM': [r'\bZM\b', r'zinc.?magnesium', r'magneli'],
-            'RF': [r'\bRF\b', r'stainless', r'stal nierdzewna', r'inox', r'304'],
-            'SF': [r'\bSF\b', r'316', r'marine.?grade'],
-        }
-
-        for code, patterns in material_patterns.items():
-            for pattern in patterns:
-                if re.search(pattern, query, re.IGNORECASE):
-                    return code
+        # Build material patterns from config (domain-agnostic)
+        from config_loader import get_config
+        cfg = get_config()
+        for mat in cfg.material_codes_extended:
+            # Check code itself as word boundary match
+            if re.search(rf'\b{re.escape(mat.code)}\b', query, re.IGNORECASE):
+                return mat.code
+            # Check extraction keywords
+            for keyword in mat.extraction_keywords:
+                if re.search(re.escape(keyword), query, re.IGNORECASE):
+                    return mat.code
 
         return None
 
@@ -1496,7 +1473,9 @@ class GraphReasoningEngine:
         """FALLBACK: Regex-based product family extraction. Only called when not pre-detected."""
         query_upper = query.upper()
 
-        families = ['GDB', 'GDC', 'GDP', 'GDMI', 'GDF', 'GDR', 'PFF', 'BFF']
+        # Load product families from config (domain-agnostic)
+        from config_loader import get_config
+        families = get_config().product_families
 
         for family in families:
             if family in query_upper:
@@ -1730,7 +1709,7 @@ class GraphReasoningEngine:
                 if risk.risk_severity == 'CRITICAL' and risk.safe_alternatives:
                     # Extract the safe product family code from the full name
                     safe_product_name = risk.safe_alternatives[0]
-                    # Extract code (e.g., "GDMI" from "GDMI Modulfilterskåp")
+                    # Extract code (e.g., "FAMILY" from "FAMILY Description")
                     safe_product_code = safe_product_name.split()[0] if safe_product_name else None
 
                     if safe_product_code:

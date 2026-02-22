@@ -74,9 +74,13 @@ class TestDimensionMapSingleSource:
 
     def test_state_and_session_graph_share_same_map(self):
         from backend.logic.dimension_tables import DIMENSION_MAP as CANONICAL
+        from backend.logic.dimension_tables import get_dimension_map
         from backend.logic.session_graph import DIMENSION_MAP as SESSION_MAP
 
+        # Module-level constants are empty (config-driven). Both modules
+        # import from dimension_tables, proving single-source-of-truth.
         assert CANONICAL == SESSION_MAP
-        # Verify superset keys (900, 1200) are present in both
-        assert 900 in CANONICAL
-        assert 1200 in CANONICAL
+        # Actual data comes from config via get_dimension_map()
+        config_map = get_dimension_map()
+        assert 900 in config_map
+        assert 1200 in config_map

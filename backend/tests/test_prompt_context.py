@@ -36,11 +36,12 @@ class TestPromptContextResolvedParams:
         assert "DO NOT ask for chlorine_ppm" in ctx
         assert "door_side" in ctx
 
-    def test_detected_family_indoor_note(self):
+    def test_detected_family_appears_in_context(self):
+        """detected_family is shown in prompt context (no hardcoded rules about it)."""
         state = TechnicalState()
         state.detected_family = "GDMI"
         ctx = state.to_prompt_context()
-        assert "Indoor" in ctx or "indoor" in ctx
+        assert "GDMI" in ctx
 
 
 class TestPromptContextTags:
