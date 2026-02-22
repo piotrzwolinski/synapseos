@@ -524,9 +524,13 @@ def resolve_derived_actions(
     resolved_actions = []
 
     for action in intent.actions:
-        resolved = _resolve_single_action(action, technical_state)
-        if resolved:
-            resolved_actions.append(resolved)
+        try:
+            resolved = _resolve_single_action(action, technical_state)
+            if resolved:
+                resolved_actions.append(resolved)
+        except Exception as e:
+            logger.warning(f"Scribe: Failed to resolve action {action}: {e}")
+            continue
 
     intent.actions = resolved_actions
     return intent
@@ -537,7 +541,7 @@ def _resolve_single_action(
     technical_state,
 ) -> Optional[ScribeAction]:
     """Resolve a single derived action to absolute values."""
-    derivation = action.derivation.upper().strip()
+    derivation = (action.derivation or "").upper().strip()
 
     # ----- CORRECT: value already absolute from LLM -----
     if action.type == "CORRECT":

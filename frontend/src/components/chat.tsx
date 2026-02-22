@@ -48,9 +48,6 @@ import {
   StatusBadges,
   // Clarification Mode
   ClarificationCard,
-  // Detail Panel
-  DetailPanel,
-  SelectedDetail,
 } from "./reasoning-chain";
 
 interface DiagnosticsData {
@@ -96,8 +93,6 @@ interface ChatProps {
   externalQuestion?: string;
   autoSubmit?: boolean;
   onQuestionConsumed?: () => void;
-  expertMode?: boolean;
-  onExpertModeChange?: (value: boolean) => void;
 }
 
 // Reasoning step types
@@ -499,7 +494,7 @@ function DevModePanel({ graphPaths, promptPreview }: { graphPaths?: string[]; pr
 }
 
 export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
-  { devMode, sampleQuestions, externalQuestion, autoSubmit, onQuestionConsumed, expertMode = true, onExpertModeChange },
+  { devMode, sampleQuestions, externalQuestion, autoSubmit, onQuestionConsumed },
   ref
 ) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -509,10 +504,6 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [inspectorProject, setInspectorProject] = useState<string | null>(null);
-  const [selectedDetail, setSelectedDetail] = useState<SelectedDetail | null>(null);
-  const [selectedDetailIdx, setSelectedDetailIdx] = useState<number | null>(null);
-  // Track confirmed inferences (for Active Learning)
-  const [confirmedInferences, setConfirmedInferences] = useState<Set<number>>(new Set());
   // Judge evaluation state (per message index)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [judgeResults, setJudgeResults] = useState<Record<number, any>>({});
@@ -641,9 +632,6 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
     setReasoningSteps(GRAPH_REASONING_PLACEHOLDER);
-    // Clear selected detail when sending new message
-    setSelectedDetail(null);
-    setSelectedDetailIdx(null);
     // Clear pending clarification context when sending new message
     // (will be set again if response is a clarification)
     setPendingClarificationContext(null);
@@ -1003,62 +991,6 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     );
   };
 
-  // Handler for selecting a detail from the chat
-  const handleSelectDetail = (detail: SelectedDetail, idx: number) => {
-    // Toggle off if clicking the same item
-    if (selectedDetailIdx === idx) {
-      setSelectedDetail(null);
-      setSelectedDetailIdx(null);
-    } else {
-      setSelectedDetail(detail);
-      setSelectedDetailIdx(idx);
-    }
-  };
-
-  const handleCloseDetail = () => {
-    setSelectedDetail(null);
-    setSelectedDetailIdx(null);
-  };
-
-  // Handler for confirming an inference as a learned rule (Active Learning)
-  const handleConfirmInference = async (inferenceLogic: string, contextText: string) => {
-    try {
-      const response = await fetch(apiUrl("/api/learn_rule"), authFetch({
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          trigger_text: contextText,
-          rule_text: inferenceLogic,
-          context: `Confirmed from chat conversation`,
-          confirmed_by: "expert"
-        }),
-      }));
-
-      if (!response.ok) {
-        throw new Error("Failed to save rule");
-      }
-
-      const result = await response.json();
-      console.log("Rule learned:", result);
-
-      // Mark this inference as confirmed
-      if (selectedDetailIdx !== null) {
-        setConfirmedInferences(prev => {
-          const newSet = new Set(Array.from(prev));
-          newSet.add(selectedDetailIdx);
-          return newSet;
-        });
-      }
-
-      // Show success feedback (could use a toast library)
-      // For now, the UI will update to show the confirmed state
-
-    } catch (error) {
-      console.error("Failed to confirm inference:", error);
-      // Could show an error toast here
-    }
-  };
-
   // Handler: Run 3-LLM judge evaluation on an assistant response
   const handleRunJudge = async (messageIndex: number) => {
     // Find the user question (previous message)
@@ -1114,7 +1046,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       {/* Main Chat Panel */}
       <div className={cn(
         "bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden transition-all duration-300",
-        expertMode ? "flex-1" : "w-full"
+        "w-full"
       )}>
       {/* Messages */}
       <ScrollArea className="h-[calc(100vh-280px)]" ref={scrollRef}>
@@ -1238,11 +1170,6 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                           // Deep Explainable: Clean, Perplexity-style render
                           <ExplainableChatBubble
                             segments={message.deepExplainableData!.content_segments}
-                            expertMode={false}
-                            selectedDetailIdx={selectedDetailIdx}
-                            onSelectDetail={handleSelectDetail}
-                            onConfirmInference={handleConfirmInference}
-                            confirmedInferences={confirmedInferences}
                           />
                         ) : message.explainableData ? (
                           // Legacy: Render with [[REF:ID]] markers
@@ -1525,17 +1452,6 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       />
       </div>
 
-      {/* Detail Panel - Right Side (expert mode) */}
-      {expertMode && (
-        <div className="w-[320px] flex-shrink-0 bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
-          <DetailPanel
-            detail={selectedDetail}
-            onClose={handleCloseDetail}
-            onConfirmInference={handleConfirmInference}
-            isConfirmed={selectedDetailIdx !== null && confirmedInferences.has(selectedDetailIdx)}
-          />
-        </div>
-      )}
     </div>
   );
 });

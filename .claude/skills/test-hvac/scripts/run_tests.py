@@ -713,6 +713,84 @@ _ORIGINAL_TESTS_DISABLED = {
 TEST_CASES = {
 
     # ===================================================================
+    #  CATEGORY: PROMPT — Advisory sections & source hierarchy tests
+    # ===================================================================
+
+    "prompt_hospital_sections": TestCase(
+        name="prompt_hospital_sections",
+        description="[Prompt] Hospital + GDB FZ → response has System Analysis section, optional Engineering Notes",
+        category="prompt",
+        tests_graph_node="Hospital scenario tests section structure",
+        pdf_reference="GDB=bolted. Hospital=hygiene. Two-section response structure.",
+        query=(
+            "We are upgrading the air handling units supplying sterile wards in a hospital. "
+            "We initially selected GDB 600x600 in standard Galvanized (FZ). "
+            "Required airflow is 3,400 m³/h per housing. "
+            "Installation is indoors in a technical room. "
+            "Please confirm if this configuration is suitable and provide the product code."
+        ),
+        assertions=[
+            Assertion("has_system_analysis", "response.has_system_analysis_section", "true",
+                      category="output"),
+            Assertion("has_env_concern", "response.content_text", "contains_any",
+                      "hospital|hygiene|not suitable|not recommended|block|warning|upgrade",
+                      category="logic"),
+            Assertion("suggests_alternative", "response.content_text", "contains_any",
+                      "GDMI|alternative|upgrade|insulated",
+                      category="output"),
+        ],
+    ),
+
+    "prompt_positive_no_advisory": TestCase(
+        name="prompt_positive_no_advisory",
+        description="[Prompt] Standard GDB indoor → System Analysis present, Engineering Notes optional/absent",
+        category="prompt",
+        tests_graph_node="Positive control: straightforward case needs no advisory",
+        pdf_reference="GDB 600x600 FZ indoor = standard config",
+        query="I need a GDB 600x600 filter housing in Galvanized (FZ) for indoor ventilation. Airflow 3400 m³/h.",
+        assertions=[
+            Assertion("has_system_analysis", "response.has_system_analysis_section", "true",
+                      category="output"),
+            Assertion("has_graph_facts", "response.graph_fact_count", "greater_than", "0",
+                      category="output"),
+            Assertion("proceeds", "response.clarification_needed|response.product_cards", "any_exists",
+                      category="logic"),
+        ],
+    ),
+
+    "prompt_verdict_consistency": TestCase(
+        name="prompt_verdict_consistency",
+        description="[Prompt] Hospital + GDB FZ → risk_severity from engine (CRITICAL or WARNING), not LLM",
+        category="prompt",
+        tests_graph_node="Engine verdict drives risk_severity",
+        pdf_reference="GDB not rated for hospital → engine should flag risk",
+        query="Hospital ventilation upgrade, GDB 600x600 FZ, 3400 m³/h indoor.",
+        assertions=[
+            Assertion("risk_detected", "response.risk_detected", "true", category="logic"),
+            Assertion("has_risk_severity", "response.risk_severity", "contains_any",
+                      "CRITICAL|WARNING", category="logic"),
+        ],
+    ),
+
+    "prompt_marine_sections": TestCase(
+        name="prompt_marine_sections",
+        description="[Prompt] Marine + GDB FZ → salt spray in System Analysis (from graph), advisory separate",
+        category="prompt",
+        tests_graph_node="STRESSOR_SALT_SPRAY in graph. Advisory should be in Engineering Notes section.",
+        pdf_reference="Marine=salt spray. FZ=C3, needs C5.",
+        query="GDB 600x600 FZ for a coastal marine installation. 3400 m³/h.",
+        assertions=[
+            Assertion("has_system_analysis", "response.has_system_analysis_section", "true",
+                      category="output"),
+            Assertion("salt_spray_detected", "response.content_text", "contains_any",
+                      "salt|marine|corrosion|coastal", category="detection"),
+            Assertion("material_concern", "response.content_text", "contains_any",
+                      "FZ|galvanized|C3|not suitable|upgrade|RF|stainless|ZM",
+                      category="logic"),
+        ],
+    ),
+
+    # ===================================================================
     #  CATEGORY: CHATGPT-GENERATED — Sizing & data verification tests
     #  Source: ChatGPT-generated test scenarios, verified against
     #          Mann+Hummel HVAC Filterskåp catalog (PDF, v01-09-2025)
@@ -2233,6 +2311,27 @@ def extract_test_data(events: list) -> dict:
                 elif isinstance(seg, str):
                     text_parts.append(seg)
             data["response"]["content_text"] = " ".join(text_parts).lower()
+
+            # Per-type segment text for advisory/fact assertions
+            inference_parts = []
+            graph_fact_parts = []
+            for seg in segments:
+                if isinstance(seg, dict):
+                    seg_type = seg.get("type", "GENERAL")
+                    seg_text = seg.get("text", "")
+                    if seg_type == "INFERENCE":
+                        inference_parts.append(seg_text)
+                    elif seg_type == "GRAPH_FACT":
+                        graph_fact_parts.append(seg_text)
+            data["response"]["inference_text"] = " ".join(inference_parts).lower()
+            data["response"]["graph_fact_text"] = " ".join(graph_fact_parts).lower()
+            data["response"]["inference_count"] = len(inference_parts)
+            data["response"]["graph_fact_count"] = len(graph_fact_parts)
+
+            # Section structure detection
+            full_text = data["response"]["content_text"]
+            data["response"]["has_system_analysis_section"] = "system analysis" in full_text
+            data["response"]["has_engineering_notes_section"] = "engineering notes" in full_text
 
             # Flatten clarification option descriptions for assertion matching
             clar = resp.get("clarification") or {}

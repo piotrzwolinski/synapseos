@@ -582,8 +582,6 @@ function MainApp() {
   const [autoSubmit, setAutoSubmit] = useState(() => !!pendingQuestion);
   const [pendingSampleText, setPendingSampleText] = useState<string | null>(null);
 
-  // Chat settings
-  const expertMode = true;
   const chatRef = useRef<{ clearChat: () => void; testWidgets: () => void } | null>(null);
 
 
@@ -802,8 +800,6 @@ function MainApp() {
                 externalQuestion={pendingQuestion || undefined}
                 autoSubmit={autoSubmit}
                 onQuestionConsumed={() => { setPendingQuestion(null); setAutoSubmit(false); }}
-                expertMode={expertMode}
-                onExpertModeChange={() => {}}
               />
             )}
             {activeTab === "ingest" && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ChevronDown, Database, Brain, Shield, Filter, CheckCircle2, Package, AlertTriangle, FileText, Info } from "lucide-react";
+import { ChevronDown, Database, Brain, Shield, Filter, CheckCircle2, Package, AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import { TraversalGraphPlayer } from "./traversal-graph-player";
@@ -91,20 +91,6 @@ export interface DeepExplainableResponseData {
   inference_count: number;
   // Performance timings
   timings?: Record<string, number>;
-}
-
-// Type for selected detail in the side panel
-export interface SelectedDetail {
-  type: "source" | "inference";
-  sourceId?: string;
-  sourceText?: string;
-  inferenceLogic?: string;
-  // Rich evidence fields for source type
-  nodeType?: string;
-  evidenceSnippet?: string;
-  sourceDocument?: string;
-  pageNumber?: number;
-  keySpecs?: Record<string, string>;
 }
 
 // Legacy types for backwards compatibility
@@ -407,111 +393,6 @@ export function ThinkingTimeline({ steps, defaultCollapsed = true }: ThinkingTim
 
 interface ExplainableChatBubbleProps {
   segments: ContentSegment[];
-  expertMode: boolean;
-  selectedDetailIdx?: number | null;
-  onSelectDetail?: (detail: SelectedDetail, idx: number) => void;
-  onConfirmInference?: (inferenceLogic: string, contextText: string) => Promise<void>;
-  confirmedInferences?: Set<number>;  // Track which inferences have been confirmed
-}
-
-// Parse source text into structured key-value pairs
-function parseSourceText(text: string): { key: string; value: string }[] {
-  if (!text) return [];
-
-  // Known field patterns to look for
-  const fieldPatterns = [
-    'Product:', 'Family:', 'Dimensions:', 'Cartridge Capacity:', 'Special:',
-    'Adjustable Length:', 'Features:', 'Materials:', 'Length:', 'Width:',
-    'Height:', 'Depth:', 'Airflow:', 'Options:', 'Insulation:', 'Type:',
-    'Series:', 'Model:', 'Corrosion Class:', 'Standard Length:'
-  ];
-
-  const result: { key: string; value: string }[] = [];
-
-  // Find each field and extract its value
-  for (const pattern of fieldPatterns) {
-    const patternIndex = text.indexOf(pattern);
-
-    if (patternIndex !== -1) {
-      // Find where the next field starts
-      let nextFieldIndex = text.length;
-      for (const nextPattern of fieldPatterns) {
-        if (nextPattern === pattern) continue;
-        const idx = text.indexOf(nextPattern, patternIndex + pattern.length);
-        if (idx !== -1 && idx < nextFieldIndex) {
-          nextFieldIndex = idx;
-        }
-      }
-
-      const key = pattern.replace(':', '');
-      const value = text.substring(patternIndex + pattern.length, nextFieldIndex).trim();
-
-      if (value) {
-        result.push({ key, value });
-      }
-    }
-  }
-
-  // If no patterns matched, return the whole text as a single entry
-  if (result.length === 0 && text.trim()) {
-    result.push({ key: 'Info', value: text.trim() });
-  }
-
-  return result;
-}
-
-// Source Citation Badge - Clickable chip at end of GRAPH_FACT
-function SourceCitation({
-  sourceId,
-  sourceText,
-  isSelected,
-  onClick,
-}: {
-  sourceId?: string;
-  sourceText?: string;
-  isSelected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] font-medium rounded cursor-pointer transition-colors ml-0.5",
-        isSelected
-          ? "text-white bg-emerald-600 border border-emerald-600"
-          : "text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800 dark:hover:bg-emerald-900/50"
-      )}
-    >
-      <Database className="w-2.5 h-2.5" />
-      <span>Source</span>
-    </button>
-  );
-}
-
-// Inference Badge - Clickable indicator for AI reasoning
-function InferenceBadge({
-  isSelected,
-  onClick,
-}: {
-  isSelected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] font-medium rounded cursor-pointer transition-colors ml-0.5",
-        isSelected
-          ? "text-white bg-amber-600 border border-amber-600"
-          : "text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800 dark:hover:bg-amber-900/50"
-      )}
-    >
-      <Brain className="w-2.5 h-2.5" />
-      <span>AI</span>
-    </button>
-  );
 }
 
 // Helper to render text with inline markdown formatting (bold, newlines, bullets)
@@ -618,11 +499,6 @@ function computeParagraphBreaks(segments: ContentSegment[]): Set<number> {
 
 export function ExplainableChatBubble({
   segments,
-  expertMode,
-  selectedDetailIdx,
-  onSelectDetail,
-  onConfirmInference,
-  confirmedInferences = new Set(),
 }: ExplainableChatBubbleProps) {
   if (!segments || segments.length === 0) return null;
 
@@ -633,8 +509,8 @@ export function ExplainableChatBubble({
     seg.text?.includes('|') // tables
   );
 
-  // For complex markdown without expert mode, use full ReactMarkdown
-  if (hasComplexMarkdown && !expertMode) {
+  // For complex markdown, use full ReactMarkdown
+  if (hasComplexMarkdown) {
     const fullText = segments.map(s => s.text).join('');
     return (
       <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
@@ -661,120 +537,11 @@ export function ExplainableChatBubble({
 
   const paragraphBreaks = computeParagraphBreaks(segments);
 
-  // Render a single segment's content (shared across all segment types)
+  // Render a single segment's content
   const renderSegmentContent = (segment: ContentSegment, idx: number) => {
-    const isSelected = selectedDetailIdx === idx;
     const prevSegment = idx > 0 ? segments[idx - 1] : null;
     const addSpace = !paragraphBreaks.has(idx) && needsSpaceBefore(segment.text, prevSegment?.text);
 
-    // GRAPH_FACT: Solid emerald underline - clickable text
-    if (segment.type === "GRAPH_FACT" && expertMode) {
-      return (
-        <span key={idx}>
-          {addSpace && ' '}
-          <span
-            onClick={() => onSelectDetail?.({
-              type: "source",
-              sourceId: segment.source_id,
-              sourceText: segment.source_text,
-              nodeType: segment.node_type,
-              evidenceSnippet: segment.evidence_snippet,
-              sourceDocument: segment.source_document,
-              pageNumber: segment.page_number,
-              keySpecs: segment.key_specs,
-            }, idx)}
-            className={cn(
-              "cursor-pointer transition-colors pb-0.5",
-              isSelected
-                ? "bg-emerald-100 dark:bg-emerald-900/40"
-                : "hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
-            )}
-            style={{
-              textDecoration: "underline",
-              textDecorationStyle: "solid",
-              textDecorationColor: isSelected ? "#059669" : "#10b981",
-              textDecorationThickness: "2px",
-              textUnderlineOffset: "4px",
-              textDecorationSkipInk: "none",
-            }}
-          >
-            {renderFormattedText(segment.text)}
-          </span>
-        </span>
-      );
-    }
-
-    // INFERENCE: Dashed amber underline - clickable text (green solid if confirmed)
-    if (segment.type === "INFERENCE" && expertMode) {
-      const isConfirmed = confirmedInferences.has(idx);
-
-      const getContextText = () => {
-        const contextParts: string[] = [];
-        for (let i = Math.max(0, idx - 3); i < idx; i++) {
-          if (segments[i]?.type === "GENERAL") {
-            contextParts.push(segments[i].text.trim());
-          }
-        }
-        return contextParts.join(" ").slice(-100) || "General context";
-      };
-
-      return (
-        <span key={idx}>
-          {addSpace && ' '}
-          <span
-            onClick={() => onSelectDetail?.({
-              type: "inference",
-              inferenceLogic: segment.inference_logic,
-            }, idx)}
-            className={cn(
-              "cursor-pointer transition-colors",
-              isConfirmed
-                ? "bg-emerald-50 dark:bg-emerald-900/20"
-                : isSelected
-                  ? "bg-amber-100 dark:bg-amber-900/40"
-                  : "hover:bg-amber-50 dark:hover:bg-amber-900/20"
-            )}
-            style={{
-              textDecoration: "underline",
-              textDecorationStyle: isConfirmed ? "solid" : "dashed",
-              textDecorationColor: isConfirmed
-                ? "#10b981"
-                : isSelected
-                  ? "#d97706"
-                  : "#fbbf24",
-              textDecorationThickness: "2px",
-              textUnderlineOffset: "3px",
-              textDecorationSkipInk: "none",
-            }}
-          >
-            {renderFormattedText(segment.text)}
-          </span>
-          {!isConfirmed && onConfirmInference && segment.inference_logic && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onConfirmInference(segment.inference_logic!, getContextText());
-              }}
-              className="inline-flex items-center justify-center w-4 h-4 ml-0.5 align-baseline text-amber-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded transition-colors"
-              title="Confirm this inference as a rule"
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </button>
-          )}
-          {isConfirmed && (
-            <span className="inline-flex items-center justify-center w-4 h-4 ml-0.5 align-baseline text-emerald-600" title="Rule confirmed">
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-            </span>
-          )}
-        </span>
-      );
-    }
-
-    // GENERAL or non-expert mode: Plain text with formatting
     return (
       <span key={idx}>
         {addSpace && ' '}
@@ -909,40 +676,6 @@ export function ProductCardComponent({ card, onAction, riskSeverity }: ProductCa
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-// =============================================================================
-// EXPERT MODE TOGGLE
-// =============================================================================
-
-interface ExpertModeToggleProps {
-  enabled: boolean;
-  onToggle: (enabled: boolean) => void;
-}
-
-export function ExpertModeToggle({ enabled, onToggle }: ExpertModeToggleProps) {
-  return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className="text-slate-500">Expert Mode</span>
-      <button
-        onClick={() => onToggle(!enabled)}
-        className={cn(
-          "relative w-10 h-5 rounded-full transition-colors",
-          enabled ? "bg-emerald-500" : "bg-slate-300"
-        )}
-      >
-        <span
-          className={cn(
-            "absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform",
-            enabled ? "translate-x-5" : "translate-x-0.5"
-          )}
-        />
-      </button>
-      <span className={cn("text-xs", enabled ? "text-emerald-600" : "text-slate-400")}>
-        {enabled ? "Show sources" : "Hide"}
-      </span>
     </div>
   );
 }
@@ -1180,274 +913,6 @@ export function ClarificationCard({ clarification, onOptionSelect }: Clarificati
             >
               ✕
             </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// =============================================================================
-// DETAIL PANEL (Right Side Panel for Source/Inference Details)
-// =============================================================================
-
-interface DetailPanelProps {
-  detail: SelectedDetail | null;
-  onClose: () => void;
-  onConfirmInference?: (inferenceLogic: string, contextText: string) => Promise<void>;
-  isConfirmed?: boolean;
-}
-
-export function DetailPanel({ detail, onClose, onConfirmInference, isConfirmed }: DetailPanelProps) {
-  const parsedData = detail?.sourceText ? parseSourceText(detail.sourceText) : [];
-
-  if (!detail) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center text-center p-6">
-        <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-3">
-          <Database className="w-6 h-6 text-slate-400" />
-        </div>
-        <h4 className="font-medium text-slate-600 mb-1">No Selection</h4>
-        <p className="text-xs text-slate-400 max-w-[220px] leading-relaxed">
-          Click on <span className="border-b-2 border-emerald-500 text-emerald-600">underlined text</span> to see its data source, or{" "}
-          <span className="border-b-2 border-dashed border-amber-400 text-amber-600">dashed text</span> to see AI reasoning.
-        </p>
-      </div>
-    );
-  }
-
-  if (detail.type === "source") {
-    const hasKeySpecs = detail.keySpecs && Object.keys(detail.keySpecs).length > 0;
-    const hasEvidence = detail.evidenceSnippet && detail.evidenceSnippet.trim().length > 0;
-
-    return (
-      <div className="h-full flex flex-col">
-        {/* Header with Node Name and Type Badge */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-100">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-              <Database className="w-4 h-4 text-emerald-600" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h4 className="font-semibold text-slate-800 text-sm truncate">
-                {detail.sourceId || "Data Source"}
-              </h4>
-              {detail.nodeType && (
-                <span className="inline-flex items-center px-1.5 py-0.5 mt-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 rounded">
-                  {detail.nodeType}
-                </span>
-              )}
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-auto p-4 space-y-4">
-          {/* Evidence Section */}
-          {hasEvidence && (
-            <div>
-              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide block mb-2">
-                Evidence
-              </span>
-              <blockquote className="px-3 py-2 bg-emerald-50/50 border-l-2 border-emerald-400 rounded-r-lg">
-                <p className="text-sm text-slate-700 italic leading-relaxed">
-                  "{detail.evidenceSnippet}"
-                </p>
-              </blockquote>
-            </div>
-          )}
-
-          {/* Key Specs Section */}
-          {hasKeySpecs && (
-            <div>
-              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide block mb-2">
-                Key Specifications
-              </span>
-              <div className="bg-slate-50 rounded-lg p-3 space-y-2">
-                {Object.entries(detail.keySpecs!).map(([key, value]) => (
-                  <div key={key} className="flex justify-between items-center">
-                    <span className="text-xs text-slate-500">{key}</span>
-                    <span className="text-xs font-medium text-slate-800">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Source Section - shows document or node info */}
-          {(detail.sourceDocument || detail.sourceId) && (
-            <div>
-              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide block mb-2">
-                Source
-              </span>
-              <div className="flex items-start gap-2 bg-green-50/50 rounded-lg p-3">
-                <FileText className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  {detail.sourceDocument ? (
-                    <>
-                      <p className="text-sm text-slate-700 font-medium truncate">
-                        {detail.sourceDocument}
-                      </p>
-                      {detail.pageNumber && (
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          Page {detail.pageNumber}
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm text-slate-700 font-medium truncate">
-                        Knowledge Graph
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Node: {detail.sourceId}
-                        {detail.nodeType && ` (${detail.nodeType})`}
-                      </p>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Fallback: Legacy parsed data or verification message */}
-          {!hasEvidence && !hasKeySpecs && (
-            <div className="space-y-3">
-              {parsedData.length > 0 ? (
-                parsedData.map((item, idx) => (
-                  <div key={idx}>
-                    <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide block mb-0.5">
-                      {item.key}
-                    </span>
-                    <span className="text-sm text-slate-700">{item.value}</span>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-4">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                  <p className="text-sm text-slate-500">
-                    Verified against Knowledge Graph
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Footer: Source Reference */}
-        {(detail.sourceDocument || detail.sourceId) && (
-          <div className="p-3 border-t border-slate-100 bg-slate-50/50">
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span>
-                {detail.sourceDocument
-                  ? `${detail.sourceDocument}${detail.pageNumber ? ` • p.${detail.pageNumber}` : ''}`
-                  : `KG: ${detail.sourceId}${detail.nodeType ? ` (${detail.nodeType})` : ''}`
-                }
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Inference detail
-  return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-100">
-        <div className="flex items-center gap-2">
-          <div className={cn(
-            "w-8 h-8 rounded-lg flex items-center justify-center",
-            isConfirmed ? "bg-emerald-100" : "bg-amber-100"
-          )}>
-            {isConfirmed ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            ) : (
-              <Brain className="w-4 h-4 text-amber-600" />
-            )}
-          </div>
-          <div>
-            <h4 className="font-semibold text-slate-800 text-sm">
-              {isConfirmed ? "Verified Rule" : "AI Inference"}
-            </h4>
-            <p className="text-[10px] text-slate-400">
-              {isConfirmed ? "Confirmed by Expert" : "Reasoning Explanation"}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-auto p-4">
-        <div className={cn(
-          "p-3 border rounded-lg",
-          isConfirmed
-            ? "bg-emerald-50 border-emerald-100"
-            : "bg-amber-50 border-amber-100"
-        )}>
-          <p className="text-sm text-slate-700 leading-relaxed">
-            {detail.inferenceLogic || "This statement is based on AI engineering knowledge and reasoning, not directly from the knowledge graph."}
-          </p>
-        </div>
-
-        {/* Confirm button - only show if not confirmed and callback exists */}
-        {!isConfirmed && onConfirmInference && detail.inferenceLogic && (
-          <button
-            onClick={() => onConfirmInference(detail.inferenceLogic!, "Context from conversation")}
-            className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            Confirm as Verified Rule
-          </button>
-        )}
-
-        {/* Confirmed badge */}
-        {isConfirmed && (
-          <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-emerald-800">Rule Learned!</p>
-                <p className="text-xs text-emerald-600 mt-0.5">
-                  This inference has been saved to the Knowledge Graph. Future queries will use this rule automatically.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Info box - only show if not confirmed */}
-        {!isConfirmed && (
-          <div className="mt-4 p-3 bg-slate-50 border border-slate-100 rounded-lg">
-            <div className="flex items-start gap-2">
-              <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-[10px]">💡</span>
-              </div>
-              <p className="text-xs text-slate-500">
-                AI inferences are derived from the model's training data and general engineering principles.
-                Click "Confirm" to save this as a verified rule for future queries.
-              </p>
-            </div>
           </div>
         )}
       </div>
