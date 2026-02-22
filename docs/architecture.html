@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SynapseOS — System Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Outfit:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #08090d;
+    --bg-card: #0e1017;
+    --bg-card-hover: #12141d;
+    --border: #1a1d2a;
+    --border-glow: #2a2f45;
+    --text: #c8cdd8;
+    --text-dim: #5c6178;
+    --text-bright: #e8ecf4;
+    --accent-cyan: #3ecfcf;
+    --accent-cyan-dim: #1a6b6b;
+    --accent-violet: #8b6cef;
+    --accent-violet-dim: #3d2f6b;
+    --accent-amber: #e8a848;
+    --accent-amber-dim: #6b4f1a;
+    --accent-rose: #e85880;
+    --accent-rose-dim: #6b1a30;
+    --accent-green: #48d888;
+    --accent-green-dim: #1a5b33;
+    --accent-blue: #4888e8;
+    --accent-blue-dim: #1a3060;
+    --glow-spread: 60px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* === GRAIN OVERLAY === */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+
+  /* === GRID BACKGROUND === */
+  .grid-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-image:
+      linear-gradient(rgba(58, 65, 95, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(58, 65, 95, 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  .grid-bg::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(62, 207, 207, 0.03), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(139, 108, 239, 0.02), transparent);
+  }
+
+  /* === HEADER === */
+  header {
+    position: relative;
+    z-index: 10;
+    padding: 56px 64px 40px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32px;
+  }
+
+  .logo-group {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .logo-mark {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 30px rgba(62, 207, 207, 0.2);
+    position: relative;
+  }
+
+  .logo-mark svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .logo-text h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-bright);
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+
+  .logo-text p {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  .header-meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: right;
+    line-height: 1.7;
+  }
+
+  .header-meta .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(62, 207, 207, 0.08);
+    color: var(--accent-cyan);
+    border: 1px solid rgba(62, 207, 207, 0.15);
+    font-size: 10px;
+    margin-left: 6px;
+  }
+
+  /* === MAIN CONTAINER === */
+  .container {
+    position: relative;
+    z-index: 10;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 0 64px 80px;
+  }
+
+  /* === SECTION TITLES === */
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+  }
+
+  /* === TOP-LEVEL OVERVIEW === */
+  .overview-strip {
+    display: flex;
+    gap: 1px;
+    background: var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 56px;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.3);
+  }
+
+  .overview-cell {
+    flex: 1;
+    background: var(--bg-card);
+    padding: 28px 24px;
+    transition: background 0.3s;
+    cursor: default;
+  }
+
+  .overview-cell:hover {
+    background: var(--bg-card-hover);
+  }
+
+  .overview-cell .ov-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    font-size: 16px;
+  }
+
+  .overview-cell h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-bright);
+    margin-bottom: 4px;
+  }
+
+  .overview-cell p {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* === ARCHITECTURE DIAGRAM === */
+  .arch-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 56px;
+    position: relative;
+  }
+
+  /* Connecting lines */
+  .connector {
+    width: 2px;
+    height: 40px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .connector::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(to bottom, var(--accent-cyan-dim), var(--accent-cyan));
+    border-radius: 2px;
+  }
+
+  .connector .pulse {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    left: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 0 12px var(--accent-cyan);
+    animation: pulse-down 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-down {
+    0% { top: -3px; opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { top: calc(100% - 3px); opacity: 0; }
+  }
+
+  .connector-label {
+    position: absolute;
+    left: calc(50% + 16px);
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--accent-cyan);
+    white-space: nowrap;
+    opacity: 0.7;
+  }
+
+  /* === LAYER CARDS === */
+  .layer-card {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--bg-card);
+    overflow: hidden;
+    position: relative;
+    transition: border-color 0.4s, box-shadow 0.4s;
+  }
+
+  .layer-card:hover {
+    border-color: var(--border-glow);
+  }
+
+  .layer-card .glow {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    height: 1px;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .layer-card:hover .glow {
+    opacity: 1;
+  }
+
+  .layer-header {
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .layer-header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .layer-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .layer-header h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-bright);
+  }
+
+  .layer-header .layer-tech {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .layer-header .layer-tech .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    animation: blink 3s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+
+  .layer-body {
+    padding: 24px 28px;
+  }
+
+  /* === FRONTEND LAYER === */
+  .frontend-modules {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .fe-module {
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(62, 207, 207, 0.02);
+    transition: all 0.3s;
+    cursor: default;
+  }
+
+  .fe-module:hover {
+    border-color: rgba(62, 207, 207, 0.25);
+    background: rgba(62, 207, 207, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  }
+
+  .fe-module h4 {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-bright);
+    margin-bottom: 3px;
+  }
+
+  .fe-module p {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  /* === PIPELINE === */
+  .pipeline-track {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    position: relative;
+  }
+
+  .pipeline-step {
+    flex: 1;
+    padding: 20px 16px;
+    position: relative;
+    border: 1px solid var(--border);
+    border-right: none;
+    background: var(--bg-card);
+    transition: all 0.3s;
+    cursor: default;
+  }
+
+  .pipeline-step:first-child {
+    border-radius: 12px 0 0 12px;
+  }
+
+  .pipeline-step:last-child {
+    border-right: 1px solid var(--border);
+    border-radius: 0 12px 12px 0;
+  }
+
+  .pipeline-step:hover {
+    z-index: 2;
+    background: var(--bg-card-hover);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+    border-color: var(--border-glow);
+  }
+
+  .pipeline-step:hover + .pipeline-step {
+    border-left-color: var(--border-glow);
+  }
+
+  .step-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .step-num::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+  }
+
+  .pipeline-step h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-bright);
+    margin-bottom: 6px;
+  }
+
+  .pipeline-step .step-file {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    margin-bottom: 10px;
+    opacity: 0.5;
+  }
+
+  .pipeline-step p {
+    font-size: 11.5px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .pipeline-step .step-output {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .arrow-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 0;
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+    font-size: 12px;
+    color: var(--accent-cyan);
+    opacity: 0.5;
+  }
+
+  /* === ENGINE SUB-PIPELINE === */
+  .engine-substeps {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .substep-tag {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    background: rgba(139, 108, 239, 0.08);
+    color: var(--accent-violet);
+    border: 1px solid rgba(139, 108, 239, 0.12);
+    transition: all 0.2s;
+  }
+
+  .substep-tag:hover {
+    background: rgba(139, 108, 239, 0.15);
+    border-color: rgba(139, 108, 239, 0.3);
+  }
+
+  /* === SUPPORTING SERVICES === */
+  .services-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .service-card {
+    padding: 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: linear-gradient(135deg, rgba(139,108,239,0.03), transparent);
+    transition: all 0.3s;
+    cursor: default;
+  }
+
+  .service-card:hover {
+    border-color: rgba(139, 108, 239, 0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  }
+
+  .service-card h4 {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-violet);
+    margin-bottom: 4px;
+  }
+
+  .service-card p {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  .service-card code {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    opacity: 0.6;
+  }
+
+  /* === GRAPH LAYER (4 QUADRANTS) === */
+  .graph-layers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .graph-quadrant {
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    cursor: default;
+  }
+
+  .graph-quadrant::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+  }
+
+  .graph-quadrant:hover::before { opacity: 1; }
+
+  .graph-quadrant:hover {
+    border-color: var(--border-glow);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  }
+
+  .graph-quadrant.l1::before { background: var(--accent-cyan); }
+  .graph-quadrant.l2::before { background: var(--accent-amber); }
+  .graph-quadrant.l3::before { background: var(--accent-violet); }
+  .graph-quadrant.l4::before { background: var(--accent-green); }
+
+  .gq-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .gq-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  .l1 .gq-num { background: rgba(62,207,207,0.12); color: var(--accent-cyan); }
+  .l2 .gq-num { background: rgba(232,168,72,0.12); color: var(--accent-amber); }
+  .l3 .gq-num { background: rgba(139,108,239,0.12); color: var(--accent-violet); }
+  .l4 .gq-num { background: rgba(72,216,136,0.12); color: var(--accent-green); }
+
+  .gq-header h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-bright);
+  }
+
+  .graph-quadrant .node-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .node-tag {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    border: 1px solid;
+    transition: all 0.2s;
+  }
+
+  .l1 .node-tag { background: rgba(62,207,207,0.05); color: rgba(62,207,207,0.7); border-color: rgba(62,207,207,0.12); }
+  .l2 .node-tag { background: rgba(232,168,72,0.05); color: rgba(232,168,72,0.7); border-color: rgba(232,168,72,0.12); }
+  .l3 .node-tag { background: rgba(139,108,239,0.05); color: rgba(139,108,239,0.7); border-color: rgba(139,108,239,0.12); }
+  .l4 .node-tag { background: rgba(72,216,136,0.05); color: rgba(72,216,136,0.7); border-color: rgba(72,216,136,0.12); }
+
+  .l1 .node-tag:hover { background: rgba(62,207,207,0.12); border-color: rgba(62,207,207,0.3); }
+  .l2 .node-tag:hover { background: rgba(232,168,72,0.12); border-color: rgba(232,168,72,0.3); }
+  .l3 .node-tag:hover { background: rgba(139,108,239,0.12); border-color: rgba(139,108,239,0.3); }
+  .l4 .node-tag:hover { background: rgba(72,216,136,0.12); border-color: rgba(72,216,136,0.3); }
+
+  /* === LLM ROUTING === */
+  .llm-section {
+    margin-bottom: 56px;
+  }
+
+  .llm-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .llm-card {
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    transition: all 0.3s;
+    cursor: default;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .llm-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    filter: blur(40px);
+    opacity: 0.06;
+    transition: opacity 0.3s;
+  }
+
+  .llm-card:hover::before { opacity: 0.12; }
+
+  .llm-card:hover {
+    border-color: var(--border-glow);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  }
+
+  .llm-card.openai::before { background: var(--accent-green); }
+  .llm-card.google::before { background: var(--accent-blue); }
+  .llm-card.multi::before { background: var(--accent-amber); }
+
+  .llm-provider {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .llm-card.openai .llm-provider { color: var(--accent-green); }
+  .llm-card.google .llm-provider { color: var(--accent-blue); }
+  .llm-card.multi .llm-provider { color: var(--accent-amber); }
+
+  .llm-card h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-bright);
+    margin-bottom: 6px;
+  }
+
+  .llm-card .llm-uses {
+    font-size: 11.5px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .llm-card .llm-uses span {
+    display: block;
+    padding-left: 12px;
+    position: relative;
+  }
+
+  .llm-card .llm-uses span::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    opacity: 0.4;
+  }
+
+  /* === TENANT SECTION === */
+  .tenant-section {
+    margin-bottom: 56px;
+  }
+
+  .tenant-tree {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-card);
+    padding: 24px 28px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--text-dim);
+  }
+
+  .tenant-tree .dir { color: var(--accent-amber); }
+  .tenant-tree .file { color: var(--text); }
+  .tenant-tree .comment { color: var(--text-dim); opacity: 0.5; }
+
+  /* === PRINCIPLES === */
+  .principles-section {
+    margin-bottom: 56px;
+  }
+
+  .principles-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+
+  .principle-card {
+    padding: 20px 18px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    transition: all 0.4s;
+    cursor: default;
+    position: relative;
+  }
+
+  .principle-card:hover {
+    border-color: var(--border-glow);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+  }
+
+  .principle-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    font-size: 15px;
+  }
+
+  .principle-card h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-bright);
+    margin-bottom: 6px;
+  }
+
+  .principle-card p {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  /* === ENDPOINTS === */
+  .endpoints-section {
+    margin-bottom: 56px;
+  }
+
+  .endpoints-table {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--bg-card);
+    border-collapse: collapse;
+  }
+
+  .endpoints-table th {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-align: left;
+    padding: 14px 20px;
+    background: rgba(255,255,255,0.01);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .endpoints-table td {
+    padding: 12px 20px;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+    transition: background 0.2s;
+  }
+
+  .endpoints-table tr:hover td {
+    background: rgba(255,255,255,0.015);
+  }
+
+  .endpoints-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .endpoints-table .ep-route {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--accent-cyan);
+  }
+
+  .endpoints-table .ep-method {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+
+  .ep-method.post { background: rgba(72,216,136,0.1); color: var(--accent-green); }
+  .ep-method.get { background: rgba(72,136,232,0.1); color: var(--accent-blue); }
+  .ep-method.del { background: rgba(232,88,128,0.1); color: var(--accent-rose); }
+
+  .ep-primary {
+    position: relative;
+  }
+
+  .ep-primary::after {
+    content: 'PRIMARY';
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(232,168,72,0.15);
+    color: var(--accent-amber);
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  /* === DEPLOY === */
+  .deploy-section { margin-bottom: 56px; }
+
+  .deploy-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .deploy-card {
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    transition: all 0.3s;
+    cursor: default;
+  }
+
+  .deploy-card:hover {
+    border-color: var(--border-glow);
+    transform: translateY(-2px);
+  }
+
+  .deploy-card h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-bright);
+    margin-bottom: 4px;
+  }
+
+  .deploy-card .deploy-platform {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent-amber);
+    margin-bottom: 8px;
+  }
+
+  .deploy-card p {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  /* === FOOTER === */
+  footer {
+    position: relative;
+    z-index: 10;
+    padding: 32px 64px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* === ANIMATIONS === */
+  .fade-up {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeUp 0.6s ease forwards;
+  }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.1s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.2s; }
+  .stagger-5 { animation-delay: 0.25s; }
+  .stagger-6 { animation-delay: 0.3s; }
+  .stagger-7 { animation-delay: 0.35s; }
+  .stagger-8 { animation-delay: 0.4s; }
+
+  /* === RESPONSIVE === */
+  @media (max-width: 1200px) {
+    header { padding: 32px; }
+    .container { padding: 0 32px 60px; }
+    .frontend-modules { grid-template-columns: repeat(2, 1fr); }
+    .pipeline-track { flex-wrap: wrap; }
+    .pipeline-step { flex: 1 1 calc(50% - 4px); min-width: 200px; border-radius: 10px !important; border-right: 1px solid var(--border) !important; }
+    .arrow-chip { display: none; }
+    .services-grid { grid-template-columns: repeat(2, 1fr); }
+    .principles-grid { grid-template-columns: repeat(3, 1fr); }
+    .llm-grid { grid-template-columns: 1fr; }
+    .deploy-grid { grid-template-columns: repeat(2, 1fr); }
+    footer { padding: 24px 32px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<!-- HEADER -->
+<header class="fade-up">
+  <div class="logo-group">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <h1>SynapseOS</h1>
+      <p>System Architecture</p>
+    </div>
+  </div>
+  <div class="header-meta">
+    Graph-Augmented Reasoning Platform <span class="tag">v3.7</span><br>
+    Multi-Tenant &middot; Domain-Agnostic &middot; LLM-Powered
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- OVERVIEW STRIP -->
+  <div class="overview-strip fade-up stagger-1">
+    <div class="overview-cell">
+      <div class="ov-icon" style="background: rgba(62,207,207,0.1); color: var(--accent-cyan);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>
+      </div>
+      <h3>Next.js 14 Frontend</h3>
+      <p>React + Tailwind + shadcn/ui<br>SSE streaming &middot; Force-graph</p>
+    </div>
+    <div class="overview-cell">
+      <div class="ov-icon" style="background: rgba(139,108,239,0.1); color: var(--accent-violet);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </div>
+      <h3>FastAPI Backend</h3>
+      <p>Python 3.11 &middot; Uvicorn<br>5-stage reasoning pipeline</p>
+    </div>
+    <div class="overview-cell">
+      <div class="ov-icon" style="background: rgba(232,168,72,0.1); color: var(--accent-amber);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 7l3 3M14 9l3-2M7 17l3-3M17 16l-3-2"/></svg>
+      </div>
+      <h3>FalkorDB Graph</h3>
+      <p>4-layer knowledge graph<br>Redis-wire protocol</p>
+    </div>
+    <div class="overview-cell">
+      <div class="ov-icon" style="background: rgba(72,216,136,0.1); color: var(--accent-green);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      </div>
+      <h3>LLM Layer</h3>
+      <p>OpenAI + Google GenAI<br>Model-specific routing</p>
+    </div>
+  </div>
+
+  <!-- PRINCIPLES -->
+  <div class="principles-section fade-up stagger-2">
+    <div class="section-label">Core Principles</div>
+    <div class="principles-grid">
+      <div class="principle-card">
+        <div class="principle-icon" style="background: rgba(139,108,239,0.1); color: var(--accent-violet);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h4>Domain Agnosticism</h4>
+        <p>Zero domain words in engine code. All business logic from graph.</p>
+      </div>
+      <div class="principle-card">
+        <div class="principle-icon" style="background: rgba(232,168,72,0.1); color: var(--accent-amber);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <h4>Graph = Intelligence</h4>
+        <p>Python is a processor. The graph holds ALL domain intelligence.</p>
+      </div>
+      <div class="principle-card">
+        <div class="principle-icon" style="background: rgba(62,207,207,0.1); color: var(--accent-cyan);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        </div>
+        <h4>LLM-First Extraction</h4>
+        <p>Intent detection always via LLM. Regex only as last-resort fallback.</p>
+      </div>
+      <div class="principle-card">
+        <div class="principle-icon" style="background: rgba(72,216,136,0.1); color: var(--accent-green);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </div>
+        <h4>4-Layer Separation</h4>
+        <p>Inventory, Physics, Playbook, Session. Each with distinct responsibility.</p>
+      </div>
+      <div class="principle-card">
+        <div class="principle-icon" style="background: rgba(232,88,128,0.1); color: var(--accent-rose);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        </div>
+        <h4>Multi-Tenant</h4>
+        <p>All domain data in tenant configs. Runtime switching via API.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARCHITECTURE DIAGRAM -->
+  <div class="arch-diagram fade-up stagger-3">
+    <div class="section-label">System Architecture</div>
+
+    <!-- FRONTEND LAYER -->
+    <div class="layer-card" style="--accent: var(--accent-cyan);">
+      <div class="glow" style="background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent); box-shadow: 0 0 var(--glow-spread) var(--accent-cyan);"></div>
+      <div class="layer-header">
+        <div class="layer-header-left">
+          <div class="layer-badge" style="background: rgba(62,207,207,0.1); color: var(--accent-cyan);">FE</div>
+          <h2>Frontend — User Interface</h2>
+        </div>
+        <div class="layer-tech">
+          <div class="dot" style="background: var(--accent-cyan);"></div>
+          Next.js 14 &middot; React &middot; Tailwind &middot; shadcn/ui &middot; :3000
+        </div>
+      </div>
+      <div class="layer-body">
+        <div class="frontend-modules">
+          <div class="fe-module">
+            <h4>Chat UI</h4>
+            <p>SSE streaming consumer, inference step rendering</p>
+          </div>
+          <div class="fe-module">
+            <h4>Graph Viewer</h4>
+            <p>react-force-graph-2d, knowledge + session visualization</p>
+          </div>
+          <div class="fe-module">
+            <h4>Test Lab</h4>
+            <p>LLM-as-a-judge evaluation, batch reports</p>
+          </div>
+          <div class="fe-module">
+            <h4>Bulk Offers</h4>
+            <p>Excel/PDF upload, structured offer generation</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONNECTOR -->
+    <div class="connector" style="height: 48px;">
+      <div class="pulse"></div>
+      <span class="connector-label">SSE + JWT + session_id</span>
+    </div>
+
+    <!-- BACKEND LAYER -->
+    <div class="layer-card" style="--accent: var(--accent-violet);">
+      <div class="glow" style="background: linear-gradient(90deg, transparent, var(--accent-violet), transparent); box-shadow: 0 0 var(--glow-spread) var(--accent-violet);"></div>
+      <div class="layer-header">
+        <div class="layer-header-left">
+          <div class="layer-badge" style="background: rgba(139,108,239,0.1); color: var(--accent-violet);">BE</div>
+          <h2>Backend — Reasoning Pipeline</h2>
+        </div>
+        <div class="layer-tech">
+          <div class="dot" style="background: var(--accent-violet);"></div>
+          FastAPI &middot; Python 3.11 &middot; Uvicorn &middot; :8000
+        </div>
+      </div>
+      <div class="layer-body">
+        <!-- Pipeline -->
+        <div class="pipeline-track">
+          <div class="pipeline-step" style="--step-color: var(--accent-cyan);">
+            <div class="step-num" style="color: var(--accent-cyan);">
+              01
+              <span style="flex:1; height:1px; background: linear-gradient(90deg, rgba(62,207,207,0.2), transparent);"></span>
+            </div>
+            <h4>Scribe</h4>
+            <div class="step-file">scribe.py</div>
+            <p>LLM-powered semantic intent extraction. Dimensions, material, application, environment.</p>
+            <div class="step-output" style="color: var(--accent-cyan);">
+              <span style="opacity:0.5;">&#9654;</span> SemanticIntent
+            </div>
+            <div class="arrow-chip">&#8250;</div>
+          </div>
+          <div class="pipeline-step" style="--step-color: var(--accent-green);">
+            <div class="step-num" style="color: var(--accent-green);">
+              02
+              <span style="flex:1; height:1px; background: linear-gradient(90deg, rgba(72,216,136,0.2), transparent);"></span>
+            </div>
+            <h4>State Merge</h4>
+            <div class="step-file">state.py</div>
+            <p>Cumulative TechnicalState across turns. New values override, nulls preserve.</p>
+            <div class="step-output" style="color: var(--accent-green);">
+              <span style="opacity:0.5;">&#9654;</span> resolved_context
+            </div>
+            <div class="arrow-chip">&#8250;</div>
+          </div>
+          <div class="pipeline-step" style="--step-color: var(--accent-violet);">
+            <div class="step-num" style="color: var(--accent-violet);">
+              03
+              <span style="flex:1; height:1px; background: linear-gradient(90deg, rgba(139,108,239,0.2), transparent);"></span>
+            </div>
+            <h4>Trait Engine</h4>
+            <div class="step-file">universal_engine.py</div>
+            <p>14-stage domain-agnostic reasoning pipeline. Graph-driven.</p>
+            <div class="engine-substeps">
+              <span class="substep-tag">stressors</span>
+              <span class="substep-tag">rules</span>
+              <span class="substep-tag">candidates</span>
+              <span class="substep-tag">traits</span>
+              <span class="substep-tag">vetoes</span>
+              <span class="substep-tag">gates</span>
+              <span class="substep-tag">assembly</span>
+              <span class="substep-tag">constraints</span>
+              <span class="substep-tag">capacity</span>
+              <span class="substep-tag">variance</span>
+              <span class="substep-tag">accessories</span>
+              <span class="substep-tag">clarify</span>
+              <span class="substep-tag">alternatives</span>
+              <span class="substep-tag">verdict</span>
+            </div>
+            <div class="step-output" style="color: var(--accent-violet);">
+              <span style="opacity:0.5;">&#9654;</span> EngineVerdict
+            </div>
+            <div class="arrow-chip">&#8250;</div>
+          </div>
+          <div class="pipeline-step" style="--step-color: var(--accent-amber);">
+            <div class="step-num" style="color: var(--accent-amber);">
+              04
+              <span style="flex:1; height:1px; background: linear-gradient(90deg, rgba(232,168,72,0.2), transparent);"></span>
+            </div>
+            <h4>LLM Synthesis</h4>
+            <div class="step-file">retriever.py</div>
+            <p>Tenant system prompt + REASONING_REPORT. Natural language response.</p>
+            <div class="step-output" style="color: var(--accent-amber);">
+              <span style="opacity:0.5;">&#9654;</span> narrative
+            </div>
+            <div class="arrow-chip">&#8250;</div>
+          </div>
+          <div class="pipeline-step" style="--step-color: var(--accent-rose);">
+            <div class="step-num" style="color: var(--accent-rose);">
+              05
+              <span style="flex:1; height:1px; background: linear-gradient(90deg, rgba(232,88,128,0.2), transparent);"></span>
+            </div>
+            <h4>Persist</h4>
+            <div class="step-file">session_graph.py</div>
+            <p>Write session state to Layer 4 graph. Digital Twin of the conversation.</p>
+            <div class="step-output" style="color: var(--accent-rose);">
+              <span style="opacity:0.5;">&#9654;</span> Layer 4 nodes
+            </div>
+          </div>
+        </div>
+
+        <!-- Supporting services -->
+        <div class="services-grid">
+          <div class="service-card">
+            <h4>LLM Router</h4>
+            <p>Unified dispatch to OpenAI &amp; Google GenAI by model prefix</p>
+            <code>llm_router.py</code>
+          </div>
+          <div class="service-card">
+            <h4>Judge</h4>
+            <p>Multi-model evaluation across 6 quality dimensions</p>
+            <code>judge.py</code>
+          </div>
+          <div class="service-card">
+            <h4>Ingestor</h4>
+            <p>Email thread + document ingestion. 2-pass AI extraction.</p>
+            <code>ingestor.py</code>
+          </div>
+          <div class="service-card">
+            <h4>Config Loader</h4>
+            <p>Tenant discovery, DomainConfig, prompt loading with cache</p>
+            <code>config_loader.py</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONNECTOR -->
+    <div class="connector" style="height: 48px;">
+      <div class="pulse" style="animation-delay: 0.8s;"></div>
+      <span class="connector-label">Cypher queries &middot; MERGE / UNWIND</span>
+    </div>
+
+    <!-- GRAPH LAYER -->
+    <div class="layer-card" style="--accent: var(--accent-amber);">
+      <div class="glow" style="background: linear-gradient(90deg, transparent, var(--accent-amber), transparent); box-shadow: 0 0 var(--glow-spread) var(--accent-amber);"></div>
+      <div class="layer-header">
+        <div class="layer-header-left">
+          <div class="layer-badge" style="background: rgba(232,168,72,0.1); color: var(--accent-amber);">DB</div>
+          <h2>FalkorDB — 4-Layer Knowledge Graph</h2>
+        </div>
+        <div class="layer-tech">
+          <div class="dot" style="background: var(--accent-amber);"></div>
+          Redis-wire protocol &middot; OpenCypher &middot; :6379
+        </div>
+      </div>
+      <div class="layer-body">
+        <div class="graph-layers">
+          <div class="graph-quadrant l1">
+            <div class="gq-header">
+              <span class="gq-num">L1</span>
+              <h4>Inventory</h4>
+            </div>
+            <div class="node-tags">
+              <span class="node-tag">ProductFamily</span>
+              <span class="node-tag">Item</span>
+              <span class="node-tag">Trait</span>
+              <span class="node-tag">Material</span>
+              <span class="node-tag">DimensionModule</span>
+            </div>
+          </div>
+          <div class="graph-quadrant l2">
+            <div class="gq-header">
+              <span class="gq-num">L2</span>
+              <h4>Domain / Physics</h4>
+            </div>
+            <div class="node-tags">
+              <span class="node-tag">Stressor</span>
+              <span class="node-tag">CausalRule</span>
+              <span class="node-tag">Environment</span>
+              <span class="node-tag">Application</span>
+            </div>
+          </div>
+          <div class="graph-quadrant l3">
+            <div class="gq-header">
+              <span class="gq-num">L3</span>
+              <h4>Playbook / Strategy</h4>
+            </div>
+            <div class="node-tags">
+              <span class="node-tag">LogicGate</span>
+              <span class="node-tag">Parameter</span>
+              <span class="node-tag">VariableFeature</span>
+            </div>
+          </div>
+          <div class="graph-quadrant l4">
+            <div class="gq-header">
+              <span class="gq-num">L4</span>
+              <h4>Session State</h4>
+            </div>
+            <div class="node-tags">
+              <span class="node-tag">Session</span>
+              <span class="node-tag">ActiveProject</span>
+              <span class="node-tag">TagUnit</span>
+              <span class="node-tag">ConversationTurn</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LLM ROUTING -->
+  <div class="llm-section fade-up stagger-4">
+    <div class="section-label">LLM Model Routing</div>
+    <div class="llm-grid">
+      <div class="llm-card openai">
+        <div class="llm-provider">OpenAI</div>
+        <h4>GPT-5.2</h4>
+        <div class="llm-uses">
+          <span>Scribe — intent extraction (temp 0.0, 768 tok)</span>
+          <span>Synthesis — final narrative generation</span>
+          <span>Default model for all structured calls</span>
+        </div>
+      </div>
+      <div class="llm-card google">
+        <div class="llm-provider">Google GenAI</div>
+        <h4>Gemini Models</h4>
+        <div class="llm-uses">
+          <span>Gemini 2.0 Flash — fast reasoning fallback</span>
+          <span>Gemini 3 Pro — selectable via model dropdown</span>
+          <span>Available as alternative provider</span>
+        </div>
+      </div>
+      <div class="llm-card multi">
+        <div class="llm-provider">Multi-Provider</div>
+        <h4>Judge &amp; Debate</h4>
+        <div class="llm-uses">
+          <span>Judge — parallel eval across 6 dimensions</span>
+          <span>Debate — multi-LLM test case generation</span>
+          <span>OpenAI + Google + Anthropic</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TENANT ARCHITECTURE -->
+  <div class="tenant-section fade-up stagger-5">
+    <div class="section-label">Multi-Tenant Structure</div>
+    <div class="tenant-tree">
+      <span class="dir">backend/tenants/</span><br>
+      &nbsp;&nbsp;<span class="dir">└── mann_hummel/</span> <span class="comment">&nbsp;&nbsp;# active tenant</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">├── config.yaml</span> <span class="comment">&nbsp;&nbsp;# dimensions, materials, families, scribe hints, assembly</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">├── bulk_offer.py</span> <span class="comment">&nbsp;&nbsp;# tenant-specific offer logic</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir">└── prompts/</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">├── system_generic.txt</span> <span class="comment">&nbsp;&nbsp;# main system prompt template</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">├── synthesis.txt</span> <span class="comment">&nbsp;&nbsp;# response synthesis prompt</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">├── judge_system.txt</span> <span class="comment">&nbsp;&nbsp;# judge evaluation prompt</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">└── ...</span> <span class="comment">&nbsp;&nbsp;# 8 prompt files total</span>
+    </div>
+  </div>
+
+  <!-- ENDPOINTS -->
+  <div class="endpoints-section fade-up stagger-6">
+    <div class="section-label">Key API Endpoints</div>
+    <table class="endpoints-table">
+      <thead>
+        <tr>
+          <th>Endpoint</th>
+          <th>Method</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="ep-route ep-primary">/consult/deep-explainable/stream</td>
+          <td><span class="ep-method post">POST</span></td>
+          <td>Graph Reasoning with SSE streaming</td>
+        </tr>
+        <tr>
+          <td class="ep-route">/session/{id}</td>
+          <td><span class="ep-method get">GET</span> <span class="ep-method del">DEL</span></td>
+          <td>Layer 4 session state CRUD</td>
+        </tr>
+        <tr>
+          <td class="ep-route">/graph/all</td>
+          <td><span class="ep-method get">GET</span></td>
+          <td>Full knowledge graph visualization data</td>
+        </tr>
+        <tr>
+          <td class="ep-route">/config/domain/{id}</td>
+          <td><span class="ep-method post">POST</span></td>
+          <td>Switch active tenant at runtime</td>
+        </tr>
+        <tr>
+          <td class="ep-route">/judge/batch</td>
+          <td><span class="ep-method post">POST</span></td>
+          <td>Batch evaluation with LLM judges</td>
+        </tr>
+        <tr>
+          <td class="ep-route">/offers/bulk/process</td>
+          <td><span class="ep-method post">POST</span></td>
+          <td>Bulk offer generation from Excel/PDF</td>
+        </tr>
+        <tr>
+          <td class="ep-route">/health</td>
+          <td><span class="ep-method get">GET</span></td>
+          <td>Health check</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- DEPLOYMENT -->
+  <div class="deploy-section fade-up stagger-7">
+    <div class="section-label">Deployment</div>
+    <div class="deploy-grid">
+      <div class="deploy-card">
+        <h4>Backend</h4>
+        <div class="deploy-platform">Fly.io &middot; fra</div>
+        <p>1 GB RAM, shared CPU, always-on. Health check at /health every 30s.</p>
+      </div>
+      <div class="deploy-card">
+        <h4>Frontend</h4>
+        <div class="deploy-platform">Fly.io</div>
+        <p>Separate app deployment. Next.js standalone build.</p>
+      </div>
+      <div class="deploy-card">
+        <h4>FalkorDB</h4>
+        <div class="deploy-platform">Cloud-hosted</div>
+        <p>Redis-wire protocol, port 6379. Graph per tenant.</p>
+      </div>
+      <div class="deploy-card">
+        <h4>Development</h4>
+        <div class="deploy-platform">Local</div>
+        <p>./scripts/dev.sh — backend :8000, frontend :3000. Auto-reload.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer class="fade-up stagger-8">
+  <span>SynapseOS Architecture &middot; Graph-Augmented Reasoning</span>
+  <span>v3.7 &middot; Multi-Tenant &middot; Domain-Agnostic</span>
+</footer>
+
+<script>
+  // Intersection Observer for scroll-triggered fade-in
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.animationPlayState = 'running';
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.fade-up').forEach(el => {
+    el.style.animationPlayState = 'paused';
+    observer.observe(el);
+  });
+
+  // Subtle parallax on layer cards
+  document.querySelectorAll('.layer-card').forEach(card => {
+    card.addEventListener('mousemove', (e) => {
+      const rect = card.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const glow = card.querySelector('.glow');
+      if (glow) {
+        glow.style.left = `${x * 100}%`;
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -220,7 +220,7 @@ User message: "I need a filter housing for a commercial kitchen, 1200 CFM"
 |---|---|---|---|
 | Scribe | `gpt-5.2` (DEFAULT_MODEL) | OpenAI | Intent extraction, temp=0.0, 768 tokens |
 | Synthesis | `gpt-5.2` (DEFAULT_MODEL) | OpenAI | Final narrative generation |
-| Chat mode | `gemini-3-pro-preview` | Google | Basic chat (no trait engine) |
+| Fallback | `gemini-2.0-flash` | Google | Alternative provider, selectable via dropdown |
 | Judge | Multi-provider | OpenAI + Google + Anthropic | Parallel quality evaluation |
 | Debate | Selected providers | Multi | Test case generation |
 
@@ -268,7 +268,6 @@ backend/tenants/
 | Endpoint | Method | Purpose |
 |---|---|---|
 | `/consult/deep-explainable/stream` | POST | **Primary**: Graph Reasoning with SSE streaming |
-| `/chat/stream` | POST | LLM-only chat (no trait engine) |
 | `/session/{id}` | GET/DELETE | Layer 4 session state CRUD |
 | `/graph/stats` | GET | Knowledge graph statistics |
 | `/graph/all` | GET | Full graph visualization data |
