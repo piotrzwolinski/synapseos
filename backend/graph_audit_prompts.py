@@ -9,7 +9,7 @@ Round 3: SYNTHESIS  — One LLM merges all findings into consensus report
 # ── Round 1: Independent Audit ────────────────────────────────────────────
 
 AUDIT_SYSTEM_PROMPT = """You are a senior engineering auditor specializing in product data integrity.
-You are reviewing a Knowledge Graph (Neo4j) that models a product catalog.
+You are reviewing a Knowledge Graph (FalkorDB) that models a product catalog.
 The source of truth is the attached PDF catalog.
 
 Your task: Compare the GRAPH DATA against the PDF and identify ALL discrepancies, missing data, and errors.
@@ -62,7 +62,7 @@ Respond in structured JSON:
   "summary": "<2-3 paragraph overall assessment>"
 }"""
 
-AUDIT_USER_PROMPT_TEMPLATE = """Here is the complete Knowledge Graph data extracted from Neo4j.
+AUDIT_USER_PROMPT_TEMPLATE = """Here is the complete Knowledge Graph data extracted from FalkorDB.
 Please compare EVERY fact against the attached PDF catalog and report ALL discrepancies.
 
 {graph_data}

@@ -2,7 +2,7 @@
 
 Two-pass AI-driven document ingestion:
 1. Pass 1 (Architect): Analyze document → propose Ontology (Node types, Relationships, Categories)
-2. Pass 2 (Builder): Extract data using confirmed Ontology → write Configuration Graph to Neo4j
+2. Pass 2 (Builder): Extract data using confirmed Ontology → write Configuration Graph to FalkorDB
 """
 
 import os
@@ -702,7 +702,7 @@ def extract_document_data(file_bytes: bytes, mime_type: str, schema: dict) -> di
 
 
 def write_configuration_graph(extracted_data: dict, schema: dict, source_document: str) -> dict:
-    """Write extracted Configuration Graph to Neo4j.
+    """Write extracted Configuration Graph to FalkorDB.
 
     Creates:
     - DocumentSource node linking to all created entities

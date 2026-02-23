@@ -1,9 +1,9 @@
 ---
 name: graph-builder
-description: Create and modify Knowledge Graph data (nodes, relationships, properties) in the SynapseOS Neo4j database. Use when adding new Applications, Stressors, Traits, Products, InstallationConstraints, CapacityRules, DependencyRules, or any graph data. Also for writing seed scripts.
+description: Create and modify Knowledge Graph data (nodes, relationships, properties) in the SynapseOS FalkorDB database. Use when adding new Applications, Stressors, Traits, Products, InstallationConstraints, CapacityRules, DependencyRules, or any graph data. Also for writing seed scripts.
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: Read, Grep, Glob, Edit, Write, Bash, mcp__neo4j__read_neo4j_cypher, mcp__neo4j__write_neo4j_cypher, mcp__neo4j__get_neo4j_schema
+allowed-tools: Read, Grep, Glob, Edit, Write, Bash, mcp__falkordb__query_graph, mcp__falkordb__list_graphs
 argument-hint: "[what to add/modify, e.g. 'add APP_PHARMACEUTICAL' or 'new stressor for UV exposure']"
 ---
 
@@ -75,21 +75,20 @@ sys.path.insert(0, ".")
 from database import db
 
 def seed():
-    driver = db.get_driver()
-    with driver.session() as session:
-        # Create nodes
-        session.run("""
-            MERGE (n:NodeType {id: $id})
-            SET n.name = $name,
-                n.description = $desc
-        """, id="PREFIX_ID", name="Name", desc="Description")
+    graph = db.get_graph()
+    # Create nodes
+    graph.query("""
+        MERGE (n:NodeType {id: $id})
+        SET n.name = $name,
+            n.description = $desc
+    """, params={"id": "PREFIX_ID", "name": "Name", "desc": "Description"})
 
-        # Create relationships
-        session.run("""
-            MATCH (a:NodeType {id: $a_id})
-            MATCH (b:OtherType {id: $b_id})
-            MERGE (a)-[:RELATIONSHIP_TYPE]->(b)
-        """, a_id="PREFIX_A", b_id="PREFIX_B")
+    # Create relationships
+    graph.query("""
+        MATCH (a:NodeType {id: $a_id})
+        MATCH (b:OtherType {id: $b_id})
+        MERGE (a)-[:RELATIONSHIP_TYPE]->(b)
+    """, params={"a_id": "PREFIX_A", "b_id": "PREFIX_B"})
 
     print("Seed complete.")
 
@@ -128,9 +127,9 @@ See references/cypher-templates.md → "New ProductFamily"
 
 ## CYPHER GOTCHAS
 
-1. **`ON CREATE SET`** — Not supported in all Neo4j versions. Use `COALESCE(n.prop, $val)` instead.
+1. **`COALESCE` for upserts** — Use `COALESCE(n.prop, $val)` pattern for safe updates.
 2. **`allowed_environments` is StringArray** — Don't use `split()`. Use `$val IN pf.allowed_environments`.
 3. **`UNWIND` for batch** — Never loop in Python. Use `UNWIND $items AS item MERGE (n {id: item.id})`.
 4. **ID normalization** — Database queries normalize with `FAM_` prefix. Store IDs WITH prefix.
-5. **Property types** — Neo4j is strict. `keywords` must be `list`, not comma-separated string. Use `["kw1", "kw2"]`.
+5. **Property types** — FalkorDB is strict. `keywords` must be `list`, not comma-separated string. Use `["kw1", "kw2"]`.
 6. **Embedding generation** — For Application nodes with `embedding` property, use `backend/embeddings.py:generate_embedding()`.

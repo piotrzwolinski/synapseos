@@ -353,7 +353,7 @@ function getTypeColor(type: string) {
 
 function isGraphRule(id: string): boolean {
   // Graph rule IDs are property-based strings like "GATE_ATEX_ZONE" or "DEP_KITCHEN_CARBON"
-  // Neo4j elementIds contain colons like "4:abc:123"
+  // FalkorDB internal IDs may contain colons like "4:abc:123"
   return !id.includes(":");
 }
 

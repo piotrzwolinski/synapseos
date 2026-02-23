@@ -3,7 +3,7 @@ name: hvac-auditor
 description: Deep expert-level audit of HVAC Graph Reasoning responses. Runs a query through the API, cross-references results against graph ground truth, and produces a detailed engineering audit report covering physics correctness, dimension mapping, airflow validation, business logic gaps, and product code accuracy. Use when testing complex scenarios or validating bug fixes.
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: Read, Grep, Glob, Bash, Task, mcp__neo4j__read_neo4j_cypher, mcp__plugin_playwright_playwright__browser_take_screenshot, mcp__plugin_playwright_playwright__browser_snapshot
+allowed-tools: Read, Grep, Glob, Bash, Task, mcp__falkordb__query_graph, mcp__falkordb__list_graphs, mcp__plugin_playwright_playwright__browser_take_screenshot, mcp__plugin_playwright_playwright__browser_snapshot
 argument-hint: "[query text or test-case name or 'screenshot']"
 ---
 
@@ -25,7 +25,7 @@ Or if given a screenshot, analyze it directly using the domain knowledge below.
 
 ### Step 2: GATHER ground truth from graph
 
-For every product/dimension/material mentioned in the response, query Neo4j to get the actual values:
+For every product/dimension/material mentioned in the response, query FalkorDB to get the actual values:
 
 ```cypher
 -- Reference airflow for dimensions

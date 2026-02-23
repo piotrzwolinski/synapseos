@@ -1,7 +1,7 @@
 """Vector search & fulltext search contract tests.
 
 These tests pin the interface and return shapes of vector/fulltext
-search methods. Critical for the Neo4j → FalkorDB migration because:
+search methods. Critical because:
 
 1. Vector index creation syntax changes
 2. Vector query procedure name changes (db.index.vector → db.idx.vector)
@@ -10,7 +10,7 @@ search methods. Critical for the Neo4j → FalkorDB migration because:
 
 Two test strategies:
 - Unit tests with mocked DB (always run)
-- Live DB contract tests (when NEO4J_URI is set)
+- Live DB contract tests (when FALKORDB_HOST is set)
 """
 
 import os
@@ -141,7 +141,7 @@ class TestSemanticRulesUnit:
 
 
 # =============================================================================
-# LIVE DB CONTRACT TESTS — only with real Neo4j
+# LIVE DB CONTRACT TESTS — only with real FalkorDB
 # =============================================================================
 
 pytestmark_live = pytest.mark.skipif(

@@ -1,7 +1,7 @@
 """Graph-Native Reasoning Engine.
 
 This module implements the GraphReasoningEngine that replaces YAML-based rule
-evaluation with direct Neo4j graph traversal. Rules live in the graph as nodes
+evaluation with direct graph traversal. Rules live in the graph as nodes
 and relationships, making the system self-documenting and queryable.
 
 Architecture:
@@ -813,15 +813,15 @@ class GraphReasoningReport:
 class GraphReasoningEngine:
     """Engine for graph-native reasoning about product suitability.
 
-    This engine queries Neo4j directly to evaluate business rules stored
+    This engine queries the graph database directly to evaluate business rules stored
     as graph relationships, replacing the config-based approach.
     """
 
     def __init__(self, db):
-        """Initialize with a Neo4jConnection instance.
+        """Initialize with a database connection instance.
 
         Args:
-            db: Neo4jConnection instance with graph query methods
+            db: FalkorDB connection instance with graph query methods
         """
         self.db = db
 

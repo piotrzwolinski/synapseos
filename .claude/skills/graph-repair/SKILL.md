@@ -3,7 +3,7 @@ name: graph-repair
 description: Diagnose and fix bugs in the SynapseOS Graph Reasoning pipeline. Use when given a bug report, test failure audit, or screenshot showing incorrect engine output (wrong airflow, dimension mismatch, missing assembly, wrong clarifications, LLM hallucination, etc.).
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: Read, Grep, Glob, Edit, Write, Bash, Task, mcp__neo4j__read_neo4j_cypher
+allowed-tools: Read, Grep, Glob, Edit, Write, Bash, Task, mcp__falkordb__query_graph, mcp__falkordb__list_graphs
 argument-hint: "[symptom description or 'diagnose <screenshot>']"
 ---
 
@@ -60,7 +60,7 @@ User Query
 
 ### Step 3: VERIFY graph data
 
-Before fixing code, check if the graph data is correct using Neo4j MCP:
+Before fixing code, check if the graph data is correct using FalkorDB MCP:
 
 ```
 Common diagnostic queries — see references/diagnostic-queries.md

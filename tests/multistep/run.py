@@ -139,7 +139,7 @@ TESTS = {
     # -----------------------------------------------------------------------
     # TEST: Kitchen + Rooftop + Hospital + Marine — GDC-FLEX RF
     #
-    # Graph Ground Truth (verified 2025-02-11 via Neo4j MCP):
+    # Graph Ground Truth (verified 2025-02-11 via FalkorDB MCP):
     #
     #   FAM_GDC_FLEX
     #     materials:    [FZ, AZ, RF, SF, ZM]  (all 5)

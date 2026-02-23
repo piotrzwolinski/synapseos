@@ -12,7 +12,7 @@ PDF_PATH = os.path.join(os.path.dirname(__file__), "..", "testdata", "filter_hou
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "reports")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# ─── Graph data summary (extracted from Neo4j) ───────────────────────────
+# ─── Graph data summary (extracted from FalkorDB) ───────────────────────────
 
 GRAPH_DATA = """
 ## PRODUCT FAMILIES IN GRAPH (Layer 1)
@@ -177,7 +177,7 @@ The PDF shows BFF (Påsfilterram / Bag Filter Frame) on pages 2 and 20:
 """
 
 SYSTEM_PROMPT = """You are a senior HVAC engineering auditor specializing in product data integrity.
-You are reviewing a Knowledge Graph (Neo4j) that models the MANN+HUMMEL HVAC Filter Housing product catalog.
+You are reviewing a Knowledge Graph (FalkorDB) that models the MANN+HUMMEL HVAC Filter Housing product catalog.
 The source of truth is the attached PDF catalog "HVAC Filterskåp" (Version 01-09-2025).
 
 Your task: Compare the GRAPH DATA against the PDF and identify ALL discrepancies, missing data, and errors.

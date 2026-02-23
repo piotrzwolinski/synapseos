@@ -317,7 +317,7 @@ def extract_semantic_intent(
         query: Cleaned user message (no [STATE:] or [LOCKED:] wrappers)
         recent_turns: Last N conversation turns [{"role": "user", "message": "..."}]
         technical_state: Current TechnicalState with accumulated tags/params
-        db: Optional Neo4jConnection for graph-driven environment/application mapping
+        db: Optional database connection for graph-driven environment/application mapping
 
     Returns:
         SemanticIntent or None if extraction fails

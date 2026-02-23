@@ -41,7 +41,7 @@ export function GraphStats() {
       <CardHeader>
         <CardTitle className="text-xl flex items-center gap-2">
           <Database className="h-5 w-5" />
-          Neo4j Graph Database
+          FalkorDB Graph Database
         </CardTitle>
       </CardHeader>
       <CardContent>

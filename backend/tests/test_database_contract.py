@@ -1,13 +1,10 @@
-"""Database layer CONTRACT tests — pins return shapes for migration safety.
+"""Database layer CONTRACT tests — pins return shapes for safety.
 
-These tests verify that Neo4jConnection methods return data in the exact
+These tests verify that database methods return data in the exact
 structure that the engine, retriever, and session graph expect.
 
-When migrating to FalkorDB, swap `_get_real_db()` to use FalkorDB driver
-and all these tests must still pass — that's the migration contract.
-
 Strategy:
-- Tests use the REAL database (Neo4j Aura) when NEO4J_URI is set
+- Tests use the REAL database (FalkorDB) when FALKORDB_HOST is set
 - Tests are SKIPPED when no database is available (CI/local without DB)
 - Each test pins the SHAPE of the return value (keys, types), not exact data
 """

@@ -183,7 +183,7 @@ class UniversalGraphEngine:
         Initialize the engine.
 
         Args:
-            graph_connection: Database connection (FalkorDB, Neo4j, etc.)
+            graph_connection: FalkorDB database connection
             embedding_provider: Function to generate embeddings (OpenAI, etc.)
         """
         self.db = graph_connection

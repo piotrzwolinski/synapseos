@@ -1,6 +1,6 @@
 # Diagnostic Cypher Queries
 
-Use these queries via `mcp__neo4j__read_neo4j_cypher` to verify graph data when debugging.
+Use these queries via `mcp__falkordb__query_graph` (graphName: "synapse") to verify graph data when debugging.
 
 ## 1. Product Family — Full Profile
 

@@ -3970,7 +3970,7 @@ class GraphConnection:
                 "_meta": {
                     "total_variants": len(variants),
                     "total_materials": len(materials),
-                    "source": "Neo4j Knowledge Graph v4.0"
+                    "source": "FalkorDB Knowledge Graph v4.0"
                 }
             }
 
@@ -5180,5 +5180,3 @@ class GraphConnection:
 
 db = GraphConnection()
 
-# Backward-compat alias
-Neo4jConnection = GraphConnection

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Add Variable Features Schema to Neo4j
+Add Variable Features Schema to FalkorDB
 
 This script adds the HAS_VARIABLE_FEATURE relationships to product families,
 enabling the "Variance Check Loop" that ensures all configurable features

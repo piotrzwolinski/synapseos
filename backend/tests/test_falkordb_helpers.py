@@ -173,7 +173,7 @@ class TestSingleRecordConversion:
         assert row == {"count": 150}
 
     def test_multiple_rows_returns_first(self):
-        """When multiple rows exist, return the first (matches Neo4j .single() for 1-row queries)."""
+        """When multiple rows exist, return the first."""
         result = FakeQueryResult(
             header=[(1, "name")],
             result_set=[["first"], ["second"]],
@@ -386,8 +386,7 @@ class TestReturnShapeContract:
 class TestPeekGuardReplacement:
     """Validate that _query_single replaces result.peek() + result.single() correctly.
 
-    Neo4j pattern:  dict(result.single()) if result.peek() else {default}
-    FalkorDB:       row if (row := _query_single(...)) else {default}
+    Validates: row if (row := _query_single(...)) else {default}
     """
 
     def test_peek_with_data_returns_dict(self):

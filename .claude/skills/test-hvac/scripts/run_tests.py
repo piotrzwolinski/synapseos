@@ -2644,7 +2644,7 @@ def print_gap_analysis(results: list):
             by_cause["api_error"].append(r)
 
     cause_labels = {
-        "graph_data": "GRAPH DATA — Missing nodes, relationships, or properties in Neo4j",
+        "graph_data": "GRAPH DATA — Missing nodes, relationships, or properties in FalkorDB",
         "engine_or_graph_data": "ENGINE/GRAPH — Engine logic or missing graph data",
         "scribe_or_graph_keywords": "SCRIBE/KEYWORDS — Intent extraction failed (missing keywords or Scribe bug)",
         "llm_generation": "LLM GENERATION — Engine was correct but LLM produced wrong text",

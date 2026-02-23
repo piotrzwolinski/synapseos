@@ -2,7 +2,7 @@
 // GRAPH SCHEMA - 3-Layer Knowledge Graph
 // =============================================================================
 // This file initializes the complete graph schema for the HVAC filtration domain.
-// Run this script against Neo4j to set up all 3 layers:
+// Run this script against FalkorDB to set up all 3 layers:
 //   Layer 1: Inventory (Products, Materials, Dimensions)
 //   Layer 2: Domain/Physics (Applications, Risks, Physical Laws)
 //   Layer 3: Playbook (Clarification Parameters, Options)

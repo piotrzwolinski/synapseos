@@ -239,7 +239,7 @@ const MODULES: Module[] = [
     examples: [
       { question: "Turn 1: 'GDB 300×600' → Turn 2: 'this is for a hospital'", why: "Dimensions from turn 1 preserved in Layer 4. Hospital added → material pivoted to RF, dimensions unchanged." },
       { question: "Turn 1: 'Stainless steel' → Turn 2: 'code for GDC'", why: "Material lock (RF) carries over. GDC code generated with -RF suffix automatically." },
-      { question: "(3-day break) → 'Let's continue with that project'", why: "Full session restored from Neo4j Layer 4: all tags, dimensions, material locks, assembly groups." },
+      { question: "(3-day break) → 'Let's continue with that project'", why: "Full session restored from FalkorDB Layer 4: all tags, dimensions, material locks, assembly groups." },
       { question: "Same as before but double the airflow", why: "Derived action: SAME_AS copies dimensions, DOUBLE multiplies airflow × 2. All tracked in state." },
       { question: "Add second item — GDC with same dimensions", why: "Multi-tag: item_2 created with GDC, dimensions copied from item_1. Each tracked independently." },
     ],

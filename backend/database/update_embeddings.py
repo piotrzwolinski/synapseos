@@ -2,7 +2,7 @@
 """
 Embedding Migration Script for Hybrid Search
 
-This script prepares Neo4j nodes for vector-based semantic search by:
+This script prepares graph nodes for vector-based semantic search by:
 1. Generating embeddings for Application, Risk, Substance, and Requirement nodes
 2. Creating vector indexes for efficient similarity search
 
@@ -138,7 +138,7 @@ def update_application_embeddings(graph):
             embedding = get_embedding(text_for_embedding)
 
             # Update the node with embedding
-            # Neo4j accepts float arrays directly as properties
+            # FalkorDB accepts float arrays directly as properties
             graph.query("""
                 MATCH (app:Application {id: $id})
                 SET app.embedding = $embedding,
@@ -259,7 +259,7 @@ def main():
     print("HYBRID SEARCH EMBEDDING MIGRATION")
     print("=" * 60)
 
-    # Connect to Neo4j
+    # Connect to FalkorDB
     host = os.getenv("FALKORDB_HOST", "localhost")
     port = int(os.getenv("FALKORDB_PORT", 6379))
     password = os.getenv("FALKORDB_PASSWORD", None)

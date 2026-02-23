@@ -1348,7 +1348,7 @@ def evaluate_policies(
     """Evaluate policies via GRAPH traversal - no YAML config.
 
     This function now uses the GraphReasoningEngine to evaluate rules
-    stored in Neo4j instead of YAML-based policies.
+    stored in the graph database instead of YAML-based policies.
 
     Args:
         query: User's query
@@ -1428,7 +1428,7 @@ def build_guardian_prompt(query: str, config: DomainConfig) -> str:
     """DEPRECATED: Use build_graph_reasoning_prompt() instead.
 
     This function is kept for backwards compatibility but should not be used.
-    All rules are now stored in the Neo4j graph and retrieved via GraphReasoningEngine.
+    All rules are now stored in the graph and retrieved via GraphReasoningEngine.
     """
     # Return empty string - all reasoning comes from graph now
     return ""
@@ -1464,7 +1464,7 @@ def build_graph_reasoning_prompt(query: str, product_family: str = None, context
     """Build reasoning context from graph traversal instead of YAML config.
 
     This function replaces build_guardian_prompt() with graph-native reasoning.
-    Rules are retrieved via Neo4j queries rather than loaded from YAML.
+    Rules are retrieved via graph queries rather than loaded from YAML.
 
     Args:
         query: User's query string

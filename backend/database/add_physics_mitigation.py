@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Add Physics-Based Mitigation Schema to Neo4j
+Add Physics-Based Mitigation Schema to FalkorDB
 
 This script creates the domain model for physics-based risk mitigation:
 - Environment nodes (contexts that cause risks)

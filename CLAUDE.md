@@ -2,7 +2,7 @@
 
 ## 1. THE GOLDEN RULE: STRICT DOMAIN AGNOSTICISM
 - `backend/logic/universal_engine.py` is a **Dumb Processor**. It MUST NOT contain HVAC words (filter, housing, airflow).
-- All domain-specific logic must be fetched as **Metadata** from the Graph (Neo4j).
+- All domain-specific logic must be fetched as **Metadata** from the Graph (FalkorDB).
 - Use `property_key` from the graph to access values in `ProjectState`.
 - If you need to add a "Kitchen" rule, add it to the **Graph**, not the Python code.
 
@@ -37,7 +37,7 @@ A parameter is "Resolved" only if it exists in Layer 4. Three guards must check 
 ## 6. CYGHER QUERY RULES
 - **Driver Singleton:** Use `Database.get_driver()` to avoid SSL handshake latency.
 - **Batching:** Never query in a loop. Use `UNWIND $list AS item` to perform bulk lookups.
-- **Versioning:** Use `COALESCE(s.prop, $val)` for Neo4j property updates.
+- **Versioning:** Use `COALESCE(s.prop, $val)` for property updates.
 
 ## 7. GRAPH-DRIVEN INTELLIGENCE (v2.7+)
 Python is a processor, the Graph holds ALL intelligence:

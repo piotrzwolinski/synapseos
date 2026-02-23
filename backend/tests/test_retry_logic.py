@@ -1,7 +1,7 @@
 """Tests for _execute_with_retry connection resilience.
 
 Validates that the retry wrapper:
-1. Catches the correct exception types (neo4j → redis after migration)
+1. Catches the correct exception types (redis.exceptions)
 2. Calls reconnect() on transient failures
 3. Raises on persistent failures after max retries
 4. Passes through non-connection errors immediately
@@ -29,7 +29,7 @@ class TestExecuteWithRetry:
         """Create a minimal object with _execute_with_retry logic.
 
         This extracts the retry logic so it can be tested independently
-        of the actual Neo4j/FalkorDB connection.
+        of the actual FalkorDB connection.
         """
         class RetryMixin:
             def __init__(self):
@@ -137,7 +137,7 @@ class TestExecuteWithRetry:
         assert db.reconnect_calls == 1
 
     def test_defunct_string_match(self):
-        """Neo4j-style 'defunct' connection error should trigger retry."""
+        """'Defunct' connection error should trigger retry."""
         db = self._make_db_with_retry()
         attempts = [0]
 
@@ -184,7 +184,7 @@ class TestCurrentRetryIntegration:
     """Verify _execute_with_retry in database.py catches Redis connection exceptions.
 
     After FalkorDB migration, the retry logic catches ConnectionError and
-    TimeoutError (from redis.exceptions) instead of neo4j exceptions.
+    TimeoutError (from redis.exceptions).
     """
 
     def test_current_retry_catches_redis_connection_error(self):

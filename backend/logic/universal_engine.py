@@ -731,7 +731,7 @@ class TraitBasedEngine:
     def __init__(self, db):
         """
         Args:
-            db: Neo4jConnection instance with trait-query methods
+            db: FalkorDB connection instance with trait-query methods
         """
         self.db = db
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Add Accessory Compatibility Schema to Neo4j
+Add Accessory Compatibility Schema to FalkorDB
 
 This script creates the accessory/option compatibility relationships
 that enable the Strict Compatibility Validator to block invalid configurations.

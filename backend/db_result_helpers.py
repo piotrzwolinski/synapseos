@@ -1,16 +1,13 @@
-"""FalkorDB ↔ Neo4j result conversion helpers.
+"""FalkorDB result conversion helpers.
 
 These functions convert FalkorDB's list-of-lists result format (QueryResult)
-into the dict-based format that all 140 database.py methods currently expect.
+into the dict-based format that all database.py methods expect.
 
-After migration, every _query() closure in database.py will call these helpers
-instead of iterating Neo4j Record objects.
-
-Usage (post-migration):
+Usage:
     result = graph.query(cypher, params=params)
-    rows = result_to_dicts(result)          # replaces [dict(r) for r in result]
-    row  = result_single(result)            # replaces dict(result.single()) if result.peek() else default
-    val  = result_value(result, "count", 0) # replaces record["count"] if record else 0
+    rows = result_to_dicts(result)          # list of dicts from result rows
+    row  = result_single(result)            # first row as dict, or default
+    val  = result_value(result, "count", 0) # single value by column name
 """
 
 from __future__ import annotations
@@ -21,7 +18,7 @@ def _unwrap_value(val):
 
     FalkorDB returns Node/Edge objects when Cypher selects full nodes
     (e.g., RETURN n) instead of properties (e.g., RETURN n.name).
-    Neo4j returns the same as dicts via record.data(), so we normalize here.
+    We normalize these to plain dicts for uniform downstream handling.
 
     Uses duck-typing (checks for .properties attribute) to avoid importing
     falkordb at module level — allows running against either driver.
@@ -40,8 +37,7 @@ def _unwrap_value(val):
 def result_to_dicts(result) -> list[dict]:
     """Convert a FalkorDB QueryResult to list[dict].
 
-    Replaces the Neo4j pattern: [dict(record) for record in result]
-    which appears ~70 times in database.py.
+    Converts QueryResult rows into a list of dicts keyed by column name.
 
     Args:
         result: FalkorDB QueryResult with .header and .result_set attributes.
@@ -64,8 +60,7 @@ def result_to_dicts(result) -> list[dict]:
 def result_single(result) -> dict | None:
     """Extract first row as dict, or None if empty.
 
-    Replaces the Neo4j pattern: dict(result.single()) if result.peek() else {default}
-    which appears ~15 times in database.py (including 3 peek() sites).
+    Returns the first row as a dict, or None if the result set is empty.
 
     Args:
         result: FalkorDB QueryResult.

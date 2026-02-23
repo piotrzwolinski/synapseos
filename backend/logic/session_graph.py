@@ -1,4 +1,4 @@
-"""Session Graph Manager - Layer 4: Persistent Session State in Neo4j.
+"""Session Graph Manager - Layer 4: Persistent Session State in FalkorDB.
 
 This module manages active engineering sessions directly in the graph database,
 making the system stateful in the graph and stateless in Python.
@@ -46,7 +46,7 @@ def _normalize_orientation(width: int, height: int) -> tuple[int, int]:
 
 
 class SessionGraphManager:
-    """Manages session state as Layer 4 nodes in the Neo4j graph.
+    """Manages session state as Layer 4 nodes in the FalkorDB graph.
 
     Thread-safe: each method runs its own transaction via the db connection.
     """

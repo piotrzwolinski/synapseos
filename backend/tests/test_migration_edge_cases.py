@@ -100,8 +100,7 @@ class TestPeekReplacementWithResultSingle:
 class TestExistsSubqueryRewrite:
     """Document the EXISTS {} usage and validate the rewrite approach.
 
-    Neo4j:    WHERE EXISTS { (p)-[:HAS_TURN]->(:ConversationTurn) }
-    FalkorDB: WHERE (p)-[:HAS_TURN]->(:ConversationTurn)
+    Validates: WHERE (p)-[:HAS_TURN]->(:ConversationTurn) pattern syntax.
     """
 
     def test_exists_subquery_migrated_to_pattern_predicate(self):
@@ -157,8 +156,7 @@ class TestExistsSubqueryRewrite:
 class TestMapProjectionRewrite:
     """Verify {.*} has been replaced with properties() after FalkorDB migration.
 
-    Neo4j:    RETURN er {.*} AS review
-    FalkorDB: RETURN properties(er) AS review
+    Validates: RETURN properties(er) AS review (instead of {.*} syntax).
     """
 
     def test_submit_expert_review_uses_properties(self):
@@ -275,8 +273,7 @@ class TestMapProjectionRewrite:
 class TestShowIndexesReplacement:
     """Document the SHOW INDEXES usage in ensure_learned_rules_index.
 
-    Neo4j:    SHOW INDEXES WHERE name = $index_name
-    FalkorDB: CALL db.indexes() or try-create with error handling
+    Validates: CALL db.indexes() or try-create with error handling.
     """
 
     def test_ensure_learned_rules_index_uses_try_except(self):
@@ -434,9 +431,8 @@ class TestInitSessionSchemaDDL:
 
     def test_falkordb_vector_index_options(self):
         """Validate FalkorDB vector index DDL format."""
-        # Neo4j:    OPTIONS {indexConfig: {`vector.dimensions`: 3072, `vector.similarity_function`: 'cosine'}}
         # FalkorDB: OPTIONS {dimension: 3072, similarityFunction: 'cosine'}
-        neo4j_options = "indexConfig: {`vector.dimensions`: 3072, `vector.similarity_function`: 'cosine'}"
+        legacy_options = "indexConfig: {`vector.dimensions`: 3072, `vector.similarity_function`: 'cosine'}"
         falkordb_options = "dimension: 3072, similarityFunction: 'cosine'"
 
         # Verify they're structurally different
@@ -493,7 +489,7 @@ class TestVectorSearchSyntax:
         assert "db.idx.vector.queryNodes" in source, \
             "Should use FalkorDB vector procedure (db.idx.vector.queryNodes)"
         assert "db.index.vector.queryNodes" not in source, \
-            "Neo4j vector procedure should be replaced"
+            "Should use FalkorDB vector procedure, not legacy"
 
     def test_hybrid_retrieval_uses_falkordb_procedure(self):
         from database import GraphConnection
@@ -516,7 +512,7 @@ class TestFulltextSearchSyntax:
         assert "db.idx.fulltext.queryNodes" in source, \
             "Should use FalkorDB fulltext procedure (db.idx.fulltext.queryNodes)"
         assert "db.index.fulltext.queryNodes" not in source, \
-            "Neo4j fulltext procedure should be replaced"
+            "Should use FalkorDB fulltext procedure, not legacy"
 
     def test_configuration_graph_search_uses_falkordb_procedure(self):
         from database import GraphConnection

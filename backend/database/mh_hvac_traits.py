@@ -2,7 +2,7 @@
 """
 HVAC Trait Seed Script — Initializes Meta-Graph with Abstract Traits
 
-Seeds Layer 2.5 (Trait Layer) into the existing Neo4j graph:
+Seeds Layer 2.5 (Trait Layer) into the existing FalkorDB graph:
 - PhysicalTrait nodes (product capabilities abstracted from features)
 - EnvironmentalStressor nodes (attack vectors from environments)
 - CausalRule relationships (NEUTRALIZED_BY, DEMANDS_TRAIT)

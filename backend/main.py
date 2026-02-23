@@ -453,7 +453,7 @@ async def ingest_case_study(request: IngestRequest, _user: str = Depends(get_cur
     """Ingest a case study into the knowledge graph.
 
     This extracts hard data (products, competitors) and soft knowledge
-    (concepts, observations, actions) from the text and stores them in Neo4j.
+    (concepts, observations, actions) from the text and stores them in the graph database.
     """
     try:
         counts = ingest_case(
@@ -627,7 +627,7 @@ async def consult_deep_explainable_stream(request: ConsultRequest, _user: str = 
 async def init_vector_index(_user: str = Depends(get_current_user)):
     """Initialize the vector index for concept embeddings.
 
-    This must be called before using vector search. Creates a Neo4j
+    This must be called before using vector search. Creates a
     vector index on Concept.embedding if it doesn't exist.
     """
     try:
@@ -734,7 +734,7 @@ async def delete_learned_rule(trigger: str, rule: str, _user: str = Depends(get_
 async def init_learned_rules_index(_user: str = Depends(get_current_user)):
     """Initialize the vector index for learned rules.
 
-    Creates a Neo4j vector index on Keyword.embedding if it doesn't exist.
+    Creates a vector index on Keyword.embedding if it doesn't exist.
     """
     try:
         success = db.ensure_learned_rules_index()
@@ -1106,7 +1106,7 @@ async def execute_document_extraction(
     source_name: str = Form(None),
     _user: str = Depends(get_current_user)
 ):
-    """Pass 2 - Builder: Extract data using confirmed schema and write to Neo4j.
+    """Pass 2 - Builder: Extract data using confirmed schema and write to the graph database.
 
     Upload the same document along with the confirmed schema (as JSON string).
     The AI will extract entities and relationships according to the schema

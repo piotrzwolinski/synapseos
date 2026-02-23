@@ -58,7 +58,7 @@ lines.append("Use ONLY these verified dimensions in your response. Do NOT repeat
 ## Pattern 3: State Lost Between Turns
 
 **Diagnosis:**
-1. Check `get_project_state()` returns correct data (query Neo4j Layer 4)
+1. Check `get_project_state()` returns correct data (query FalkorDB Layer 4)
 2. Check `TechnicalState.from_dict()` correctly restores all fields
 3. Check `resolved_params` are being persisted and restored
 

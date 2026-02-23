@@ -807,7 +807,7 @@ export function UseCaseCoverage() {
       <div className="rounded-lg bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700/40 px-4 py-3">
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Analysis based on 27 unique email conversations from Mikael Kylefalk&apos;s inbox (testdata/mails_mikael/).
-          Cross-referenced against Neo4j knowledge graph (12 ProductFamilies, 273 DimensionModules, 11 Applications, 8 Environments, 5 Materials, 31 FilterConsumables)
+          Cross-referenced against FalkorDB knowledge graph (12 ProductFamilies, 273 DimensionModules, 11 Applications, 8 Environments, 5 Materials, 31 FilterConsumables)
           and product catalog (filter_housings_sweden.pdf, 24 pages, v01-09-2025).
         </p>
       </div>

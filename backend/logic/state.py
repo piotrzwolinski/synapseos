@@ -999,7 +999,7 @@ class TechnicalState:
     def persist_to_graph(self, session_mgr, session_id: str) -> None:
         """Sync current Python state to the graph database.
 
-        Writes all current state (project, material, tags) to Neo4j Layer 4.
+        Writes all current state (project, material, tags) to FalkorDB Layer 4.
         The graph becomes the source of truth.
         """
         session_mgr.ensure_session(session_id)

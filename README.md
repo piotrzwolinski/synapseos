@@ -4,7 +4,7 @@ A full-stack chatbot application with Python/FastAPI backend and React/Next.js f
 
 ## Tech Stack
 
-- **Backend**: Python, FastAPI, Google Gemini AI, Neo4j
+- **Backend**: Python, FastAPI, Google Gemini AI, FalkorDB
 - **Frontend**: Next.js, React, shadcn/ui, Tailwind CSS
 
 ## Setup
@@ -31,4 +31,4 @@ Frontend runs on http://localhost:3000
 ## API Endpoints
 
 - `POST /consult/deep-explainable/stream` - Graph Reasoning (SSE streaming)
-- `GET /graph/stats` - Get Neo4j graph statistics
+- `GET /graph/stats` - Get graph statistics
