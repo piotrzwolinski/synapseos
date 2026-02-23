@@ -1,3 +1,4 @@
+# FOREGROUND — tenant-specific, not compiled
 """
 System prompts for the 3-round Multi-LLM Debate Protocol.
 

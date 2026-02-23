@@ -1,3 +1,4 @@
+# FOREGROUND — tenant-specific, not compiled
 """
 Prompts for the LLM-as-a-Judge evaluation system.
 

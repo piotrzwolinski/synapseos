@@ -1,3 +1,4 @@
+# FOREGROUND — tenant-specific, not compiled
 """
 LLM-as-a-Judge evaluation system for SynapseOS Graph Reasoning.
 

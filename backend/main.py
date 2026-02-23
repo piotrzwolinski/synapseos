@@ -52,6 +52,12 @@ async def startup_event():
         db.init_session_schema()
     except Exception as e:
         print(f"⚠ Session schema init failed (non-fatal): {e}")
+    # Populate dimension/material caches from graph
+    try:
+        from logic.dimension_tables import populate_from_graph
+        populate_from_graph(db.graph)
+    except Exception as e:
+        print(f"⚠ Graph cache population failed (non-fatal, using YAML fallback): {e}")
     print("✅ Server ready!")
 
 

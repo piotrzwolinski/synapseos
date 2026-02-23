@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 
 from database import db
 from embeddings import generate_embedding
-from config_loader import get_config, reload_config, DomainConfig, ReasoningPolicy
+from config_loader import get_config, reload_config, DomainConfig
 from models import (
     ConsultResponse, StructuredResponse, GraphEvidence, PolicyCheckResult,
     ExplainableResponse, ReferenceDetail, ReasoningStep
@@ -860,107 +860,8 @@ def extract_project_keywords(query: str) -> list[str]:
 
 
 # =============================================================================
-# CONTEXT FORMATTING (Configuration-Driven)
+# CONTEXT FORMATTING (Direct — no config dependency)
 # =============================================================================
-
-def _get_field_value(data: dict, field_config, config: DomainConfig) -> Optional[str]:
-    """Get value for a field, checking fallbacks."""
-    value = data.get(field_config.key)
-
-    # Check fallback keys
-    if value is None and field_config.fallback_keys:
-        for fallback in field_config.fallback_keys:
-            value = data.get(fallback)
-            if value is not None:
-                break
-
-    # Use default if still None
-    if value is None and field_config.default:
-        value = field_config.default
-
-    return value
-
-
-def _format_single_field(data: dict, field_config, combined_values: dict = None) -> Optional[str]:
-    """Format a single field according to its configuration."""
-    # Skip if hidden due to combination
-    if field_config.hidden_if_combined and combined_values:
-        return None
-
-    # Handle display_only_if_true
-    if field_config.display_only_if_true:
-        if data.get(field_config.key):
-            return field_config.format
-        return None
-
-    # Get value
-    value = data.get(field_config.key)
-    if value is None:
-        for fb in field_config.fallback_keys:
-            value = data.get(fb)
-            if value is not None:
-                break
-
-    if value is None:
-        if field_config.default:
-            value = field_config.default
-        elif field_config.required:
-            value = "Unknown"
-        else:
-            return None
-
-    # Handle arrays
-    if field_config.is_array and isinstance(value, list):
-        value = field_config.array_join.join(str(v) for v in value)
-
-    # Handle combined fields
-    if field_config.combine_with:
-        other_value = data.get(field_config.combine_with)
-        if other_value is not None:
-            # Build combined format with both values
-            format_dict = {field_config.key: value, field_config.combine_with: other_value}
-            result = field_config.combined_format.format(**format_dict)
-
-            # Check for append fields
-            # (simplified - in full implementation would scan for append_to_combined)
-            return result
-        # If other value missing, just show this one
-        return field_config.format.format(value=value)
-
-    return field_config.format.format(value=value)
-
-
-def _format_options(data: dict, config: DomainConfig) -> list[str]:
-    """Format configuration options using config schema."""
-    lines = []
-    opts_config = config.primary_entity_display.options_display
-
-    # Try JSON options first
-    json_options = data.get(opts_config.json_key)
-    if json_options:
-        try:
-            options = json.loads(json_options) if isinstance(json_options, str) else json_options
-            if options:
-                lines.append(opts_config.header)
-                for opt in options:
-                    code = opt.get('code', '?')
-                    desc = opt.get('description', 'Unknown')
-                    category = opt.get('category', '')
-                    cat_str = opts_config.category_format.format(category=category) if category else ""
-                    line = opts_config.format.format(code=code, description=desc) + cat_str
-                    lines.append(line)
-                return lines
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    # Fallback to simple list
-    fallback_options = data.get(opts_config.fallback_key)
-    if fallback_options and isinstance(fallback_options, list):
-        lines.append(opts_config.header)
-        for opt in fallback_options:
-            lines.append(f"    • {opt}")
-
-    return lines
 
 
 # =============================================================================
@@ -1248,12 +1149,9 @@ def get_semantic_rules(query_embedding: list[float], user_query: str = "") -> st
 
 
 def format_configuration_context(config_results: dict, max_variants: int = 5, max_context_chars: int = 4000) -> str:
-    """Format search results using configuration-driven rendering.
+    """Format graph search results as readable text for LLM consumption.
 
-    This function contains NO hardcoded field names - everything
-    comes from the display schema in configuration.
-
-    CONTEXT PRUNING: Limits output to prevent LLM token overload.
+    Formats variant data directly from graph result dicts — no config dependency.
 
     Args:
         config_results: Results from configuration graph search
@@ -1266,72 +1164,111 @@ def format_configuration_context(config_results: dict, max_variants: int = 5, ma
     if not config_results:
         return ""
 
-    config = get_config()
     context_parts = []
 
-    # PRUNING: Limit variants to top N matches
+    # Format product variants
     variants = config_results.get("variants", [])[:max_variants]
     if variants:
-        display = config.primary_entity_display
-        header = display.header_template.format(icon=display.icon, title=display.title)
-        context_parts.append(header)
-
+        context_parts.append("## Product Variants Found")
         for v in variants:
-            section = []
+            vid = v.get("id", "Unknown")
+            family = v.get("family", "")
+            section = [f"\n**{vid}**" + (f" (Family: {family})" if family else "")]
 
-            # Track combined fields
-            combined_keys = set()
-            for field in display.fields:
-                if field.combine_with:
-                    combined_keys.add(field.combine_with)
+            # Dimensions
+            dims = []
+            for dk in ("width_mm", "height_mm", "depth_mm"):
+                val = v.get(dk)
+                if val is not None:
+                    dims.append(f"{dk.replace('_mm','')}: {val}mm")
+            if dims:
+                section.append(f"  Dimensions: {' × '.join(dims)}")
 
-            # Process each configured field
-            for field_config in display.fields:
-                # Skip if this field is part of a combination (will be handled by primary)
-                if field_config.key in combined_keys:
-                    continue
+            # Key numeric properties
+            for key, label in [
+                ("airflow_m3h", "Airflow"),
+                ("weight_kg", "Weight"),
+                ("price", "Price"),
+                ("cartridge_count", "Cartridge count"),
+                ("reference_airflow_m3h", "Reference airflow"),
+                ("standard_length_mm", "Standard length"),
+            ]:
+                val = v.get(key)
+                if val is not None:
+                    section.append(f"  {label}: {val}")
 
-                formatted = _format_single_field(v, field_config, {})
-                if formatted:
-                    section.append(formatted)
+            # List properties
+            for key, label in [
+                ("available_materials", "Materials"),
+                ("compatible_duct_diameters_mm", "Duct diameters"),
+                ("available_depths_mm", "Available depths"),
+                ("special_features", "Features"),
+            ]:
+                val = v.get(key)
+                if val:
+                    if isinstance(val, list):
+                        section.append(f"  {label}: {', '.join(str(x) for x in val)}")
+                    else:
+                        section.append(f"  {label}: {val}")
 
-            # Add options
-            option_lines = _format_options(v, config)
-            section.extend(option_lines)
+            if v.get("is_insulated"):
+                section.append("  Insulated: Yes")
 
-            if section:
-                context_parts.append("\n".join(section))
+            # Compatible cartridges / filters
+            for key, label in [
+                ("compatible_cartridges", "Compatible cartridges"),
+                ("compatible_filters", "Compatible filters"),
+            ]:
+                items = v.get(key, [])
+                if items and any(items):
+                    section.append(f"  {label}: {', '.join(str(x) for x in items if x)}")
 
-    # Format secondary entities dynamically
-    for entity_name, entity_config in config.secondary_entities.items():
-        items = config_results.get(entity_name, [])
+            # Options (from options_json)
+            options_json = v.get("options_json")
+            if options_json:
+                try:
+                    options = json.loads(options_json) if isinstance(options_json, str) else options_json
+                    if options:
+                        section.append("  Options:")
+                        for opt in options:
+                            code = opt.get("code", "?")
+                            desc = opt.get("description", "")
+                            section.append(f"    - {code}: {desc}")
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            elif v.get("available_options"):
+                opts = v.get("available_options")
+                if isinstance(opts, list):
+                    section.append(f"  Options: {', '.join(str(o) for o in opts)}")
+
+            context_parts.append("\n".join(section))
+
+    # Format secondary entities (cartridges, filters, materials, option_matches)
+    _SECONDARY = {
+        "cartridges": ("Cartridges", ("model_name", "weight_kg", "media_type")),
+        "filters": ("Filters", ("part_number", "filter_type", "efficiency_class")),
+        "materials": ("Materials", ("code", "name", "corrosion_class")),
+        "option_matches": ("Option Matches", ("id", "family")),
+    }
+    for entity_key, (header, fields) in _SECONDARY.items():
+        items = config_results.get(entity_key, [])
         if not items:
             continue
-
-        context_parts.append(f"\n{entity_config.header}")
-
+        context_parts.append(f"\n## {header}")
         for item in items:
-            parts = [entity_config.item_prefix]
-
-            for field_config in entity_config.fields:
-                value = _get_field_value(item, field_config, config)
-                if value is not None:
-                    parts.append(field_config.format.format(value=value))
-
-            if len(parts) > 1:
-                context_parts.append("".join(parts))
-
-            # Show options if configured
-            if entity_config.show_options:
-                option_lines = _format_options(item, config)
-                context_parts.extend(option_lines)
+            parts = []
+            for f in fields:
+                val = item.get(f)
+                if val is not None:
+                    parts.append(f"{f}: {val}")
+            if parts:
+                context_parts.append(f"  - {', '.join(parts)}")
 
     result = "\n".join(context_parts) if context_parts else ""
 
-    # PRUNING: Truncate if too long (with warning)
+    # PRUNING: Truncate if too long
     if len(result) > max_context_chars:
         result = result[:max_context_chars] + "\n... [CONTEXT TRUNCATED - too many results]"
-        print(f"⚠️ Context pruned: {len(result)} -> {max_context_chars} chars")
 
     return result
 
@@ -1811,7 +1748,7 @@ def query_knowledge_graph(user_query: str) -> dict:
         "policy_analysis": llm_response.get("policy_analysis", policy_analysis),
         "graph_evidence": graph_evidence,
         "general_knowledge": llm_response.get("general_knowledge", ""),
-        "final_answer": llm_response.get("final_answer", response.text),
+        "final_answer": llm_response.get("final_answer", _llm_result.text),
         "confidence_level": llm_response.get("confidence_level", "medium"),
         "sources": sources + llm_response.get("sources", []),
         "warnings": warnings + llm_response.get("warnings", []),
@@ -1820,7 +1757,7 @@ def query_knowledge_graph(user_query: str) -> dict:
                           f"{len(config_results['variants'])} products found → "
                           f"{len(retrieval_results)} cases retrieved",
         # Legacy fields for backwards compatibility
-        "answer": llm_response.get("final_answer", response.text),
+        "answer": llm_response.get("final_answer", _llm_result.text),
         "concepts_matched": list(set(
             r.get("concept") for r in retrieval_results if r.get("concept")
         )),
@@ -3338,17 +3275,7 @@ def query_deep_explainable(user_query: str, model: str = None) -> "DeepExplainab
                     display_label=label
                 ))
 
-            # ENHANCEMENT: For airflow clarification with empty options,
-            # generate proactive options from DimensionModule graph data
-            param_name_lower = feat.parameter_name.lower() if feat.parameter_name else ""
-            if ('airflow' in param_name_lower or 'przepływ' in param_name_lower) and not options:
-                airflow_opts = _generate_airflow_options_from_graph(technical_state, db)
-                if airflow_opts:
-                    options = [
-                        ClarificationOption(value=o["value"], description=o["description"])
-                        for o in airflow_opts
-                    ]
-                    print(f"   🎯 [ENRICHMENT] Added {len(options)} airflow options from DimensionModule graph data")
+            # Airflow enrichment skipped in non-streaming path (no technical_state)
 
             clarification = ClarificationRequest(
                 missing_info=feat.parameter_name,
@@ -4811,7 +4738,7 @@ The user has chosen to remove the accessory option to fit within their space con
                     + "Explain which material(s) meet the environmental requirement."
                 )
                 constraint_contexts.append(_mat_text)
-                print(f"📢 [PROMPT] Injected {len(_mat_result.records)} material alternatives for {technical_state.detected_family}")
+                print(f"📢 [PROMPT] Injected {len(_mat_records)} material alternatives for {technical_state.detected_family}")
         except Exception as e:
             logger.warning(f"Failed to fetch material alternatives: {e}")
 

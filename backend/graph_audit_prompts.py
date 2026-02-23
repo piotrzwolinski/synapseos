@@ -1,3 +1,4 @@
+# FOREGROUND — tenant-specific, not compiled
 """
 Prompts for the 3-round Graph Audit Debate protocol.
 

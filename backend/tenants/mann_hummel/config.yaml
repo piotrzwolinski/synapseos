@@ -20,28 +20,6 @@ domain:
 # Each pattern has a type, regex, and optional normalization rules.
 
 entity_patterns:
-  # Product codes - main identifiable items
-  product_codes:
-    - pattern: '\b([A-Z]{2,4}[-\s]?\d+x\d+(?:[-x]\d+)?)\b'
-      description: "Standard product code with dimensions"
-      flags: "IGNORECASE"
-      examples: ["GDC-600x600", "GDP-900x600-1200"]
-
-    - pattern: '\b([A-Z]{2,4}[-\s]?FLEX[-\s]?\d+x\d+)\b'
-      description: "Flexible variant products"
-      flags: "IGNORECASE"
-      examples: ["GDC-FLEX-600x600", "GDMI-FLEX-600x600"]
-
-    - pattern: '\b([A-Z]{2,4}[-\s]?[A-Za-z]+[-\s]?\d+[/x]\d+)\b'
-      description: "Named variant products"
-      flags: "IGNORECASE"
-      examples: ["GDR-Nano-1/1"]
-
-    - pattern: '\b(ECO-[A-Z][-\s]?\d+)\b'
-      description: "ECO series components"
-      flags: "IGNORECASE"
-      examples: ["ECO-C 2600", "ECO-F 3200"]
-
   # Product families - broader categories
   product_families:
     values: ["GDC-FLEX", "GDC", "GDP", "GDR", "GDF", "GDMI", "GDB", "PFF", "BFF"]
@@ -56,162 +34,6 @@ entity_patterns:
   option_codes:
     values: ["EXL", "L", "F", "Polis"]
     description: "Configuration option codes"
-
-  normalization:
-    replace_space_with: "-"
-    uppercase: true
-
-# =============================================================================
-# DISPLAY SCHEMA
-# =============================================================================
-# Maps database fields to display labels. The renderer iterates over this.
-# No field names are hardcoded in Python.
-
-display_schema:
-  # Primary entity display (products/variants)
-  primary_entity:
-    header_template: "### {icon} {title}"
-    icon: "📦"
-    title: "PRODUCT CONFIGURATION DATA"
-
-    fields:
-      - key: "id"
-        label: "Product ID"
-        format: "**Product: {value}**"
-        required: true
-
-      - key: "family"
-        label: "Product Family"
-        format: "  Family: {value}"
-
-      - key: "width_mm"
-        label: "Width"
-        format: "  Width: {value}mm"
-        combine_with: "height_mm"
-        combined_format: "  Dimensions: {width_mm}x{height_mm}mm"
-
-      - key: "height_mm"
-        label: "Height"
-        hidden_if_combined: true
-
-      - key: "depth_mm"
-        label: "Depth"
-        format: "  Depth: {value}mm"
-        append_to_combined: true
-        append_format: " x {value}mm depth"
-
-      - key: "cartridge_count"
-        label: "Cartridge Capacity"
-        format: "  Cartridge Capacity: {value} units"
-
-      - key: "airflow_m3h"
-        label: "Reference Airflow"
-        format: "  Reference Airflow: {value} m³/h"
-        fallback_keys: ["reference_airflow_m3h"]
-
-      - key: "weight_kg"
-        label: "Weight"
-        format: "  Weight: {value} kg"
-
-      - key: "is_insulated"
-        label: "Thermal Insulation"
-        format: "  Special: Thermally insulated (anti-condensation)"
-        display_only_if_true: true
-
-      - key: "length_min_mm"
-        label: "Minimum Length"
-        combine_with: "length_max_mm"
-        combined_format: "  Adjustable Length: {length_min_mm}-{length_max_mm}mm"
-
-      - key: "length_max_mm"
-        label: "Maximum Length"
-        hidden_if_combined: true
-
-      - key: "special_features"
-        label: "Special Features"
-        format: "  Features: {value}"
-        is_array: true
-        array_join: ", "
-
-      - key: "available_depths_mm"
-        label: "Available Depths"
-        format: "  Available Depths: {value}mm"
-        is_array: true
-        array_join: ", "
-
-      - key: "available_materials"
-        label: "Available Materials"
-        format: "  Materials: {value}"
-        is_array: true
-        array_join: ", "
-
-    options_display:
-      header: "  **Configuration Options:**"
-      json_key: "options_json"
-      fallback_key: "available_options"
-      format: "    • Code **\"{code}\"**: {description}"
-      category_format: " [{category}]"
-
-  # Secondary entity types
-  secondary_entities:
-    cartridges:
-      header: "### 🔵 FILTER CARTRIDGES"
-      fields:
-        - key: "model_name"
-          format: "**{value}**"
-          fallback_keys: ["id"]
-        - key: "weight_kg"
-          format: " - {value}kg"
-        - key: "media_type"
-          format: " ({value})"
-      item_prefix: "  • "
-
-    filters:
-      header: "### 📋 CONSUMABLE FILTERS"
-      fields:
-        - key: "part_number"
-          format: "Part# **{value}**"
-          default: "N/A"
-        - key: "model_name"
-          format: " - {value}"
-        - key: "filter_type"
-          format: " ({value})"
-      item_prefix: "  • "
-
-    materials:
-      header: "### 🔧 MATERIAL SPECIFICATIONS"
-      fields:
-        - key: "code"
-          format: "**{value}**"
-        - key: "full_name"
-          format: " ({value})"
-        - key: "corrosion_class"
-          format: " - Corrosion Class: **{value}**"
-        - key: "description"
-          format: " - {value}"
-      item_prefix: "  • "
-
-    option_matches:
-      header: "### 🔧 PRODUCTS WITH MATCHING OPTIONS"
-      show_options: true
-      fields:
-        - key: "variant_id"
-          format: "**{value}**"
-        - key: "family"
-          format: " ({value})"
-
-# =============================================================================
-# AUTONOMOUS REASONING (No Hardcoded Policies)
-# =============================================================================
-# The LLM uses its pre-trained engineering knowledge to detect risks.
-# We only keep the SIZING constraint as programmatic (critical for safety).
-
-programmatic_constraints:
-  # Sizing is kept as programmatic because it's a hard mathematical constraint
-  sizing:
-    enabled: true
-    description: "Airflow capacity must meet or exceed user requirement"
-    keywords: ["airflow", "cfm", "m³/h", "capacity", "przepływ", "wydatek"]
 
 # =============================================================================
 # SEARCH KEYWORDS
@@ -335,85 +157,6 @@ prompts:
 
     Please contact technical support or consult official product documentation.
     I can still help with general questions based on engineering principles.
-
-# =============================================================================
-# STRUCTURED OUTPUT SCHEMA
-# =============================================================================
-
-output_schema:
-  type: "object"
-  properties:
-    intent_analysis:
-      type: "string"
-      description: "Analysis of what the user is trying to accomplish"
-
-    policy_analysis:
-      type: "string"
-      description: "Guardian reasoning - which policies triggered and validation results"
-
-    graph_evidence:
-      type: "array"
-      items:
-        type: "object"
-        properties:
-          fact: { type: "string" }
-          source_id: { type: "string" }
-          confidence: { type: "string", enum: ["verified", "inferred"] }
-      description: "Facts extracted from graph with citations"
-
-    general_knowledge:
-      type: "string"
-      description: "Additional context from model training, clearly marked as unverified"
-
-    final_answer:
-      type: "string"
-      description: "The complete response to show the user"
-
-    confidence_level:
-      type: "string"
-      enum: ["high", "medium", "low"]
-      description: "Overall confidence based on graph data availability"
-
-    sources:
-      type: "array"
-      items: { type: "string" }
-      description: "List of node IDs used in the response"
-
-    warnings:
-      type: "array"
-      items: { type: "string" }
-      description: "Any policy warnings or validation failures"
-
-# =============================================================================
-# PROJECT SEARCH CONFIGURATION
-# =============================================================================
-
-project_search:
-  patterns:
-    - '(\w+)\s+project'
-    - 'project\s+(\w+)'
-    - '(\w+)\s+case'
-    - 'case\s+(\w+)'
-
-  known_identifiers:
-    - "huddinge"
-    - "knittel"
-
-  stopwords:
-    - "a"
-    - "an"
-    - "the"
-    - "my"
-    - "your"
-    - "this"
-    - "that"
-    - "is"
-    - "are"
-    - "what"
-    - "which"
-    - "how"
-    - "new"
-    - "similar"
 
 # =============================================================================
 # MATERIAL-ENVIRONMENT RULES (Guardian Logic)
@@ -576,163 +319,12 @@ accessory_compatibility:
     compatible_with: ["GDB", "GDC", "GDMI", "GDP"]
 
 # =============================================================================
-# SAFETY DETECTION (Guardian Logic)
-# =============================================================================
-# Keywords that trigger safety-critical reviews.
-
-safety_detection:
-  hazard_domains:
-    atex:
-      keywords: ["ATEX", "explosion", "explosive", "Ex zone", "dust explosion", "wybuch"]
-      materials: ["milk powder", "sugar", "flour", "grain", "wood dust", "coal", "aluminum"]
-      severity: "critical"
-      action: "block_with_safety_guard"
-
-    chemical:
-      keywords: ["chemical", "acid", "alkali", "solvent", "corrosive", "chemiczny", "kwas"]
-      severity: "warning"
-      action: "recommend_material_upgrade"
-
-    hygiene:
-      keywords: ["hospital", "medical", "pharma", "food", "cleanroom", "sterile", "szpital", "medyczny"]
-      severity: "warning"
-      action: "verify_material_compliance"
-
-# =============================================================================
 # CLARIFICATION RULES
 # =============================================================================
 # What parameters are required before making product recommendations.
 # The LLM uses this as guidance for what questions to ask.
 
 clarification_rules:
-  # Decision tree for filter housing selection - ask in this order
-  decision_flow:
-    description: "Step-by-step parameter collection for filter housing recommendation"
-    steps:
-      - step: 1
-        parameter: "filtration_purpose"
-        question: "What do you need to filter?"
-        why_needed: "Determines the correct product family (particles vs gases/odors)"
-        options:
-          - value: "particles"
-            description: "Dust, particulates, solid aerosols"
-            leads_to: ["GDB", "GDMI", "GDP"]
-          - value: "gases_odors"
-            description: "Gases, odors, VOC, fumes"
-            leads_to: ["GDC", "GDC-FLEX", "GDMI-FLEX"]
-          - value: "both"
-            description: "Both particles and gases (multi-stage)"
-            leads_to: ["GDB+GDC combination"]
-        skip_if: "product family already specified (e.g., user said 'GDB housing')"
-
-      - step: 2
-        parameter: "installation_location"
-        question: "Where will the housing be installed?"
-        why_needed: "Determines insulation requirements and material grade"
-        options:
-          - value: "indoor"
-            description: "Inside building, climate controlled"
-            implications: ["no insulation required", "standard material OK"]
-          - value: "outdoor"
-            description: "Outside, exposed to weather"
-            implications: ["insulation recommended (GDMI)", "higher corrosion class"]
-          - value: "rooftop"
-            description: "Rooftop installation"
-            implications: ["insulation MANDATORY (GDMI)", "weather sealing needed"]
-        skip_if: "GDMI already specified (implies insulation needed)"
-
-      - step: 3
-        parameter: "airflow"
-        question: "What is the required airflow capacity (m³/h)?"
-        why_needed: "Determines housing size (Width × Height)"
-        options:
-          - value: "850"
-            description: "Small room/office (~300×300)"
-          - value: "3400"
-            description: "Standard office unit (~600×600)"
-          - value: "5000"
-            description: "Large office/commercial (~900×600)"
-          - value: "10000"
-            description: "Industrial/large commercial"
-          - value: "other"
-            description: "Specify exact value"
-        skip_if: "specific product code with size mentioned (e.g., GDB-600x600)"
-        reference: "3400 m³/h per 1/1 module (592×592mm) at 1.5 m/s"
-
-      - step: 4
-        parameter: "filter_type"
-        question: "What type of filter will be used?"
-        why_needed: "Determines housing length and locking mechanism"
-        applies_to: ["GDB", "GDMI"]
-        options:
-          - value: "bag_filter_short"
-            description: "Short bag filter (påsfilter) up to 450mm"
-            housing_length: "550/600mm"
-          - value: "bag_filter_long"
-            description: "Long bag filter (påsfilter) up to 650mm"
-            housing_length: "750/800mm"
-          - value: "compact_filter"
-            description: "Compact filter with 25mm frame"
-            housing_length: "550/600mm or 750/800mm depending on depth"
-          - value: "panel_filter"
-            description: "Panel/flat filter (planfilter)"
-            alternative_product: "GDP (250mm length)"
-
-      - step: 5
-        parameter: "filter_class"
-        question: "What filter efficiency class is required?"
-        why_needed: "Affects filter selection and may impact housing features"
-        options:
-          - value: "coarse"
-            description: "COARSE (pre-filter, G4)"
-          - value: "ePM10"
-            description: "ePM10 (medium efficiency, M5-M6)"
-          - value: "ePM1"
-            description: "ePM1 (fine filter, F7-F9)"
-          - value: "hepa"
-            description: "HEPA (H13-H14, cleanroom)"
-            note: "May require special housing features"
-        skip_if: "general ventilation without specific requirements"
-
-      - step: 6
-        parameter: "housing_length"
-        question: "Which housing length is needed?"
-        why_needed: "Must accommodate filter depth + any accessories"
-        applies_to: ["GDB", "GDMI"]
-        options:
-          - value: "550"
-            description: "Short (550/600mm) - for filters up to 450mm"
-          - value: "750"
-            description: "Long (750/800mm) - for filters up to 650mm"
-        skip_if: "filter_type already specified (can derive length)"
-        default_suggestion: "For office and commercial applications, 750mm (long housing) is most commonly used as it accommodates standard bag filters."
-        proactive_hint: "💡 750mm is the most popular choice for general ventilation"
-
-      - step: 7
-        parameter: "connection_type"
-        question: "What duct connection type is needed?"
-        why_needed: "Affects how housing connects to ductwork"
-        options:
-          - value: "PG"
-            description: "PG 20mm slip-in connection (standard)"
-          - value: "F"
-            description: "Flange 40mm connection"
-        default: "PG"
-        skip_if: "not explicitly required by customer"
-
-      - step: 8
-        parameter: "door_orientation"
-        question: "Which side should the service door open?"
-        why_needed: "Must match installation space constraints"
-        options:
-          - value: "R"
-            description: "Right-hinged (standard)"
-          - value: "L"
-            description: "Left-hinged"
-        default: "R"
-        skip_if: "not explicitly required by customer"
-
-  # Legacy format for backward compatibility
   required_parameters:
     - name: "filtration_purpose"
       aliases: ["filter type", "what to filter", "particles", "gases", "odors"]
@@ -766,120 +358,6 @@ clarification_rules:
       prompt: "What are the duct connection dimensions (W×H)?"
       priority: 5
 
-  # When to skip clarification
-  skip_clarification_when:
-    - "specific product code mentioned (e.g., GDB-600x600)"
-    - "competitor mapping exists in context"
-    - "safety issue detected (handle safety first)"
-
-  # Product family determination rules
-  product_family_selection:
-    particles_indoor: "GDB"
-    particles_outdoor: "GDMI"
-    particles_rooftop: "GDMI"
-    gases_odors_indoor: "GDC"
-    gases_odors_outdoor: "GDMI-FLEX"
-    panel_filters: "GDP"
-
-  # Housing length selection rules
-  housing_length_rules:
-    GDB:
-      - condition: "short bag filter OR compact filter up to 450mm"
-        length: "550/600mm"
-      - condition: "long bag filter OR compact filter up to 650mm"
-        length: "750/800mm"
-    GDMI:
-      - condition: "short bag filter OR compact filter up to 450mm"
-        length: "600/650mm"
-      - condition: "long bag filter OR compact filter up to 650mm"
-        length: "850/900mm"
-    GDC:
-      - condition: "450mm carbon cylinders"
-        length: "750/800mm"
-      - condition: "450mm cylinders + polishing filter OR 600mm cylinders"
-        length: "900/950mm"
-
-  # Cross-selling categories (suggest after final recommendation)
-  cross_selling_categories:
-    description: "Accessory categories to suggest based on selected product"
-    rules:
-      - trigger: ["GDB", "GDMI"]
-        suggest:
-          - category: "Pre-filter"
-            description: "G4 or M5 class - extends main filter life"
-            reason: "Protects main filters by capturing coarse particles"
-          - category: "Mounting frame (PFF)"
-            description: "Required for filter installation"
-            reason: "Provides secure filter mounting"
-          - category: "Replacement filters"
-            description: "Consumables for maintenance"
-            reason: "Plan periodic filter changes"
-
-      - trigger: ["ePM1", "F7", "F8", "F9"]
-        suggest:
-          - category: "Coarse pre-filter"
-            description: "G4 class minimum"
-            reason: "Fine filters require upstream protection"
-
-      - trigger: ["HEPA", "H13", "H14"]
-        suggest:
-          - category: "Pre-filter"
-            description: "G4 class"
-            reason: "First stage protection"
-          - category: "Fine filter"
-            description: "F7-F9 class"
-            reason: "Second stage protection before HEPA"
-
-      - trigger: ["GDC", "carbon"]
-        suggest:
-          - category: "Pre-filter"
-            description: "Minimum M5 class"
-            reason: "Protects expensive carbon media from clogging"
-
-  # Product code construction rules
-  product_code_format:
-    description: "How to construct full product codes"
-    pattern: "{Family}-{Width}x{Height}-{Length}-{Door}-{Connection}-{Material}"
-    components:
-      family:
-        description: "Product family"
-        values: ["GDB", "GDMI", "GDC", "GDP"]
-      size:
-        description: "Housing width × height in mm"
-        values: ["300x300", "600x600", "900x600"]
-      length:
-        description: "Housing depth in mm"
-        values: ["550", "600", "750", "800", "850"]
-      door:
-        description: "Service door orientation"
-        values:
-          - code: "R"
-            description: "Right-hinged (standard)"
-          - code: "L"
-            description: "Left-hinged"
-        default: "R"
-      connection:
-        description: "Duct connection type"
-        values:
-          - code: "PG"
-            description: "Slip-in 20mm (standard)"
-          - code: "F"
-            description: "Flange 40mm"
-        default: "PG"
-      material:
-        description: "Material grade"
-        values:
-          - code: "FZ"
-            description: "Galvanized steel (C3)"
-            default_for: ["indoor", "office", "warehouse"]
-          - code: "ZM"
-            description: "Zinc-magnesium (C5)"
-            default_for: ["outdoor", "coastal"]
-          - code: "RF"
-            description: "Stainless steel (C5)"
-            default_for: ["hospital", "medical", "food", "cleanroom"]
-        default: "FZ"
-
 # =============================================================================
 # SAMPLE QUESTIONS (for UI)
 # =============================================================================
@@ -912,26 +390,6 @@ sample_questions:
       - "We need to replace Camfil Hi-Flo units"
 
 # =============================================================================
-# PROMPT TEMPLATES (Externalized)
-# =============================================================================
-
-prompt_templates:
-  material_environment_warning: |
-    ⚠️ Material Warning: {material} ({class}) is not suitable for {environment}. {concern}. Consider {recommended}.
-
-  product_application_warning: |
-    ⚠️ Application Warning: {message}. Consider {alternative}.
-
-  geometric_constraint_warning: |
-    ⚠️ Configuration Error: {message}
-
-  zero_tolerance_warning: |
-    ⚠️ Installation Warning: Exact fit ({calculated}mm = {available}mm) leaves no margin. Recommend {margin}mm clearance.
-
-  accessory_incompatibility: |
-    ⚠️ Compatibility Issue: {accessory} not compatible with {product}. {reason}
-
-# =============================================================================
 # ASSEMBLY CONFIGURATION (v2.7)
 # =============================================================================
 # Defines how multi-unit assemblies share properties.
@@ -947,27 +405,6 @@ assembly:
     - "housing_width"
     - "housing_height"
     - "airflow_m3h"
-
-# =============================================================================
-# SCOPE OF DELIVERY (v3.6)
-# =============================================================================
-# Defines what is included/excluded in standard housing delivery.
-# Used by LLM prompt to correctly scope recommendations.
-
-scope_of_delivery:
-  included:
-    - "Filter housing with service door (right-hinged standard, left-hinged option)"
-    - "Pressure measurement nipples"
-    - "JHL lock on service door"
-    - "EXL eccentric locking mechanism (GDB, GDMI standard)"
-    - "Filter rail with spring seal (GDP standard)"
-    - "Bayonet mount plate for cartridges (GDC, GDC FLEX standard)"
-  excluded:
-    - "Transition pieces (PT flat, TT conical) for rectangular-to-round duct — order separately"
-    - "Filters, filter elements, and carbon cartridges"
-    - "Mounting brackets and support structures"
-    - "On-site insulation (for non-GDMI housings)"
-  note: "Standard connection is PG 20mm slip-in. Flange 40mm available as option (surcharge, adds ~50mm to housing length)."
 
 # =============================================================================
 # DIMENSION & MATERIAL TABLES (Phase 2: Externalized from dimension_tables.py)
@@ -1032,32 +469,6 @@ material_codes_extended:
     extraction_keywords: ["az"]
 
 default_material: "FZ"
-
-# =============================================================================
-# SIZING RULES (reference airflow per product family & size)
-# =============================================================================
-sizing_rules:
-  GDB:
-    reference: "3400 m3/h per 1/1 module (592x592mm) at 1.5 m/s"
-    sizes:
-      "300x300": 850
-      "600x600": 3400
-      "900x600": 5000
-  GDMI:
-    reference: "3400 m3/h per 1/1 module at 1.5 m/s"
-    sizes:
-      "300x300": 850
-      "600x600": 3400
-      "900x600": 5000
-  GDC:
-    reference: "2000-3000 m3/h per 600x600 module"
-    sizes:
-      "600x600": 2500
-      "900x600": 4000
-  GDP:
-    reference: "3000-4000 m3/h per 600x600"
-    sizes:
-      "600x600": 3500
 
 # =============================================================================
 # DEFAULT PRODUCT FAMILY
@@ -1152,10 +563,9 @@ fallback_keywords:
     basen: "Swimming Pool"
 
 # =============================================================================
-# SCRIBE HINTS (for LLM-based intent extraction in scribe.py)
+# SCRIBE HINTS (product inference for Scribe LLM prompt)
 # =============================================================================
 scribe_hints:
-  # Product inference: when user describes features but no product code
   product_inference:
     - keywords: ["insulated", "insulation", "thermal insulation", "condensation-proof"]
       product_family: "GDMI"
@@ -1168,30 +578,6 @@ scribe_hints:
       product_family: "GDP"
     - keywords: ["pocket filter", "bag filter", "particle filter"]
       product_family: "GDB"
-
-  # Connection type extraction
-  connection_types:
-    PG: ["PG", "slip-in", "PG profile"]
-    F: ["flange", "fläns", "flange connection"]
-
-  # Material code hints for extraction
-  material_hints:
-    RF: ["stainless"]
-    FZ: ["galvanized"]
-    AZ: ["aluzink"]
-    ZM: ["zinkmagnesium"]
-    SF: ["sendzimir"]
-
-  # Accessory detection hints
-  accessory_hints:
-    - code: "EXL"
-      keywords: ["EXL", "eccentric lock", "quick release"]
-    - code: "L"
-      keywords: ["left hinge", "L hinge"]
-    - code: "Round duct"
-      keywords: ["round duct", "circular duct"]
-    - code: "Transition"
-      keywords: ["transition piece", "reducer", "adapter"]
 
 # =============================================================================
 # PROMPT CONTEXT RENDERING (Phase 2: config-driven to_prompt_context)

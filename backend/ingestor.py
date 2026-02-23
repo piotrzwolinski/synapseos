@@ -1,3 +1,4 @@
+# FOREGROUND — tenant-specific, not compiled
 """Case study ingestion pipeline for the Hybrid GraphRAG Sales Assistant."""
 
 import os

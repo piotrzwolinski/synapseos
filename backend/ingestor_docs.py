@@ -1,3 +1,4 @@
+# FOREGROUND — tenant-specific, not compiled
 """Generic document ingestion pipeline with AI-driven schema discovery.
 
 Two-pass AI-driven document ingestion:

@@ -139,19 +139,6 @@ class TestScribeHints:
         assert "GDP" in families
         assert "GDB" in families
 
-    def test_connection_types_loaded(self, config):
-        assert "PG" in config.scribe_connection_types
-        assert "F" in config.scribe_connection_types
-        assert "flange" in config.scribe_connection_types["F"]
-
-    def test_material_hints_loaded(self, config):
-        assert "RF" in config.scribe_material_hints
-        assert "stainless" in config.scribe_material_hints["RF"]
-
-    def test_accessory_hints_loaded(self, config):
-        assert len(config.scribe_accessory_hints) >= 3
-        codes = {h["code"] for h in config.scribe_accessory_hints}
-        assert "EXL" in codes
 
 
 class TestJudgePrompts:

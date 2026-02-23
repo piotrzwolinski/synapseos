@@ -1,3 +1,4 @@
+# FOREGROUND — tenant-specific, not compiled
 """LLM prompt templates for the Hybrid GraphRAG Sales Assistant."""
 
 EXTRACTION_PROMPT = """You are a sales knowledge extraction assistant. Analyze the following case study and extract structured information.

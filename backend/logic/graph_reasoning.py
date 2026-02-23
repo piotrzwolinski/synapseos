@@ -1439,20 +1439,6 @@ class GraphReasoningEngine:
 
         return questions
 
-    def get_sizing_formula(self, product_family: str) -> Optional[dict]:
-        """Retrieve sizing rules from the graph.
-
-        Args:
-            product_family: Product family code
-
-        Returns:
-            Dict with sizing formula and reference values, or None
-        """
-        # Load sizing rules from tenant config (domain-agnostic)
-        from config_loader import get_config
-        cfg = get_config()
-        return cfg.sizing_rules.get(product_family)
-
     def _extract_material_regex_fallback(self, query: str) -> Optional[str]:
         """FALLBACK: Regex-based material extraction. Only called when Scribe/state has no material."""
         # Build material patterns from config (domain-agnostic)

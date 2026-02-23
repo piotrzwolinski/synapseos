@@ -1,3 +1,4 @@
+# FOREGROUND — tenant-specific, not compiled
 #!/usr/bin/env python3
 """
 Guardian Test Suite - Tests tricky questions that require domain reasoning.

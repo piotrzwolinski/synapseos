@@ -1,3 +1,4 @@
+# FOREGROUND — tenant-specific, not compiled
 """Bulk Offer Creator — AI-powered engine for batch processing client orders.
 
 Parses Excel files with AHU specs, maps duct dimensions to housing variants + filters

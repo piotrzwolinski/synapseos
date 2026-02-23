@@ -1,19 +1,47 @@
+# FOREGROUND — tenant-specific, not compiled
 """Single source of truth for dimension/material/derivation tables.
 
-Config-aware getters load ALL data from tenant config at runtime.
-Module-level constants are empty — no domain knowledge in background IP.
+Priority chain: graph cache → tenant config → empty defaults.
+Graph cache is populated at server startup via populate_from_graph().
 """
 
+import logging
 from typing import Optional
 
+logger = logging.getLogger(__name__)
+
 # =============================================================================
-# EMPTY DEFAULTS (all data comes from tenant config at runtime)
+# EMPTY DEFAULTS (all data comes from tenant config or graph at runtime)
 # =============================================================================
 
 DIMENSION_MAP = {}
 CORROSION_MAP = {}
 KNOWN_MATERIAL_CODES = set()
 ORIENTATION_THRESHOLD = 600  # generic numeric default
+
+# Graph-populated cache (set once at startup, read many times)
+_graph_cache: dict[str, dict] = {}
+
+
+def populate_from_graph(graph) -> None:
+    """Populate lookup caches from graph data. Called once at server startup.
+
+    Args:
+        graph: FalkorDB graph connection (has .query() method).
+    """
+    try:
+        result = graph.query(
+            "MATCH (m:Material) WHERE m.code IS NOT NULL AND m.corrosion_class IS NOT NULL "
+            "RETURN m.code AS code, m.corrosion_class AS cc"
+        )
+        corr_map = {}
+        for row in result.result_set:
+            corr_map[row[0]] = row[1]
+        if corr_map:
+            _graph_cache["corrosion_map"] = corr_map
+            logger.info(f"Loaded corrosion_class_map from graph: {len(corr_map)} materials")
+    except Exception as e:
+        logger.warning(f"Failed to load corrosion_class_map from graph: {e}")
 
 
 # =============================================================================
@@ -38,7 +66,9 @@ def get_dimension_map() -> dict[int, int]:
 
 
 def get_corrosion_map() -> dict[str, str]:
-    """Get material→corrosion class map from config, falling back to hardcoded."""
+    """Get material→corrosion class map. Priority: graph → config → hardcoded."""
+    if "corrosion_map" in _graph_cache:
+        return _graph_cache["corrosion_map"]
     cfg = _get_config_safe()
     if cfg and cfg.corrosion_class_map:
         return cfg.corrosion_class_map
@@ -46,7 +76,9 @@ def get_corrosion_map() -> dict[str, str]:
 
 
 def get_known_material_codes() -> set[str]:
-    """Get set of known material codes from config, falling back to hardcoded."""
+    """Get set of known material codes. Priority: graph → config → hardcoded."""
+    if "corrosion_map" in _graph_cache:
+        return set(_graph_cache["corrosion_map"].keys())
     cfg = _get_config_safe()
     if cfg and cfg.corrosion_class_map:
         return set(cfg.corrosion_class_map.keys())

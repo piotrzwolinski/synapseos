@@ -1,3 +1,4 @@
+# FOREGROUND — tenant-specific, not compiled
 """
 Graph Audit Debate Orchestrator.
 

@@ -4,9 +4,8 @@ This module provides a type-safe, validated configuration system.
 All domain-specific logic is externalized to YAML configuration files.
 """
 
-import re
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional
 from dataclasses import dataclass, field
 
 import yaml
@@ -16,108 +15,6 @@ from pydantic import BaseModel, Field
 # =============================================================================
 # PYDANTIC MODELS FOR CONFIGURATION VALIDATION
 # =============================================================================
-
-class EntityPattern(BaseModel):
-    """A regex pattern for extracting domain entities."""
-    pattern: str
-    description: str = ""
-    flags: str = ""
-    examples: list[str] = Field(default_factory=list)
-
-    def compile(self) -> re.Pattern:
-        """Compile the regex pattern with appropriate flags."""
-        flags = 0
-        if "IGNORECASE" in self.flags.upper():
-            flags |= re.IGNORECASE
-        if "MULTILINE" in self.flags.upper():
-            flags |= re.MULTILINE
-        return re.compile(self.pattern, flags)
-
-
-class EntityPatternGroup(BaseModel):
-    """A group of entity patterns (e.g., product codes)."""
-    values: list[str] = Field(default_factory=list)
-    description: str = ""
-
-
-class NormalizationConfig(BaseModel):
-    """Configuration for normalizing extracted entities."""
-    replace_space_with: str = "-"
-    uppercase: bool = True
-
-
-class DisplayField(BaseModel):
-    """Configuration for displaying a single field."""
-    key: str
-    label: str = ""
-    format: str = "{value}"
-    required: bool = False
-    is_array: bool = False
-    array_join: str = ", "
-    display_only_if_true: bool = False
-    fallback_keys: list[str] = Field(default_factory=list)
-    default: str = ""
-    hidden_if_combined: bool = False
-    combine_with: str = ""
-    combined_format: str = ""
-    append_to_combined: bool = False
-    append_format: str = ""
-
-
-class OptionsDisplayConfig(BaseModel):
-    """Configuration for displaying option codes."""
-    header: str = "  **Options:**"
-    json_key: str = "options_json"
-    fallback_key: str = "available_options"
-    format: str = '    • Code "{code}": {description}'
-    category_format: str = " [{category}]"
-
-
-class PrimaryEntityDisplay(BaseModel):
-    """Configuration for primary entity display (products)."""
-    header_template: str = "### {icon} {title}"
-    icon: str = "📦"
-    title: str = "CONFIGURATION DATA"
-    fields: list[DisplayField] = Field(default_factory=list)
-    options_display: OptionsDisplayConfig = Field(default_factory=OptionsDisplayConfig)
-
-
-class SecondaryEntityDisplay(BaseModel):
-    """Configuration for secondary entity display."""
-    header: str
-    fields: list[DisplayField] = Field(default_factory=list)
-    item_prefix: str = "  • "
-    show_options: bool = False
-
-
-class PolicyTrigger(BaseModel):
-    """Triggers that activate a reasoning policy."""
-    keywords: list[str] = Field(default_factory=list)
-    patterns: list[str] = Field(default_factory=list)
-
-
-class PolicyValidation(BaseModel):
-    """Validation rules for a policy."""
-    check_attribute: str
-    required_values: list[str] = Field(default_factory=list)
-    warning_values: list[str] = Field(default_factory=list)
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
-    compare_to_query: bool = False
-    match_extracted_value: bool = False
-    fail_message: str = ""
-    recommendation: str = ""
-
-
-class ReasoningPolicy(BaseModel):
-    """A Guardian reasoning policy."""
-    id: str
-    name: str
-    description: str = ""
-    triggers: PolicyTrigger
-    validation: PolicyValidation
-    priority: str = "medium"  # critical, high, medium, low
-
 
 class SearchTriggers(BaseModel):
     """Keywords that trigger different types of searches."""
@@ -131,27 +28,6 @@ class Prompts(BaseModel):
     system: str = ""
     synthesis: str = ""
     no_context: str = ""
-
-
-class OutputSchemaProperty(BaseModel):
-    """A property in the output schema."""
-    type: str
-    description: str = ""
-    enum: list[str] = Field(default_factory=list)
-    items: Optional[dict] = None
-
-
-class OutputSchema(BaseModel):
-    """Schema for structured LLM output."""
-    type: str = "object"
-    properties: dict[str, Any] = Field(default_factory=dict)
-
-
-class ProjectSearch(BaseModel):
-    """Configuration for project name extraction."""
-    patterns: list[str] = Field(default_factory=list)
-    known_identifiers: list[str] = Field(default_factory=list)
-    stopwords: list[str] = Field(default_factory=list)
 
 
 # =============================================================================
@@ -222,14 +98,6 @@ class AccessoryCompat(BaseModel):
     reason: str = ""
 
 
-class HazardDomain(BaseModel):
-    """Safety hazard domain configuration."""
-    keywords: list[str] = Field(default_factory=list)
-    materials: list[str] = Field(default_factory=list)
-    severity: str = "warning"
-    action: str = ""
-
-
 class ClarificationParam(BaseModel):
     """Parameter that requires clarification."""
     name: str
@@ -262,31 +130,16 @@ class DomainConfig:
     description: str = ""
     version: str = "1.0"
 
-    # Entity patterns
-    product_code_patterns: list[EntityPattern] = field(default_factory=list)
+    # Entity patterns (values used by get_all_search_keywords)
     product_families: list[str] = field(default_factory=list)
     material_codes: list[str] = field(default_factory=list)
     option_codes: list[str] = field(default_factory=list)
-    normalization: NormalizationConfig = field(default_factory=NormalizationConfig)
-
-    # Display configuration
-    primary_entity_display: PrimaryEntityDisplay = field(default_factory=PrimaryEntityDisplay)
-    secondary_entities: dict[str, SecondaryEntityDisplay] = field(default_factory=dict)
-
-    # Reasoning policies
-    policies: list[ReasoningPolicy] = field(default_factory=list)
 
     # Search triggers
     search_triggers: SearchTriggers = field(default_factory=SearchTriggers)
 
     # Prompts
     prompts: Prompts = field(default_factory=Prompts)
-
-    # Output schema
-    output_schema: OutputSchema = field(default_factory=OutputSchema)
-
-    # Project search
-    project_search: ProjectSearch = field(default_factory=ProjectSearch)
 
     # Guardian rules (loaded from YAML)
     material_hierarchy: list[MaterialSpec] = field(default_factory=list)
@@ -296,9 +149,7 @@ class DomainConfig:
     geometric_options: list[GeometricOption] = field(default_factory=list)
     installation_tolerance_mm: int = 10
     accessory_compatibility: list[AccessoryCompat] = field(default_factory=list)
-    hazard_domains: dict[str, HazardDomain] = field(default_factory=dict)
     clarification_params: list[ClarificationParam] = field(default_factory=list)
-    prompt_templates: dict[str, str] = field(default_factory=dict)
     sample_questions: dict[str, dict] = field(default_factory=dict)
 
     # Assembly configuration (v2.7 — configurable sibling property sync)
@@ -313,9 +164,6 @@ class DomainConfig:
     material_codes_extended: list = field(default_factory=list)
     default_material: str = ""
 
-    # Sizing rules (reference airflow per product family & size)
-    sizing_rules: dict[str, dict] = field(default_factory=dict)
-
     # Default product family (Phase 4)
     default_product_family: str = ""
 
@@ -325,12 +173,6 @@ class DomainConfig:
     fallback_environment_mapping: dict[str, str] = field(default_factory=dict)
     fallback_env_to_app_inference: dict[str, str] = field(default_factory=dict)
     fallback_chat_app_keywords: dict[str, str] = field(default_factory=dict)
-
-    # Scribe hints (Phase 5: externalized from scribe.py)
-    scribe_product_inference: list[dict] = field(default_factory=list)
-    scribe_connection_types: dict[str, list[str]] = field(default_factory=dict)
-    scribe_material_hints: dict[str, list[str]] = field(default_factory=dict)
-    scribe_accessory_hints: list[dict] = field(default_factory=list)
 
     # Graph name for FalkorDB (tenant-specific graph)
     graph_name: str = "default"
@@ -352,6 +194,9 @@ class DomainConfig:
     # Defines how tag fields map to engine context keys
     resolved_context_mappings: dict = field(default_factory=dict)
 
+    # Scribe product inference hints (used by Scribe prompt builder)
+    scribe_product_inference: list[dict] = field(default_factory=list)
+
     # Scribe entity routing (Phase 3: config-driven entity → tag/state mapping)
     # Defines how ScribeEntity fields route to tag attributes or state
     scribe_entity_routing: list[dict] = field(default_factory=list)
@@ -371,56 +216,6 @@ class DomainConfig:
         keywords.extend(self.material_codes)
         keywords.extend(self.option_codes)
         return list(set(keywords))
-
-    def get_active_policies_for_query(self, query: str) -> list[ReasoningPolicy]:
-        """Get policies that are triggered by the query."""
-        query_lower = query.lower()
-        active = []
-
-        for policy in self.policies:
-            triggered = False
-
-            # Check keyword triggers
-            for keyword in policy.triggers.keywords:
-                if keyword.lower() in query_lower:
-                    triggered = True
-                    break
-
-            # Check pattern triggers
-            if not triggered:
-                for pattern in policy.triggers.patterns:
-                    if re.search(pattern, query, re.IGNORECASE):
-                        triggered = True
-                        break
-
-            if triggered:
-                active.append(policy)
-
-        # Sort by priority
-        priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-        active.sort(key=lambda p: priority_order.get(p.priority, 99))
-
-        return active
-
-    def format_policies_for_prompt(self, policies: list[ReasoningPolicy]) -> str:
-        """Format active policies for injection into LLM prompt."""
-        if not policies:
-            return "No special policies are active for this query."
-
-        lines = ["The following policies are ACTIVE for this query:\n"]
-        for policy in policies:
-            lines.append(f"**[{policy.id}] {policy.name}** (Priority: {policy.priority})")
-            lines.append(f"  - Description: {policy.description}")
-            lines.append(f"  - Check: Verify '{policy.validation.check_attribute}' attribute")
-            if policy.validation.required_values:
-                lines.append(f"  - Required values: {', '.join(policy.validation.required_values)}")
-            if policy.validation.min_value is not None:
-                lines.append(f"  - Minimum value: {policy.validation.min_value}")
-            lines.append(f"  - If validation fails: {policy.validation.fail_message}")
-            lines.append(f"  - Recommendation: {policy.validation.recommendation}")
-            lines.append("")
-
-        return "\n".join(lines)
 
     def get_material_rules_prompt(self) -> str:
         """Generate material-environment rules section for prompts."""
@@ -743,69 +538,14 @@ def load_domain_config(config_path: Optional[str] = None, domain_id: Optional[st
     config.version = domain.get("version", "1.0")
     config.graph_name = domain.get("graph_name", "default")
 
-    # Load entity patterns
+    # Load entity patterns (values only, used by get_all_search_keywords)
     entity_patterns = raw.get("entity_patterns", {})
-
-    # Product code patterns
-    for p in entity_patterns.get("product_codes", []):
-        config.product_code_patterns.append(EntityPattern(**p))
-
-    # Product families
     families = entity_patterns.get("product_families", {})
     config.product_families = families.get("values", [])
-
-    # Material codes
     materials = entity_patterns.get("material_codes", {})
     config.material_codes = materials.get("values", [])
-
-    # Option codes
     options = entity_patterns.get("option_codes", {})
     config.option_codes = options.get("values", [])
-
-    # Normalization
-    norm = entity_patterns.get("normalization", {})
-    config.normalization = NormalizationConfig(**norm)
-
-    # Load display schema
-    display = raw.get("display_schema", {})
-
-    # Primary entity display
-    primary = display.get("primary_entity", {})
-    if primary:
-        fields = [DisplayField(**f) for f in primary.get("fields", [])]
-        options_display = OptionsDisplayConfig(**primary.get("options_display", {}))
-        config.primary_entity_display = PrimaryEntityDisplay(
-            header_template=primary.get("header_template", "### {icon} {title}"),
-            icon=primary.get("icon", "📦"),
-            title=primary.get("title", "DATA"),
-            fields=fields,
-            options_display=options_display
-        )
-
-    # Secondary entities
-    for name, entity_config in display.get("secondary_entities", {}).items():
-        fields = [DisplayField(**f) for f in entity_config.get("fields", [])]
-        config.secondary_entities[name] = SecondaryEntityDisplay(
-            header=entity_config.get("header", f"### {name.upper()}"),
-            fields=fields,
-            item_prefix=entity_config.get("item_prefix", "  • "),
-            show_options=entity_config.get("show_options", False)
-        )
-
-    # Load reasoning policies
-    for policy_data in raw.get("reasoning_policies", []):
-        trigger_data = policy_data.get("triggers", {})
-        validation_data = policy_data.get("validation", {})
-
-        policy = ReasoningPolicy(
-            id=policy_data.get("id", ""),
-            name=policy_data.get("name", ""),
-            description=policy_data.get("description", ""),
-            triggers=PolicyTrigger(**trigger_data),
-            validation=PolicyValidation(**validation_data),
-            priority=policy_data.get("priority", "medium")
-        )
-        config.policies.append(policy)
 
     # Load search triggers
     triggers = raw.get("search_triggers", {})
@@ -821,22 +561,6 @@ def load_domain_config(config_path: Optional[str] = None, domain_id: Optional[st
         system=prompts.get("system", ""),
         synthesis=prompts.get("synthesis", ""),
         no_context=prompts.get("no_context", "")
-    )
-
-    # Load output schema
-    schema = raw.get("output_schema", {})
-    if schema:
-        config.output_schema = OutputSchema(
-            type=schema.get("type", "object"),
-            properties=schema.get("properties", {})
-        )
-
-    # Load project search config
-    proj = raw.get("project_search", {})
-    config.project_search = ProjectSearch(
-        patterns=proj.get("patterns", []),
-        known_identifiers=proj.get("known_identifiers", []),
-        stopwords=proj.get("stopwords", [])
     )
 
     # Load Guardian rules
@@ -886,18 +610,10 @@ def load_domain_config(config_path: Optional[str] = None, domain_id: Optional[st
     for acc in raw.get("accessory_compatibility", []):
         config.accessory_compatibility.append(AccessoryCompat(**acc))
 
-    # Safety detection
-    safety = raw.get("safety_detection", {})
-    for domain_name, domain_data in safety.get("hazard_domains", {}).items():
-        config.hazard_domains[domain_name] = HazardDomain(**domain_data)
-
     # Clarification rules
     clarif = raw.get("clarification_rules", {})
     for param in clarif.get("required_parameters", []):
         config.clarification_params.append(ClarificationParam(**param))
-
-    # Prompt templates
-    config.prompt_templates = raw.get("prompt_templates", {})
 
     # Sample questions
     config.sample_questions = raw.get("sample_questions", {})
@@ -922,16 +638,6 @@ def load_domain_config(config_path: Optional[str] = None, domain_id: Optional[st
     for mat in raw.get("material_codes_extended", []):
         config.material_codes_extended.append(MaterialCodeExtended(**mat))
 
-    # Sizing rules
-    raw_sizing = raw.get("sizing_rules", {})
-    for family_code, rule_data in raw_sizing.items():
-        sizes = rule_data.get("sizes", {})
-        # Ensure size values are ints
-        config.sizing_rules[family_code] = {
-            "reference": rule_data.get("reference", ""),
-            "sizes": {k: int(v) for k, v in sizes.items()}
-        }
-
     # Default product family (Phase 4)
     config.default_product_family = raw.get("default_product_family", "GDB")
 
@@ -942,13 +648,6 @@ def load_domain_config(config_path: Optional[str] = None, domain_id: Optional[st
     config.fallback_environment_mapping = fb.get("environment_mapping", {})
     config.fallback_env_to_app_inference = fb.get("env_to_app_inference", {})
     config.fallback_chat_app_keywords = fb.get("chat_app_keywords", {})
-
-    # Scribe hints (Phase 5)
-    scribe = raw.get("scribe_hints", {})
-    config.scribe_product_inference = scribe.get("product_inference", [])
-    config.scribe_connection_types = scribe.get("connection_types", {})
-    config.scribe_material_hints = scribe.get("material_hints", {})
-    config.scribe_accessory_hints = scribe.get("accessory_hints", [])
 
     # Completeness check fields
     config.completeness_required = raw.get("completeness_required", [])
@@ -965,6 +664,10 @@ def load_domain_config(config_path: Optional[str] = None, domain_id: Optional[st
 
     # Resolved context mappings (Phase 3)
     config.resolved_context_mappings = raw.get("resolved_context_mappings", {})
+
+    # Scribe product inference hints
+    scribe = raw.get("scribe_hints", {})
+    config.scribe_product_inference = scribe.get("product_inference", [])
 
     # Scribe entity routing (Phase 3)
     config.scribe_entity_routing = raw.get("scribe_entity_routing", [])
@@ -1085,7 +788,7 @@ def get_domain_config_summary() -> dict:
             "synthesis": config.prompts.synthesis,
             "no_context": config.prompts.no_context,
         },
-        "prompt_templates": config.prompt_templates,
+        "prompt_templates": {},
     }
 
 

@@ -1,3 +1,4 @@
+# FOREGROUND — tenant-specific, not compiled
 """
 Evaluation Script for GraphRAG Sales Assistant
 Tests system responses against expected answers using LLM evaluation.

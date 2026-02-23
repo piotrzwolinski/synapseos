@@ -1,0 +1,92 @@
+# Production Dockerfile — compiled background IP + readable foreground IP
+#
+# Stage 1: Build .so files from background Python code
+# Stage 2: Runtime image with .so + foreground .py + tenants/
+
+# ============================================================
+# Stage 1: Builder — compile background IP to .so
+# ============================================================
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+# Install build dependencies (gcc, Cython)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies + Cython
+COPY requirements.txt requirements-build.txt ./
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -r requirements-build.txt
+
+# Copy all source code
+COPY . .
+
+# Compile background files to .so
+RUN python setup_cython.py build_ext --inplace
+
+# Prepare clean dist directory using build script logic
+RUN mkdir -p /dist/logic && \
+    # Copy .so files
+    cp -f *.so /dist/ 2>/dev/null || true && \
+    cp -f logic/*.so /dist/logic/ 2>/dev/null || true && \
+    # Copy foreground .py files (those starting with # FOREGROUND)
+    for f in *.py logic/*.py; do \
+        [ -f "$f" ] || continue; \
+        if head -1 "$f" | grep -q "^# FOREGROUND"; then \
+            mkdir -p /dist/$(dirname "$f"); \
+            cp "$f" "/dist/$f"; \
+        fi; \
+    done && \
+    # Copy __init__.py files
+    [ -f __init__.py ] && cp __init__.py /dist/ || true && \
+    [ -f logic/__init__.py ] && cp logic/__init__.py /dist/logic/ || true && \
+    # Copy Cython-incompatible files (FastAPI patterns that can't be compiled)
+    cp main.py /dist/main.py && \
+    # Copy supporting directories
+    cp -r tenants /dist/tenants && \
+    cp -r static /dist/static && \
+    cp requirements.txt /dist/ && \
+    # Remove any .py that has a matching .so (prevent source leak)
+    for so in /dist/*.so /dist/logic/*.so; do \
+        [ -f "$so" ] || continue; \
+        base=$(basename "$so" | sed 's/\.cpython.*//'); \
+        dir=$(dirname "$so"); \
+        [ -f "$dir/$base.py" ] && rm "$dir/$base.py" || true; \
+    done
+
+# ============================================================
+# Stage 2: Runtime — minimal image with compiled code
+# ============================================================
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Copy virtual environment from builder (runtime deps only, no Cython)
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy compiled distribution
+COPY --from=builder /dist/ /app/
+
+# Create non-root user
+RUN useradd --create-home --shell /bin/bash appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# Environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PORT=8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT}/health')" || exit 1
+
+EXPOSE ${PORT}
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
