@@ -1,0 +1,25 @@
+app = 'synapse-falkordb'
+primary_region = 'fra'
+
+[build]
+  image = 'falkordb/falkordb:latest'
+
+[mounts]
+  source = 'falkordb_data'
+  destination = '/data'
+
+[env]
+  REDIS_ARGS = "--save 60 1 --appendonly yes"
+
+[[services]]
+  protocol = 'tcp'
+  internal_port = 6379
+
+  [[services.ports]]
+    port = 6379
+    handlers = []
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
