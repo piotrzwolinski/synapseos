@@ -330,36 +330,36 @@ class SessionGraphManager:
     # TAG UNIT MANAGEMENT
     # =========================================================================
 
-    def upsert_tag(self, session_id: str, tag_id: str,
-                   filter_width: int = None, filter_height: int = None,
-                   filter_depth: int = None, airflow_m3h: int = None,
-                   product_family: str = None, product_code: str = None,
-                   weight_kg: float = None, quantity: int = None,
-                   source_message: int = None,
-                   assembly_group_id: str = None) -> dict:
+    def upsert_tag(self, session_id: str, tag_id: str, **tag_fields) -> dict:
         """Create or update a TagUnit under the session's ActiveProject.
 
         Automatically computes derived values:
         - Housing dimensions from filter dimensions
         - Housing length from filter depth
-        - Orientation normalization (larger = height)
 
         When assembly_group_id is set, Cypher auto-propagates shared properties
-        (dimensions, capacity) to sibling TagUnits in the same assembly group.
-        This is the Graph enforcing Digital Twin consistency.
+        (from config assembly.shared_properties) to sibling TagUnits.
+
+        Args:
+            session_id: Session identifier.
+            tag_id: Tag identifier (e.g., "item_1").
+            **tag_fields: All tag field key-value pairs to persist.
 
         Returns the tag's current state as a dict.
         """
         project_id = f"APRJ_{session_id}"
         tag_node_id = f"TAG_{session_id}_{tag_id}"
 
+        # Extract fields needed for derived computations
+        filter_width = tag_fields.pop("filter_width", None)
+        filter_height = tag_fields.pop("filter_height", None)
+        filter_depth = tag_fields.pop("filter_depth", None)
+        product_family = tag_fields.pop("product_family", None)
+        assembly_group_id = tag_fields.pop("assembly_group_id", None)
+
         # Compute derived values
         housing_width = _map_filter_to_housing(filter_width) if filter_width else None
         housing_height = _map_filter_to_housing(filter_height) if filter_height else None
-
-        # v3.8: Do NOT normalize orientation — preserve user-specified WxH order
-        # to match catalog convention (Bredd × Höjd). Normalization was swapping
-        # dimensions (e.g., 1800x900 → 900x1800) causing wrong weight/DimensionModule lookup.
 
         from config_loader import get_config
         _default_fam = ""
@@ -381,6 +381,7 @@ class SessionGraphManager:
             "tag_id": tag_id,
         }
 
+        # Core derived fields
         field_map = {
             "filter_width": filter_width,
             "filter_height": filter_height,
@@ -388,14 +389,11 @@ class SessionGraphManager:
             "housing_width": housing_width,
             "housing_height": housing_height,
             "housing_length": housing_length,
-            "airflow_m3h": airflow_m3h,
             "product_family": product_family,
-            "product_code": product_code,
-            "weight_kg": weight_kg,
-            "quantity": quantity,
-            "source_message": source_message,
             "assembly_group_id": assembly_group_id,
         }
+        # Merge any additional fields (airflow_m3h, product_code, weight_kg, etc.)
+        field_map.update(tag_fields)
 
         for key, value in field_map.items():
             if value is not None:
@@ -404,33 +402,13 @@ class SessionGraphManager:
 
         set_clause = ", ".join(set_parts)
 
-        # Determine completeness
-        completeness_check = """
-        WITH t
-        SET t.is_complete = (
-            t.housing_width IS NOT NULL AND
-            t.housing_height IS NOT NULL AND
-            t.housing_length IS NOT NULL
-        )
-        """
+        # Determine completeness — config-driven with legacy fallback
+        completeness_check = self._build_completeness_check()
 
-        # Graph-level sibling sync: when a TagUnit belongs to an assembly group,
-        # auto-propagate shared properties to siblings (same duct = same dimensions).
-        # COALESCE keeps sibling's own value if it has one, otherwise inherits.
-        # housing_length is NOT synced — each stage has its own (from graph auto-resolve).
+        # Graph-level sibling sync — config-driven with legacy fallback
         sibling_sync = ""
         if assembly_group_id:
-            sibling_sync = """
-            WITH t
-            OPTIONAL MATCH (pp:ActiveProject)-[:HAS_UNIT]->(sibling:TagUnit)
-            WHERE sibling.assembly_group_id = t.assembly_group_id
-              AND sibling.id <> t.id
-            SET sibling.housing_width = COALESCE(sibling.housing_width, t.housing_width),
-                sibling.housing_height = COALESCE(sibling.housing_height, t.housing_height),
-                sibling.filter_width = COALESCE(sibling.filter_width, t.filter_width),
-                sibling.filter_height = COALESCE(sibling.filter_height, t.filter_height),
-                sibling.airflow_m3h = COALESCE(sibling.airflow_m3h, t.airflow_m3h)
-            """
+            sibling_sync = self._build_sibling_sync()
 
         cypher = f"""
             MERGE (s:Session {{id: $session_id}})
@@ -461,6 +439,72 @@ class SessionGraphManager:
             """, {"tag_node_id": tag_node_id, "dim_id": dim_id})
 
         return result[0]["tag"] if result else {}
+
+    def _build_completeness_check(self) -> str:
+        """Build Cypher completeness check from config or legacy fallback."""
+        try:
+            from config_loader import get_config
+            required = get_config().completeness_required
+        except Exception:
+            required = []
+
+        if required:
+            # Config-driven: tag is complete when ALL required groups have at least one non-null field
+            conditions = []
+            for entry in required:
+                fields = entry.get("fields", [])
+                if fields:
+                    # ANY field in the group being non-null satisfies this requirement
+                    or_parts = [f"t.{f} IS NOT NULL" for f in fields]
+                    conditions.append(f"({' OR '.join(or_parts)})")
+            if conditions:
+                expr = " AND ".join(conditions)
+                return f"\n        WITH t\n        SET t.is_complete = ({expr})\n        "
+
+        # Legacy fallback
+        return """
+        WITH t
+        SET t.is_complete = (
+            t.housing_width IS NOT NULL AND
+            t.housing_height IS NOT NULL AND
+            t.housing_length IS NOT NULL
+        )
+        """
+
+    def _build_sibling_sync(self) -> str:
+        """Build Cypher sibling sync clause from config or legacy fallback."""
+        try:
+            from config_loader import get_config
+            shared_props = get_config().assembly_shared_properties
+        except Exception:
+            shared_props = []
+
+        if shared_props:
+            set_lines = []
+            for prop in shared_props:
+                set_lines.append(
+                    f"sibling.{prop} = COALESCE(sibling.{prop}, t.{prop})")
+            set_clause = ",\n                ".join(set_lines)
+            return f"""
+            WITH t
+            OPTIONAL MATCH (pp:ActiveProject)-[:HAS_UNIT]->(sibling:TagUnit)
+            WHERE sibling.assembly_group_id = t.assembly_group_id
+              AND sibling.id <> t.id
+            SET {set_clause}
+            """
+
+        # Legacy fallback
+        return """
+            WITH t
+            OPTIONAL MATCH (pp:ActiveProject)-[:HAS_UNIT]->(sibling:TagUnit)
+            WHERE sibling.assembly_group_id = t.assembly_group_id
+              AND sibling.id <> t.id
+            SET sibling.housing_width = COALESCE(sibling.housing_width, t.housing_width),
+                sibling.housing_height = COALESCE(sibling.housing_height, t.housing_height),
+                sibling.filter_width = COALESCE(sibling.filter_width, t.filter_width),
+                sibling.filter_height = COALESCE(sibling.filter_height, t.filter_height),
+                sibling.airflow_m3h = COALESCE(sibling.airflow_m3h, t.airflow_m3h)
+            """
 
     # =========================================================================
     # STATE RETRIEVAL

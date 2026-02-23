@@ -10,12 +10,18 @@ The state acts as a "Cumulative Engineering Specification" that grows with each 
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Any
 from enum import Enum
 
 
 class MaterialCode(str, Enum):
-    """Material codes for product variants."""
+    """Material codes for product variants.
+
+    DEPRECATED: Kept for backward compatibility. New code should use plain
+    strings validated against config.material_codes_extended.
+    Since this is a str enum, enum members compare equal to their string values,
+    so existing comparisons with plain strings still work.
+    """
     RF = "RF"
     FZ = "FZ"
     ZM = "ZM"
@@ -24,7 +30,12 @@ class MaterialCode(str, Enum):
 
 @dataclass
 class TagSpecification:
-    """Specification for a single tag/item in the engineering request."""
+    """Specification for a single tag/item in the engineering request.
+
+    Typed fields (filter_width, housing_width, etc.) are kept for backward
+    compatibility. The `properties` dict provides a generic bag for any
+    tenant-specific data. get_prop/set_prop unify access across both.
+    """
     tag_id: str
 
     # Filter dimensions (from user input)
@@ -64,6 +75,23 @@ class TagSpecification:
     # Derived/computed flags
     is_complete: bool = False
     missing_params: list[str] = field(default_factory=list)
+
+    # Generic property bag — tenant-specific data stored here
+    properties: dict[str, Any] = field(default_factory=dict)
+
+    def get_prop(self, key: str, default: Any = None) -> Any:
+        """Get a property value. Checks typed field first, then properties dict."""
+        if hasattr(self, key) and key != "properties":
+            val = getattr(self, key)
+            if val is not None:
+                return val
+        return self.properties.get(key, default)
+
+    def set_prop(self, key: str, value: Any) -> None:
+        """Set a property value. Sets typed field if it exists, always sets in properties."""
+        if hasattr(self, key) and key != "properties":
+            setattr(self, key, value)
+        self.properties[key] = value
 
     def get_housing_size_string(self) -> Optional[str]:
         """Get housing size as WxH string."""
@@ -127,7 +155,41 @@ class TagSpecification:
         )
 
     def check_completeness(self) -> tuple[bool, list[str]]:
-        """Check if specification is complete for product selection."""
+        """Check if specification is complete for product selection.
+
+        Uses config.completeness_required if available, otherwise falls back
+        to the legacy hardcoded logic (identical behavior for MH tenant).
+        """
+        try:
+            from config_loader import get_config
+            required = get_config().completeness_required
+        except Exception:
+            required = []
+
+        if required:
+            return self._check_completeness_from_config(required)
+        return self._check_completeness_legacy()
+
+    def _check_completeness_from_config(self, required: list[dict]) -> tuple[bool, list[str]]:
+        """Config-driven completeness check.
+
+        Each entry in required is a dict:
+          {"key": "label", "fields": ["primary", "fallback1", ...]}
+        The check passes if ANY field in the list has a truthy value.
+        """
+        missing = []
+        for req in required:
+            fields = req.get("fields", [])
+            label = req.get("key", fields[0] if fields else "unknown")
+            if not any(self.get_prop(f) for f in fields):
+                missing.append(label)
+
+        self.missing_params = missing
+        self.is_complete = len(missing) == 0
+        return self.is_complete, missing
+
+    def _check_completeness_legacy(self) -> tuple[bool, list[str]]:
+        """Legacy hardcoded completeness check (backward compat)."""
         missing = []
 
         if not self.housing_width or not self.housing_height:
@@ -156,7 +218,7 @@ class TechnicalState:
 
     # Project-level locks
     project_name: Optional[str] = None
-    locked_material: Optional[MaterialCode] = None
+    locked_material: Optional[str] = None  # Plain string, validated against config codes
 
     # Per-tag specifications
     tags: dict[str, TagSpecification] = field(default_factory=dict)
@@ -205,6 +267,8 @@ class TechnicalState:
                     current = getattr(tag, key)
                     # Don't overwrite with None, but do update with new values
                     setattr(tag, key, value)
+                # Always mirror into the generic property bag
+                tag.properties[key] = value
 
         # Auto-compute derived values
         tag.compute_housing_from_filter()
@@ -307,34 +371,62 @@ class TechnicalState:
                         setattr(tag, attr, best)
 
     def lock_material(self, material: str):
-        """Lock material code. Once locked, cannot be changed."""
-        if self.locked_material is None:
-            try:
-                self.locked_material = MaterialCode(material.upper())
-            except ValueError:
-                # Try config-driven aliases first, then hardcoded fallback
-                aliases = self._get_material_aliases()
-                self.locked_material = aliases.get(material.upper())
+        """Lock material code. Once locked, cannot be changed.
+
+        Validates against config material codes first, then MaterialCode enum
+        as legacy fallback. Stores as plain string.
+        """
+        if self.locked_material is not None:
+            return
+
+        upper = material.upper()
+
+        # 1. Direct match against config-known codes
+        known = self._get_known_material_codes()
+        if upper in known:
+            self.locked_material = upper
+            return
+
+        # 2. Check aliases from config
+        aliases = self._get_material_aliases()
+        resolved = aliases.get(upper)
+        if resolved:
+            self.locked_material = resolved
+            return
+
+        # 3. Legacy fallback: MaterialCode enum
+        try:
+            self.locked_material = MaterialCode(upper).value
+        except ValueError:
+            pass
 
     @staticmethod
-    def _get_material_aliases() -> dict:
-        """Build material alias map from config, falling back to hardcoded."""
+    def _get_known_material_codes() -> set[str]:
+        """Get set of known material codes from config."""
+        try:
+            from config_loader import get_config
+            cfg = get_config()
+            if cfg.material_codes_extended:
+                return {mat.code.upper() for mat in cfg.material_codes_extended}
+        except Exception:
+            pass
+        # Legacy fallback
+        return {m.value for m in MaterialCode}
+
+    @staticmethod
+    def _get_material_aliases() -> dict[str, str]:
+        """Build material alias map from config. Returns {ALIAS: CODE} as plain strings."""
         try:
             from config_loader import get_config
             cfg = get_config()
             if cfg.material_codes_extended:
                 aliases = {}
                 for mat in cfg.material_codes_extended:
-                    try:
-                        code = MaterialCode(mat.code)
-                    except ValueError:
-                        continue
                     for alias in mat.aliases:
-                        aliases[alias.upper()] = code
+                        aliases[alias.upper()] = mat.code.upper()
                 return aliases
         except Exception:
             pass
-        # Empty fallback — all aliases come from tenant config
         return {}
 
     def set_project(self, project_name: str):
@@ -361,6 +453,9 @@ class TechnicalState:
 
         This generates a VERY EXPLICIT context that the LLM cannot ignore.
         It includes strong prohibition rules to prevent state drift.
+
+        Uses config (prompt_context section) when available, falling back
+        to legacy hardcoded rendering for backward compatibility.
         """
         lines = []
 
@@ -383,7 +478,7 @@ class TechnicalState:
             if self.project_name:
                 lines.append(f"- **Project:** {self.project_name}")
             if self.locked_material:
-                mat_code = self.locked_material.value
+                mat_code = self.locked_material
                 from logic.dimension_tables import get_corrosion_map
                 corr_class = get_corrosion_map().get(mat_code, "unknown")
                 lines.append(f"- **Material:** {mat_code} (corrosion class {corr_class}) ← USE THIS IN ALL PRODUCT CODES")
@@ -424,8 +519,10 @@ class TechnicalState:
             lines.append("")
 
         # =====================================================================
-        # TAG SPECIFICATIONS: Per-tag data
+        # TAG SPECIFICATIONS: Per-tag data (config-driven or legacy)
         # =====================================================================
+        tag_fields_cfg = self._get_prompt_tag_fields()
+
         if self.tags:
             lines.append("### 📋 TAG SPECIFICATIONS (FROM USER INPUT)")
             lines.append("")
@@ -433,47 +530,12 @@ class TechnicalState:
             for tag_id, tag in self.tags.items():
                 lines.append(f"**Tag {tag_id}:**")
 
-                if tag.filter_width and tag.filter_height:
-                    depth_str = f"x{tag.filter_depth}mm" if tag.filter_depth else ""
-                    lines.append(f"  - Filter Dimensions: {tag.filter_width}x{tag.filter_height}{depth_str}")
-                    if tag.filter_depth:
-                        lines.append(f"    ✓ Depth KNOWN: {tag.filter_depth}mm → DO NOT ask for filter depth")
+                if tag_fields_cfg:
+                    self._render_tag_from_config(tag, tag_fields_cfg, lines)
+                else:
+                    self._render_tag_legacy(tag, lines)
 
-                if tag.housing_width and tag.housing_height:
-                    lines.append(f"  - Housing Size: {tag.housing_width}x{tag.housing_height}mm")
-                    lines.append(f"    ✓ Dimensions KNOWN: {tag.housing_width}x{tag.housing_height}mm → DO NOT ask for duct dimensions")
-
-                if tag.housing_length:
-                    lines.append(f"  - Housing Length: {tag.housing_length}mm (auto-derived from depth)")
-                    lines.append(f"    ✓ Length RESOLVED: DO NOT ask for housing length")
-
-                if tag.airflow_m3h:
-                    if tag.rated_airflow_m3h and tag.rated_airflow_m3h != tag.airflow_m3h:
-                        lines.append(f"  - Rated Airflow: {tag.rated_airflow_m3h} m³/h per module (catalog)")
-                        lines.append(f"  - Requested Airflow: {tag.airflow_m3h} m³/h")
-                    elif tag.modules_needed > 1 and tag.total_airflow_m3h:
-                        lines.append(f"  - Airflow: {tag.total_airflow_m3h} m³/h total ({tag.modules_needed}×{tag.airflow_m3h} per unit)")
-                    else:
-                        lines.append(f"  - Airflow: {tag.airflow_m3h} m³/h")
-                    lines.append(f"    ✓ Airflow KNOWN: DO NOT ask for airflow")
-
-                if tag.product_code:
-                    lines.append(f"  - Product Code: {tag.product_code}")
-                    lines.append(f"    ✓ USE THIS EXACT CODE in entity_card specs — do NOT compose your own")
-
-                if tag.weight_kg:
-                    if tag.modules_needed > 1 and tag.total_weight_kg:
-                        lines.append(f"  - Weight: {tag.total_weight_kg} kg total ({tag.modules_needed}×{tag.weight_kg}kg per unit)")
-                    else:
-                        lines.append(f"  - Weight: {tag.weight_kg} kg (from graph)")
-
-                if tag.modules_needed > 1:
-                    lines.append(f"  - Parallel Units: {tag.modules_needed}")
-
-                if tag.quantity > 1:
-                    lines.append(f"  - Quantity: {tag.quantity}")
-
-                # Status with explicit instructions
+                # Status with explicit instructions (universal)
                 if tag.is_complete:
                     lines.append(f"  - **Status: ✅ COMPLETE** → Ready for final answer")
                 elif tag.missing_params:
@@ -486,30 +548,25 @@ class TechnicalState:
                 lines.append("")
 
         # =====================================================================
-        # PROHIBITION RULES: Explicit "do not" instructions
+        # PROHIBITION RULES (config-driven or legacy)
         # =====================================================================
+        prohibitions = self._get_prompt_prohibitions()
         lines.append("### ⛔ STRICT PROHIBITIONS")
         lines.append("")
-        lines.append("1. **NEVER ask for data shown above** - it's already known")
-        lines.append("2. **NEVER revert material to FZ** if RF/ZM/SF was specified")
-        lines.append("3. **NEVER ask for housing length** if filter depth is known (auto-derived)")
-        lines.append("4. **NEVER ask for filter depth** if WxHxD format was provided")
-        lines.append("5. **ALWAYS use locked material suffix** in product codes (e.g., -RF not -FZ)")
-        lines.append("6. **ALWAYS acknowledge previous input** before asking new questions")
+        for i, rule in enumerate(prohibitions, 1):
+            lines.append(f"{i}. **{rule}**")
         lines.append("")
 
         # =====================================================================
-        # DERIVATION RULES: How to compute missing values
+        # DERIVATION RULES (config-driven or legacy)
         # =====================================================================
+        derivation_rules = self._get_prompt_derivation_rules()
         lines.append("### 🔧 AUTO-DERIVATION RULES")
         lines.append("")
         lines.append("| If Known | Then Derive |")
         lines.append("|----------|-------------|")
-        lines.append("| Filter Depth ≤292mm | Housing Length = 550mm |")
-        lines.append("| Filter Depth ≤450mm | Housing Length = 750mm |")
-        lines.append("| Filter Depth >450mm | Housing Length = 900mm |")
-        lines.append("| Filter 305mm | Housing 300mm |")
-        lines.append("| Filter 610mm | Housing 600mm |")
+        for rule in derivation_rules:
+            lines.append(f"| {rule['if_known']} | {rule['then_derive']} |")
         lines.append("")
 
         # =====================================================================
@@ -552,37 +609,325 @@ class TechnicalState:
 
         return "\n".join(lines)
 
+    @staticmethod
+    def _get_prompt_tag_fields() -> list[dict]:
+        """Load tag display field config, or empty list for legacy fallback."""
+        try:
+            from config_loader import get_config
+            return get_config().prompt_tag_fields
+        except Exception:
+            return []
+
+    @staticmethod
+    def _get_prompt_prohibitions() -> list[str]:
+        """Load prohibition rules from config, or legacy defaults."""
+        try:
+            from config_loader import get_config
+            rules = get_config().prompt_prohibitions
+            if rules:
+                return rules
+        except Exception:
+            pass
+        # Legacy fallback
+        return [
+            "NEVER ask for data shown above - it's already known",
+            "NEVER revert material to FZ if RF/ZM/SF was specified",
+            "NEVER ask for housing length if filter depth is known (auto-derived)",
+            "NEVER ask for filter depth if WxHxD format was provided",
+            "ALWAYS use locked material suffix in product codes (e.g., -RF not -FZ)",
+            "ALWAYS acknowledge previous input before asking new questions",
+        ]
+
+    @staticmethod
+    def _get_prompt_derivation_rules() -> list[dict]:
+        """Load derivation rules from config, or legacy defaults."""
+        try:
+            from config_loader import get_config
+            rules = get_config().prompt_derivation_rules
+            if rules:
+                return rules
+        except Exception:
+            pass
+        # Legacy fallback
+        return [
+            {"if_known": "Filter Depth ≤292mm", "then_derive": "Housing Length = 550mm"},
+            {"if_known": "Filter Depth ≤450mm", "then_derive": "Housing Length = 750mm"},
+            {"if_known": "Filter Depth >450mm", "then_derive": "Housing Length = 900mm"},
+            {"if_known": "Filter 305mm", "then_derive": "Housing 300mm"},
+            {"if_known": "Filter 610mm", "then_derive": "Housing 600mm"},
+        ]
+
+    def _render_tag_from_config(self, tag: "TagSpecification", fields_cfg: list[dict], lines: list[str]) -> None:
+        """Render tag fields using config-driven field definitions.
+
+        Each field entry has a 'type' that determines rendering:
+        - dimension_pair: width × height with optional depth
+        - single: simple value with optional format
+        - aggregate: value with multi-module support
+        """
+        for entry in fields_cfg:
+            ftype = entry.get("type", "single")
+
+            if ftype == "dimension_pair":
+                self._render_dimension_pair(tag, entry, lines)
+            elif ftype == "aggregate":
+                self._render_aggregate_field(tag, entry, lines)
+            elif ftype == "single":
+                self._render_single_field(tag, entry, lines)
+
+    @staticmethod
+    def _render_dimension_pair(tag: "TagSpecification", entry: dict, lines: list[str]) -> None:
+        """Render a width×height dimension pair with optional depth extension."""
+        w_field = entry.get("width", "")
+        h_field = entry.get("height", "")
+        d_field = entry.get("depth")
+        label = entry.get("label", "Dimensions")
+
+        w = tag.get_prop(w_field)
+        h = tag.get_prop(h_field)
+        if not w or not h:
+            return
+
+        depth_str = ""
+        if d_field:
+            d = tag.get_prop(d_field)
+            if d:
+                depth_str = f"x{d}mm"
+
+        lines.append(f"  - {label}: {w}x{h}{depth_str}")
+
+        # Depth suppression hint
+        if d_field and tag.get_prop(d_field):
+            depth_supp = entry.get("depth_suppression", "")
+            if depth_supp:
+                lines.append(f"    ✓ {depth_supp.format(depth=tag.get_prop(d_field))}")
+
+        # Main suppression hint (for housing size etc.)
+        suppression = entry.get("suppression", "")
+        if suppression:
+            lines.append(f"    ✓ {suppression.format(width=w, height=h)}")
+
+    @staticmethod
+    def _render_single_field(tag: "TagSpecification", entry: dict, lines: list[str]) -> None:
+        """Render a single scalar field."""
+        field_name = entry.get("field", "")
+        label = entry.get("label", field_name)
+        fmt = entry.get("format", "{value}")
+        min_val = entry.get("min_display_value")
+
+        value = tag.get_prop(field_name)
+        if value is None:
+            return
+        if min_val is not None and value < min_val:
+            return
+
+        display = fmt.format(value=value)
+        lines.append(f"  - {label}: {display}")
+
+        suppression = entry.get("suppression", "")
+        if suppression:
+            lines.append(f"    ✓ {suppression}")
+
+    @staticmethod
+    def _render_aggregate_field(tag: "TagSpecification", entry: dict, lines: list[str]) -> None:
+        """Render an aggregate field with multi-module support."""
+        field_name = entry.get("field", "")
+        label = entry.get("label", field_name)
+        unit = entry.get("unit", "")
+        single_suffix = entry.get("single_suffix", "")
+
+        value = tag.get_prop(field_name)
+        if not value:
+            return
+
+        total_field = entry.get("total_field", "")
+        rated_field = entry.get("rated_field", "")
+        count_field = entry.get("count_field", "modules_needed")
+
+        total = tag.get_prop(total_field) if total_field else None
+        rated = tag.get_prop(rated_field) if rated_field else None
+        count = tag.get_prop(count_field, 1)
+
+        # Rated vs requested (airflow specific)
+        if rated and rated != value:
+            lines.append(f"  - Rated {label}: {rated} {unit} per module (catalog)")
+            lines.append(f"  - Requested {label}: {value} {unit}")
+        elif count > 1 and total:
+            lines.append(f"  - {label}: {total} {unit} total ({count}×{value} per unit)")
+        else:
+            suffix = f" {single_suffix}" if single_suffix else ""
+            lines.append(f"  - {label}: {value} {unit}{suffix}")
+
+        suppression = entry.get("suppression", "")
+        if suppression:
+            lines.append(f"    ✓ {suppression}")
+
+    def _render_tag_legacy(self, tag: "TagSpecification", lines: list[str]) -> None:
+        """Legacy hardcoded tag rendering (backward compat when no config)."""
+        if tag.filter_width and tag.filter_height:
+            depth_str = f"x{tag.filter_depth}mm" if tag.filter_depth else ""
+            lines.append(f"  - Filter Dimensions: {tag.filter_width}x{tag.filter_height}{depth_str}")
+            if tag.filter_depth:
+                lines.append(f"    ✓ Depth KNOWN: {tag.filter_depth}mm → DO NOT ask for filter depth")
+
+        if tag.housing_width and tag.housing_height:
+            lines.append(f"  - Housing Size: {tag.housing_width}x{tag.housing_height}mm")
+            lines.append(f"    ✓ Dimensions KNOWN: {tag.housing_width}x{tag.housing_height}mm → DO NOT ask for duct dimensions")
+
+        if tag.housing_length:
+            lines.append(f"  - Housing Length: {tag.housing_length}mm (auto-derived from depth)")
+            lines.append(f"    ✓ Length RESOLVED: DO NOT ask for housing length")
+
+        if tag.airflow_m3h:
+            if tag.rated_airflow_m3h and tag.rated_airflow_m3h != tag.airflow_m3h:
+                lines.append(f"  - Rated Airflow: {tag.rated_airflow_m3h} m³/h per module (catalog)")
+                lines.append(f"  - Requested Airflow: {tag.airflow_m3h} m³/h")
+            elif tag.modules_needed > 1 and tag.total_airflow_m3h:
+                lines.append(f"  - Airflow: {tag.total_airflow_m3h} m³/h total ({tag.modules_needed}×{tag.airflow_m3h} per unit)")
+            else:
+                lines.append(f"  - Airflow: {tag.airflow_m3h} m³/h")
+            lines.append(f"    ✓ Airflow KNOWN: DO NOT ask for airflow")
+
+        if tag.product_code:
+            lines.append(f"  - Product Code: {tag.product_code}")
+            lines.append(f"    ✓ USE THIS EXACT CODE in entity_card specs — do NOT compose your own")
+
+        if tag.weight_kg:
+            if tag.modules_needed > 1 and tag.total_weight_kg:
+                lines.append(f"  - Weight: {tag.total_weight_kg} kg total ({tag.modules_needed}×{tag.weight_kg}kg per unit)")
+            else:
+                lines.append(f"  - Weight: {tag.weight_kg} kg (from graph)")
+
+        if tag.modules_needed > 1:
+            lines.append(f"  - Parallel Units: {tag.modules_needed}")
+
+        if tag.quantity > 1:
+            lines.append(f"  - Quantity: {tag.quantity}")
+
     def _build_entity_cards(self) -> dict | list:
         """Pre-compute entity_card(s) from finalized tag data.
 
         v4.3: Cards are built in Python from authoritative graph data, then
         injected into the prompt so the LLM copies them verbatim. This prevents
         hallucination of weights, product codes, and corrosion classes.
+
+        Uses config.prompt_entity_card when available, falls back to legacy.
         """
+        card_cfg = self._get_entity_card_config()
+        if card_cfg and card_cfg.get("specs"):
+            return self._build_entity_cards_from_config(card_cfg)
+        return self._build_entity_cards_legacy()
+
+    @staticmethod
+    def _get_entity_card_config() -> dict:
+        """Load entity card config, or empty dict for legacy fallback."""
+        try:
+            from config_loader import get_config
+            return get_config().prompt_entity_card
+        except Exception:
+            return {}
+
+    def _build_entity_cards_from_config(self, card_cfg: dict) -> dict | list:
+        """Config-driven entity card builder."""
+        from logic.dimension_tables import get_corrosion_map, get_known_material_codes
+        _known_mats = get_known_material_codes()
+        CORROSION_MAP = get_corrosion_map()
+
+        title_template = card_cfg.get("title_template", "{family} ({housing_width}x{housing_height}mm)")
+        specs_cfg = card_cfg.get("specs", [])
+
+        cards = []
+        for tag_id, tag in self.tags.items():
+            fam = tag.product_family or self.detected_family or "Unknown"
+            mat_code = self._resolve_material_code(tag, _known_mats)
+            corr = CORROSION_MAP.get(mat_code, "")
+
+            # Build specs from config
+            specs = {}
+            for spec in specs_cfg:
+                spec_type = spec.get("type", "")
+                label = spec.get("label", "")
+
+                if spec_type == "material":
+                    specs[label] = f"{mat_code} (corrosion class {corr})" if corr else mat_code
+                elif spec_type == "resolved_param":
+                    param = spec.get("param", "")
+                    default = spec.get("default", "")
+                    specs[label] = self.resolved_params.get(param, default)
+                else:
+                    # Field-based spec
+                    field_name = spec.get("field")
+                    fields = spec.get("fields", [])
+                    fmt = spec.get("format", "")
+                    total_field = spec.get("total_field", "")
+                    count_field = spec.get("count_field", "modules_needed")
+                    unit = spec.get("unit", "")
+                    prefix = spec.get("prefix", "")
+
+                    if fields:
+                        # Multi-field format (e.g., WxH)
+                        vals = {f: tag.get_prop(f) for f in fields}
+                        if all(vals.values()):
+                            specs[label] = fmt.format(**vals)
+                    elif field_name:
+                        value = tag.get_prop(field_name)
+                        if value is None:
+                            continue
+                        count = tag.get_prop(count_field, 1)
+                        total = tag.get_prop(total_field) if total_field else None
+
+                        if count > 1 and total:
+                            specs[label] = f"{prefix}{total} {unit} ({count}×{value})".strip()
+                        else:
+                            if fmt:
+                                specs[label] = fmt.format(**{field_name: value})
+                            else:
+                                specs[label] = f"{prefix}{value} {unit}".strip()
+
+            # Build title
+            assembly_label = ""
+            if tag.assembly_role:
+                stage_num = 1 if tag.assembly_role == "PROTECTOR" else 2
+                assembly_label = f"Stage {stage_num} ({tag.assembly_role}): "
+
+            title = title_template.format(
+                assembly_label=assembly_label,
+                family=fam,
+                housing_width=tag.get_prop("housing_width", ""),
+                housing_height=tag.get_prop("housing_height", ""),
+            )
+
+            cards.append({"title": title, "specs": specs})
+
+        if len(cards) == 1:
+            return cards[0]
+        return cards
+
+    def _resolve_material_code(self, tag: "TagSpecification", known_mats: set) -> str:
+        """Resolve the material code for a tag (locked → product code → default)."""
+        if self.locked_material:
+            return self.locked_material
+        if tag.product_code:
+            last_seg = tag.product_code.rsplit("-", 1)[-1]
+            if last_seg in known_mats:
+                return last_seg
+        try:
+            from config_loader import get_config
+            return get_config().default_material or ""
+        except Exception:
+            return ""
+
+    def _build_entity_cards_legacy(self) -> dict | list:
+        """Legacy hardcoded entity card builder (backward compat)."""
         from logic.dimension_tables import get_corrosion_map, get_known_material_codes
         _known_mats = get_known_material_codes()
         CORROSION_MAP = get_corrosion_map()
         cards = []
         for tag_id, tag in self.tags.items():
             fam = tag.product_family or self.detected_family or "Unknown"
-            # Extract material from locked state or product code (robust extraction)
-            mat_code = None
-            if self.locked_material:
-                mat_code = self.locked_material.value
-            elif tag.product_code:
-                # Try last segment of product code
-                last_seg = tag.product_code.rsplit("-", 1)[-1]
-                if last_seg in _known_mats:
-                    mat_code = last_seg
-            if not mat_code:
-                try:
-                    from config_loader import get_config
-                    mat_code = get_config().default_material or ""
-                except Exception:
-                    mat_code = ""
+            mat_code = self._resolve_material_code(tag, _known_mats)
             corr = CORROSION_MAP.get(mat_code, "")
 
-            # Build specs dict — only include known values
             specs = {}
             if tag.product_code:
                 specs["Product Code"] = tag.product_code
@@ -604,7 +949,6 @@ class TechnicalState:
                 else:
                     specs["Weight"] = f"~{tag.weight_kg} kg"
 
-            # Build title
             assembly_label = ""
             if tag.assembly_role:
                 stage_num = 1 if tag.assembly_role == "PROTECTOR" else 2
@@ -628,7 +972,7 @@ class TechnicalState:
         """
         lines = []
         if self.locked_material:
-            lines.append(f"Material: {self.locked_material.value}")
+            lines.append(f"Material: {self.locked_material}")
         if self.detected_family:
             lines.append(f"Product Family: {self.detected_family}")
         if self.project_name:
@@ -664,7 +1008,7 @@ class TechnicalState:
             session_mgr.set_project(session_id, self.project_name)
 
         if self.locked_material:
-            session_mgr.lock_material(session_id, self.locked_material.value)
+            session_mgr.lock_material(session_id, self.locked_material)
 
         if self.detected_family:
             session_mgr.set_detected_family(session_id, self.detected_family)
@@ -688,21 +1032,24 @@ class TechnicalState:
         if self.vetoed_families:
             session_mgr.set_vetoed_families(session_id, self.vetoed_families)
 
+        # Persist tags — build field dict from typed fields + property bag
+        _typed_tag_fields = (
+            "filter_width", "filter_height", "filter_depth", "airflow_m3h",
+            "product_family", "product_code", "weight_kg", "quantity",
+            "assembly_group_id",
+        )
         for tag_id, tag in self.tags.items():
-            session_mgr.upsert_tag(
-                session_id=session_id,
-                tag_id=tag_id,
-                filter_width=tag.filter_width,
-                filter_height=tag.filter_height,
-                filter_depth=tag.filter_depth,
-                airflow_m3h=tag.airflow_m3h,
-                product_family=tag.product_family,
-                product_code=tag.product_code,
-                weight_kg=tag.weight_kg,
-                quantity=tag.quantity,
-                source_message=self.turn_count,
-                assembly_group_id=tag.assembly_group_id,
-            )
+            tag_fields = {}
+            for attr in _typed_tag_fields:
+                val = getattr(tag, attr, None)
+                if val is not None:
+                    tag_fields[attr] = val
+            # Merge any extra properties from the generic bag
+            for k, v in tag.properties.items():
+                if k not in tag_fields and v is not None:
+                    tag_fields[k] = v
+            tag_fields["source_message"] = self.turn_count
+            session_mgr.upsert_tag(session_id, tag_id, **tag_fields)
 
     @classmethod
     def load_from_graph(cls, session_mgr, session_id: str) -> "TechnicalState":
@@ -750,20 +1097,13 @@ class TechnicalState:
                 ts.vetoed_families = vf
                 _log.getLogger(__name__).info(f"[LOAD] Restored vetoed_families: {vf}")
 
+        # Load tags generically — pass all graph fields to merge_tag
+        _graph_meta_keys = {"tag_id", "id", "session_id", "source_message", "is_complete"}
         for tag_data in state_data.get("tags", []):
             tag_id = tag_data.get("tag_id", "unknown")
-            ts.merge_tag(
-                tag_id,
-                filter_width=tag_data.get("filter_width"),
-                filter_height=tag_data.get("filter_height"),
-                filter_depth=tag_data.get("filter_depth"),
-                housing_length=tag_data.get("housing_length"),
-                airflow_m3h=tag_data.get("airflow_m3h"),
-                product_family=tag_data.get("product_family"),
-                product_code=tag_data.get("product_code"),
-                weight_kg=tag_data.get("weight_kg"),
-                quantity=tag_data.get("quantity"),
-            )
+            fields = {k: v for k, v in tag_data.items()
+                      if k not in _graph_meta_keys and v is not None}
+            ts.merge_tag(tag_id, **fields)
 
         # Restore assembly_role on loaded tags from assembly_group metadata
         if ts.assembly_group:
@@ -779,7 +1119,7 @@ class TechnicalState:
         """Serialize state for API response."""
         return {
             "project_name": self.project_name,
-            "locked_material": self.locked_material.value if self.locked_material else None,
+            "locked_material": self.locked_material if self.locked_material else None,
             "detected_family": self.detected_family,
             "accessories": self.accessories,
             "pending_clarification": self.pending_clarification,
@@ -807,6 +1147,7 @@ class TechnicalState:
                     "missing_params": tag.missing_params,
                     "assembly_role": tag.assembly_role,
                     "assembly_group_id": tag.assembly_group_id,
+                    "properties": tag.properties,
                 }
                 for tag_id, tag in self.tags.items()
             }
@@ -819,10 +1160,7 @@ class TechnicalState:
 
         state.project_name = data.get("project_name")
         if data.get("locked_material"):
-            try:
-                state.locked_material = MaterialCode(data["locked_material"])
-            except ValueError:
-                pass
+            state.lock_material(data["locked_material"])
         state.detected_family = data.get("detected_family")
         state.accessories = data.get("accessories", [])
         state.pending_clarification = data.get("pending_clarification")
@@ -848,6 +1186,7 @@ class TechnicalState:
             tag.total_airflow_m3h = tag_data.get("total_airflow_m3h")
             tag.assembly_role = tag_data.get("assembly_role")
             tag.assembly_group_id = tag_data.get("assembly_group_id")
+            tag.properties = tag_data.get("properties", {})
             # Don't use stored is_complete/missing_params - recompute them
             # BUGFIX: Ensure derived values are computed if missing
             if not tag.housing_width or not tag.housing_height:
@@ -914,7 +1253,7 @@ class TechnicalState:
             default_mat = get_config().default_material or ""
         except Exception:
             pass
-        material = tag.material_override or (self.locked_material.value if self.locked_material else default_mat)
+        material = tag.material_override or (self.locked_material if self.locked_material else default_mat)
         connection = self.resolved_params.get("connection_type", "PG")
 
         # Apply connection-specific length offset (e.g., Flange adds 50mm)
@@ -1062,7 +1401,7 @@ class TechnicalState:
             return warnings
 
         from logic.dimension_tables import get_known_material_codes
-        expected_mat = self.locked_material.value
+        expected_mat = self.locked_material
         expected_suffix = f"-{expected_mat}"
         known_materials = get_known_material_codes()
 
@@ -1150,7 +1489,7 @@ class TechnicalState:
             lines.append("")
 
         if self.locked_material:
-            lines.append(f"**Material:** {self.locked_material.value} (Locked)")
+            lines.append(f"**Material:** {self.locked_material} (Locked)")
             lines.append("")
 
         for tag_id, tag in self.tags.items():

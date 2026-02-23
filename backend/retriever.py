@@ -403,6 +403,98 @@ def _normalize_numeric_string(text: str) -> str:
 # SEMANTIC SCRIBE — STATE MERGE HELPER (v3.0)
 # =============================================================================
 
+
+def _route_entity_from_config(entity, tag_ref, tag, state, routing_cfg):
+    """Route ScribeEntity fields to tag/state using config-driven routing rules."""
+    for rule in routing_cfg:
+        ef = rule["entity_field"]
+        rtype = rule["type"]
+        entity_val = getattr(entity, ef, None)
+        if entity_val is None:
+            continue
+
+        if rtype == "dimension_unpack":
+            # entity.dimensions is a dict; unpack to tag fields via mapping
+            skip_field = rule.get("skip_if_tag_has")
+            if skip_field and getattr(tag, skip_field, None):
+                continue
+            mapping = rule.get("mapping", {})
+            kwargs = {}
+            for dim_key, target_field in mapping.items():
+                v = entity_val.get(dim_key)
+                if v is not None:
+                    kwargs[target_field] = int(v)
+            if kwargs:
+                state.merge_tag(tag_ref, **kwargs)
+
+        elif rtype == "tag_merge":
+            target = rule["target"]
+            skip_if_set = rule.get("skip_if_set", False)
+            if skip_if_set and getattr(tag, target, None):
+                continue
+            state.merge_tag(tag_ref, **{target: entity_val})
+            print(f"🧠 [SCRIBE] {ef}: {entity_val} on {tag_ref}")
+
+        elif rtype == "state_action":
+            action = rule["action"]
+            if action == "lock_material":
+                state.lock_material(entity_val)
+
+        elif rtype == "resolved_param":
+            param_key = rule["param_key"]
+            # Check skip_if_entity_has (e.g., skip corrosion class if material set)
+            skip_field = rule.get("skip_if_entity_has")
+            if skip_field and getattr(entity, skip_field, None):
+                continue
+            state.resolved_params[param_key] = entity_val
+            print(f"🧠 [SCRIBE] {param_key}: {entity_val}")
+
+
+def _route_entity_legacy(entity, tag_ref, tag, state):
+    """Route ScribeEntity fields to tag/state using legacy hardcoded mapping."""
+    # Dimensions (only fill if structural regex didn't already extract)
+    if entity.dimensions and not tag.housing_width:
+        w = entity.dimensions.get("width")
+        h = entity.dimensions.get("height")
+        d = entity.dimensions.get("depth")
+        kwargs = {}
+        if w is not None:
+            kwargs["filter_width"] = int(w)
+        if h is not None:
+            kwargs["filter_height"] = int(h)
+        if d is not None:
+            kwargs["filter_depth"] = int(d)
+        if kwargs:
+            state.merge_tag(tag_ref, **kwargs)
+
+    # Airflow — Scribe is primary
+    if entity.airflow_m3h and not tag.airflow_m3h:
+        state.merge_tag(tag_ref, airflow_m3h=entity.airflow_m3h)
+
+    # Product family — Scribe is primary (v3.1), always override
+    if entity.product_family:
+        state.merge_tag(tag_ref, product_family=entity.product_family)
+
+    # Material — Scribe is primary (only when user names a specific material)
+    if entity.material:
+        state.lock_material(entity.material)
+
+    # Corrosion class requirement — Scribe extracts class, NOT material
+    if entity.required_corrosion_class and not entity.material:
+        state.resolved_params["required_corrosion_class"] = entity.required_corrosion_class
+        print(f"🧠 [SCRIBE] Required corrosion class: {entity.required_corrosion_class} (material will be resolved from graph)")
+
+    # Connection type — Scribe is primary
+    if entity.connection_type:
+        state.resolved_params["connection_type"] = entity.connection_type
+        print(f"🧠 [SCRIBE] Connection type: {entity.connection_type}")
+
+    # Housing length — Scribe is primary (v4.0), overrides auto-derived
+    if entity.housing_length:
+        state.merge_tag(tag_ref, housing_length=entity.housing_length)
+        print(f"🧠 [SCRIBE] Housing length: {entity.housing_length} on {tag_ref}")
+
+
 def _merge_scribe_into_state(
     intent: SemanticIntent,
     state: TechnicalState,
@@ -457,6 +549,11 @@ def _merge_scribe_into_state(
 
     # 2. Entity data — Scribe is primary (v3.1). Only skip dimensions that
     #    structural regex already extracted (WxH patterns are precise).
+    try:
+        _entity_routing_cfg = get_config().scribe_entity_routing
+    except Exception:
+        _entity_routing_cfg = []
+
     for entity in intent.entities:
         tag_ref = entity.tag_ref
         if tag_ref not in state.tags:
@@ -472,48 +569,10 @@ def _merge_scribe_into_state(
 
         tag = state.tags[tag_ref]
 
-        # Dimensions (only fill if structural regex didn't already extract)
-        if entity.dimensions and not tag.housing_width:
-            w = entity.dimensions.get("width")
-            h = entity.dimensions.get("height")
-            d = entity.dimensions.get("depth")
-            kwargs = {}
-            if w is not None:
-                kwargs["filter_width"] = int(w)
-            if h is not None:
-                kwargs["filter_height"] = int(h)
-            if d is not None:
-                kwargs["filter_depth"] = int(d)
-            if kwargs:
-                state.merge_tag(tag_ref, **kwargs)
-
-        # Airflow — Scribe is primary
-        if entity.airflow_m3h and not tag.airflow_m3h:
-            state.merge_tag(tag_ref, airflow_m3h=entity.airflow_m3h)
-
-        # Product family — Scribe is primary (v3.1), always override
-        if entity.product_family:
-            state.merge_tag(tag_ref, product_family=entity.product_family)
-
-        # Material — Scribe is primary (only when user names a specific material)
-        if entity.material:
-            state.lock_material(entity.material)
-
-        # Corrosion class requirement — Scribe extracts class, NOT material
-        # Resolution to specific material happens later when product family is known
-        if entity.required_corrosion_class and not entity.material:
-            state.resolved_params["required_corrosion_class"] = entity.required_corrosion_class
-            print(f"🧠 [SCRIBE] Required corrosion class: {entity.required_corrosion_class} (material will be resolved from graph)")
-
-        # Connection type — Scribe is primary
-        if entity.connection_type:
-            state.resolved_params["connection_type"] = entity.connection_type
-            print(f"🧠 [SCRIBE] Connection type: {entity.connection_type}")
-
-        # Housing length — Scribe is primary (v4.0), overrides auto-derived
-        if entity.housing_length:
-            state.merge_tag(tag_ref, housing_length=entity.housing_length)
-            print(f"🧠 [SCRIBE] Housing length: {entity.housing_length} on {tag_ref}")
+        if _entity_routing_cfg:
+            _route_entity_from_config(entity, tag_ref, tag, state, _entity_routing_cfg)
+        else:
+            _route_entity_legacy(entity, tag_ref, tag, state)
 
     # 2b. Project name from Scribe (v4.0)
     if intent.project_name and not state.project_name:
@@ -591,55 +650,112 @@ def _merge_scribe_into_state(
         print(f"⚠️ [SCRIBE] Ignoring {len(intent.clarification_answers)} clarification "
               f"answers (no pending_clarification): {intent.clarification_answers}")
         intent.clarification_answers = {}
+
+    try:
+        _cfg_routing = get_config()
+        _param_routing = _cfg_routing.parameter_routing or {}
+    except Exception:
+        _param_routing = {}
+
     for param_key, value in intent.clarification_answers.items():
         _routed = False
         pk = param_key.lower().strip()
 
-        # Route known parameters to tag attributes using config-driven aliases
-        _cfg_routing = get_config()
+        if _param_routing:
+            _routed = _route_clarification_from_config(
+                pk, value, state, _param_routing)
+        else:
+            _routed = _route_clarification_legacy(pk, value, state)
 
-        _airflow_aliases = _cfg_routing.get_parameter_aliases("airflow") or ('airflow', 'airflow_m3h')
-        _depth_aliases = _cfg_routing.get_parameter_aliases("filter_depth") or ('filter_depth', 'depth')
-        _length_aliases = _cfg_routing.get_parameter_aliases("housing_length") or ('housing_length', 'length')
-
-        if pk in _airflow_aliases:
-            int_val = _safe_int_val(value)
-            if int_val and 500 <= int_val <= 100000:
-                for _tid, _tag in state.tags.items():
-                    if not _tag.airflow_m3h:
-                        state.merge_tag(_tid, airflow_m3h=int_val)
-                        print(f"🧠 [SCRIBE] Clarification → airflow_m3h={int_val} on {_tid}")
-                _routed = True
-                state.pending_clarification = _consume_pending_parts(
-                    state.pending_clarification, list(_airflow_aliases))
-
-        elif pk in _depth_aliases:
-            int_val = _safe_int_val(value)
-            if int_val:
-                for _tid, _tag in state.tags.items():
-                    if not _tag.filter_depth:
-                        state.merge_tag(_tid, filter_depth=int_val)
-                        print(f"🧠 [SCRIBE] Clarification → filter_depth={int_val} on {_tid}")
-                _routed = True
-                state.pending_clarification = _consume_pending_parts(
-                    state.pending_clarification, list(_depth_aliases))
-
-        elif pk in _length_aliases:
-            int_val = _safe_int_val(value)
-            if int_val:
-                for _tid, _tag in state.tags.items():
-                    state.merge_tag(_tid, housing_length=int_val)
-                    print(f"🧠 [SCRIBE] Clarification → housing_length={int_val} on {_tid}")
-                _routed = True
-                state.pending_clarification = _consume_pending_parts(
-                    state.pending_clarification, list(_length_aliases))
-
-        # Generic → resolved_params
+        # Generic fallback → resolved_params
         if not _routed:
             state.resolved_params[pk] = str(value)
             print(f"🧠 [SCRIBE] Clarification → resolved_params[{pk}] = {value}")
             state.pending_clarification = _consume_pending_parts(
                 state.pending_clarification, [pk])
+
+
+def _route_clarification_from_config(
+    pk: str, value, state: TechnicalState, param_routing: dict
+) -> bool:
+    """Route a clarification answer using config-driven parameter_routing."""
+    for _route_name, route_config in param_routing.items():
+        aliases = tuple(route_config.get("aliases", []))
+        if pk not in aliases:
+            continue
+
+        target_field = route_config.get("field")
+        if not target_field:
+            break
+
+        int_val = _safe_int_val(value)
+        if int_val is None:
+            break
+
+        # Validate bounds
+        validation = route_config.get("validation", {})
+        if validation:
+            min_val = validation.get("min")
+            max_val = validation.get("max")
+            if min_val is not None and int_val < min_val:
+                break
+            if max_val is not None and int_val > max_val:
+                break
+
+        skip_if_set = route_config.get("skip_if_set", False)
+
+        for _tid, _tag in state.tags.items():
+            if skip_if_set and getattr(_tag, target_field, None):
+                continue
+            state.merge_tag(_tid, **{target_field: int_val})
+            print(f"🧠 [SCRIBE] Clarification → {target_field}={int_val} on {_tid}")
+
+        state.pending_clarification = _consume_pending_parts(
+            state.pending_clarification, list(aliases))
+        return True
+
+    return False
+
+
+def _route_clarification_legacy(pk: str, value, state: TechnicalState) -> bool:
+    """Route a clarification answer using legacy hardcoded aliases."""
+    _airflow_aliases = ('airflow', 'airflow_m3h')
+    _depth_aliases = ('filter_depth', 'depth')
+    _length_aliases = ('housing_length', 'length')
+
+    if pk in _airflow_aliases:
+        int_val = _safe_int_val(value)
+        if int_val and 500 <= int_val <= 100000:
+            for _tid, _tag in state.tags.items():
+                if not _tag.airflow_m3h:
+                    state.merge_tag(_tid, airflow_m3h=int_val)
+                    print(f"🧠 [SCRIBE] Clarification → airflow_m3h={int_val} on {_tid}")
+            state.pending_clarification = _consume_pending_parts(
+                state.pending_clarification, list(_airflow_aliases))
+            return True
+
+    elif pk in _depth_aliases:
+        int_val = _safe_int_val(value)
+        if int_val:
+            for _tid, _tag in state.tags.items():
+                if not _tag.filter_depth:
+                    state.merge_tag(_tid, filter_depth=int_val)
+                    print(f"🧠 [SCRIBE] Clarification → filter_depth={int_val} on {_tid}")
+            state.pending_clarification = _consume_pending_parts(
+                state.pending_clarification, list(_depth_aliases))
+            return True
+
+    elif pk in _length_aliases:
+        int_val = _safe_int_val(value)
+        if int_val:
+            for _tid, _tag in state.tags.items():
+                state.merge_tag(_tid, housing_length=int_val)
+                print(f"🧠 [SCRIBE] Clarification → housing_length={int_val} on {_tid}")
+            state.pending_clarification = _consume_pending_parts(
+                state.pending_clarification, list(_length_aliases))
+            return True
+
+    return False
 
 
 def _safe_int_val(val) -> int | None:
@@ -2228,6 +2344,207 @@ def extract_resolved_context(query: str) -> dict:
     return context
 
 
+def _build_resolved_context(
+    technical_state: TechnicalState,
+    db_conn,
+    user_max_width_mm=None,
+    user_max_height_mm=None,
+) -> dict:
+    """Build resolved_context dict from TechnicalState for engine consumption.
+
+    Config-first: uses resolved_context_mappings from DomainConfig when available.
+    Falls back to legacy hardcoded mapping if config is absent.
+
+    The resolved_context provides the trait engine with all known parameter values
+    so it can skip clarification questions for already-resolved parameters.
+    """
+    resolved_context = {}
+
+    try:
+        cfg = get_config()
+        mappings = cfg.resolved_context_mappings
+    except Exception:
+        mappings = {}
+
+    if mappings and mappings.get("single_fields"):
+        resolved_context = _build_resolved_context_from_config(
+            technical_state, mappings)
+    else:
+        resolved_context = _build_resolved_context_legacy(technical_state)
+
+    # --- Generic post-processing (config-independent) ---
+
+    # Pass dimension constraints to engine for sizing arrangement
+    if user_max_width_mm:
+        resolved_context['max_width_mm'] = int(user_max_width_mm)
+    if user_max_height_mm:
+        resolved_context['max_height_mm'] = int(user_max_height_mm)
+
+    # Merge generic resolved parameters (gate answers, etc.) into engine context
+    if technical_state.resolved_params:
+        for rp_key, rp_value in technical_state.resolved_params.items():
+            if rp_key not in resolved_context:
+                resolved_context[rp_key] = rp_value
+
+    # Chlorine inference from detected application (v3.0)
+    if "chlorine_ppm" not in resolved_context:
+        app_id_for_chlorine = technical_state.resolved_params.get("detected_application")
+        try:
+            _e2a_cfg = get_config()
+            env_to_app = _e2a_cfg.fallback_env_to_app_inference or {}
+        except Exception:
+            env_to_app = {}
+        if not app_id_for_chlorine:
+            inst_env = resolved_context.get("installation_environment")
+            app_id_for_chlorine = env_to_app.get(inst_env)
+        if app_id_for_chlorine:
+            try:
+                app_props = db_conn.get_application_properties(app_id_for_chlorine)
+                chlorine_val = app_props.get("typical_chlorine_ppm")
+                if chlorine_val is not None:
+                    resolved_context["chlorine_ppm"] = int(chlorine_val)
+                    print(f"🧪 [CONSTRAINT] chlorine_ppm = {chlorine_val} (inferred from {app_id_for_chlorine})")
+            except Exception as e:
+                print(f"⚠️ [CONSTRAINT] Failed to get application chlorine: {e}")
+
+    # Merge Scribe-extracted params into resolved_context for engine consumption
+    for rp_key in ("installation_environment", "detected_application", "max_width_mm", "max_height_mm", "available_space_mm"):
+        rp_val = technical_state.resolved_params.get(rp_key)
+        if rp_val and rp_key not in resolved_context:
+            resolved_context[rp_key] = rp_val
+            print(f"🧠 [SCRIBE→CONTEXT] {rp_key} = {rp_val}")
+
+    return resolved_context
+
+
+def _build_resolved_context_from_config(
+    technical_state: TechnicalState,
+    mappings: dict,
+) -> dict:
+    """Build resolved_context using config-driven mappings."""
+    ctx = {}
+
+    # 1. Single fields from tags
+    for entry in mappings.get("single_fields", []):
+        tag_field = entry["tag_field"]
+        context_keys = entry["context_keys"]
+        for _tag_id, tag in technical_state.tags.items():
+            val = getattr(tag, tag_field, None)
+            if val is not None:
+                for ck in context_keys:
+                    ctx[ck] = val
+
+    # 2. Dimension pairs from tags
+    for entry in mappings.get("dimension_pairs", []):
+        w_field = entry["width_field"]
+        h_field = entry["height_field"]
+        combined_key = entry.get("combined_key")
+        combined_fmt = entry.get("combined_format", "{w}x{h}")
+        w_keys = entry.get("width_keys", [])
+        h_keys = entry.get("height_keys", [])
+        for _tag_id, tag in technical_state.tags.items():
+            w_val = getattr(tag, w_field, None)
+            h_val = getattr(tag, h_field, None)
+            if w_val is not None and h_val is not None:
+                if combined_key:
+                    ctx[combined_key] = combined_fmt.format(w=w_val, h=h_val)
+                for wk in w_keys:
+                    ctx[wk] = int(w_val)
+                for hk in h_keys:
+                    ctx[hk] = int(h_val)
+
+    # 3. Param fallbacks (cross-turn persistence from resolved_params)
+    for entry in mappings.get("param_fallbacks", []):
+        param_key = entry["param_key"]
+        context_keys = entry["context_keys"]
+        # Only apply if not already set from tags
+        first_key = context_keys[0] if context_keys else None
+        if first_key and first_key in ctx:
+            continue
+        stored = technical_state.resolved_params.get(param_key)
+        if stored is not None:
+            val = stored
+            if entry.get("cast") == "int":
+                try:
+                    val = int(stored)
+                except (ValueError, TypeError):
+                    continue
+            for ck in context_keys:
+                ctx[ck] = val
+            print(f"🔄 [GRAPH STATE] {param_key} from Layer 4: {val}")
+
+    # 4. State-level fields
+    for entry in mappings.get("state_fields", []):
+        source = entry["source"]
+        context_key = entry["context_key"]
+        val = getattr(technical_state, source, None)
+        if val is not None:
+            ctx[context_key] = val
+
+    # 5. _mm suffix aliases
+    for field_name in mappings.get("mm_suffix_fields", []):
+        val = ctx.get(field_name)
+        if val is not None:
+            ctx[f"{field_name}_mm"] = val
+
+    return ctx
+
+
+def _build_resolved_context_legacy(technical_state: TechnicalState) -> dict:
+    """Build resolved_context using legacy hardcoded mapping."""
+    ctx = {}
+
+    for _tag_id, tag in technical_state.tags.items():
+        if tag.filter_depth:
+            ctx['filter_depth'] = tag.filter_depth
+            ctx['depth'] = tag.filter_depth
+        if tag.housing_length:
+            ctx['housing_length'] = tag.housing_length
+            ctx['length'] = tag.housing_length
+        if tag.airflow_m3h:
+            ctx['airflow'] = tag.airflow_m3h
+            ctx['airflow_m3h'] = tag.airflow_m3h
+        if tag.housing_width and tag.housing_height:
+            ctx['housing_size'] = f"{tag.housing_width}x{tag.housing_height}"
+            ctx['housing_width'] = int(tag.housing_width)
+            ctx['housing_height'] = int(tag.housing_height)
+            ctx['width'] = int(tag.housing_width)
+            ctx['height'] = int(tag.housing_height)
+        if tag.filter_width and tag.filter_height:
+            ctx['filter_width'] = int(tag.filter_width)
+            ctx['filter_height'] = int(tag.filter_height)
+            ctx['dimensions'] = f"{tag.filter_width}x{tag.filter_height}"
+
+    # Airflow from resolved_params (cross-turn persistence via Layer 4)
+    if 'airflow' not in ctx and technical_state.resolved_params.get("airflow_m3h"):
+        stored_airflow = technical_state.resolved_params["airflow_m3h"]
+        ctx['airflow'] = stored_airflow
+        ctx['airflow_m3h'] = stored_airflow
+        print(f"🔄 [GRAPH STATE] Airflow from Layer 4: {stored_airflow} m³/h")
+
+    # Filter depth from resolved_params (Scribe extraction)
+    if 'filter_depth' not in ctx and technical_state.resolved_params.get("filter_depth"):
+        stored_depth = technical_state.resolved_params["filter_depth"]
+        try:
+            depth_int = int(stored_depth)
+            ctx['filter_depth'] = depth_int
+            ctx['depth'] = depth_int
+            print(f"🔄 [GRAPH STATE] Filter depth from params: {depth_int}mm")
+        except (ValueError, TypeError):
+            pass
+
+    if technical_state.locked_material:
+        ctx['material'] = technical_state.locked_material
+
+    # _mm suffix aliases for HardConstraint compatibility
+    for _key in ['housing_length', 'housing_width', 'housing_height']:
+        _val = ctx.get(_key)
+        if _val is not None:
+            ctx[f'{_key}_mm'] = _val
+
+    return ctx
+
+
 def _generate_airflow_options_from_graph(technical_state, db_conn) -> list[dict]:
     """Generate airflow clarification options from ProductVariant graph data.
 
@@ -3600,7 +3917,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
     _unavailable_material_code = None
     _available_material_names = []
     if technical_state.locked_material and detected_product_family:
-        _mat_code = technical_state.locked_material.value
+        _mat_code = technical_state.locked_material
         _fam_id = f"FAM_{detected_product_family}" if not detected_product_family.startswith("FAM_") else detected_product_family
         _available_mats = db.get_available_materials(_fam_id)
         if _available_mats:
@@ -3641,7 +3958,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
             print(f"⚠️ [STATE] {warning}")
 
     # Build locked context for backwards compatibility
-    locked_material = technical_state.locked_material.value if technical_state.locked_material else None
+    locked_material = technical_state.locked_material if technical_state.locked_material else None
     locked_project = technical_state.project_name
     locked_depths = []
     for tag in technical_state.tags.values():
@@ -3737,97 +4054,11 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
 
     # Build resolved_context FROM technical_state only (no query re-parsing)
     t1 = time.time()
-    resolved_context = {}
-
-    # Merge technical state parameters into resolved_context
-    # This prevents the graph reasoning from asking for already-known values
-    for tag_id, tag in technical_state.tags.items():
-        if tag.filter_depth:
-            resolved_context['filter_depth'] = tag.filter_depth
-            resolved_context['depth'] = tag.filter_depth
-        if tag.housing_length:
-            resolved_context['housing_length'] = tag.housing_length
-            resolved_context['length'] = tag.housing_length
-        if tag.airflow_m3h:
-            resolved_context['airflow'] = tag.airflow_m3h
-            resolved_context['airflow_m3h'] = tag.airflow_m3h
-        if tag.housing_width and tag.housing_height:
-            resolved_context['housing_size'] = f"{tag.housing_width}x{tag.housing_height}"
-            resolved_context['housing_width'] = int(tag.housing_width)
-            resolved_context['housing_height'] = int(tag.housing_height)
-            resolved_context['width'] = int(tag.housing_width)
-            resolved_context['height'] = int(tag.housing_height)
-        if tag.filter_width and tag.filter_height:
-            resolved_context['filter_width'] = int(tag.filter_width)
-            resolved_context['filter_height'] = int(tag.filter_height)
-            resolved_context['dimensions'] = f"{tag.filter_width}x{tag.filter_height}"
-
-    # Airflow from resolved_params (cross-turn persistence via Layer 4)
-    if 'airflow' not in resolved_context and technical_state.resolved_params.get("airflow_m3h"):
-        stored_airflow = technical_state.resolved_params["airflow_m3h"]
-        resolved_context['airflow'] = stored_airflow
-        resolved_context['airflow_m3h'] = stored_airflow
-        print(f"🔄 [GRAPH STATE] Airflow from Layer 4: {stored_airflow} m³/h")
-
-    # Filter depth from resolved_params (Scribe extraction)
-    if 'filter_depth' not in resolved_context and technical_state.resolved_params.get("filter_depth"):
-        stored_depth = technical_state.resolved_params["filter_depth"]
-        try:
-            depth_int = int(stored_depth)
-            resolved_context['filter_depth'] = depth_int
-            resolved_context['depth'] = depth_int
-            print(f"🔄 [GRAPH STATE] Filter depth from params: {depth_int}mm")
-        except (ValueError, TypeError):
-            pass
-
-    if technical_state.locked_material:
-        resolved_context['material'] = technical_state.locked_material.value
-
-    # Add _mm suffix aliases for HardConstraint compatibility (graph uses _mm suffix)
-    for _key in ['housing_length', 'housing_width', 'housing_height']:
-        _val = resolved_context.get(_key)
-        if _val is not None:
-            resolved_context[f'{_key}_mm'] = _val
-
-    # Pass dimension constraints to engine for sizing arrangement
-    if user_max_width_mm:
-        resolved_context['max_width_mm'] = int(user_max_width_mm)
-    if user_max_height_mm:
-        resolved_context['max_height_mm'] = int(user_max_height_mm)
-
-    # Merge generic resolved parameters (gate answers, etc.) into engine context
-    if technical_state.resolved_params:
-        for rp_key, rp_value in technical_state.resolved_params.items():
-            if rp_key not in resolved_context:
-                resolved_context[rp_key] = rp_value
-
-    # Chlorine inference from detected application (v3.0)
-    # If no explicit chlorine_ppm but we know the application, infer from graph
-    if "chlorine_ppm" not in resolved_context:
-        app_id_for_chlorine = technical_state.resolved_params.get("detected_application")
-        # Also check installation_environment for app inference
-        _e2a_cfg = get_config()
-        env_to_app = _e2a_cfg.fallback_env_to_app_inference or {"ENV_HOSPITAL": "APP_HOSPITAL", "ENV_POOL": "APP_POOL"}
-        if not app_id_for_chlorine:
-            inst_env = resolved_context.get("installation_environment")
-            app_id_for_chlorine = env_to_app.get(inst_env)
-        if app_id_for_chlorine:
-            try:
-                app_props = db.get_application_properties(app_id_for_chlorine)
-                chlorine_val = app_props.get("typical_chlorine_ppm")
-                if chlorine_val is not None:
-                    resolved_context["chlorine_ppm"] = int(chlorine_val)
-                    print(f"🧪 [CONSTRAINT] chlorine_ppm = {chlorine_val} (inferred from {app_id_for_chlorine})")
-            except Exception as e:
-                print(f"⚠️ [CONSTRAINT] Failed to get application chlorine: {e}")
-
-    # Merge Scribe-extracted params into resolved_context for engine consumption
-    for rp_key in ("installation_environment", "detected_application", "max_width_mm", "max_height_mm", "available_space_mm"):
-        rp_val = technical_state.resolved_params.get(rp_key)
-        if rp_val and rp_key not in resolved_context:
-            resolved_context[rp_key] = rp_val
-            print(f"🧠 [SCRIBE→CONTEXT] {rp_key} = {rp_val}")
-
+    resolved_context = _build_resolved_context(
+        technical_state, db,
+        user_max_width_mm=user_max_width_mm,
+        user_max_height_mm=user_max_height_mm,
+    )
     print(f"📋 [GRAPH REASONING] Resolved context for feature check: {resolved_context}")
 
     # On continuation turns (button clicks / bare answers), the query lacks application
@@ -3852,7 +4083,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
         engine_query,
         product_family=detected_product_family,
         context=resolved_context,
-        material=technical_state.locked_material.value if technical_state.locked_material else None,
+        material=technical_state.locked_material if technical_state.locked_material else None,
         accessories=technical_state.accessories or None,
     )
     timings["graph_reasoning"] = time.time() - t1
@@ -4099,7 +4330,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
     # family. If not, select the first available material for that tag.
     # This handles pivots (e.g., product A→B where material is not available).
     # =========================================================================
-    _mat_code = technical_state.locked_material.value if technical_state.locked_material else None
+    _mat_code = technical_state.locked_material if technical_state.locked_material else None
     _material_overrides_applied = []
     if _mat_code:
         for _tag_id, _tag in technical_state.tags.items():
@@ -4652,7 +4883,7 @@ The user has chosen to remove the accessory option to fit within their space con
     # This catches cases where the LLM reverted to FZ or used wrong weights
 
     if technical_state.locked_material and not clarification_needed:
-        expected_suffix = f"-{technical_state.locked_material.value}"
+        expected_suffix = f"-{technical_state.locked_material}"
 
         # Check each content segment for product codes with wrong material
         for segment in llm_response.get("content_segments", []):

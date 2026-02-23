@@ -45,11 +45,11 @@ class TestSerialization:
         assert d["locked_material"] == "RF"
         assert isinstance(d["locked_material"], str)
 
-    def test_material_deserializes_to_enum(self, state_with_material):
+    def test_material_deserializes_to_str(self, state_with_material):
         d = state_with_material.to_dict()
         restored = TechnicalState.from_dict(d)
-        assert isinstance(restored.locked_material, MaterialCode)
-        assert restored.locked_material == MaterialCode.RF
+        assert isinstance(restored.locked_material, str)
+        assert restored.locked_material == "RF"
 
     def test_assembly_group_roundtrip(self, state_with_assembly):
         d = state_with_assembly.to_dict()

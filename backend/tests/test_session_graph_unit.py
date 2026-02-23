@@ -226,8 +226,8 @@ class TestTagUnitManagement:
         mgr._run_write = MagicMock()
         mgr.upsert_tag("sess1", "item_1", filter_width=600)
         cypher = mgr._run_query.call_args[0][0]
-        # airflow_m3h was not passed, should NOT be in SET clause
-        assert "t.airflow_m3h" not in cypher
+        # airflow_m3h was not passed, should NOT appear as SET assignment
+        assert "t.airflow_m3h = $airflow_m3h" not in cypher
 
     def test_upsert_tag_links_dimension_module(self, sgm):
         mgr, _ = sgm

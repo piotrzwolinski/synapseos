@@ -335,8 +335,26 @@ class DomainConfig:
     # Graph name for FalkorDB (tenant-specific graph)
     graph_name: str = "default"
 
+    # Completeness check: which fields must be present for a tag to be "complete"
+    # Each entry: {"key": "label", "fields": ["primary_field", "fallback_field", ...]}
+    completeness_required: list[dict] = field(default_factory=list)
+
+    # Prompt context rendering (Phase 2: config-driven to_prompt_context)
+    prompt_tag_fields: list[dict] = field(default_factory=list)
+    prompt_prohibitions: list[str] = field(default_factory=list)
+    prompt_derivation_rules: list[dict] = field(default_factory=list)
+    prompt_entity_card: dict = field(default_factory=dict)
+
     # Parameter routing (maps user-facing aliases to internal field names)
     parameter_routing: dict[str, dict] = field(default_factory=dict)
+
+    # Resolved context mappings (Phase 3: config-driven resolved_context building)
+    # Defines how tag fields map to engine context keys
+    resolved_context_mappings: dict = field(default_factory=dict)
+
+    # Scribe entity routing (Phase 3: config-driven entity → tag/state mapping)
+    # Defines how ScribeEntity fields route to tag attributes or state
+    scribe_entity_routing: list[dict] = field(default_factory=list)
 
     def get_parameter_aliases(self, param_key: str) -> tuple[str, ...]:
         """Get user-facing aliases for a parameter from config."""
@@ -932,8 +950,24 @@ def load_domain_config(config_path: Optional[str] = None, domain_id: Optional[st
     config.scribe_material_hints = scribe.get("material_hints", {})
     config.scribe_accessory_hints = scribe.get("accessory_hints", [])
 
+    # Completeness check fields
+    config.completeness_required = raw.get("completeness_required", [])
+
+    # Prompt context rendering (Phase 2)
+    prompt_ctx = raw.get("prompt_context", {})
+    config.prompt_tag_fields = prompt_ctx.get("tag_fields", [])
+    config.prompt_prohibitions = prompt_ctx.get("prohibitions", [])
+    config.prompt_derivation_rules = prompt_ctx.get("derivation_rules", [])
+    config.prompt_entity_card = prompt_ctx.get("entity_card", {})
+
     # Parameter routing
     config.parameter_routing = raw.get("parameter_routing", {})
+
+    # Resolved context mappings (Phase 3)
+    config.resolved_context_mappings = raw.get("resolved_context_mappings", {})
+
+    # Scribe entity routing (Phase 3)
+    config.scribe_entity_routing = raw.get("scribe_entity_routing", [])
 
     return config
 

@@ -1194,15 +1194,253 @@ scribe_hints:
       keywords: ["transition piece", "reducer", "adapter"]
 
 # =============================================================================
+# PROMPT CONTEXT RENDERING (Phase 2: config-driven to_prompt_context)
+# =============================================================================
+# Defines what fields to show per tag, prohibition rules, derivation table,
+# and entity card spec fields. Python renderer iterates these.
+prompt_context:
+  # Tag fields to display in prompt context (in order)
+  # type: dimension_pair | single | aggregate
+  tag_fields:
+    - key: dimensions
+      type: dimension_pair
+      width: filter_width
+      height: filter_height
+      depth: filter_depth
+      label: "Filter Dimensions"
+      depth_suppression: "Depth KNOWN: {depth}mm → DO NOT ask for filter depth"
+
+    - key: housing_size
+      type: dimension_pair
+      width: housing_width
+      height: housing_height
+      label: "Housing Size"
+      suppression: "Dimensions KNOWN: {width}x{height}mm → DO NOT ask for duct dimensions"
+
+    - key: housing_length
+      type: single
+      field: housing_length
+      label: "Housing Length"
+      format: "{value}mm (auto-derived from depth)"
+      suppression: "Length RESOLVED: DO NOT ask for housing length"
+
+    - key: airflow
+      type: aggregate
+      field: airflow_m3h
+      rated_field: rated_airflow_m3h
+      total_field: total_airflow_m3h
+      count_field: modules_needed
+      label: "Airflow"
+      unit: "m³/h"
+      suppression: "Airflow KNOWN: DO NOT ask for airflow"
+
+    - key: product_code
+      type: single
+      field: product_code
+      label: "Product Code"
+      suppression: "USE THIS EXACT CODE in entity_card specs — do NOT compose your own"
+
+    - key: weight
+      type: aggregate
+      field: weight_kg
+      total_field: total_weight_kg
+      count_field: modules_needed
+      label: "Weight"
+      unit: "kg"
+      single_suffix: "(from graph)"
+
+    - key: parallel_units
+      type: single
+      field: modules_needed
+      label: "Parallel Units"
+      min_display_value: 2
+
+    - key: quantity
+      type: single
+      field: quantity
+      label: "Quantity"
+      min_display_value: 2
+
+  # Prohibition rules injected into prompt
+  prohibitions:
+    - "NEVER ask for data shown above - it's already known"
+    - "NEVER revert material to FZ if RF/ZM/SF was specified"
+    - "NEVER ask for housing length if filter depth is known (auto-derived)"
+    - "NEVER ask for filter depth if WxHxD format was provided"
+    - "ALWAYS use locked material suffix in product codes (e.g., -RF not -FZ)"
+    - "ALWAYS acknowledge previous input before asking new questions"
+
+  # Derivation rules table rows
+  derivation_rules:
+    - if_known: "Filter Depth ≤292mm"
+      then_derive: "Housing Length = 550mm"
+    - if_known: "Filter Depth ≤450mm"
+      then_derive: "Housing Length = 750mm"
+    - if_known: "Filter Depth >450mm"
+      then_derive: "Housing Length = 900mm"
+    - if_known: "Filter 305mm"
+      then_derive: "Housing 300mm"
+    - if_known: "Filter 610mm"
+      then_derive: "Housing 600mm"
+
+  # Entity card configuration
+  entity_card:
+    title_template: "{assembly_label}{family} Housing ({housing_width}x{housing_height}mm)"
+    connection_param: connection_type
+    connection_default: "PG"
+    specs:
+      - label: "Product Code"
+        field: product_code
+      - label: "Housing Size"
+        fields: [housing_width, housing_height]
+        format: "{housing_width}x{housing_height}mm"
+      - label: "Housing Length"
+        field: housing_length
+        format: "{housing_length}mm"
+      - label: "Material"
+        type: material
+      - label: "Connection"
+        type: resolved_param
+        param: connection_type
+        default: "PG"
+      - label: "Rated Airflow"
+        field: airflow_m3h
+        total_field: total_airflow_m3h
+        count_field: modules_needed
+        unit: "m³/h"
+      - label: "Weight"
+        field: weight_kg
+        total_field: total_weight_kg
+        count_field: modules_needed
+        unit: "kg"
+        prefix: "~"
+
+# =============================================================================
+# COMPLETENESS CHECK (which fields make a tag "complete" for product selection)
+# =============================================================================
+# Each entry: key = label shown when missing, fields = list of field names
+# to check (ANY truthy value satisfies the requirement).
+completeness_required:
+  - key: filter_dimensions
+    fields: [housing_width, housing_height, filter_width, filter_height]
+  - key: filter_depth
+    fields: [housing_length, filter_depth]
+  - key: airflow
+    fields: [airflow_m3h]
+
+# =============================================================================
 # PARAMETER ROUTING (maps user-facing aliases to internal field names)
 # =============================================================================
 parameter_routing:
   airflow:
     field: "airflow_m3h"
     aliases: ["airflow", "airflow_m3h", "przepływ", "luftflöde"]
+    route_to: "all_tags"
+    skip_if_set: true
+    validation:
+      min: 500
+      max: 100000
   filter_depth:
     field: "filter_depth"
     aliases: ["filter_depth", "depth", "djup"]
+    route_to: "all_tags"
+    skip_if_set: true
   housing_length:
     field: "housing_length"
     aliases: ["housing_length", "length", "längd", "długość"]
+    route_to: "all_tags"
+    skip_if_set: false
+
+# =============================================================================
+# RESOLVED CONTEXT MAPPINGS (Phase 3: how tag fields map to engine context keys)
+# =============================================================================
+# Defines the mapping from TechnicalState tag fields to the resolved_context
+# dict consumed by the trait engine. Each entry produces one or more context keys.
+resolved_context_mappings:
+  # Single fields: tag field → list of context key aliases
+  single_fields:
+    - tag_field: filter_depth
+      context_keys: [filter_depth, depth]
+    - tag_field: housing_length
+      context_keys: [housing_length, length]
+    - tag_field: airflow_m3h
+      context_keys: [airflow, airflow_m3h]
+
+  # Dimension pairs: two tag fields → combined string + individual keys
+  dimension_pairs:
+    - width_field: housing_width
+      height_field: housing_height
+      combined_key: housing_size
+      combined_format: "{w}x{h}"
+      width_keys: [housing_width, width]
+      height_keys: [housing_height, height]
+    - width_field: filter_width
+      height_field: filter_height
+      combined_key: dimensions
+      combined_format: "{w}x{h}"
+      width_keys: [filter_width]
+      height_keys: [filter_height]
+
+  # Fields that get _mm suffix aliases (for HardConstraint graph compatibility)
+  mm_suffix_fields: [housing_length, housing_width, housing_height]
+
+  # Fallbacks from resolved_params when tag fields are empty
+  param_fallbacks:
+    - param_key: airflow_m3h
+      context_keys: [airflow, airflow_m3h]
+    - param_key: filter_depth
+      context_keys: [filter_depth, depth]
+      cast: int
+
+  # State-level fields (not per-tag)
+  state_fields:
+    - source: locked_material
+      context_key: material
+
+# =============================================================================
+# SCRIBE ENTITY ROUTING (Phase 3: how ScribeEntity fields map to tag/state)
+# =============================================================================
+# Defines how extracted entity fields from the Scribe LLM route into
+# TechnicalState tags or resolved_params.
+scribe_entity_routing:
+  # dimension_unpack: entity.dimensions dict → tag filter_width/height/depth
+  - entity_field: dimensions
+    type: dimension_unpack
+    mapping:
+      width: filter_width
+      height: filter_height
+      depth: filter_depth
+    skip_if_tag_has: housing_width
+
+  # tag_merge: entity field → tag field (fill only if empty)
+  - entity_field: airflow_m3h
+    type: tag_merge
+    target: airflow_m3h
+    skip_if_set: true
+
+  # tag_merge: always override (product family may change)
+  - entity_field: product_family
+    type: tag_merge
+    target: product_family
+    always_override: true
+
+  # state_action: call state.lock_material()
+  - entity_field: material
+    type: state_action
+    action: lock_material
+
+  # resolved_param: store in resolved_params (only if no explicit material)
+  - entity_field: required_corrosion_class
+    type: resolved_param
+    param_key: required_corrosion_class
+    skip_if_entity_has: material
+
+  # resolved_param: connection type
+  - entity_field: connection_type
+    type: resolved_param
+    param_key: connection_type
+
+  # tag_merge: housing length
+  - entity_field: housing_length
+    type: tag_merge
+    target: housing_length
