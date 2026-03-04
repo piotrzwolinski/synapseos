@@ -742,7 +742,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
 
       // Build content from segments for display (with safety check)
       const contentText = data.content_segments && Array.isArray(data.content_segments)
-        ? data.content_segments.map(seg => seg.text).join("")
+        ? data.content_segments.map(seg => seg.text).join("\n\n")
         : "Response received.";
 
       // Validate that we have proper data structure

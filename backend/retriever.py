@@ -498,7 +498,7 @@ def _route_entity_legacy(entity, tag_ref, tag, state):
 def _merge_scribe_into_state(
     intent: SemanticIntent,
     state: TechnicalState,
-    detected_family: str,
+    detected_family: str = "",
 ) -> None:
     """Merge Scribe extraction results into TechnicalState.
 
@@ -802,60 +802,28 @@ def extract_entity_codes(query: str) -> list[str]:
     codes = []
     query_upper = query.upper()
 
-    # Apply configured regex patterns
-    for pattern_config in config.product_code_patterns:
-        compiled = pattern_config.compile()
-        matches = compiled.findall(query)
-
-        # Normalize matches
-        for match in matches:
-            normalized = match
-            if config.normalization.replace_space_with:
-                normalized = normalized.replace(' ', config.normalization.replace_space_with)
-            if config.normalization.uppercase:
-                normalized = normalized.upper()
-            codes.append(normalized)
-
     # Check for configured entity families/categories
     for family in config.product_families:
         if family.upper() in query_upper:
-            # Check if we already have a full code for this family
-            has_full_code = any(family.upper() in c.upper() for c in codes)
-            if not has_full_code:
-                codes.append(family)
+            codes.append(family)
 
             # Try to extract more context around the family name
             idx = query_upper.find(family.upper())
             if idx >= 0:
                 context = query[idx:idx+30]
                 clean_context = re.sub(r'[^\w\d\-x/]', ' ', context).strip().split()[0]
-                if config.normalization.replace_space_with:
-                    clean_context = clean_context.replace(' ', config.normalization.replace_space_with)
-                if len(clean_context) > len(family) and clean_context not in codes:
-                    codes.append(clean_context)
+                normalized = clean_context.replace(' ', '-').upper()
+                if len(normalized) > len(family) and normalized not in codes:
+                    codes.append(normalized)
 
     return list(set(codes))
 
 
 def extract_project_keywords(query: str) -> list[str]:
-    """Extract project identifiers from query using configured patterns."""
-    config = get_config()
+    """Extract project identifiers from query. Returns basic word tokens."""
     keywords = []
-    query_lower = query.lower()
-    stopwords = set(config.project_search.stopwords)
-
-    # Apply configured patterns
-    for pattern in config.project_search.patterns:
-        matches = re.findall(pattern, query_lower)
-        for match in matches:
-            if match not in stopwords and len(match) > 2:
-                keywords.append(match)
-
-    # Check for known identifiers
-    for identifier in config.project_search.known_identifiers:
-        if identifier.lower() in query_lower:
-            keywords.append(identifier)
-
+    for word in re.findall(r'\b[A-Za-z0-9_-]{3,}\b', query):
+        keywords.append(word)
     return list(set(keywords))
 
 
@@ -3561,7 +3529,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
 
         if scribe_intent:
             scribe_intent = resolve_derived_actions(scribe_intent, technical_state)
-            _merge_scribe_into_state(scribe_intent, technical_state, detected_product_family)
+            _merge_scribe_into_state(scribe_intent, technical_state, detected_product_family or "")
             scribe_succeeded = bool(
                 scribe_intent.entities or scribe_intent.clarification_answers or scribe_intent.actions
             )

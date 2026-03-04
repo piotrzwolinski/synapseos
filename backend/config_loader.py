@@ -522,7 +522,7 @@ def load_domain_config(config_path: Optional[str] = None, domain_id: Optional[st
         if domain_id is None:
             domain_id = DEFAULT_DOMAIN
 
-        config_path = _resolve_config_path(domain_id)
+        config_path = str(_resolve_config_path(domain_id))
 
     with open(config_path, 'r', encoding='utf-8') as f:
         raw = yaml.safe_load(f)

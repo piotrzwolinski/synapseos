@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Solutions Finder — Architecture Overview</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; color: #172b4d; line-height: 1.6; }
+  h1 { color: #172b4d; border-bottom: 2px solid #0052cc; padding-bottom: 8px; }
+  h2 { color: #172b4d; border-bottom: 1px solid #dfe1e6; padding-bottom: 6px; margin-top: 40px; }
+  h3 { color: #253858; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+  th, td { border: 1px solid #dfe1e6; padding: 8px 12px; text-align: left; }
+  th { background: #f4f5f7; font-weight: 600; }
+  tr:nth-child(even) { background: #fafbfc; }
+  pre { background: #f4f5f7; border: 1px solid #dfe1e6; border-radius: 3px; padding: 16px; overflow-x: auto; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 13px; line-height: 1.45; }
+  code { background: #f4f5f7; padding: 2px 4px; border-radius: 3px; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.9em; }
+  strong { color: #172b4d; }
+  ul { padding-left: 24px; }
+  li { margin: 4px 0; }
+  hr { border: none; border-top: 1px solid #dfe1e6; margin: 32px 0; }
+  ol { padding-left: 24px; }
+</style>
+</head>
+<body>
+
+<h1>AI Solutions Finder — Architecture Overview</h1>
+
+<h2>1. System Overview</h2>
+<p>The AI Solutions Finder is an AI-powered knowledge graph engine built for Mann+Hummel's air filtration product portfolio. It combines structured product and domain knowledge with Large Language Models to provide intelligent product selection, technical consultation, and sales support.</p>
+<p>The system uses <strong>Graph Reasoning</strong> — AI-guided traversal of the knowledge graph with a full reasoning chain — to deliver technical consultations, product selection, and constraint validation.</p>
+
+<hr>
+
+<h2>2. High-Level Architecture</h2>
+<pre>
+┌─────────────────────────────────────────────────────────────┐
+│                        FRONTEND                             │
+│                  Next.js 14 + React 18                      │
+│                                                             │
+│  ┌──────────────────────┐  ┌──────────────────────┐         │
+│  │       Chat UI        │  │       Test Lab       │         │
+│  │                      │  │                      │         │
+│  └──────────────────────┘  └──────────────────────┘         │
+└────────────────────────┬────────────────────────────────────┘
+                         │ HTTPS / SSE Streaming
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│                        BACKEND                              │
+│                   FastAPI (Python 3.12)                      │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              API Layer (REST + SSE)                   │   │
+│  │  Authentication · Session Management · Streaming      │   │
+│  └──────────────────────┬───────────────────────────────┘   │
+│                         │                                    │
+│  ┌──────────────────────▼───────────────────────────────┐   │
+│  │            Reasoning Engine                           │   │
+│  │  Intent Recognition · Graph Traversal · Constraint    │   │
+│  │  Validation · Product Selection · Response Assembly    │   │
+│  └───────────┬──────────────────────────┬───────────────┘   │
+│              │                          │                    │
+│  ┌───────────▼──────────┐  ┌───────────▼───────────────┐   │
+│  │   Knowledge Graph    │  │      LLM Provider         │   │
+│  │   (FalkorDB)         │  │      (OpenAI GPT)         │   │
+│  └──────────────────────┘  └───────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+</pre>
+
+<hr>
+
+<h2>3. The Knowledge Graph</h2>
+<p>The knowledge graph is the core intelligence layer. It encodes Mann+Hummel's product portfolio, physics rules, and sales logic in a structured, queryable format. It is organized in <strong>4 layers</strong>:</p>
+
+<pre>
+┌─────────────────────────────────────────────┐
+│  Layer 4: Session State                     │  ← Per-conversation project state
+│  Current project parameters, selections,    │    (the "Digital Twin")
+│  resolved constraints                       │
+├─────────────────────────────────────────────┤
+│  Layer 3: Playbook                          │  ← Decision logic &amp; inquiry flow
+│  Decision trees, parameter priorities,      │
+│  clarification sequences                    │
+├─────────────────────────────────────────────┤
+│  Layer 2: Domain Physics                    │  ← How the world works
+│  Stressors, causal rules,                   │
+│  environmental constraints                  │
+├─────────────────────────────────────────────┤
+│  Layer 1: Inventory                         │  ← What we sell
+│  Products, traits, sizes, capacities,       │
+│  installation constraints                   │
+└─────────────────────────────────────────────┘
+</pre>
+
+<table>
+  <tr><th>Layer</th><th>Contents</th><th>Example</th></tr>
+  <tr><td><strong>Layer 1 — Inventory</strong></td><td>Product families, traits, physical properties, sizing tables</td><td>OurAir SQ 2500 with its dimensions and capacity data</td></tr>
+  <tr><td><strong>Layer 2 — Physics</strong></td><td>Stressors, causal rules, environmental factors</td><td>"Grease" stressor in kitchen environments requires specific product traits</td></tr>
+  <tr><td><strong>Layer 3 — Playbook</strong></td><td>Decision trees, parameter priority, clarification logic</td><td>System asks about application type before dimensions</td></tr>
+  <tr><td><strong>Layer 4 — State</strong></td><td>Per-session project twin: resolved parameters, selected products</td><td>Session stores: Kitchen, 5000 m³/h, OurAir SQ 2500 selected</td></tr>
+</table>
+
+<p><strong>Key property:</strong> Layer 4 persists across conversation turns, so the system never "forgets" what was discussed earlier in the session.</p>
+
+<hr>
+
+<h2>4. Graph Reasoning Flow</h2>
+<p>When a user asks a question in Graph Reasoning mode:</p>
+
+<pre>
+ User Query
+     │
+     ▼
+ ┌────────────────┐
+ │ Intent          │   Understands what the user is asking:
+ │ Recognition     │   application, environment, dimensions,
+ │ (LLM-based)    │   airflow, or a follow-up clarification
+ └───────┬────────┘
+         │
+         ▼
+ ┌────────────────┐
+ │ Graph           │   Queries the 4-layer knowledge graph
+ │ Traversal       │   to gather relevant facts, rules,
+ │                 │   and constraints
+ └───────┬────────┘
+         │
+         ▼
+ ┌────────────────┐
+ │ Reasoning       │   Applies domain rules, checks constraints,
+ │ Engine          │   validates compatibility, selects products,
+ │                 │   computes sizing
+ └───────┬────────┘
+         │
+         ▼
+ ┌────────────────┐
+ │ Response        │   Generates a professional response with
+ │ Assembly        │   product recommendations, reasoning chain,
+ │ (LLM + Graph)  │   and any required clarification questions
+ └───────┬────────┘
+         │
+         ▼
+ Streamed Response
+ (SSE real-time)
+</pre>
+
+<hr>
+
+<h2>5. Key Capabilities</h2>
+
+<h3>5.1 Intelligent Product Selection</h3>
+<p>The engine matches user requirements (application, environment, airflow, dimensions) against the knowledge graph to recommend suitable MH products. It handles:</p>
+<ul>
+  <li>Environmental constraints (e.g., material compatibility for corrosive or high-temperature environments)</li>
+  <li>Spatial constraints (available installation space vs. product dimensions)</li>
+  <li>Capacity requirements (airflow volume → module count and arrangement)</li>
+  <li>Multi-module arrangements for large installations</li>
+</ul>
+
+<h3>5.2 Constraint Validation</h3>
+<p>Every recommendation is validated against installation constraints stored in the graph. If a product cannot be installed in the specified environment or space, the system explains why and suggests alternatives.</p>
+
+<h3>5.3 Sales Recovery (Alternatives)</h3>
+<p>When a constraint blocks a product, the system automatically searches for:</p>
+<ul>
+  <li>Alternative configurations of the same product (e.g., different material)</li>
+  <li>Alternative products from other MH families that satisfy the requirements</li>
+  <li>All alternatives are validated against the same rules to ensure they are viable</li>
+</ul>
+
+<h3>5.4 Multi-Turn Conversations</h3>
+<p>The system maintains full context across conversation turns via Layer 4 (Session State). Users can refine requirements incrementally without repeating information.</p>
+
+<h3>5.5 Smart Clarifications</h3>
+<p>When critical parameters are missing, the system asks targeted clarification questions in priority order — driven by the Playbook layer in the graph.</p>
+
+<h3>5.6 Assembly Support</h3>
+<p>For products that require pre-filtration or multi-stage configurations, the system automatically detects this need and recommends the complete assembly — including all stages and their specifications.</p>
+
+<hr>
+
+<h2>6. Platform Features</h2>
+
+<h3>Chat Interface</h3>
+<ul>
+  <li>Real-time streaming responses (Server-Sent Events)</li>
+  <li>Live reasoning chain visualization during inference</li>
+  <li>Session history with full project state</li>
+</ul>
+
+<h3>Test Lab &amp; AI-as-Judge</h3>
+<ul>
+  <li>Automated test suite execution against the reasoning engine</li>
+  <li>Multi-LLM evaluation (AI-as-Judge) scoring response quality across dimensions</li>
+  <li>Batch testing with historical result tracking and comparison</li>
+  <li>Test case generation from product catalog PDFs</li>
+</ul>
+
+<h3>Graph Audit</h3>
+<ul>
+  <li>Multi-LLM debate system for validating graph data integrity</li>
+  <li>Automated detection of missing, inconsistent, or contradictory rules</li>
+</ul>
+
+<hr>
+
+<h2>7. Customization for Mann+Hummel</h2>
+<p>All MH-specific knowledge is maintained separately from the core engine:</p>
+<ul>
+  <li><strong>Product catalog</strong> — encoded as graph nodes (ProductFamily, Trait, DimensionModule, CapacityRule)</li>
+  <li><strong>Physics rules</strong> — stressor-to-trait relationships (e.g., Grease → requires NEUTRALIZATION)</li>
+  <li><strong>Installation constraints</strong> — material/environment compatibility, spatial limits</li>
+  <li><strong>Prompt templates</strong> — MH-branded professional language and response style</li>
+  <li><strong>Configuration</strong> — material hierarchies, dimension rules, clarification priorities</li>
+</ul>
+<p>Adding new products, rules, or constraints is a <strong>graph data operation</strong> — no code changes required. The engine reads all intelligence from the graph at query time.</p>
+
+<hr>
+
+<h2>8. Deployment Infrastructure</h2>
+
+<pre>
+                     Microsoft Azure — West Europe
+  ┌──────────────────────────────────────────────────┐
+  │                                                  │
+  │   ┌──────────────┐     ┌──────────────────┐     │
+  │   │  Frontend     │     │   Backend        │     │
+  │   │  Next.js      │────▶│   FastAPI        │     │
+  │   │  Container    │     │   Container      │     │
+  │   │  Port 3000    │     │   Port 8000      │     │
+  │   └──────────────┘     └────────┬─────────┘     │
+  │                                  │               │
+  │                         ┌────────▼─────────┐     │
+  │                         │   FalkorDB       │     │
+  │                         │   Graph Database │     │
+  │                         │   Persistent Vol │     │
+  │                         │   Port 6379      │     │
+  │                         └──────────────────┘     │
+  │                                                  │
+  └──────────────────────────────────────────────────┘
+</pre>
+
+<table>
+  <tr><th>Component</th><th>Technology</th><th>Deployment</th></tr>
+  <tr><td>Frontend</td><td>Next.js 14, containerized (Docker)</td><td>Azure Container Apps</td></tr>
+  <tr><td>Backend</td><td>FastAPI (Python 3.12), containerized (Docker)</td><td>Azure Container Apps</td></tr>
+  <tr><td>Database</td><td>FalkorDB (graph DB, Redis protocol)</td><td>Azure Container Apps + persistent volume</td></tr>
+  <tr><td>LLM</td><td>OpenAI GPT (external API calls)</td><td>—</td></tr>
+  <tr><td>Region</td><td>West Europe</td><td>HTTPS enforced on all traffic</td></tr>
+</table>
+
+<h3>Security</h3>
+<ul>
+  <li>JWT authentication (24h token expiry)</li>
+  <li>Role-based access control: <strong>Admin</strong> and <strong>Expert</strong> roles</li>
+  <li>HTTPS enforced on all endpoints</li>
+  <li>Non-root container execution</li>
+  <li>API key management for LLM providers (server-side only)</li>
+</ul>
+
+<hr>
+
+<h2>9. Technology Stack</h2>
+
+<table>
+  <tr><th>Layer</th><th>Technology</th></tr>
+  <tr><td>Frontend</td><td>Next.js 14, React 18, TypeScript, Tailwind CSS, Radix UI</td></tr>
+  <tr><td>Visualization</td><td>react-force-graph-2d (interactive graph rendering)</td></tr>
+  <tr><td>Backend</td><td>Python 3.12, FastAPI, Server-Sent Events (SSE)</td></tr>
+  <tr><td>Graph Database</td><td>FalkorDB (Cypher query language, Redis wire protocol)</td></tr>
+  <tr><td>LLM Providers</td><td>OpenAI GPT</td></tr>
+  <tr><td>Deployment</td><td>Docker containers on Azure</td></tr>
+  <tr><td>Authentication</td><td>JWT (Bearer tokens, HS256)</td></tr>
+</table>
+
+<hr>
+
+<h2>10. Data Flow Summary</h2>
+
+<pre>
+┌──────────┐    ┌──────────┐    ┌──────────────┐    ┌───────────┐
+│  User    │───▶│ Frontend │───▶│   Backend    │───▶│ FalkorDB  │
+│  Browser │◀───│ Next.js  │◀───│   FastAPI    │◀───│ Graph DB  │
+└──────────┘    └──────────┘    └──────┬───────┘    └───────────┘
+   SSE stream      REST/SSE           │
+                                      │
+                               ┌──────▼───────┐
+                               │  LLM APIs    │
+                               │  OpenAI GPT  │
+                               └──────────────┘
+</pre>
+
+<ol>
+  <li>User sends a query via the chat interface</li>
+  <li>Frontend opens an SSE connection to the backend</li>
+  <li>Backend extracts intent using LLM, queries the knowledge graph</li>
+  <li>Reasoning engine processes MH domain rules and constraints from the graph</li>
+  <li>LLM generates the final response using graph-supplied context</li>
+  <li>Response streams back in real-time with reasoning chain visible in the UI</li>
+  <li>Session state is persisted in Layer 4 for multi-turn continuity</li>
+</ol>
+
+</body>
+</html>

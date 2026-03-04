@@ -14,6 +14,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -59,9 +62,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
     checkAuth();
   }, [router]);
 
-  if (checking) {
+  if (!mounted || checking) {
     return (
-      <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-green-700" />
           <p className="text-sm text-slate-500 dark:text-slate-400">Verifying authentication...</p>

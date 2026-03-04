@@ -502,22 +502,13 @@ export function ExplainableChatBubble({
 }: ExplainableChatBubbleProps) {
   if (!segments || segments.length === 0) return null;
 
-  // Check if content has complex markdown (headers, code blocks)
-  const hasComplexMarkdown = segments.some(seg =>
-    seg.text?.includes('##') ||
-    seg.text?.includes('```') ||
-    seg.text?.includes('|') // tables
+  // Always use ReactMarkdown for deep-explainable responses — content is always markdown
+  const fullText = segments.map(s => s.text).join('\n\n');
+  return (
+    <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
+      <ReactMarkdown>{fullText}</ReactMarkdown>
+    </div>
   );
-
-  // For complex markdown, use full ReactMarkdown
-  if (hasComplexMarkdown) {
-    const fullText = segments.map(s => s.text).join('');
-    return (
-      <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
-        <ReactMarkdown>{fullText}</ReactMarkdown>
-      </div>
-    );
-  }
 
   // Helper to add space before segment if needed
   const needsSpaceBefore = (text: string, prevText?: string): boolean => {

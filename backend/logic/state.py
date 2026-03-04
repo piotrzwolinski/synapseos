@@ -1022,11 +1022,11 @@ class TechnicalState:
 
         # Persist generic resolved parameters (gate answers, etc.)
         if self.resolved_params:
-            session_mgr.set_resolved_params(session_id, self.resolved_params)
+            session_mgr.set_resolved_params(session_id, dict(self.resolved_params))
 
         # Persist assembly group metadata
         if self.assembly_group:
-            session_mgr.set_assembly_group(session_id, self.assembly_group)
+            session_mgr.set_assembly_group(session_id, dict(self.assembly_group))
 
         # Persist vetoed families (so continuation turns remember the veto)
         if self.vetoed_families:

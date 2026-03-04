@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SynapseOS — Graph Reasoning Architecture</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    :root {
+      --bg: #ffffff;
+      --bg-card: #f6f7f9;
+      --border: #e0e2e8;
+      --text: #1a1a2e;
+      --text-dim: #5c5c78;
+      --accent: #5b3ec9;
+      --accent2: #0a8f6e;
+      --layer1: #1d6bd4;
+      --layer2: #7038c9;
+      --layer3: #b87a00;
+      --layer4: #0a7d5a;
+      --red: #c93030;
+      --radius: 12px;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.7; overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 28px; }
+
+    /* ---- Nav ---- */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      backdrop-filter: blur(20px); background: rgba(255,255,255,0.85);
+      border-bottom: 1px solid var(--border);
+    }
+    nav .container {
+      display: flex; align-items: center; justify-content: space-between; height: 56px;
+    }
+    .logo { font-family: var(--mono); font-weight: 700; font-size: 0.9rem; color: var(--accent); }
+    .nav-links { display: flex; gap: 28px; }
+    .nav-links a {
+      color: var(--text-dim); text-decoration: none; font-size: 0.8rem;
+      font-weight: 500; transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+
+    /* ---- Sections ---- */
+    section { padding: 80px 0; }
+    .section-label {
+      font-family: var(--mono); font-size: 0.7rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: 1.8rem; font-weight: 800; letter-spacing: -0.03em;
+      margin-bottom: 8px; line-height: 1.2;
+    }
+    .section-desc {
+      font-size: 0.9rem; color: var(--text-dim); max-width: 560px;
+      margin-bottom: 40px;
+    }
+    .divider { width: 100%; height: 1px; background: var(--border); }
+
+    /* ---- Hero ---- */
+    .hero { padding: 130px 0 70px; }
+    .hero h1 {
+      font-size: clamp(2rem, 4.5vw, 3rem); font-weight: 800;
+      letter-spacing: -0.03em; line-height: 1.15; margin-bottom: 16px;
+    }
+    .hero h1 .hl {
+      background: linear-gradient(135deg, #4c2da8, #0a7d5a);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero p { font-size: 0.95rem; color: var(--text-dim); max-width: 580px; margin-bottom: 32px; }
+    .hero-meta {
+      display: flex; gap: 32px; font-family: var(--mono); font-size: 0.78rem;
+    }
+    .hero-meta span { color: var(--text-dim); }
+    .hero-meta strong { color: var(--text); }
+
+    /* ---- Graph Viz (SVG) ---- */
+    .graph-viz-wrap {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .graph-viz-header {
+      padding: 12px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .graph-viz-header .dots { display: flex; gap: 5px; }
+    .graph-viz-header .dots span { width: 9px; height: 9px; border-radius: 50%; }
+    .graph-viz-header .dots span:nth-child(1) { background: #ff5f57; }
+    .graph-viz-header .dots span:nth-child(2) { background: #ffbd2e; }
+    .graph-viz-header .dots span:nth-child(3) { background: #28c840; }
+    .graph-viz-header .label {
+      margin-left: 10px; font-family: var(--mono); font-size: 0.72rem; color: var(--text-dim);
+    }
+
+    .graph-viz-body { padding: 16px; background: #fafbfc; }
+    .graph-viz-body svg { width: 100%; height: auto; display: block; }
+
+    /* SVG node styles */
+    .gv-node {
+      cursor: default;
+    }
+    .gv-node rect, .gv-node ellipse {
+      transition: filter 0.2s;
+    }
+    .gv-node:hover rect, .gv-node:hover ellipse {
+      filter: brightness(0.92);
+    }
+    .gv-label {
+      font-family: 'Inter', sans-serif; font-weight: 700;
+      fill: #1a1a2e; dominant-baseline: central; text-anchor: middle;
+    }
+    .gv-label-small {
+      font-family: 'JetBrains Mono', monospace; font-weight: 600;
+      fill: #333350; dominant-baseline: central; text-anchor: middle;
+      font-size: 9px;
+    }
+    .gv-edge-label {
+      font-family: 'JetBrains Mono', monospace; font-weight: 700;
+      font-size: 9.5px; dominant-baseline: central; text-anchor: middle;
+    }
+    .gv-legend {
+      font-family: 'Inter', sans-serif; font-size: 10px; fill: #5c5c78;
+      dominant-baseline: central;
+    }
+    .gv-legend-title {
+      font-family: 'Inter', sans-serif; font-size: 10px; fill: #333350;
+      font-weight: 700; dominant-baseline: central;
+    }
+
+    @keyframes dashMove {
+      to { stroke-dashoffset: -20; }
+    }
+    .edge-animated {
+      animation: dashMove 1.2s linear infinite;
+    }
+
+    /* ---- Layers ---- */
+    .layers-stack { display: grid; gap: 2px; margin-top: 32px; }
+    .layer-row {
+      display: grid; grid-template-columns: 56px 140px 1fr; gap: 0;
+      background: var(--bg-card); padding: 20px 24px; align-items: start;
+      border: 1px solid var(--border);
+      transition: background 0.2s;
+    }
+    .layer-row:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+    .layer-row:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+    .layer-row:hover { background: #eef0f4; }
+    .layer-num {
+      font-family: var(--mono); font-weight: 800; font-size: 1.1rem;
+    }
+    .layer-row[data-l="1"] .layer-num { color: var(--layer1); }
+    .layer-row[data-l="2"] .layer-num { color: var(--layer2); }
+    .layer-row[data-l="3"] .layer-num { color: var(--layer3); }
+    .layer-row[data-l="4"] .layer-num { color: var(--layer4); }
+    .layer-name h3 { font-size: 0.88rem; font-weight: 700; }
+    .layer-name .sub { font-size: 0.75rem; color: var(--text-dim); }
+    .layer-detail { }
+    .layer-detail p { font-size: 0.82rem; color: var(--text-dim); margin-bottom: 10px; line-height: 1.6; }
+    .layer-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .tag {
+      font-family: var(--mono); font-size: 0.68rem; font-weight: 600;
+      padding: 3px 10px; border-radius: 4px;
+    }
+    .layer-row[data-l="1"] .tag { background: rgba(29,107,212,0.08); color: #1558a8; border: 1px solid rgba(29,107,212,0.2); }
+    .layer-row[data-l="2"] .tag { background: rgba(112,56,201,0.08); color: #5a2da0; border: 1px solid rgba(112,56,201,0.2); }
+    .layer-row[data-l="3"] .tag { background: rgba(184,122,0,0.08); color: #8a5c00; border: 1px solid rgba(184,122,0,0.2); }
+    .layer-row[data-l="4"] .tag { background: rgba(10,125,90,0.08); color: #065f44; border: 1px solid rgba(10,125,90,0.2); }
+    .layer-meta {
+      font-family: var(--mono); font-size: 0.7rem; color: var(--text-dim);
+    }
+    .layer-meta strong { color: var(--text); }
+
+    /* ---- Cypher ---- */
+    .cypher-block {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; margin-top: 16px;
+    }
+    .cypher-block-header {
+      padding: 10px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .cypher-block-header .dots { display: flex; gap: 5px; }
+    .cypher-block-header .dots span { width: 8px; height: 8px; border-radius: 50%; }
+    .cypher-block-header .dots span:nth-child(1) { background: #ff5f57; }
+    .cypher-block-header .dots span:nth-child(2) { background: #ffbd2e; }
+    .cypher-block-header .dots span:nth-child(3) { background: #28c840; }
+    .cypher-block-header .fname {
+      margin-left: 8px; font-family: var(--mono); font-size: 0.7rem; color: var(--text-dim);
+    }
+    .cypher-code {
+      padding: 16px 20px; font-family: var(--mono); font-size: 0.76rem;
+      line-height: 1.9; overflow-x: auto; background: #fafbfc;
+    }
+    .kw { color: #7038c9; font-weight: 600; }
+    .nd { color: #1558a8; }
+    .rl { color: #8a5c00; }
+    .pr { color: #0a7d5a; }
+    .cm { color: #8888a0; font-style: italic; }
+    .st { color: #b8336a; }
+
+    /* ---- Traversal Example ---- */
+    .traversal-wrap {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .traversal-header {
+      padding: 16px 24px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .traversal-header .user-q {
+      font-size: 0.88rem; color: var(--text);
+    }
+    .traversal-header .mode {
+      margin-left: auto; font-family: var(--mono); font-size: 0.68rem;
+      padding: 3px 10px; border-radius: 4px;
+      background: rgba(91,62,201,0.08); color: var(--accent); border: 1px solid rgba(91,62,201,0.2);
+    }
+    .traversal-body { padding: 24px; }
+
+    /* Steps */
+    .step-row {
+      display: grid; grid-template-columns: 32px 1fr; gap: 16px;
+      padding: 12px 0; position: relative;
+    }
+    .step-row + .step-row { border-top: 1px solid var(--border); }
+    .step-num {
+      width: 28px; height: 28px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-size: 0.72rem; font-weight: 700; color: white;
+      flex-shrink: 0;
+    }
+    .step-num.s-intent { background: #5b5bd6; }
+    .step-num.s-stressor { background: var(--layer2); }
+    .step-num.s-rule { background: #d946a8; }
+    .step-num.s-match { background: var(--layer3); }
+    .step-num.s-block { background: var(--red); }
+    .step-num.s-recover { background: #0891b2; }
+    .step-num.s-result { background: var(--layer4); }
+    .step-body h5 { font-size: 0.82rem; font-weight: 600; margin-bottom: 2px; }
+    .step-body p { font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; }
+    .step-body code {
+      font-family: var(--mono); font-size: 0.72rem;
+      background: rgba(91,62,201,0.07); padding: 1px 6px; border-radius: 3px;
+      color: var(--accent);
+    }
+    .step-flag {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 4px; margin-top: 6px;
+      font-size: 0.72rem; font-weight: 600; font-family: var(--mono);
+    }
+    .step-flag.blocked { background: rgba(201,48,48,0.08); color: #9a2020; border: 1px solid rgba(201,48,48,0.2); }
+    .step-flag.ok { background: rgba(10,125,90,0.08); color: #065f44; border: 1px solid rgba(10,125,90,0.2); }
+
+    /* Response */
+    .response-box {
+      margin: 16px 24px 24px; padding: 20px;
+      background: rgba(10,143,110,0.05); border: 1px solid rgba(10,143,110,0.15);
+      border-radius: 8px;
+    }
+    .response-box .rlabel {
+      font-family: var(--mono); font-size: 0.68rem; color: var(--accent2);
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;
+    }
+    .response-box p { font-size: 0.84rem; color: var(--text-dim); line-height: 1.7; }
+    .response-box strong { color: var(--text); font-weight: 600; }
+
+    /* ---- Pipeline ---- */
+    .pipe-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;
+    }
+    .pipe-cell {
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 20px 16px; text-align: center; position: relative;
+    }
+    .pipe-cell:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+    .pipe-cell:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+    .pipe-cell::after {
+      content: '\2192'; position: absolute; right: -8px; top: 50%;
+      transform: translateY(-50%); color: var(--text-dim); font-size: 0.9rem; z-index: 1;
+    }
+    .pipe-cell:last-child::after { display: none; }
+    .pipe-cell .pn {
+      font-family: var(--mono); font-size: 0.7rem; font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .pipe-cell:nth-child(1) .pn { color: #4338ca; }
+    .pipe-cell:nth-child(2) .pn { color: #0e7490; }
+    .pipe-cell:nth-child(3) .pn { color: var(--layer3); }
+    .pipe-cell:nth-child(4) .pn { color: var(--layer4); }
+    .pipe-cell h5 { font-size: 0.82rem; font-weight: 700; margin-bottom: 4px; }
+    .pipe-cell p { font-size: 0.72rem; color: var(--text-dim); line-height: 1.5; }
+    .pipe-cell .ptag {
+      display: inline-block; margin-top: 8px; font-family: var(--mono);
+      font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 3px;
+    }
+    .pipe-cell:nth-child(1) .ptag { background: rgba(67,56,202,0.08); color: #4338ca; }
+    .pipe-cell:nth-child(2) .ptag { background: rgba(14,116,144,0.08); color: #0e7490; }
+    .pipe-cell:nth-child(3) .ptag { background: rgba(184,122,0,0.08); color: #8a5c00; }
+    .pipe-cell:nth-child(4) .ptag { background: rgba(10,125,90,0.08); color: #065f44; }
+
+    /* ---- Multi-turn ---- */
+    .turn-table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+    .turn-table th {
+      font-family: var(--mono); font-size: 0.68rem; font-weight: 600;
+      color: var(--text-dim); text-align: left; padding: 8px 12px;
+      border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .turn-table td {
+      padding: 12px; border-bottom: 1px solid var(--border);
+      font-size: 0.82rem; vertical-align: top;
+    }
+    .turn-table td:first-child {
+      font-family: var(--mono); font-weight: 700; color: var(--text-dim); width: 40px;
+    }
+    .turn-table td:nth-child(2) { color: var(--text-dim); font-style: italic; }
+    .turn-table .st-new { color: var(--accent2); font-family: var(--mono); font-size: 0.75rem; font-weight: 500; }
+    .turn-table .st-kept { color: var(--text-dim); font-family: var(--mono); font-size: 0.75rem; }
+    .turn-table .st-changed { color: var(--layer3); font-family: var(--mono); font-size: 0.75rem; font-weight: 500; }
+
+    /* ---- Comparison ---- */
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+    .split-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 28px;
+    }
+    .split-card:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+    .split-card:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+    .split-card h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 16px; }
+    .split-card ul { list-style: none; }
+    .split-card li {
+      padding: 6px 0; font-size: 0.82rem; color: var(--text-dim);
+      display: flex; align-items: flex-start; gap: 8px;
+    }
+    .split-card li::before { content: '\2713'; color: var(--accent2); font-weight: 700; flex-shrink: 0; }
+
+    /* ---- Capabilities ---- */
+    .cap-list { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .cap-item {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 24px;
+    }
+    .cap-item h4 { font-size: 0.88rem; font-weight: 700; margin-bottom: 6px; }
+    .cap-item p { font-size: 0.8rem; color: var(--text-dim); line-height: 1.6; }
+
+    /* ---- Footer ---- */
+    footer {
+      padding: 40px 0; border-top: 1px solid var(--border); text-align: center;
+    }
+    footer p { font-family: var(--mono); font-size: 0.75rem; color: var(--text-dim); }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 800px) {
+      .pipe-grid { grid-template-columns: 1fr 1fr; }
+      .pipe-cell::after { display: none; }
+      .pipe-cell:first-child { border-radius: var(--radius) 0 0 0; }
+      .pipe-cell:nth-child(2) { border-radius: 0 var(--radius) 0 0; }
+      .pipe-cell:nth-child(3) { border-radius: 0 0 0 var(--radius); }
+      .pipe-cell:last-child { border-radius: 0 0 var(--radius) 0; }
+      .split { grid-template-columns: 1fr; }
+      .split-card:first-child, .split-card:last-child { border-radius: var(--radius); }
+      .cap-list { grid-template-columns: 1fr; }
+      .layer-row { grid-template-columns: 40px 1fr; }
+      .layer-name { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="container">
+      <div class="logo">synapse:os</div>
+      <div class="nav-links">
+        <a href="#arch">Architecture</a>
+        <a href="#layers">Layers</a>
+        <a href="#traversal">Traversal</a>
+        <a href="#example">Example</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============ Hero ============ -->
+  <section class="hero">
+    <div class="container">
+      <h1>Graph-Reasoned <span class="hl">Product Intelligence</span></h1>
+      <p>
+        A 4-layer knowledge graph + LLM pipeline. The graph holds all domain knowledge
+        and makes deterministic decisions. The LLM handles natural language in and out.
+        No hallucination on facts, full audit trail on every recommendation.
+      </p>
+      <div class="hero-meta">
+        <span><strong>~1,000</strong> nodes</span>
+        <span><strong>~3,000</strong> edges</span>
+        <span><strong>4</strong> layers</span>
+        <span>db: <strong>FalkorDB</strong></span>
+        <span>query: <strong>Cypher</strong></span>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ============ Architecture ============ -->
+  <section id="arch">
+    <div class="container">
+      <div class="section-label">// architecture</div>
+      <div class="section-title">Pipeline</div>
+      <div class="section-desc">
+        Each user message flows through 4 stages. LLM touches only stage 1 (parse) and stage 4 (synthesize).
+        Stages 2-3 are deterministic &mdash; pure Python + graph traversal.
+      </div>
+
+      <div class="pipe-grid">
+        <div class="pipe-cell">
+          <div class="pn">01</div>
+          <h5>Intent Extraction</h5>
+          <p>LLM parses free-text &rarr; structured params (dims, airflow, material, application)</p>
+          <span class="ptag">LLM call #1</span>
+        </div>
+        <div class="pipe-cell">
+          <div class="pn">02</div>
+          <h5>State Update</h5>
+          <p>Merge extracted params into cumulative project state. Persist to Layer 4.</p>
+          <span class="ptag">Python</span>
+        </div>
+        <div class="pipe-cell">
+          <div class="pn">03</div>
+          <h5>Reasoning Engine</h5>
+          <p>Graph traversal: stressors &rarr; rules &rarr; traits &rarr; candidates &rarr; constraints &rarr; verdict</p>
+          <span class="ptag">FalkorDB + Engine</span>
+        </div>
+        <div class="pipe-cell">
+          <div class="pn">04</div>
+          <h5>Response Synthesis</h5>
+          <p>LLM receives graph verdict, converts to professional response. Graph data &gt; LLM knowledge.</p>
+          <span class="ptag">LLM call #2</span>
+        </div>
+      </div>
+
+      <div style="margin-top: 48px;">
+        <div class="section-label">// responsibility split</div>
+      </div>
+      <div class="split" style="margin-top: 16px;">
+        <div class="split-card">
+          <h4>Knowledge Graph</h4>
+          <ul>
+            <li>Product specs, sizes, weights &mdash; 100% accurate</li>
+            <li>Physics: stressor &rarr; trait causal chains</li>
+            <li>Constraint validation (material, space, environment)</li>
+            <li>Deterministic &mdash; same input = same output</li>
+            <li>Full audit trail on every decision node</li>
+          </ul>
+        </div>
+        <div class="split-card">
+          <h4>LLM (Gemini Flash)</h4>
+          <ul>
+            <li>Free-text understanding (any language)</li>
+            <li>Parameter extraction from messy input</li>
+            <li>Professional response generation</li>
+            <li>Smart follow-up question phrasing</li>
+            <li>Physics explanations in plain language</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ============ Graph Traversals ============ -->
+  <section id="traversal">
+    <div class="container">
+      <div class="section-label">// graph traversal paths</div>
+      <div class="section-title">How the Engine Reasons</div>
+      <div class="section-desc">
+        Concrete traversal paths through the knowledge graph.
+        Each path is a Cypher query result &mdash; nodes are real graph entities, edges are real relationships.
+      </div>
+
+      <!-- Traversal 1: Physics chain -->
+      <div class="graph-viz-wrap" style="margin-bottom: 24px;">
+        <div class="graph-viz-header">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <span class="label">traversal_1 &mdash; physics causal chain (Layer 2)</span>
+        </div>
+        <div class="graph-viz-body">
+          <svg viewBox="0 0 1050 220" xmlns="http://www.w3.org/2000/svg">
+            <text x="16" y="20" class="gv-legend-title">Query: Hospital → what material is required?</text>
+
+            <!-- Application node -->
+            <g class="gv-node" transform="translate(60,110)">
+              <rect x="-52" y="-28" width="104" height="56" rx="10" fill="#ede9fe" stroke="#7038c9" stroke-width="2"/>
+              <text y="-6" class="gv-label" style="font-size:11px; fill:#5a2da0">Application</text>
+              <text y="10" class="gv-label-small" style="font-size:10px; fill:#3b1a80; font-weight:700">Hospital</text>
+            </g>
+
+            <!-- Edge: EXPOSES_TO -->
+            <line x1="112" y1="102" x2="218" y2="72" stroke="#7038c9" stroke-width="2"/>
+            <polygon points="218,72 210,66 212,76" fill="#7038c9"/>
+            <text x="165" y="78" class="gv-edge-label" fill="#5a2da0">EXPOSES_TO</text>
+
+            <line x1="112" y1="118" x2="218" y2="148" stroke="#7038c9" stroke-width="2"/>
+            <polygon points="218,148 210,142 212,152" fill="#7038c9"/>
+            <text x="165" y="143" class="gv-edge-label" fill="#5a2da0">EXPOSES_TO</text>
+
+            <!-- Stressor 1: Chemical -->
+            <g class="gv-node" transform="translate(300,65)">
+              <rect x="-72" y="-24" width="144" height="48" rx="8" fill="#fce7f3" stroke="#b8336a" stroke-width="2"/>
+              <text y="-5" class="gv-label" style="font-size:10px; fill:#9a1b50">Stressor</text>
+              <text y="10" class="gv-label-small" style="font-size:9.5px; fill:#7a1040; font-weight:600">ChemicalDisinfection</text>
+            </g>
+
+            <!-- Stressor 2: Humidity -->
+            <g class="gv-node" transform="translate(300,155)">
+              <rect x="-62" y="-24" width="124" height="48" rx="8" fill="#fce7f3" stroke="#b8336a" stroke-width="2"/>
+              <text y="-5" class="gv-label" style="font-size:10px; fill:#9a1b50">Stressor</text>
+              <text y="10" class="gv-label-small" style="font-size:9.5px; fill:#7a1040; font-weight:600">HighHumidity</text>
+            </g>
+
+            <!-- Edge: DEMANDS_TRAIT from Chemical -->
+            <line x1="372" y1="65" x2="478" y2="65" stroke="#b87a00" stroke-width="2"/>
+            <polygon points="478,65 470,59 470,71" fill="#b87a00"/>
+            <text x="425" y="57" class="gv-edge-label" fill="#8a5c00">DEMANDS_TRAIT</text>
+
+            <!-- Edge: DEMANDS_TRAIT from Humidity -->
+            <line x1="362" y1="155" x2="478" y2="155" stroke="#b87a00" stroke-width="2"/>
+            <polygon points="478,155 470,149 470,161" fill="#b87a00"/>
+            <text x="420" y="147" class="gv-edge-label" fill="#8a5c00">DEMANDS_TRAIT</text>
+
+            <!-- Trait 1: C5 Corrosion -->
+            <g class="gv-node" transform="translate(570,65)">
+              <rect x="-82" y="-24" width="164" height="48" rx="8" fill="#fef3c7" stroke="#b87a00" stroke-width="2"/>
+              <text y="-5" class="gv-label" style="font-size:10px; fill:#8a5c00">PhysicalTrait</text>
+              <text y="10" class="gv-label-small" style="font-size:9.5px; fill:#6b4a00; font-weight:600">CorrosionResistance_C5</text>
+            </g>
+
+            <!-- Trait 2: Moisture Resistance -->
+            <g class="gv-node" transform="translate(570,155)">
+              <rect x="-72" y="-24" width="144" height="48" rx="8" fill="#fef3c7" stroke="#b87a00" stroke-width="2"/>
+              <text y="-5" class="gv-label" style="font-size:10px; fill:#8a5c00">PhysicalTrait</text>
+              <text y="10" class="gv-label-small" style="font-size:9.5px; fill:#6b4a00; font-weight:600">MoistureResistance</text>
+            </g>
+
+            <!-- Edge: PROVIDES_TRAIT -->
+            <line x1="652" y1="65" x2="760" y2="80" stroke="#0a7d5a" stroke-width="2.5" stroke-dasharray="5,4" class="edge-animated"/>
+            <polygon points="760,80 752,73 753,84" fill="#0a7d5a"/>
+            <text x="706" y="63" class="gv-edge-label" fill="#065f44">PROVIDED_BY</text>
+
+            <!-- Material: RF -->
+            <g class="gv-node" transform="translate(850,95)">
+              <rect x="-76" y="-32" width="152" height="64" rx="10" fill="#d1fae5" stroke="#0a7d5a" stroke-width="2.5"/>
+              <text y="-10" class="gv-label" style="font-size:10px; fill:#065f44">Material</text>
+              <text y="6" class="gv-label" style="font-size:12px; fill:#053e2c; font-weight:800">RF</text>
+              <text y="20" class="gv-label-small" style="font-size:8.5px; fill:#065f44">Stainless Steel 304</text>
+            </g>
+
+            <!-- Edge: PROVIDES_TRAIT from Material to Moisture -->
+            <line x1="790" y1="110" x2="652" y2="150" stroke="#0a7d5a" stroke-width="2" stroke-dasharray="5,4" class="edge-animated"/>
+
+            <!-- Legend -->
+            <rect x="16" y="195" width="10" height="10" rx="2" fill="#7038c9"/>
+            <text x="32" y="203" class="gv-legend">Layer 2: Physics</text>
+            <rect x="150" y="195" width="10" height="10" rx="2" fill="#b87a00"/>
+            <text x="166" y="203" class="gv-legend">Layer 2: Traits</text>
+            <rect x="280" y="195" width="10" height="10" rx="2" fill="#0a7d5a"/>
+            <text x="296" y="203" class="gv-legend">Layer 1: Inventory</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Traversal 2: Product selection + constraint check -->
+      <div class="graph-viz-wrap" style="margin-bottom: 24px;">
+        <div class="graph-viz-header">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <span class="label">traversal_2 &mdash; product matching + constraint check (Layer 1 + 2)</span>
+        </div>
+        <div class="graph-viz-body">
+          <svg viewBox="0 0 1050 300" xmlns="http://www.w3.org/2000/svg">
+            <text x="16" y="20" class="gv-legend-title">Query: 600x600, FZ material → is this product valid for hospital?</text>
+
+            <!-- ProductFamily: GDB -->
+            <g class="gv-node" transform="translate(100,120)">
+              <rect x="-70" y="-36" width="140" height="72" rx="12" fill="#dbeafe" stroke="#1d6bd4" stroke-width="2.5"/>
+              <text y="-14" class="gv-label" style="font-size:10px; fill:#1558a8">ProductFamily</text>
+              <text y="4" class="gv-label" style="font-size:13px; fill:#0e3d78; font-weight:800">GDB</text>
+              <text y="18" class="gv-label-small" style="font-size:8px; fill:#1558a8">Bag Filter Housing</text>
+            </g>
+
+            <!-- AVAILABLE_IN_SIZE -->
+            <line x1="170" y1="105" x2="268" y2="75" stroke="#1d6bd4" stroke-width="2"/>
+            <polygon points="268,75 260,69 261,79" fill="#1d6bd4"/>
+            <text x="218" y="82" class="gv-edge-label" fill="#1558a8">AVAILABLE_IN_SIZE</text>
+
+            <!-- DimensionModule -->
+            <g class="gv-node" transform="translate(350,68)">
+              <rect x="-68" y="-26" width="136" height="52" rx="8" fill="#e8f0fe" stroke="#1d6bd4" stroke-width="1.5"/>
+              <text y="-6" class="gv-label" style="font-size:9px; fill:#1558a8">DimensionModule</text>
+              <text y="10" class="gv-label-small" style="font-size:10.5px; fill:#0e3d78; font-weight:700">600 x 600 mm</text>
+            </g>
+
+            <!-- DETERMINES_PROPERTY -->
+            <line x1="418" y1="68" x2="508" y2="68" stroke="#1d6bd4" stroke-width="1.5"/>
+            <polygon points="508,68 502,63 502,73" fill="#1d6bd4"/>
+            <text x="462" y="60" class="gv-edge-label" fill="#1558a8">DETERMINES</text>
+
+            <!-- SizeProperty -->
+            <g class="gv-node" transform="translate(590,68)">
+              <rect x="-68" y="-22" width="136" height="44" rx="6" fill="#fef9ee" stroke="#b87a00" stroke-width="1.5"/>
+              <text y="-4" class="gv-label-small" style="font-size:8.5px; fill:#8a5c00">SizeProperty</text>
+              <text y="10" class="gv-label-small" style="font-size:9.5px; fill:#6b4a00; font-weight:600">airflow: 3400 m&#xB3;/h</text>
+            </g>
+
+            <!-- HAS_TRAIT from GDB -->
+            <line x1="170" y1="130" x2="268" y2="165" stroke="#1d6bd4" stroke-width="2"/>
+            <polygon points="268,165 260,159 261,170" fill="#1d6bd4"/>
+            <text x="210" y="157" class="gv-edge-label" fill="#1558a8">HAS_TRAIT</text>
+
+            <!-- Trait: C3 corrosion (from default material FZ) -->
+            <g class="gv-node" transform="translate(350,170)">
+              <rect x="-72" y="-24" width="144" height="48" rx="8" fill="#fef9ee" stroke="#b87a00" stroke-width="1.5"/>
+              <text y="-5" class="gv-label" style="font-size:9px; fill:#8a5c00">Material: FZ</text>
+              <text y="10" class="gv-label-small" style="font-size:9.5px; fill:#6b4a00; font-weight:600">Corrosion Class: C3</text>
+            </g>
+
+            <!-- Constraint check arrow -->
+            <line x1="422" y1="170" x2="508" y2="170" stroke="#c93030" stroke-width="2.5"/>
+            <polygon points="508,170 500,164 500,176" fill="#c93030"/>
+            <text x="465" y="162" class="gv-edge-label" fill="#9a2020">CHECK</text>
+
+            <!-- InstallationConstraint -->
+            <g class="gv-node" transform="translate(610,170)">
+              <rect x="-88" y="-28" width="176" height="56" rx="8" fill="#fef2f2" stroke="#c93030" stroke-width="2"/>
+              <text y="-8" class="gv-label" style="font-size:9px; fill:#9a2020">InstallationConstraint</text>
+              <text y="6" class="gv-label-small" style="font-size:9px; fill:#7a1818; font-weight:600">requires &gt;= C5</text>
+              <text y="18" class="gv-label-small" style="font-size:8px; fill:#9a2020">C3 &lt; C5 = BLOCKED</text>
+            </g>
+
+            <!-- X mark -->
+            <g transform="translate(730,135)">
+              <circle r="14" fill="#fef2f2" stroke="#c93030" stroke-width="2"/>
+              <line x1="-6" y1="-6" x2="6" y2="6" stroke="#c93030" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="6" y1="-6" x2="-6" y2="6" stroke="#c93030" stroke-width="2.5" stroke-linecap="round"/>
+            </g>
+
+            <!-- Recovery path: alternative material -->
+            <line x1="748" y1="145" x2="828" y2="170" stroke="#0a7d5a" stroke-width="2.5" stroke-dasharray="6,4" class="edge-animated"/>
+            <polygon points="828,170 820,163 821,174" fill="#0a7d5a"/>
+            <text x="785" y="148" class="gv-edge-label" fill="#065f44">RECOVER</text>
+
+            <!-- Alternative Material: RF -->
+            <g class="gv-node" transform="translate(920,170)">
+              <rect x="-76" y="-28" width="152" height="56" rx="10" fill="#d1fae5" stroke="#0a7d5a" stroke-width="2.5"/>
+              <text y="-8" class="gv-label" style="font-size:9px; fill:#065f44">Alternative</text>
+              <text y="6" class="gv-label" style="font-size:12px; fill:#053e2c; font-weight:800">RF (C5)</text>
+              <text y="19" class="gv-label-small" style="font-size:8px; fill:#065f44">Stainless Steel 304</text>
+            </g>
+
+            <!-- Checkmark on RF -->
+            <g transform="translate(920,124)">
+              <circle r="12" fill="#d1fae5" stroke="#0a7d5a" stroke-width="2"/>
+              <polyline points="-5,0 -1,5 6,-4" stroke="#0a7d5a" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </g>
+
+            <!-- Assembly -->
+            <line x1="170" y1="140" x2="200" y2="250" stroke="#1d6bd4" stroke-width="1.5"/>
+            <line x1="200" y1="250" x2="268" y2="260" stroke="#0e7490" stroke-width="2"/>
+            <polygon points="268,260 260,254 261,265" fill="#0e7490"/>
+            <text x="225" y="248" class="gv-edge-label" fill="#0e7490">ASSEMBLY_RULE</text>
+
+            <!-- DependencyRule -->
+            <g class="gv-node" transform="translate(370,262)">
+              <rect x="-80" y="-22" width="160" height="44" rx="8" fill="#ecfeff" stroke="#0e7490" stroke-width="1.5"/>
+              <text y="-4" class="gv-label" style="font-size:9px; fill:#0e7490">DependencyRule</text>
+              <text y="10" class="gv-label-small" style="font-size:9px; fill:#064e5e; font-weight:600">pre-filter + main filter</text>
+            </g>
+
+            <!-- Legend -->
+            <rect x="16" y="282" width="10" height="10" rx="2" fill="#1d6bd4"/>
+            <text x="32" y="290" class="gv-legend">Layer 1</text>
+            <rect x="96" y="282" width="10" height="10" rx="2" fill="#b87a00"/>
+            <text x="112" y="290" class="gv-legend">Layer 3</text>
+            <rect x="172" y="282" width="10" height="10" rx="2" fill="#c93030"/>
+            <text x="188" y="290" class="gv-legend">Constraint</text>
+            <rect x="272" y="282" width="10" height="10" rx="2" fill="#0a7d5a"/>
+            <text x="288" y="290" class="gv-legend">Recovery</text>
+            <rect x="362" y="282" width="10" height="10" rx="2" fill="#0e7490"/>
+            <text x="378" y="290" class="gv-legend">Assembly</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Traversal 3: Session State -->
+      <div class="graph-viz-wrap">
+        <div class="graph-viz-header">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <span class="label">traversal_3 &mdash; session state persistence (Layer 4)</span>
+        </div>
+        <div class="graph-viz-body">
+          <svg viewBox="0 0 1050 210" xmlns="http://www.w3.org/2000/svg">
+            <text x="16" y="20" class="gv-legend-title">Layer 4: Digital Twin — per-conversation project graph</text>
+
+            <!-- Session -->
+            <g class="gv-node" transform="translate(80,105)">
+              <rect x="-56" y="-30" width="112" height="60" rx="10" fill="#d1fae5" stroke="#0a7d5a" stroke-width="2.5"/>
+              <text y="-8" class="gv-label" style="font-size:10px; fill:#065f44">Session</text>
+              <text y="8" class="gv-label-small" style="font-size:9px; fill:#0a7d5a; font-weight:600">uuid-a3f2...</text>
+            </g>
+
+            <!-- WORKING_ON -->
+            <line x1="136" y1="105" x2="218" y2="105" stroke="#0a7d5a" stroke-width="2"/>
+            <polygon points="218,105 210,99 210,111" fill="#0a7d5a"/>
+            <text x="177" y="97" class="gv-edge-label" fill="#065f44">WORKING_ON</text>
+
+            <!-- ActiveProject -->
+            <g class="gv-node" transform="translate(310,105)">
+              <rect x="-76" y="-32" width="152" height="64" rx="10" fill="#ecfdf5" stroke="#0a7d5a" stroke-width="2"/>
+              <text y="-12" class="gv-label" style="font-size:10px; fill:#065f44">ActiveProject</text>
+              <text y="4" class="gv-label-small" style="font-size:8.5px; fill:#053e2c; font-weight:600">family: GDB</text>
+              <text y="16" class="gv-label-small" style="font-size:8.5px; fill:#053e2c; font-weight:600">material: RF</text>
+            </g>
+
+            <!-- HAS_UNIT -->
+            <line x1="386" y1="88" x2="478" y2="62" stroke="#0a7d5a" stroke-width="1.5"/>
+            <polygon points="478,62 470,56 471,67" fill="#0a7d5a"/>
+            <text x="432" y="68" class="gv-edge-label" fill="#065f44">HAS_UNIT</text>
+
+            <line x1="386" y1="122" x2="478" y2="148" stroke="#0a7d5a" stroke-width="1.5"/>
+            <polygon points="478,148 470,142 471,153" fill="#0a7d5a"/>
+            <text x="432" y="144" class="gv-edge-label" fill="#065f44">HAS_UNIT</text>
+
+            <!-- TagUnit 1: Stage 1 -->
+            <g class="gv-node" transform="translate(580,55)">
+              <rect x="-88" y="-26" width="176" height="52" rx="8" fill="#ecfeff" stroke="#0e7490" stroke-width="2"/>
+              <text y="-6" class="gv-label" style="font-size:9px; fill:#0e7490">TagUnit — item_1_stage_1</text>
+              <text y="10" class="gv-label-small" style="font-size:8.5px; fill:#064e5e; font-weight:600">GDP-600x600 (pre-filter)</text>
+            </g>
+
+            <!-- TagUnit 2: Stage 2 -->
+            <g class="gv-node" transform="translate(580,155)">
+              <rect x="-88" y="-26" width="176" height="52" rx="8" fill="#ecfeff" stroke="#0e7490" stroke-width="2"/>
+              <text y="-6" class="gv-label" style="font-size:9px; fill:#0e7490">TagUnit — item_1_stage_2</text>
+              <text y="10" class="gv-label-small" style="font-size:8.5px; fill:#064e5e; font-weight:600">GDB-600x600-RF (main)</text>
+            </g>
+
+            <!-- SIZED_AS from stage 2 -->
+            <line x1="668" y1="155" x2="764" y2="155" stroke="#1d6bd4" stroke-width="1.5" stroke-dasharray="5,3"/>
+            <polygon points="764,155 756,149 756,161" fill="#1d6bd4"/>
+            <text x="715" y="147" class="gv-edge-label" fill="#1558a8">SIZED_AS</text>
+
+            <!-- DimensionModule link -->
+            <g class="gv-node" transform="translate(850,155)">
+              <rect x="-68" y="-22" width="136" height="44" rx="6" fill="#e8f0fe" stroke="#1d6bd4" stroke-width="1.5"/>
+              <text y="-3" class="gv-label-small" style="font-size:8.5px; fill:#1558a8">DimensionModule</text>
+              <text y="10" class="gv-label-small" style="font-size:9.5px; fill:#0e3d78; font-weight:600">600 x 600</text>
+            </g>
+
+            <!-- HAS_TURN from project -->
+            <line x1="386" y1="105" x2="768" y2="62" stroke="#0a7d5a" stroke-width="1.5"/>
+            <polygon points="768,62 760,57 761,67" fill="#0a7d5a"/>
+            <text x="700" y="72" class="gv-edge-label" fill="#065f44">HAS_TURN</text>
+
+            <!-- ConversationTurn -->
+            <g class="gv-node" transform="translate(855,55)">
+              <rect x="-72" y="-22" width="144" height="44" rx="6" fill="#ecfdf5" stroke="#0a7d5a" stroke-width="1.5"/>
+              <text y="-3" class="gv-label-small" style="font-size:8.5px; fill:#065f44">ConversationTurn #3</text>
+              <text y="10" class="gv-label-small" style="font-size:8px; fill:#0a7d5a">"Make it stainless steel"</text>
+            </g>
+
+            <!-- Assembly sync annotation -->
+            <line x1="600" y1="81" x2="600" y2="129" stroke="#b87a00" stroke-width="1.5" stroke-dasharray="3,3"/>
+            <text x="620" y="110" class="gv-edge-label" fill="#8a5c00" style="font-size:7.5px">sync dims</text>
+
+            <!-- Legend -->
+            <rect x="16" y="195" width="10" height="10" rx="2" fill="#0a7d5a"/>
+            <text x="32" y="203" class="gv-legend">Session graph</text>
+            <rect x="140" y="195" width="10" height="10" rx="2" fill="#0e7490"/>
+            <text x="156" y="203" class="gv-legend">Assembly units</text>
+            <rect x="270" y="195" width="10" height="10" rx="2" fill="#1d6bd4"/>
+            <text x="286" y="203" class="gv-legend">Layer 1 link</text>
+            <rect x="370" y="195" width="10" height="10" rx="2" fill="#b87a00"/>
+            <text x="386" y="203" class="gv-legend">Param sync</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Cypher for these traversals -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:24px;">
+        <div class="cypher-block">
+          <div class="cypher-block-header">
+            <div class="dots"><span></span><span></span><span></span></div>
+            <span class="fname">traversal_1.cypher</span>
+          </div>
+          <div class="cypher-code">
+            <span class="cm">-- physics causal chain</span><br>
+            <span class="kw">MATCH</span> <span class="nd">(a:Application</span> {<span class="pr">name</span>:<span class="st">"Hospital"</span>}<span class="nd">)</span><br>
+            &nbsp;&nbsp;<span class="rl">-[:EXPOSES_TO]-&gt;</span> <span class="nd">(s:Stressor)</span><br>
+            &nbsp;&nbsp;<span class="rl">-[:DEMANDS_TRAIT]-&gt;</span> <span class="nd">(t:PhysicalTrait)</span><br>
+            <span class="kw">RETURN</span> <span class="pr">a.name</span>, <span class="pr">s.name</span>, <span class="pr">t.name</span>
+          </div>
+        </div>
+        <div class="cypher-block">
+          <div class="cypher-block-header">
+            <div class="dots"><span></span><span></span><span></span></div>
+            <span class="fname">traversal_2.cypher</span>
+          </div>
+          <div class="cypher-code">
+            <span class="cm">-- constraint check</span><br>
+            <span class="kw">MATCH</span> <span class="nd">(pf:ProductFamily)</span><br>
+            &nbsp;&nbsp;<span class="rl">-[:HAS_INSTALLATION_CONSTRAINT]-&gt;</span><br>
+            &nbsp;&nbsp;<span class="nd">(ic:InstallationConstraint)</span><br>
+            <span class="kw">WHERE</span> <span class="pr">ic.constraint_type</span> =<br>
+            &nbsp;&nbsp;<span class="st">"CROSS_NODE_THRESHOLD"</span><br>
+            <span class="kw">RETURN</span> <span class="pr">pf.name</span>, <span class="pr">ic.operator</span>, <span class="pr">ic.error_msg</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ============ Layers ============ -->
+  <section id="layers">
+    <div class="container">
+      <div class="section-label">// knowledge graph</div>
+      <div class="section-title">4-Layer Architecture</div>
+      <div class="section-desc">
+        Each layer builds on the one below. Layer 1 = data, Layer 2 = physics,
+        Layer 3 = strategy, Layer 4 = live state. Adding domain rules = graph mutation, not code.
+      </div>
+
+      <div class="layers-stack">
+        <div class="layer-row" data-l="4">
+          <div class="layer-num">L4</div>
+          <div class="layer-name">
+            <h3>Session State</h3>
+            <div class="sub">Digital Twin</div>
+          </div>
+          <div class="layer-detail">
+            <p>
+              Per-conversation project subgraph. Resolved params, selected products, assembly groups,
+              conversation turns. Persists across turns &mdash; this is why the system has no context amnesia.
+              Parameters sync across assembly siblings via <code>assembly_group_id</code>.
+            </p>
+            <div class="layer-tags">
+              <span class="tag">Session</span>
+              <span class="tag">ActiveProject</span>
+              <span class="tag">TagUnit</span>
+              <span class="tag">ConversationTurn</span>
+            </div>
+            <div class="layer-meta"><strong>Dynamic</strong> per session &middot; 15+ tracked params &middot; cross-turn persistence</div>
+          </div>
+        </div>
+
+        <div class="layer-row" data-l="3">
+          <div class="layer-num">L3</div>
+          <div class="layer-name">
+            <h3>Playbook</h3>
+            <div class="sub">Strategy</div>
+          </div>
+          <div class="layer-detail">
+            <p>
+              Decision trees, logic gates (FIRED/PASSED/VALIDATION_REQUIRED), parameter priority,
+              capacity rules (airflow &rarr; module selection), variable features with auto-resolve defaults,
+              and clarification sequencing. This is what makes it a consultant, not a lookup table.
+            </p>
+            <div class="layer-tags">
+              <span class="tag">LogicGate</span>
+              <span class="tag">Parameter</span>
+              <span class="tag">VariableFeature</span>
+              <span class="tag">CapacityRule</span>
+              <span class="tag">SizeProperty</span>
+            </div>
+            <div class="layer-meta"><strong>~120</strong> nodes &middot; 29 capacity rules &middot; 17 variable features &middot; 4 logic gates</div>
+          </div>
+        </div>
+
+        <div class="layer-row" data-l="2">
+          <div class="layer-num">L2</div>
+          <div class="layer-name">
+            <h3>Domain Physics</h3>
+            <div class="sub">Causal rules</div>
+          </div>
+          <div class="layer-detail">
+            <p>
+              Real-world causal chains: Application &rarr; EXPOSES_TO &rarr; Stressor &rarr; DEMANDS_TRAIT &rarr; PhysicalTrait.
+              Environment &rarr; REQUIRES_MATERIAL &rarr; Material. DependencyRules trigger multi-stage assemblies.
+              This is how the system "knows" hospital = stainless steel without LLM guessing.
+            </p>
+            <div class="layer-tags">
+              <span class="tag">Application</span>
+              <span class="tag">Environment</span>
+              <span class="tag">EnvironmentalStressor</span>
+              <span class="tag">PhysicalTrait</span>
+              <span class="tag">DependencyRule</span>
+              <span class="tag">InstallationConstraint</span>
+            </div>
+            <div class="layer-meta"><strong>~80</strong> nodes &middot; 13 stressors &middot; 14 traits &middot; 11 applications &middot; 10 environments</div>
+          </div>
+        </div>
+
+        <div class="layer-row" data-l="1">
+          <div class="layer-num">L1</div>
+          <div class="layer-name">
+            <h3>Inventory</h3>
+            <div class="sub">Product data</div>
+          </div>
+          <div class="layer-detail">
+            <p>
+              Every product family, dimension module (273 sizes), material variant (5 materials with
+              corrosion class), weight table, filter consumable, transition piece, and accessory.
+              Single source of truth &mdash; no CSV imports, no hardcoded lists.
+              12 product families with ~255 pre-computed variants.
+            </p>
+            <div class="layer-tags">
+              <span class="tag">ProductFamily</span>
+              <span class="tag">DimensionModule</span>
+              <span class="tag">ProductVariant</span>
+              <span class="tag">Material</span>
+              <span class="tag">FilterConsumable</span>
+              <span class="tag">TransitionPiece</span>
+              <span class="tag">Accessory</span>
+            </div>
+            <div class="layer-meta"><strong>~900</strong> nodes &middot; 12 families &middot; 273 sizes &middot; 255 variants &middot; 1496 filter-&gt;size edges</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ============ Example ============ -->
+  <section id="example">
+    <div class="container">
+      <div class="section-label">// live example</div>
+      <div class="section-title">Full Reasoning Trace</div>
+      <div class="section-desc">
+        Real engine output for a single query. Each step maps to a graph traversal.
+      </div>
+
+      <div class="traversal-wrap">
+        <div class="traversal-header">
+          <span class="user-q">"I need a filter housing for a hospital, 600x600, galvanized steel, 3400 m&sup3;/h"</span>
+          <span class="mode">graph-reasoning</span>
+        </div>
+        <div class="traversal-body">
+          <div class="step-row">
+            <div class="step-num s-intent">1</div>
+            <div class="step-body">
+              <h5>Intent Extraction (LLM)</h5>
+              <p>Scribe output: <code>application:Hospital</code> <code>dims:600x600</code> <code>material:FZ</code> <code>airflow:3400</code></p>
+            </div>
+          </div>
+          <div class="step-row">
+            <div class="step-num s-stressor">2</div>
+            <div class="step-body">
+              <h5>Stressor Detection</h5>
+              <p><code>(:Application {Hospital})-[:EXPOSES_TO]-&gt;(:Stressor)</code> &rarr; ChemicalDisinfection, HighHumidity</p>
+            </div>
+          </div>
+          <div class="step-row">
+            <div class="step-num s-rule">3</div>
+            <div class="step-body">
+              <h5>Rule Evaluation</h5>
+              <p><code>(:Stressor {ChemicalDisinfection})-[:DEMANDS_TRAIT]-&gt;(:Trait {CorrosionResistance_C5})</code> severity=CRITICAL</p>
+            </div>
+          </div>
+          <div class="step-row">
+            <div class="step-num s-match">4</div>
+            <div class="step-body">
+              <h5>Product Matching</h5>
+              <p>Score by trait coverage: GDB=90%, GDC=85%, GDP=45%. Top: <code>GDB</code>, 600x600 available, 3400 m&sup3;/h confirmed.</p>
+            </div>
+          </div>
+          <div class="step-row">
+            <div class="step-num s-block">5</div>
+            <div class="step-body">
+              <h5>Constraint Check</h5>
+              <p>FZ (galvanized) = corrosion class C3. Hospital requires &gt;= C5. <code>C3 &lt; C5</code></p>
+              <span class="step-flag blocked">BLOCKED &mdash; material incompatible</span>
+            </div>
+          </div>
+          <div class="step-row">
+            <div class="step-num s-recover">6</div>
+            <div class="step-body">
+              <h5>Sales Recovery</h5>
+              <p>Search compatible materials: RF (Stainless 304) = C5, SF (Stainless 316L) = C5+. Both valid.</p>
+            </div>
+          </div>
+          <div class="step-row">
+            <div class="step-num s-result">7</div>
+            <div class="step-body">
+              <h5>Verdict</h5>
+              <p>Product: <code>GDB-600x600-RF</code>. Material override with explanation. All constraints satisfied.</p>
+              <span class="step-flag ok">PASS &mdash; recommendation ready</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="response-box">
+          <div class="rlabel">synthesized response (streamed via SSE)</div>
+          <p>
+            For your hospital ventilation project at <strong>3400 m&sup3;/h</strong> with
+            <strong>600x600 mm</strong> housing: I recommend the <strong>GDB-600x600-RF</strong>
+            in stainless steel (304). The hospital environment requires C5 corrosion resistance
+            due to chemical disinfection protocols &mdash; galvanized steel (C3) does not meet
+            this. To finalize: which <strong>housing length</strong> suits your installation?
+            Available: 550, 750, or 900 mm.
+          </p>
+        </div>
+      </div>
+
+      <!-- Multi-turn state -->
+      <div style="margin-top: 56px;">
+        <div class="section-label">// state continuity</div>
+        <div class="section-title">Layer 4: Cross-Turn Persistence</div>
+        <div class="section-desc">
+          Parameters accumulate. Only explicit changes override. State is graph-persisted, not in-memory.
+        </div>
+      </div>
+
+      <table class="turn-table">
+        <thead>
+          <tr><th>Turn</th><th>User message</th><th>Cumulative state (Layer 4)</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>T1</td>
+            <td>"I need a unit for a kitchen, 600x900"</td>
+            <td><span class="st-new">app:kitchen</span> &nbsp; <span class="st-new">dims:600x900</span></td>
+          </tr>
+          <tr>
+            <td>T2</td>
+            <td>"3400 cubic meters per hour"</td>
+            <td><span class="st-kept">app:kitchen</span> &nbsp; <span class="st-kept">dims:600x900</span> &nbsp; <span class="st-new">airflow:3400</span></td>
+          </tr>
+          <tr>
+            <td>T3</td>
+            <td>"Make it stainless steel"</td>
+            <td><span class="st-kept">app:kitchen</span> &nbsp; <span class="st-kept">dims:600x900</span> &nbsp; <span class="st-kept">airflow:3400</span> &nbsp; <span class="st-new">material:RF</span></td>
+          </tr>
+          <tr>
+            <td>T4</td>
+            <td>"What about 900x900 instead?"</td>
+            <td><span class="st-kept">app:kitchen</span> &nbsp; <span class="st-changed">dims:900x900</span> &nbsp; <span class="st-kept">airflow:3400</span> &nbsp; <span class="st-kept">material:RF</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ============ Capabilities ============ -->
+  <section>
+    <div class="container">
+      <div class="section-label">// capabilities</div>
+      <div class="section-title">Engine Features</div>
+
+      <div class="cap-list" style="margin-top: 24px;">
+        <div class="cap-item">
+          <h4>Product Selection</h4>
+          <p>Trait-coverage scoring across product families. Environment, spatial, and capacity constraints applied in sequence.</p>
+        </div>
+        <div class="cap-item">
+          <h4>Constraint Validation</h4>
+          <p>3 types: COMPUTED_FORMULA, SET_MEMBERSHIP, CROSS_NODE_THRESHOLD. Blocked configs get full violation report.</p>
+        </div>
+        <div class="cap-item">
+          <h4>Sales Recovery</h4>
+          <p>When blocked: search same-product alt materials (prong 1) + other families (prong 2). All trait-qualified.</p>
+        </div>
+        <div class="cap-item">
+          <h4>Assembly Detection</h4>
+          <p>DependencyRules trigger multi-stage configs. Params sync across siblings via assembly_group_id.</p>
+        </div>
+        <div class="cap-item">
+          <h4>Smart Clarifications</h4>
+          <p>Graph-driven priority order. Per-tag suppression (not global). 3-layer guard: Engine, Adapter, Retriever.</p>
+        </div>
+        <div class="cap-item">
+          <h4>Full Audit Trail</h4>
+          <p>Every decision traces to graph relationships. Deterministic: same input = same output. No LLM opinion on facts.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>synapse:os &middot; graph reasoning engine &middot; FalkorDB + Gemini Flash + FastAPI + Next.js</p>
+    </div>
+  </footer>
+
+</body>
+</html>
