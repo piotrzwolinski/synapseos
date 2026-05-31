@@ -370,3 +370,114 @@ export async function listGraphAuditReports(): Promise<GraphAuditReportMeta[]> {
   if (!res.ok) return [];
   return res.json();
 }
+
+// =============================================================================
+// SYNAPSE API (https://synapse-webui.fly.dev/api)
+// =============================================================================
+
+export const SYNAPSE_API_BASE = "https://synapse-webui.fly.dev/api";
+
+export function synapseUrl(path: string): string {
+  const base = SYNAPSE_API_BASE.replace(/\/$/, "");
+  return `${base}${path.startsWith("/") ? path : "/" + path}`;
+}
+
+export interface SynapseSession {
+  session_id: string;
+  name: string;
+  started_at: string;
+  domain: string;
+  episode_count: number;
+}
+
+export interface SynapseEpisode {
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+}
+
+export interface SynapseFlag {
+  id: string;
+  session_id: string;
+  domain_id: string;
+  flagged_at: string;
+  flag_reason: string;
+  expected_answer: string;
+  status: "open" | "resolved";
+  resolved_at?: string;
+  resolution_notes?: string;
+  session_name?: string;
+}
+
+export interface SynapseReviewState {
+  flag_id: string;
+  phase: "idle" | "plan_pending" | "edit_pending" | "resolved" | "max_steps";
+  status_md: string;
+  chatbot: { role: "user" | "assistant"; content: string }[];
+  plan_approved: boolean;
+  pending_edit: string;
+}
+
+export async function synapseListFlags(status?: "open" | "resolved"): Promise<SynapseFlag[]> {
+  const url = synapseUrl(status ? `/flags?status=${status}` : "/flags");
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function synapseGetFlag(flagId: string): Promise<SynapseFlag | null> {
+  const res = await fetch(synapseUrl(`/flags/${flagId}`));
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function synapseResolveFlag(flagId: string, notes = ""): Promise<void> {
+  await fetch(synapseUrl(`/flags/${flagId}/resolve`), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notes }),
+  });
+}
+
+export async function synapseFlagSession(sessionId: string, reason: string, expectedAnswer: string): Promise<string | null> {
+  const res = await fetch(synapseUrl(`/sessions/${sessionId}/flag`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason, expected_answer: expectedAnswer }),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.flag_id;
+}
+
+export async function synapseGetEpisodes(sessionId: string): Promise<SynapseEpisode[]> {
+  const res = await fetch(synapseUrl(`/sessions/${sessionId}/episodes`));
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function synapseGetReview(flagId: string): Promise<SynapseReviewState | null> {
+  const res = await fetch(synapseUrl(`/reviews/${flagId}`));
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function synapseStartReview(flagId: string): Promise<SynapseReviewState | null> {
+  const res = await fetch(synapseUrl(`/reviews/${flagId}/start`), { method: "POST" });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function synapseReviewAction(
+  flagId: string,
+  action: "accept_plan" | "reject_plan" | "confirm_edit" | "skip_edit" | "send_message",
+  userText = ""
+): Promise<SynapseReviewState | null> {
+  const res = await fetch(synapseUrl(`/reviews/${flagId}/action`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, user_text: userText }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}

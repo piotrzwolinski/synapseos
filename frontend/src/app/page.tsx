@@ -452,7 +452,7 @@ Nordic Furniture Group`
   }
 };
 
-const HIDDEN_NAV_IDS = new Set(["bulk-offer", "ingest", "explore", "knowledge", "testgen", "use-cases", "expert-review", "audit", "batch-results"]);
+const HIDDEN_NAV_IDS = new Set(["bulk-offer", "ingest", "explore", "knowledge", "testgen", "use-cases", "audit", "batch-results"]);
 
 const NAV_ITEMS: NavItem[] = [
   { id: "chat", label: "AI Consultant", icon: MessageSquare, section: "main" },
@@ -464,7 +464,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "testgen", label: "Test Generator", icon: Wand2, section: "main", devOnly: true },
   { id: "capabilities", label: "Capabilities", icon: Compass, section: "main", devOnly: true },
   { id: "use-cases", label: "Use Cases", icon: BookOpen, section: "main", devOnly: true },
-  { id: "expert-review", label: "Expert Review", icon: ClipboardCheck, section: "main", devOnly: true },
+  { id: "expert-review", label: "Zgłoszenia AI", icon: ClipboardCheck, section: "main" },
   { id: "analytics", label: "Analytics", icon: BarChart3, disabled: true, section: "enterprise" },
   { id: "workflows", label: "Workflows", icon: Workflow, disabled: true, section: "enterprise" },
   { id: "users", label: "User Management", icon: Users, disabled: true, section: "admin" },
@@ -738,7 +738,7 @@ function MainApp() {
               {activeTab === "testlab" && "Test Lab"}
               {activeTab === "testgen" && "Test Generator"}
               {activeTab === "capabilities" && "Expert Capabilities"}
-              {activeTab === "expert-review" && "Expert Review"}
+              {activeTab === "expert-review" && "Zgłoszenia AI"}
               {activeTab === "analytics" && "Analytics & Reports"}
               {activeTab === "workflows" && "Automation Workflows"}
               {activeTab === "users" && "User Management"}
@@ -757,7 +757,7 @@ function MainApp() {
               {activeTab === "testlab" && "Review regression test results and assertion details"}
               {activeTab === "testgen" && "Multi-LLM debate to generate new test cases from product catalogs"}
               {activeTab === "capabilities" && "Expert modules, sub-components, and example scenarios"}
-              {activeTab === "expert-review" && "Browse conversations, review responses, and score judge evaluations"}
+              {activeTab === "expert-review" && "Przeglądaj oflagowane rozmowy i przeprowadzaj AI-review grafu wiedzy"}
               {activeTab === "analytics" && "Track performance metrics and generate reports"}
               {activeTab === "workflows" && "Automate repetitive tasks and processes"}
               {activeTab === "users" && "Manage team members and permissions"}

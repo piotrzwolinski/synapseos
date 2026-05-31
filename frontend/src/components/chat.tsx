@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
-import { apiUrl, authFetch, getSessionId, resetSessionId, getSessionGraphState, clearSessionGraph, type SessionGraphState, evaluateResponse, saveJudgeResults } from "@/lib/api";
+import { apiUrl, authFetch, getSessionId, resetSessionId, getSessionGraphState, clearSessionGraph, type SessionGraphState, evaluateResponse, saveJudgeResults, synapseUrl, synapseFlagSession } from "@/lib/api";
 import { getUserRole } from "@/lib/auth";
 import SessionGraphViewer from "./session-graph-viewer";
 import { Widget, BotResponse } from "./chat-widgets";
@@ -525,6 +525,12 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const [technicalState, setTechnicalState] = useState<Record<string, any> | null>(null);
   const [sessionGraphState, setSessionGraphState] = useState<SessionGraphState | null>(null);
   const [showSessionGraph, setShowSessionGraph] = useState(false);
+  const [synapseSessionId, setSynapseSessionId] = useState<string | null>(null);
+  // Flag modal state
+  const [flagModalOpen, setFlagModalOpen] = useState(false);
+  const [flagReason, setFlagReason] = useState("");
+  const [flagExpected, setFlagExpected] = useState("");
+  const [flagSubmitting, setFlagSubmitting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -594,37 +600,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     const userMessage = override || input.trim();
     if (!userMessage || isLoading) return;
 
-    // Store the original query for potential clarification follow-up
-    const lastQueryForClarification = userMessage;
-
-    // Build query with locked context for multi-turn persistence
-    let queryWithContext = userMessage;
-    if (lockedContext) {
-      const contextParts: string[] = [];
-      if (lockedContext.material) {
-        contextParts.push(`material=${lockedContext.material}`);
-      }
-      if (lockedContext.project) {
-        contextParts.push(`project=${lockedContext.project}`);
-      }
-      if (lockedContext.filter_depths && lockedContext.filter_depths.length > 0) {
-        contextParts.push(`filter_depths=${lockedContext.filter_depths.join(',')}`);
-      }
-      // BUGFIX: Include dimension_mappings in locked context
-      if (lockedContext.dimension_mappings && lockedContext.dimension_mappings.length > 0) {
-        const dimStr = lockedContext.dimension_mappings
-          .map(d => `${d.width}x${d.height}${d.depth ? 'x' + d.depth : ''}`)
-          .join(',');
-        contextParts.push(`dimensions=${dimStr}`);
-      }
-      if (contextParts.length > 0) {
-        queryWithContext = `${userMessage} [LOCKED: ${contextParts.join('; ')}]`;
-      }
-    }
-    // BUGFIX: Send full technical state for complete cumulative tracking
-    if (technicalState && Object.keys(technicalState).length > 0) {
-      queryWithContext = `${queryWithContext} [STATE: ${JSON.stringify(technicalState)}]`;
-    }
+    // Build chat history from current messages before appending the new one
+    const chatHistory = messages.map((m) => ({ role: m.role, content: m.content }));
 
     if (!override) {
       setInput("");
@@ -632,8 +609,6 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
     setReasoningSteps(GRAPH_REASONING_PLACEHOLDER);
-    // Clear pending clarification context when sending new message
-    // (will be set again if response is a clarification)
     setPendingClarificationContext(null);
 
     // Reset textarea height
@@ -642,26 +617,33 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     }
 
     try {
-      // Always use graph reasoning streaming endpoint
-      const streamUrl = "/consult/deep-explainable/stream";
-      const token = localStorage.getItem("mh_auth_token");
-      console.log(`%c[MODE ROUTING] → Graph engine endpoint: ${streamUrl}`, 'color: #ff6600; font-weight: bold; font-size: 14px');
-      const response = await fetch(apiUrl(streamUrl), {
+      const response = await fetch(synapseUrl("/chat"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ query: queryWithContext, session_id: getSessionId() }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: userMessage,
+          session_id: synapseSessionId ?? undefined,
+          chat_history: chatHistory,
+          stream: true,
+        }),
       });
 
       if (!response.ok) throw new Error("Failed to get response");
 
-      // Process SSE stream
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
-      let data: DeepExplainableResponseData | null = null;
       const dynamicSteps: ReasoningStep[] = [];
+      let answerText = "";
+
+      const stepTypeIcon = (type: string): string => {
+        switch (type) {
+          case "FIND": return "🔍";
+          case "DETAILS": return "📋";
+          case "THOUGHT": return "💭";
+          case "ANSWER": return "✅";
+          default: return "⚙️";
+        }
+      };
 
       if (reader) {
         let buffer = "";
@@ -674,96 +656,50 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           buffer = lines.pop() || "";
 
           for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              try {
-                const event = JSON.parse(line.slice(6));
-
-                if (event.type === "inference") {
-                  // Update reasoning steps dynamically with real discoveries
-                  const existingIdx = dynamicSteps.findIndex(s => s.id === event.step);
-                  const newStep: ReasoningStep = {
-                    id: event.step,
-                    label: event.detail,  // Human-readable message with emoji
-                    icon: event.detail?.charAt(0) || "🔍",
-                    status: event.status === "done" ? "done" : event.status === "warning" ? "done" : "active",
-                    data: event.data,  // Keep structured data for potential UI rendering
-                  };
-
-                  if (existingIdx >= 0) {
-                    dynamicSteps[existingIdx] = newStep;
-                  } else {
-                    dynamicSteps.push(newStep);
-                  }
-
-                  setReasoningSteps([...dynamicSteps]);
-                  console.log(`🔗 Inference: ${event.detail}`);
-
-                } else if (event.type === "complete") {
-                  // Final response received
-                  data = event.response;
-                  console.log("✅ Stream complete", event.timings);
-
-                  // Extract and persist locked context for multi-turn persistence
-                  if (event.locked_context && Object.keys(event.locked_context).length > 0) {
-                    console.log("🔒 Locked context received:", event.locked_context);
-                    setLockedContext(prev => ({
-                      ...prev,
-                      ...event.locked_context
-                    }));
-                  }
-
-                  // Extract and persist full technical state if available
-                  if (event.technical_state && Object.keys(event.technical_state).length > 0) {
-                    console.log("📋 Technical state received:", event.technical_state);
-                    setTechnicalState(event.technical_state);
-                  }
-
-                  // Mark all steps as done
-                  setReasoningSteps(dynamicSteps.map(s => ({ ...s, status: "done" as const })));
-                } else if (event.type === "session_state" && event.data) {
-                  // Layer 4: Update session graph state from graph-reasoning SSE
-                  setSessionGraphState(event.data);
-                  console.log("📊 [SESSION GRAPH] Updated from graph-reasoning SSE:", event.data.tag_count, "tags");
-                } else if (event.type === "error") {
-                  console.error("Stream error:", event.detail);
+            if (!line.startsWith("data: ")) continue;
+            const raw = line.slice(6).trim();
+            if (raw === "[DONE]") break;
+            try {
+              const event = JSON.parse(raw);
+              if (event.event === "step" && event.data) {
+                const s = event.data;
+                const stepId = `step-${s.step}`;
+                const newStep: ReasoningStep = {
+                  id: stepId,
+                  label: s.content,
+                  icon: stepTypeIcon(s.type),
+                  status: "done",
+                };
+                const existingIdx = dynamicSteps.findIndex((x) => x.id === stepId);
+                if (existingIdx >= 0) {
+                  dynamicSteps[existingIdx] = newStep;
+                } else {
+                  dynamicSteps.push(newStep);
                 }
-              } catch (e) {
-                console.warn("Failed to parse SSE event:", line, e);
+                setReasoningSteps([...dynamicSteps]);
+              } else if (event.event === "answer" && event.answer) {
+                answerText = event.answer;
+                if (event.session_id) {
+                  setSynapseSessionId(event.session_id);
+                }
+                setReasoningSteps(dynamicSteps.map((s) => ({ ...s, status: "done" as const })));
               }
+            } catch (e) {
+              console.warn("Failed to parse SSE event:", line, e);
             }
           }
         }
       }
 
-      // Fallback if no streaming data received
-      if (!data) {
-        data = { content_segments: [{ text: "No response received", type: "GENERAL" }] } as DeepExplainableResponseData;
-      }
-
-      // Build content from segments for display (with safety check)
-      const contentText = data.content_segments && Array.isArray(data.content_segments)
-        ? data.content_segments.map(seg => seg.text).join("\n\n")
-        : "Response received.";
-
-      // Validate that we have proper data structure
-      if (!data.content_segments || !Array.isArray(data.content_segments)) {
-        console.error("Invalid response structure:", data);
-      }
-
-      // If this is a clarification response, store the context for follow-up
-      if (data.clarification_needed && data.clarification) {
-        setPendingClarificationContext({
-          originalQuery: lastQueryForClarification,
-          missingAttribute: data.clarification.missing_info || "the required parameter",
-        });
+      if (!answerText) {
+        answerText = "No response received.";
       }
 
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: contentText,
-          deepExplainableData: data,
+          content: answerText,
         },
       ]);
     } catch (error) {
@@ -790,6 +726,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       setLockedContext(null);
       setTechnicalState(null);
       setSessionGraphState(null);
+      setSynapseSessionId(null);
       // Generate a fresh session ID so no stale Layer 4 state can leak
       resetSessionId();
       console.log("🔓 Session fully reset (state + ID)");
@@ -1282,6 +1219,18 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                     </div>
                   )}
 
+                  {/* Flag button — only for assistant messages when synapseSessionId is set */}
+                  {message.role === "assistant" && synapseSessionId && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setFlagModalOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-800 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                      >
+                        🚩 Zgłoś
+                      </button>
+                    </div>
+                  )}
+
                   {/* Dev Mode: Graph Paths & Prompt */}
                   {devMode && message.role === "assistant" && (message.graphPaths || message.promptPreview) && (
                     <DevModePanel
@@ -1450,6 +1399,76 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         onClose={() => setInspectorOpen(false)}
         projectName={inspectorProject}
       />
+
+      {/* Flag Modal */}
+      {flagModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-md mx-4">
+            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-4">
+              🚩 Zgłoś odpowiedź
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                  Powód zgłoszenia
+                </label>
+                <textarea
+                  value={flagReason}
+                  onChange={(e) => setFlagReason(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 dark:text-slate-100"
+                  placeholder="Opisz co jest nieprawidłowe..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                  Oczekiwana odpowiedź
+                </label>
+                <textarea
+                  value={flagExpected}
+                  onChange={(e) => setFlagExpected(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 dark:text-slate-100"
+                  placeholder="Jak powinna brzmieć poprawna odpowiedź?"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setFlagModalOpen(false);
+                  setFlagReason("");
+                  setFlagExpected("");
+                }}
+                className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              >
+                Anuluj
+              </button>
+              <button
+                disabled={flagSubmitting || !flagReason.trim()}
+                onClick={async () => {
+                  if (!synapseSessionId) return;
+                  setFlagSubmitting(true);
+                  try {
+                    await synapseFlagSession(synapseSessionId, flagReason, flagExpected);
+                    setFlagModalOpen(false);
+                    setFlagReason("");
+                    setFlagExpected("");
+                  } finally {
+                    setFlagSubmitting(false);
+                  }
+                }}
+                className="flex-1 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {flagSubmitting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : null}
+                Wyślij zgłoszenie
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
 
     </div>
