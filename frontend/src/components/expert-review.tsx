@@ -5,9 +5,9 @@ import {
   Loader2,
   Flag,
   CheckCircle2,
-  XCircle,
   MessageSquare,
   Filter,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +30,7 @@ import ReactMarkdown from "react-markdown";
 function formatDate(iso: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
-  return d.toLocaleDateString("pl-PL", {
+  return d.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -44,31 +44,37 @@ function StatusBadge({ status }: { status: "open" | "resolved" }) {
     return (
       <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800">
         <CheckCircle2 className="w-3 h-3 mr-1" />
-        Rozwiązane
+        Resolved
       </Badge>
     );
   }
   return (
     <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
       <Flag className="w-3 h-3 mr-1" />
-      Otwarte
+      Open
     </Badge>
   );
 }
 
-function EpisodeBubble({ episode }: { episode: SynapseEpisode }) {
-  const isUser = episode.role === "user";
+function EpisodePair({ episode }: { episode: SynapseEpisode }) {
   return (
-    <div className={cn("flex gap-2", isUser ? "justify-end" : "justify-start")}>
-      <div
-        className={cn(
-          "max-w-[85%] rounded-xl px-3 py-2 text-sm",
-          isUser
-            ? "bg-green-700 text-white"
-            : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
-        )}
-      >
-        <p className="whitespace-pre-wrap break-words">{episode.content}</p>
+    <div className="space-y-1.5">
+      {/* User question */}
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-xl px-3 py-2 text-sm bg-green-700 text-white">
+          <p className="whitespace-pre-wrap break-words">{episode.question}</p>
+        </div>
+      </div>
+      {/* Assistant answer */}
+      <div className="flex justify-start">
+        <div className="max-w-[85%] rounded-xl px-3 py-2 text-sm bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+          <div className="prose prose-sm max-w-none dark:prose-invert">
+            <ReactMarkdown>{episode.answer}</ReactMarkdown>
+          </div>
+          {episode.elapsed_seconds != null && (
+            <p className="text-[10px] text-slate-400 mt-1">{episode.elapsed_seconds.toFixed(1)}s</p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -119,12 +125,9 @@ function FlagDetailPanel({ flag }: { flag: SynapseFlag }) {
       setEpisodes(data);
       setEpisodesLoading(false);
     });
-    // Load existing review state if any
     setReviewLoading(true);
     synapseGetReview(flag.id).then((data) => {
-      if (data && data.phase !== "idle") {
-        setReview(data);
-      }
+      if (data && data.phase !== "idle") setReview(data);
       setReviewLoading(false);
     });
   }, [flag.id, flag.session_id]);
@@ -161,7 +164,6 @@ function FlagDetailPanel({ flag }: { flag: SynapseFlag }) {
 
   const handleResolve = async () => {
     await synapseResolveFlag(flag.id);
-    // Reload review to reflect status update
     const state = await synapseGetReview(flag.id);
     if (state) setReview(state);
   };
@@ -180,18 +182,12 @@ function FlagDetailPanel({ flag }: { flag: SynapseFlag }) {
         </div>
         {flag.expected_answer && (
           <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2">
-            <span className="font-medium text-slate-600 dark:text-slate-300">Oczekiwana odpowiedź: </span>
+            <span className="font-medium text-slate-600 dark:text-slate-300">Expected answer: </span>
             {flag.expected_answer}
           </p>
         )}
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <span>{formatDate(flag.flagged_at)}</span>
-          {flag.session_name && (
-            <>
-              <span>·</span>
-              <span>{flag.session_name}</span>
-            </>
-          )}
           {flag.domain_id && (
             <Badge variant="outline" className="text-[10px] px-1.5 py-0">
               {flag.domain_id}
@@ -204,20 +200,20 @@ function FlagDetailPanel({ flag }: { flag: SynapseFlag }) {
       <div className="flex-1 grid grid-cols-2 gap-4 min-h-0 overflow-hidden">
         {/* LEFT: Original conversation */}
         <div className="flex flex-col min-h-0">
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 flex-shrink-0">
-            Oryginalna rozmowa
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 flex-shrink-0 uppercase tracking-wide">
+            Original conversation
           </p>
           {episodesLoading ? (
             <div className="flex items-center justify-center flex-1">
               <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
             </div>
           ) : episodes.length === 0 ? (
-            <p className="text-xs text-slate-400 text-center py-4">Brak odcinków</p>
+            <p className="text-xs text-slate-400 text-center py-4">No episodes found</p>
           ) : (
             <ScrollArea className="flex-1">
-              <div className="space-y-2 pr-2">
-                {episodes.map((ep, i) => (
-                  <EpisodeBubble key={i} episode={ep} />
+              <div className="space-y-4 pr-2">
+                {episodes.map((ep) => (
+                  <EpisodePair key={ep.id} episode={ep} />
                 ))}
               </div>
             </ScrollArea>
@@ -227,7 +223,7 @@ function FlagDetailPanel({ flag }: { flag: SynapseFlag }) {
         {/* RIGHT: AI Review */}
         <div className="flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-2 flex-shrink-0">
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
               AI Review
             </p>
             {!reviewActive && !reviewLoading && (
@@ -237,7 +233,7 @@ function FlagDetailPanel({ flag }: { flag: SynapseFlag }) {
                 className="h-7 text-xs"
                 onClick={handleStartReview}
               >
-                Rozpocznij AI Review
+                Start AI Review
               </Button>
             )}
           </div>
@@ -248,15 +244,12 @@ function FlagDetailPanel({ flag }: { flag: SynapseFlag }) {
             </div>
           ) : !reviewActive ? (
             <div className="flex-1 flex items-center justify-center text-slate-400">
-              <p className="text-xs text-center">Kliknij &quot;Rozpocznij AI Review&quot; aby uruchomić</p>
+              <p className="text-xs text-center">Click &quot;Start AI Review&quot; to begin</p>
             </div>
           ) : (
             <div className="flex flex-col flex-1 min-h-0 gap-2">
               {/* Chatbot history */}
-              <div
-                ref={chatScrollRef}
-                className="flex-1 overflow-y-auto space-y-2 pr-1"
-              >
+              <div ref={chatScrollRef} className="flex-1 overflow-y-auto space-y-2 pr-1">
                 {(review.chatbot ?? []).map((msg, i) => (
                   <ReviewChatBubble key={i} msg={msg} />
                 ))}
@@ -288,7 +281,7 @@ function FlagDetailPanel({ flag }: { flag: SynapseFlag }) {
                       disabled={actionLoading}
                       onClick={() => handleAction("accept_plan")}
                     >
-                      {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "✅ Akceptuj plan"}
+                      {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "✅ Accept plan"}
                     </Button>
                     <Button
                       size="sm"
@@ -297,7 +290,7 @@ function FlagDetailPanel({ flag }: { flag: SynapseFlag }) {
                       disabled={actionLoading}
                       onClick={() => handleAction("reject_plan")}
                     >
-                      ❌ Odrzuć plan
+                      ❌ Reject plan
                     </Button>
                   </div>
                 )}
@@ -310,7 +303,7 @@ function FlagDetailPanel({ flag }: { flag: SynapseFlag }) {
                       disabled={actionLoading}
                       onClick={() => handleAction("confirm_edit")}
                     >
-                      {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "✅ Potwierdź edycję"}
+                      {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "✅ Confirm edit"}
                     </Button>
                     <Button
                       size="sm"
@@ -319,7 +312,7 @@ function FlagDetailPanel({ flag }: { flag: SynapseFlag }) {
                       disabled={actionLoading}
                       onClick={() => handleAction("skip_edit")}
                     >
-                      ⏭ Pomiń
+                      ⏭ Skip
                     </Button>
                   </div>
                 )}
@@ -331,11 +324,11 @@ function FlagDetailPanel({ flag }: { flag: SynapseFlag }) {
                     disabled={actionLoading || flag.status === "resolved"}
                     onClick={handleResolve}
                   >
-                    {flag.status === "resolved" ? "✓ Oznaczono jako rozwiązane" : "Oznacz jako rozwiązane"}
+                    {flag.status === "resolved" ? "✓ Marked as resolved" : "Mark as resolved"}
                   </Button>
                 )}
 
-                {/* Send message input — visible when review active */}
+                {/* Send message — always visible when review is active */}
                 <div className="flex gap-2">
                   <Input
                     value={messageInput}
@@ -346,7 +339,7 @@ function FlagDetailPanel({ flag }: { flag: SynapseFlag }) {
                         handleSendMessage();
                       }
                     }}
-                    placeholder="Wyślij wiadomość..."
+                    placeholder="Send a message..."
                     className="h-8 text-xs"
                     disabled={actionLoading}
                   />
@@ -356,7 +349,7 @@ function FlagDetailPanel({ flag }: { flag: SynapseFlag }) {
                     disabled={actionLoading || !messageInput.trim()}
                     onClick={handleSendMessage}
                   >
-                    {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Wyślij"}
+                    {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Send"}
                   </Button>
                 </div>
               </div>
@@ -386,38 +379,43 @@ export function SynapseReviews() {
     loadFlags();
   }, [loadFlags]);
 
-  const cycleFilter = () => {
-    setFilterStatus((prev) =>
-      prev === "all" ? "open" : prev === "open" ? "resolved" : "all"
-    );
-  };
+  const filterLabel = filterStatus === "all" ? "All" : filterStatus === "open" ? "Open" : "Resolved";
 
   return (
     <div className="flex h-[calc(100vh-140px)] gap-4">
       {/* LEFT: Flag list */}
       <div className="w-80 flex-shrink-0 flex flex-col">
-        {/* Toolbar */}
         <div className="flex items-center gap-2 mb-3">
           <Button
             size="sm"
             variant={filterStatus !== "all" ? "default" : "outline"}
             className="h-8 px-2"
-            onClick={cycleFilter}
+            onClick={() =>
+              setFilterStatus((prev) =>
+                prev === "all" ? "open" : prev === "open" ? "resolved" : "all"
+              )
+            }
           >
             <Filter className="w-3.5 h-3.5 mr-1" />
-            <span className="text-xs capitalize">{filterStatus === "all" ? "Wszystkie" : filterStatus === "open" ? "Otwarte" : "Rozwiązane"}</span>
+            <span className="text-xs">{filterLabel}</span>
           </Button>
-          <span className="text-xs text-slate-400 ml-auto">{flags.length} zgłoszeń</span>
+          <span className="text-xs text-slate-400 ml-auto">{flags.length} flags</span>
+          <button
+            onClick={loadFlags}
+            className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
+          </button>
         </div>
 
-        {/* List */}
         <ScrollArea className="flex-1 -mx-1 px-1">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
             </div>
           ) : flags.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-12">Brak zgłoszeń</p>
+            <p className="text-sm text-slate-400 text-center py-12">No flags found</p>
           ) : (
             <div className="space-y-1.5">
               {flags.map((f) => (
@@ -460,7 +458,7 @@ export function SynapseReviews() {
           <div className="h-full flex items-center justify-center text-slate-400">
             <div className="text-center">
               <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">Wybierz zgłoszenie, aby zobaczyć szczegóły</p>
+              <p className="text-sm">Select a flag to view details</p>
             </div>
           </div>
         ) : (
@@ -471,7 +469,6 @@ export function SynapseReviews() {
   );
 }
 
-// Backward-compat alias used by page.tsx
 export function ExpertReview() {
   return <SynapseReviews />;
 }

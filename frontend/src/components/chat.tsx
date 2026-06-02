@@ -22,10 +22,12 @@ import {
   ThumbsUp,
   ThumbsDown,
   AlertTriangle,
+  History,
+  X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
-import { apiUrl, authFetch, getSessionId, resetSessionId, getSessionGraphState, clearSessionGraph, type SessionGraphState, evaluateResponse, saveJudgeResults, synapseUrl, synapseFlagSession } from "@/lib/api";
+import { apiUrl, authFetch, getSessionId, resetSessionId, getSessionGraphState, clearSessionGraph, type SessionGraphState, evaluateResponse, saveJudgeResults, synapseUrl, synapseFlagSession, synapseListSessions, synapseGetEpisodes, type SynapseSession } from "@/lib/api";
 import { getUserRole } from "@/lib/auth";
 import SessionGraphViewer from "./session-graph-viewer";
 import { Widget, BotResponse } from "./chat-widgets";
@@ -65,6 +67,14 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   widgets?: Widget[];
+  // Synapse reasoning metadata (from SSE answer event)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  playbookCollected?: Record<string, any>;
+  stepsT?: number;
+  elapsedS?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  actionsLog?: any[];
+  timedOut?: boolean;
   // Dev mode metadata
   graphPaths?: string[];
   promptPreview?: string;
@@ -526,6 +536,13 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const [sessionGraphState, setSessionGraphState] = useState<SessionGraphState | null>(null);
   const [showSessionGraph, setShowSessionGraph] = useState(false);
   const [synapseSessionId, setSynapseSessionId] = useState<string | null>(null);
+  // Playbook-compatible history: [{question, answer, playbook_collected}]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [playbookHistory, setPlaybookHistory] = useState<Record<string, any>[]>([]);
+  // Session history panel
+  const [sessionHistoryOpen, setSessionHistoryOpen] = useState(false);
+  const [sessionList, setSessionList] = useState<SynapseSession[]>([]);
+  const [sessionListLoading, setSessionListLoading] = useState(false);
   // Flag modal state
   const [flagModalOpen, setFlagModalOpen] = useState(false);
   const [flagReason, setFlagReason] = useState("");
@@ -600,8 +617,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     const userMessage = override || input.trim();
     if (!userMessage || isLoading) return;
 
-    // Build chat history from current messages before appending the new one
-    const chatHistory = messages.map((m) => ({ role: m.role, content: m.content }));
+    // Snapshot playbook-compatible history before this turn
+    const currentPlaybookHistory = playbookHistory;
 
     if (!override) {
       setInput("");
@@ -623,7 +640,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         body: JSON.stringify({
           question: userMessage,
           session_id: synapseSessionId ?? undefined,
-          chat_history: chatHistory,
+          chat_history: currentPlaybookHistory,
           stream: true,
         }),
       });
@@ -634,6 +651,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       const decoder = new TextDecoder();
       const dynamicSteps: ReasoningStep[] = [];
       let answerText = "";
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let answerMeta: Record<string, any> = {};
 
       const stepTypeIcon = (type: string): string => {
         switch (type) {
@@ -682,6 +701,22 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                 if (event.session_id) {
                   setSynapseSessionId(event.session_id);
                 }
+                // Store full answer metadata for export
+                answerMeta = {
+                  playbookCollected: event.playbook_collected || {},
+                  stepsT: event.steps_taken,
+                  elapsedS: event.elapsed_seconds,
+                  actionsLog: event.actions_log || [],
+                  timedOut: event.timed_out || false,
+                };
+                setPlaybookHistory((prev) => [
+                  ...prev,
+                  {
+                    question: userMessage,
+                    answer: event.answer,
+                    playbook_collected: event.playbook_collected || {},
+                  },
+                ]);
                 setReasoningSteps(dynamicSteps.map((s) => ({ ...s, status: "done" as const })));
               }
             } catch (e) {
@@ -700,6 +735,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         {
           role: "assistant",
           content: answerText,
+          ...answerMeta,
         },
       ]);
     } catch (error) {
@@ -727,6 +763,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       setTechnicalState(null);
       setSessionGraphState(null);
       setSynapseSessionId(null);
+      setPlaybookHistory([]);
       // Generate a fresh session ID so no stale Layer 4 state can leak
       resetSessionId();
       console.log("🔓 Session fully reset (state + ID)");
@@ -745,7 +782,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     if (messages.length === 0) return;
 
     const exported = {
-      session_id: getSessionId(),
+      session_id: synapseSessionId || getSessionId(),
       exported_at: new Date().toISOString(),
       chat_mode: "graph-reasoning",
       session_graph: sessionGraphState || null,
@@ -758,9 +795,17 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           content: msg.content,
         };
 
-        // Assistant-specific data
         if (msg.role === "assistant") {
-          // Deep Explainable data (reasoning steps, product cards, etc.)
+          // Synapse reasoning metadata
+          if (msg.playbookCollected && Object.keys(msg.playbookCollected).length > 0) {
+            turn.playbook_collected = msg.playbookCollected;
+          }
+          if (msg.stepsT !== undefined) turn.steps_taken = msg.stepsT;
+          if (msg.elapsedS !== undefined) turn.elapsed_seconds = msg.elapsedS;
+          if (msg.timedOut) turn.timed_out = true;
+          if (msg.actionsLog && msg.actionsLog.length > 0) turn.actions_log = msg.actionsLog;
+
+          // Deep Explainable data
           if (msg.deepExplainableData) {
             const d = msg.deepExplainableData;
             turn.reasoning_steps = d.reasoning_summary?.map(s => ({
@@ -779,7 +824,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             turn.timings = d.timings || null;
           }
 
-          // Widgets (action proposals, safety guards, etc.)
+          // Widgets
           if (msg.widgets && msg.widgets.length > 0) {
             turn.widgets = msg.widgets;
           }
@@ -796,6 +841,35 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     a.download = `conversation-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const loadSessionList = async () => {
+    setSessionListLoading(true);
+    try {
+      const sessions = await synapseListSessions(30);
+      setSessionList(sessions);
+    } catch {
+      setSessionList([]);
+    } finally {
+      setSessionListLoading(false);
+    }
+  };
+
+  const loadSession = async (session: SynapseSession) => {
+    const eps = await synapseGetEpisodes(session.session_id);
+    const msgs: Message[] = eps.flatMap(ep => [
+      { role: "user" as const, content: ep.question },
+      { role: "assistant" as const, content: ep.answer },
+    ]);
+    setMessages(msgs);
+    setSynapseSessionId(session.session_id);
+    // Reconstruct playbook history from episodes so multi-turn context is preserved
+    setPlaybookHistory(eps.map(ep => ({
+      question: ep.question,
+      answer: ep.answer,
+      playbook_collected: {},
+    })));
+    setSessionHistoryOpen(false);
   };
 
   // Test function to inject mock widget response
@@ -1226,7 +1300,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                         onClick={() => setFlagModalOpen(true)}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-800 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                       >
-                        🚩 Zgłoś
+                        🚩 Flag
                       </button>
                     </div>
                   )}
@@ -1345,6 +1419,39 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         </div>
       )}
 
+      {/* Session History Panel */}
+      {sessionHistoryOpen && (
+        <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 max-h-64 overflow-y-auto">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-800">
+            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Session history</span>
+            <button onClick={() => setSessionHistoryOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          {sessionListLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+            </div>
+          ) : sessionList.length === 0 ? (
+            <p className="text-xs text-slate-400 text-center py-6">No sessions found</p>
+          ) : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {sessionList.map(s => (
+                <li key={s.session_id}>
+                  <button
+                    onClick={() => loadSession(s)}
+                    className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{s.name || s.session_id}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{s.domain} · {s.episode_count} turn{s.episode_count !== 1 ? "s" : ""} · {new Date(s.started_at).toLocaleDateString("en-GB")}</p>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* Input */}
       <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
         {/* Dev Mode: Sample Questions - Collapsible Dropdowns */}
@@ -1366,6 +1473,17 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
             className="flex-1 px-4 py-3 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600 dark:focus:border-green-600 placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:text-slate-100"
             disabled={isLoading}
           />
+          <Button
+            onClick={() => {
+              setSessionHistoryOpen(o => !o);
+              if (!sessionHistoryOpen) loadSessionList();
+            }}
+            variant="outline"
+            className="h-[42px] w-[42px] p-0 flex-shrink-0 rounded-xl border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600"
+            title="Session history"
+          >
+            <History className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+          </Button>
           {messages.length > 0 && (
             <Button
               onClick={exportConversation}
@@ -1405,31 +1523,31 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-md mx-4">
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-4">
-              🚩 Zgłoś odpowiedź
+              🚩 Flag this response
             </h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                  Powód zgłoszenia
+                  Reason
                 </label>
                 <textarea
                   value={flagReason}
                   onChange={(e) => setFlagReason(e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 dark:text-slate-100"
-                  placeholder="Opisz co jest nieprawidłowe..."
+                  placeholder="What was wrong with the response?"
                 />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                  Oczekiwana odpowiedź
+                  Expected answer
                 </label>
                 <textarea
                   value={flagExpected}
                   onChange={(e) => setFlagExpected(e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 dark:text-slate-100"
-                  placeholder="Jak powinna brzmieć poprawna odpowiedź?"
+                  placeholder="What should the correct answer have been?"
                 />
               </div>
             </div>
@@ -1442,7 +1560,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                 }}
                 className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
               >
-                Anuluj
+                Cancel
               </button>
               <button
                 disabled={flagSubmitting || !flagReason.trim()}
@@ -1463,7 +1581,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                 {flagSubmitting ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : null}
-                Wyślij zgłoszenie
+                Submit flag
               </button>
             </div>
           </div>

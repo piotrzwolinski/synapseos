@@ -391,9 +391,19 @@ export interface SynapseSession {
 }
 
 export interface SynapseEpisode {
-  role: "user" | "assistant";
-  content: string;
+  id: number;
+  session_id: string;
+  question: string;
+  answer: string;
   created_at: string;
+  steps_taken?: number;
+  elapsed_seconds?: number;
+}
+
+export async function synapseListSessions(limit = 30): Promise<SynapseSession[]> {
+  const res = await fetch(synapseUrl(`/sessions?limit=${limit}`));
+  if (!res.ok) return [];
+  return res.json();
 }
 
 export interface SynapseFlag {
