@@ -83,7 +83,7 @@ class SessionGraphManager:
         """Create or update a Session node."""
         self._run_write("""
             MERGE (s:Session {id: $session_id})
-            SET s.user_id = $user_id,
+            SET s.user_id = CASE WHEN $user_id <> 'default' THEN $user_id ELSE COALESCE(s.user_id, $user_id) END,
                 s.last_active = timestamp(),
                 s.created_at = COALESCE(s.created_at, timestamp())
         """, {"session_id": session_id, "user_id": user_id})
@@ -309,6 +309,9 @@ class SessionGraphManager:
             "message": message[:2000],
             "turn_number": turn_number,
         })
+        # Set session title from first user message (set-once via COALESCE)
+        if role == "user" and turn_number == 1:
+            self.set_session_title(session_id, message[:120])
 
     def get_recent_turns(self, session_id: str, n: int = 3) -> list[dict]:
         """Retrieve the last N conversation turns for a session.
@@ -885,3 +888,279 @@ class SessionGraphManager:
             "nodes": nodes,
             "relationships": relationships,
         }
+
+    # =========================================================================
+    # FEEDBACK MODULE — session title, reasoning persistence, comments
+    # =========================================================================
+
+    # Guard: persisted reasoning JSON size cap. Gives room for a rich turn
+    # (product_cards + reasoning_summary + content_segments) while preventing
+    # a runaway payload from bloating the graph.
+    MAX_REASONING_BYTES = 512_000
+
+    def set_session_title(self, session_id: str, title: str) -> None:
+        """Set-once session title (for Feedback panel list display)."""
+        self._run_write("""
+            MERGE (s:Session {id: $session_id})
+            SET s.title = COALESCE(s.title, $title)
+        """, {"session_id": session_id, "title": title[:120]})
+
+    def store_turn_reasoning(self, session_id: str, turn_number: int,
+                             reasoning_data: dict) -> bool:
+        """Persist the assistant turn's full deepExplainableData as JSON.
+
+        Returns True if stored, False if the session/turn does not exist
+        or the payload was oversized (logged as a warning).
+        """
+        import json
+        try:
+            payload = json.dumps(reasoning_data, ensure_ascii=False, default=str)
+        except (TypeError, ValueError) as exc:
+            logger.warning(f"Reasoning payload not JSON-serializable for "
+                           f"session={session_id} turn={turn_number}: {exc}")
+            return False
+
+        if len(payload) > self.MAX_REASONING_BYTES:
+            logger.warning(f"Reasoning payload oversized "
+                           f"({len(payload)} > {self.MAX_REASONING_BYTES}) "
+                           f"for session={session_id} turn={turn_number}; skipping")
+            return False
+
+        turn_id = f"TURN_{session_id}_{turn_number}_assistant"
+        self._run_write("""
+            MATCH (ct:ConversationTurn {id: $turn_id})
+            SET ct.reasoning_data = $payload
+        """, {"turn_id": turn_id, "payload": payload})
+        return True
+
+    def get_session_owner(self, session_id: str) -> tuple[bool, Optional[str]]:
+        """Return (exists, user_id). user_id may be None on pre-auth sessions."""
+        result = self._run_query(
+            "MATCH (s:Session {id: $id}) RETURN s.user_id AS uid",
+            {"id": session_id},
+        )
+        if not result:
+            return (False, None)
+        return (True, result[0].get("uid"))
+
+    def list_sessions(self, user_id: Optional[str], limit: int = 50,
+                      offset: int = 0) -> dict:
+        """List sessions for the feedback panel.
+
+        If user_id is None, returns all sessions (admin view).
+        Otherwise filters to that user's sessions.
+        """
+        params = {"limit": limit, "offset": offset}
+        user_filter = ""
+        if user_id is not None:
+            user_filter = "WHERE s.user_id = $user_id"
+            params["user_id"] = user_id
+
+        total_query = f"""
+            MATCH (s:Session)
+            {user_filter}
+            RETURN count(s) AS total
+        """
+        total_result = self._run_query(total_query, params)
+        total = total_result[0]["total"] if total_result else 0
+
+        list_query = f"""
+            MATCH (s:Session)
+            {user_filter}
+            OPTIONAL MATCH (s)-[:WORKING_ON]->(p:ActiveProject)
+            OPTIONAL MATCH (p)-[:HAS_TURN]->(ct:ConversationTurn)
+            OPTIONAL MATCH (s)-[:HAS_COMMENT]->(uc:UserComment)
+            WITH s,
+                 count(DISTINCT ct) AS turn_count,
+                 count(DISTINCT uc) AS comment_count
+            RETURN s.id AS session_id,
+                   s.user_id AS user_id,
+                   s.title AS title,
+                   s.created_at AS created_at,
+                   s.last_active AS last_active,
+                   s.rating AS rating,
+                   turn_count,
+                   comment_count
+            ORDER BY s.last_active DESC
+            SKIP $offset LIMIT $limit
+        """
+        items = self._run_query(list_query, params)
+        return {"items": items, "total": total}
+
+    def get_session_replay(self, session_id: str) -> Optional[dict]:
+        """Assemble the full SessionReplay payload: session + project + turns + comments.
+
+        Returns None if the session doesn't exist.
+        """
+        import json
+
+        session_result = self._run_query("""
+            MATCH (s:Session {id: $sid})
+            OPTIONAL MATCH (s)-[:WORKING_ON]->(p:ActiveProject)
+            RETURN s.id AS session_id,
+                   s.user_id AS user_id,
+                   s.title AS title,
+                   s.rating AS rating,
+                   p.name AS project_name,
+                   p.customer AS project_customer,
+                   p.locked_material AS locked_material,
+                   p.detected_family AS detected_family
+        """, {"sid": session_id})
+
+        if not session_result:
+            return None
+
+        row = session_result[0]
+        project = None
+        if any(row.get(k) for k in ("project_name", "project_customer",
+                                     "locked_material", "detected_family")):
+            project = {
+                "name": row.get("project_name"),
+                "customer": row.get("project_customer"),
+                "locked_material": row.get("locked_material"),
+                "detected_family": row.get("detected_family"),
+            }
+
+        turns_result = self._run_query("""
+            MATCH (s:Session {id: $sid})-[:WORKING_ON]->(p:ActiveProject)-[:HAS_TURN]->(ct:ConversationTurn)
+            RETURN ct.role AS role,
+                   ct.message AS message,
+                   ct.turn_number AS turn_number,
+                   ct.created_at AS created_at,
+                   ct.reasoning_data AS reasoning_data
+            ORDER BY ct.turn_number ASC, ct.role ASC
+        """, {"sid": session_id})
+
+        turns = []
+        for t in turns_result:
+            raw_reasoning = t.get("reasoning_data")
+            reasoning_parsed = None
+            if raw_reasoning:
+                try:
+                    reasoning_parsed = json.loads(raw_reasoning)
+                except (TypeError, ValueError) as exc:
+                    logger.warning(f"Failed to decode reasoning_data for "
+                                   f"session={session_id} turn={t.get('turn_number')}: {exc}")
+            turns.append({
+                "turn_number": t.get("turn_number"),
+                "role": t.get("role"),
+                "message": t.get("message") or "",
+                "created_at": t.get("created_at"),
+                "reasoning_data": reasoning_parsed,
+            })
+
+        comments = self.list_comments(session_id)
+
+        graph_state = None
+        try:
+            state = self.get_project_state(session_id)
+            reasoning_paths = self.get_reasoning_path(session_id)
+            if state is not None:
+                state["reasoning_paths"] = reasoning_paths
+                graph_state = state
+        except Exception as exc:
+            logger.warning(f"Could not load session_graph_state for replay: {exc}")
+
+        return {
+            "session_id": row.get("session_id") or session_id,
+            "user_id": row.get("user_id"),
+            "title": row.get("title"),
+            "rating": row.get("rating"),
+            "project": project,
+            "turns": turns,
+            "comments": comments,
+            "session_graph_state": graph_state,
+        }
+
+    def add_comment(self, session_id: str, author: str, text: str) -> dict:
+        """Create a UserComment attached to the session. Returns the new comment dict."""
+        import uuid
+        comment_id = f"UCMT_{uuid.uuid4().hex}"
+        result = self._run_query("""
+            MERGE (s:Session {id: $session_id})
+            SET s.last_active = timestamp()
+            CREATE (uc:UserComment {
+                id: $comment_id,
+                session_id: $session_id,
+                author: $author,
+                text: $text,
+                created_at: timestamp()
+            })
+            CREATE (s)-[:HAS_COMMENT]->(uc)
+            RETURN uc.id AS id,
+                   uc.session_id AS session_id,
+                   uc.author AS author,
+                   uc.text AS text,
+                   uc.created_at AS created_at
+        """, {
+            "session_id": session_id,
+            "comment_id": comment_id,
+            "author": author,
+            "text": text[:4000],
+        })
+        if not result:
+            raise RuntimeError("Comment creation returned no rows")
+        return result[0]
+
+    def list_comments(self, session_id: str) -> list[dict]:
+        """Return all comments on a session, oldest first."""
+        return self._run_query("""
+            MATCH (:Session {id: $sid})-[:HAS_COMMENT]->(uc:UserComment)
+            RETURN uc.id AS id,
+                   uc.session_id AS session_id,
+                   uc.author AS author,
+                   uc.text AS text,
+                   uc.created_at AS created_at
+            ORDER BY uc.created_at ASC
+        """, {"sid": session_id})
+
+    def delete_comment(self, comment_id: str, requester: str,
+                       is_admin: bool) -> bool:
+        """Delete a comment. Only the author or an admin may delete.
+
+        Returns True if a comment was deleted, False if not found or not authorized.
+        """
+        existing = self._run_query(
+            "MATCH (uc:UserComment {id: $id}) RETURN uc.author AS author",
+            {"id": comment_id},
+        )
+        if not existing:
+            return False
+        author = existing[0].get("author")
+        if not is_admin and author != requester:
+            return False
+        self._run_write(
+            "MATCH (uc:UserComment {id: $id}) DETACH DELETE uc",
+            {"id": comment_id},
+        )
+        return True
+
+    def get_session_rating(self, session_id: str) -> Optional[int]:
+        """Return the 1–5 rating for a session, or None if not rated."""
+        result = self._run_query(
+            "MATCH (s:Session {id: $sid}) RETURN s.rating AS rating",
+            {"sid": session_id},
+        )
+        if not result:
+            return None
+        raw = result[0].get("rating")
+        return int(raw) if raw is not None else None
+
+    def set_session_rating(self, session_id: str, rating: Optional[int]) -> Optional[int]:
+        """Set or clear the 1–5 rating for a session. `None` clears it."""
+        if rating is not None:
+            if not isinstance(rating, int) or rating < 1 or rating > 5:
+                raise ValueError("rating must be an integer between 1 and 5, or null")
+        if rating is None:
+            self._run_write("""
+                MERGE (s:Session {id: $sid})
+                REMOVE s.rating
+                SET s.last_active = timestamp()
+            """, {"sid": session_id})
+            return None
+        self._run_write("""
+            MERGE (s:Session {id: $sid})
+            SET s.rating = $rating,
+                s.last_active = timestamp()
+        """, {"sid": session_id, "rating": rating})
+        return rating

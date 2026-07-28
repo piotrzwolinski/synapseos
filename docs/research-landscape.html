@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SynapseOS Research Landscape</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0c;
+  --surface: #111114;
+  --surface-2: #18181c;
+  --border: #252530;
+  --border-glow: #2a2a3a;
+  --text: #e8e8ed;
+  --text-dim: #7a7a8a;
+  --text-muted: #4a4a5a;
+  --accent: #6366f1;
+  --accent-dim: #4f46e5;
+  --green: #22c55e;
+  --green-dim: #16a34a;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --cyan: #06b6d4;
+  --pink: #ec4899;
+  --tier1: #6366f1;
+  --tier2: #06b6d4;
+  --tier3: #7a7a8a;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 300;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.noise {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+/* HERO */
+header {
+  padding: 100px 0 60px;
+  position: relative;
+  overflow: hidden;
+}
+
+header::before {
+  content: '';
+  position: absolute;
+  top: -200px; right: -200px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.eyebrow {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 24px;
+  opacity: 0;
+  animation: fadeUp 0.6s ease forwards;
+}
+
+h1 {
+  font-family: 'Instrument Serif', serif;
+  font-size: clamp(42px, 6vw, 72px);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  margin-bottom: 24px;
+  opacity: 0;
+  animation: fadeUp 0.6s ease 0.1s forwards;
+}
+
+h1 em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.subtitle {
+  font-size: 18px;
+  color: var(--text-dim);
+  max-width: 640px;
+  opacity: 0;
+  animation: fadeUp 0.6s ease 0.2s forwards;
+}
+
+/* CONTEXT BANNER */
+.context-banner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px 40px;
+  margin-bottom: 80px;
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  animation: fadeUp 0.6s ease 0.3s forwards;
+}
+
+.context-banner::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(to bottom, var(--amber), var(--green));
+}
+
+.context-banner h3 {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 16px;
+}
+
+.context-banner .decisions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.decision {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.decision .icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.decision .icon.fix { background: rgba(239,68,68,0.15); color: var(--red); }
+.decision .icon.build { background: rgba(34,197,94,0.15); color: var(--green); }
+.decision .icon.plan { background: rgba(99,102,241,0.15); color: var(--accent); }
+
+.decision p {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.decision strong {
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* SECTION */
+section {
+  margin-bottom: 80px;
+}
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 40px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-number {
+  font-family: 'Instrument Serif', serif;
+  font-size: 48px;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.section-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+/* REPO CARDS */
+.repo-grid {
+  display: grid;
+  gap: 1px;
+  background: var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 32px;
+}
+
+.repo-card {
+  background: var(--surface);
+  padding: 28px 32px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: start;
+  transition: background 0.2s ease;
+}
+
+.repo-card:hover {
+  background: var(--surface-2);
+}
+
+.repo-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.repo-name a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  transition: border-color 0.2s;
+}
+
+.repo-name a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.repo-desc {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  max-width: 600px;
+}
+
+.repo-why {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+}
+
+.repo-why strong {
+  color: var(--cyan);
+  font-weight: 400;
+}
+
+.tier-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+  align-self: start;
+}
+
+.tier-badge.t1 { background: rgba(99,102,241,0.12); color: var(--tier1); border: 1px solid rgba(99,102,241,0.2); }
+.tier-badge.t2 { background: rgba(6,182,212,0.12); color: var(--tier2); border: 1px solid rgba(6,182,212,0.2); }
+.tier-badge.t3 { background: rgba(122,122,138,0.12); color: var(--tier3); border: 1px solid rgba(122,122,138,0.2); }
+
+.venue-badge {
+  display: inline-block;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: rgba(236,72,153,0.1);
+  color: var(--pink);
+  border: 1px solid rgba(236,72,153,0.2);
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* PAPER CARDS */
+.paper-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.paper-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px 32px;
+  transition: border-color 0.2s, transform 0.2s;
+  position: relative;
+}
+
+.paper-card:hover {
+  border-color: var(--border-glow);
+  transform: translateY(-1px);
+}
+
+.paper-card.highlight {
+  border-color: rgba(99,102,241,0.3);
+}
+
+.paper-card.highlight::before {
+  content: 'CLOSEST TO US';
+  position: absolute;
+  top: -1px; right: 24px;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  background: var(--accent);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 0 0 6px 6px;
+}
+
+.paper-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.paper-title a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.paper-title a:hover {
+  color: var(--accent);
+}
+
+.paper-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.paper-body {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+.gap-tag {
+  display: inline-block;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-right: 6px;
+  margin-bottom: 4px;
+}
+
+.gap-tag.has { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.15); }
+.gap-tag.missing { background: rgba(239,68,68,0.08); color: var(--red); border: 1px solid rgba(239,68,68,0.12); }
+
+/* MOAT SECTION */
+.moat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+.moat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.moat-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(to right, var(--accent), var(--cyan));
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.moat-card:hover::after {
+  opacity: 1;
+}
+
+.moat-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.moat-title {
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.moat-desc {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.moat-status {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  margin-top: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.moat-status.unique { background: rgba(34,197,94,0.1); color: var(--green); }
+.moat-status.partial { background: rgba(245,158,11,0.1); color: var(--amber); }
+
+/* COMPARISON TABLE */
+.comparison-wrap {
+  overflow-x: auto;
+  margin-bottom: 40px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead {
+  position: sticky;
+  top: 0;
+}
+
+th {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: left;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+th:last-child {
+  color: var(--accent);
+}
+
+td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  vertical-align: top;
+}
+
+td:last-child {
+  color: var(--text);
+  font-weight: 400;
+}
+
+tr:hover td {
+  background: rgba(255,255,255,0.01);
+}
+
+.cell-yes { color: var(--green); }
+.cell-no { color: var(--text-muted); }
+.cell-partial { color: var(--amber); }
+
+/* PIPELINE VIZ */
+.pipeline {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 40px;
+  margin-bottom: 40px;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  line-height: 2;
+  color: var(--text-dim);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.pipeline .node { color: var(--cyan); }
+.pipeline .edge { color: var(--text-muted); }
+.pipeline .label { color: var(--accent); }
+.pipeline .warn { color: var(--amber); }
+.pipeline .ok { color: var(--green); }
+.pipeline .comment { color: var(--text-muted); font-style: italic; }
+
+/* FOOTER */
+footer {
+  padding: 60px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+}
+
+.footer-col h4 {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.footer-col p, .footer-col li {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.footer-col ul {
+  list-style: none;
+}
+
+.footer-col li::before {
+  content: '>';
+  color: var(--text-muted);
+  margin-right: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+}
+
+.timestamp {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 40px;
+}
+
+/* ANIMATIONS */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  opacity: 0;
+  animation: fadeUp 0.5s ease forwards;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .container { padding: 0 20px; }
+  header { padding: 60px 0 40px; }
+  .context-banner { padding: 24px; }
+  .repo-card { grid-template-columns: 1fr; }
+  .footer-grid { grid-template-columns: 1fr; }
+  .moat-grid { grid-template-columns: 1fr; }
+  .pipeline { padding: 20px; font-size: 11px; }
+}
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<header>
+  <div class="container">
+    <div class="eyebrow">SynapseOS Internal Research Brief</div>
+    <h1>Graph Reasoning &amp;<br><em>Knowledge Augmentation</em></h1>
+    <p class="subtitle">Research landscape for the Wacker chemical product finder. Repos, papers, and architecture decisions mapped to our self-densifying knowledge graph.</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- CONTEXT FROM CALL -->
+  <div class="context-banner">
+    <h3>From the 2026-04-02 Internal Call</h3>
+    <div class="decisions">
+      <div class="decision">
+        <div class="icon fix">!</div>
+        <p><strong>Multi-hop bug:</strong> LLM couldn't find viscosity for BS 1042/1052. Too many hops: Product &rarr; Property &rarr; Value. Flatten to 0-1 hop.</p>
+      </div>
+      <div class="decision">
+        <div class="icon build">+</div>
+        <p><strong>Wacker 2 init:</strong> Marcin re-initializes ontology with flat schema. Properties directly on products. Due before 2026-04-08.</p>
+      </div>
+      <div class="decision">
+        <div class="icon plan">&rarr;</div>
+        <p><strong>Review UI context:</strong> Isolated nodes meaningless to experts. Show full triples grouped by source document/conversation.</p>
+      </div>
+      <div class="decision">
+        <div class="icon plan">&rarr;</div>
+        <p><strong>ReAct vs Deterministic:</strong> Hybrid approach. Deterministic for safety-critical (gates/veto). ReAct for exploratory/comparative queries.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: GRAPH REASONING REPOS -->
+  <section>
+    <div class="section-header">
+      <span class="section-number">01</span>
+      <span class="section-title">Graph Reasoning Repositories</span>
+    </div>
+
+    <h3 style="font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--tier1); margin-bottom: 16px;">Tier 1 &mdash; Production-Applicable</h3>
+    <div class="repo-grid" style="margin-bottom: 32px;">
+      <div class="repo-card">
+        <div>
+          <div class="repo-name"><a href="https://github.com/RManLuo/reasoning-on-graphs" target="_blank">RManLuo/reasoning-on-graphs</a> <span class="venue-badge">ICLR 2024</span></div>
+          <div class="repo-desc">Planning &rarr; Retrieval &rarr; Reasoning. LLM plans path, retriever extracts faithful paths from KG, LLM reasons on retrieved paths only.</div>
+          <div class="repo-why"><strong>Our exact pattern.</strong> Deterministic traversal + LLM reasoning. Zero hallucination by design.</div>
+        </div>
+        <span class="tier-badge t1">Tier 1</span>
+      </div>
+      <div class="repo-card">
+        <div>
+          <div class="repo-name"><a href="https://github.com/RManLuo/graph-constrained-reasoning" target="_blank">RManLuo/graph-constrained-reasoning</a> <span class="venue-badge">ICML 2025</span></div>
+          <div class="repo-desc">KG-Trie constrains LLM decoding to graph paths. LLM physically cannot generate tokens outside existing KG relations. Zero hallucination by construction.</div>
+          <div class="repo-why"><strong>AI Act compliant.</strong> Fully traceable, reproducible. State-of-the-art on KGQA benchmarks.</div>
+        </div>
+        <span class="tier-badge t1">Tier 1</span>
+      </div>
+      <div class="repo-card">
+        <div>
+          <div class="repo-name"><a href="https://github.com/FalkorDB/GraphRAG-SDK" target="_blank">FalkorDB/GraphRAG-SDK</a></div>
+          <div class="repo-desc">PDF/CSV/HTML &rarr; auto-ontology &rarr; knowledge graph &rarr; query. End-to-end on FalkorDB.</div>
+          <div class="repo-why"><strong>Our database.</strong> Feed Wacker TDS, get auto-ontology. Compare with manual schema.</div>
+        </div>
+        <span class="tier-badge t1">Tier 1</span>
+      </div>
+      <div class="repo-card">
+        <div>
+          <div class="repo-name"><a href="https://github.com/microsoft/ograg2" target="_blank">microsoft/ograg2</a> <span class="venue-badge">EMNLP 2025</span></div>
+          <div class="repo-desc">Ontology-Grounded RAG with hypergraphs. +55% fact recall, +40% correctness vs baseline RAG.</div>
+          <div class="repo-why"><strong>Solves context loss.</strong> Directly addresses our multi-hop problem from the call.</div>
+        </div>
+        <span class="tier-badge t1">Tier 1</span>
+      </div>
+      <div class="repo-card">
+        <div>
+          <div class="repo-name"><a href="https://github.com/neo4j-field/text2cypher-react-agent-example" target="_blank">neo4j-field/text2cypher-react-agent-example</a></div>
+          <div class="repo-desc">ReAct agent with LangGraph + Neo4j Cypher MCP Server. Generates Cypher, queries graph, observes, iterates.</div>
+          <div class="repo-why"><strong>1-hour setup.</strong> Simplest ReAct-over-graph starter. FalkorDB Cypher compatible.</div>
+        </div>
+        <span class="tier-badge t1">Tier 1</span>
+      </div>
+    </div>
+
+    <h3 style="font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--tier2); margin-bottom: 16px;">Tier 2 &mdash; Specific Subproblems</h3>
+    <div class="repo-grid" style="margin-bottom: 32px;">
+      <div class="repo-card">
+        <div>
+          <div class="repo-name"><a href="https://github.com/YaooXu/GoG" target="_blank">YaooXu/GoG</a> <span class="venue-badge">EMNLP 2024</span></div>
+          <div class="repo-desc">Think &rarr; Search &rarr; Generate. When KG is incomplete, LLM generates missing triples and verifies them.</div>
+          <div class="repo-why"><strong>Matches our augmentation concept.</strong> Gap detection + triple generation.</div>
+        </div>
+        <span class="tier-badge t2">Tier 2</span>
+      </div>
+      <div class="repo-card">
+        <div>
+          <div class="repo-name"><a href="https://github.com/getzep/graphiti" target="_blank">getzep/graphiti</a></div>
+          <div class="repo-desc">Real-time KG with temporal tracking. Facts have validity windows. Hybrid retrieval: semantic + keyword + graph traversal.</div>
+          <div class="repo-why"><strong>TDS versioning.</strong> BS 1052 (2026) vs older versions. MCP server. Neo4j + Gemini.</div>
+        </div>
+        <span class="tier-badge t2">Tier 2</span>
+      </div>
+      <div class="repo-card">
+        <div>
+          <div class="repo-name"><a href="https://github.com/neo4j-product-examples/graphrag-contract-review" target="_blank">neo4j-product-examples/graphrag-contract-review</a></div>
+          <div class="repo-desc">4-stage pipeline: PDF &rarr; LLM extraction &rarr; KG (Neo4j) &rarr; Q&amp;A Agent (Semantic Kernel).</div>
+          <div class="repo-why"><strong>Closest architectural pattern.</strong> Replace "contracts" with "TDS" and you have our pipeline.</div>
+        </div>
+        <span class="tier-badge t2">Tier 2</span>
+      </div>
+      <div class="repo-card">
+        <div>
+          <div class="repo-name"><a href="https://github.com/snap-stanford/KGReasoning" target="_blank">snap-stanford/KGReasoning</a></div>
+          <div class="repo-desc">Multi-hop logical reasoning with BetaE, Query2Box. FOL queries on incomplete KGs. Stanford.</div>
+          <div class="repo-why"><strong>Comparative queries.</strong> "WHERE substrate=X AND pH&lt;Y" on incomplete graph.</div>
+        </div>
+        <span class="tier-badge t2">Tier 2</span>
+      </div>
+      <div class="repo-card">
+        <div>
+          <div class="repo-name"><a href="https://github.com/neo4j-labs/create-context-graph" target="_blank">neo4j-labs/create-context-graph</a></div>
+          <div class="repo-desc">CLI scaffolding with 3 memory types: short-term, long-term entity KG, reasoning memory with decision traces.</div>
+          <div class="repo-why"><strong>AI Act audit trail.</strong> Reasoning memory records why agent made each decision.</div>
+        </div>
+        <span class="tier-badge t2">Tier 2</span>
+      </div>
+    </div>
+
+    <h3 style="font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--tier3); margin-bottom: 16px;">Tier 3 &mdash; Toolkits &amp; Lists</h3>
+    <div class="repo-grid">
+      <div class="repo-card">
+        <div>
+          <div class="repo-name"><a href="https://github.com/YuxingLu613/KARMA" target="_blank">YuxingLu613/KARMA</a> <span class="venue-badge">NeurIPS 2025</span></div>
+          <div class="repo-desc">9 collaborative agents for KG enrichment: entity discovery, relation extraction, schema alignment, conflict resolution.</div>
+        </div>
+        <span class="tier-badge t3">Tier 3</span>
+      </div>
+      <div class="repo-card">
+        <div>
+          <div class="repo-name"><a href="https://github.com/fusion-jena/automatic-KG-creation-with-LLM" target="_blank">fusion-jena/automatic-KG-creation-with-LLM</a></div>
+          <div class="repo-desc">Competency questions &rarr; ontology &rarr; KG construction pipeline with 4 different LLMs.</div>
+        </div>
+        <span class="tier-badge t3">Tier 3</span>
+      </div>
+      <div class="repo-card">
+        <div>
+          <div class="repo-name"><a href="https://github.com/microsoft/graphrag" target="_blank">microsoft/graphrag</a></div>
+          <div class="repo-desc">Microsoft's main GraphRAG. Community detection, hierarchical summarization, global/local search.</div>
+        </div>
+        <span class="tier-badge t3">Tier 3</span>
+      </div>
+      <div class="repo-card">
+        <div>
+          <div class="repo-name">
+            <a href="https://github.com/RManLuo/Awesome-LLM-KG" target="_blank">Awesome-LLM-KG</a> &middot;
+            <a href="https://github.com/XiaoxinHe/Awesome-Graph-LLM" target="_blank">Awesome-Graph-LLM</a> &middot;
+            <a href="https://github.com/LIANGKE23/Awesome-Knowledge-Graph-Reasoning" target="_blank">Awesome-KG-Reasoning</a>
+          </div>
+          <div class="repo-desc">Curated paper lists covering KG+LLM, Graph+LLM, and KG Reasoning respectively. 500+ papers combined.</div>
+        </div>
+        <span class="tier-badge t3">Tier 3</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: KNOWLEDGE AUGMENTATION PAPERS -->
+  <section>
+    <div class="section-header">
+      <span class="section-number">02</span>
+      <span class="section-title">Knowledge Augmentation Papers</span>
+    </div>
+
+    <div class="paper-grid">
+      <div class="paper-card highlight">
+        <div class="paper-title"><a href="https://arxiv.org/abs/2406.17231" target="_blank">CogMG: Collaborative Augmentation Between LLM and Knowledge Graph</a></div>
+        <div class="paper-meta">
+          <span>ACL 2024</span>
+          <span>&middot;</span>
+          <span>Zhou, Chen, Liu, Zhao</span>
+        </div>
+        <div class="paper-body">LLM queries KG &rarr; gap detected &rarr; LLM decomposes missing triples &rarr; completes KG &rarr; answers. ReAct agent framework on Wikidata. Fine-tuned open-source LLM.</div>
+        <span class="gap-tag has">Gap Detection</span>
+        <span class="gap-tag has">Triple Decomposition</span>
+        <span class="gap-tag has">ReAct Agent</span>
+        <span class="gap-tag missing">No HITL</span>
+        <span class="gap-tag missing">No Provenance</span>
+        <span class="gap-tag missing">No Trust Levels</span>
+      </div>
+
+      <div class="paper-card">
+        <div class="paper-title"><a href="https://arxiv.org/abs/2502.06472" target="_blank">KARMA: Multi-Agent LLMs for Automated KG Enrichment</a></div>
+        <div class="paper-meta">
+          <span>NeurIPS 2025</span>
+          <span>&middot;</span>
+          <span>Lu et al.</span>
+          <span>&middot;</span>
+          <a href="https://github.com/YuxingLu613/KARMA" target="_blank" style="color: var(--accent); text-decoration: none;">Code</a>
+        </div>
+        <div class="paper-body">9 collaborative agents for KG enrichment. Schema alignment + conflict resolution via LLM debate. 38k new entities from 1200 PubMed articles, 83% correctness.</div>
+        <span class="gap-tag has">Multi-Agent</span>
+        <span class="gap-tag has">Schema Alignment</span>
+        <span class="gap-tag has">Conflict Resolution</span>
+        <span class="gap-tag missing">Batch Only</span>
+        <span class="gap-tag missing">No Real-Time</span>
+      </div>
+
+      <div class="paper-card">
+        <div class="paper-title"><a href="https://arxiv.org/abs/2403.09724" target="_blank">ClaimVer: Explainable Claim-Level Verification via Knowledge Graphs</a></div>
+        <div class="paper-meta">
+          <span>EMNLP 2024</span>
+        </div>
+        <div class="paper-body">Decomposes LLM response into atomic claims. Maps each to KG. Verifies. Generates explanations. This IS our Inference Extractor pattern &mdash; classifies GRAPH_FACT vs LLM_INFERENCE.</div>
+        <span class="gap-tag has">Claim Decomposition</span>
+        <span class="gap-tag has">KG Verification</span>
+        <span class="gap-tag has">Explainability</span>
+        <span class="gap-tag missing">No Enrichment</span>
+      </div>
+
+      <div class="paper-card">
+        <div class="paper-title"><a href="https://www.sciencedirect.com/science/article/pii/S030645732500086X" target="_blank">KG Validation by Integrating LLMs and Human-in-the-Loop</a></div>
+        <div class="paper-meta">
+          <span>2025</span>
+          <span>&middot;</span>
+          <span>ScienceDirect</span>
+        </div>
+        <div class="paper-body">9 validation strategies tested: fully automated &rarr; hybrid. <strong>Hybrid (LLM + expert) = best F1 (+5%)</strong> with minimal human effort. Scientifically validates our architecture choice.</div>
+        <span class="gap-tag has">HITL Validation</span>
+        <span class="gap-tag has">Strategy Comparison</span>
+        <span class="gap-tag has">Hybrid Optimal</span>
+      </div>
+
+      <div class="paper-card">
+        <div class="paper-title"><a href="https://sci-k.github.io/2025/papers/paper14.pdf" target="_blank">KONDA: LLM-based Semantic Annotation with Human-in-the-Loop</a></div>
+        <div class="paper-meta">
+          <span>2025</span>
+        </div>
+        <div class="paper-body">LLM proposes triples &rarr; user sees proposal in UI &rarr; approve/reject/edit &rarr; graph write. Closest to our review UI workflow. Web interface for non-experts.</div>
+        <span class="gap-tag has">HITL UI</span>
+        <span class="gap-tag has">Approve/Reject</span>
+        <span class="gap-tag missing">No Provenance</span>
+      </div>
+
+      <div class="paper-card">
+        <div class="paper-title"><a href="https://arxiv.org/abs/2404.14741" target="_blank">GoG: Generate-on-Graph for Incomplete KG Question Answering</a></div>
+        <div class="paper-meta">
+          <span>EMNLP 2024</span>
+          <span>&middot;</span>
+          <a href="https://github.com/YaooXu/GoG" target="_blank" style="color: var(--accent); text-decoration: none;">Code</a>
+        </div>
+        <div class="paper-body">Think &rarr; Search &rarr; Generate. When KG is incomplete, LLM generates missing triples using internal knowledge and verifies them against explored subgraph.</div>
+        <span class="gap-tag has">Gap Detection</span>
+        <span class="gap-tag has">Triple Generation</span>
+        <span class="gap-tag missing">No Persistence</span>
+        <span class="gap-tag missing">No HITL</span>
+      </div>
+
+      <div class="paper-card">
+        <div class="paper-title"><a href="https://arxiv.org/abs/2411.17388" target="_blank">GraphJudger: Can LLMs be Good Graph Judger for KG Construction?</a></div>
+        <div class="paper-meta">
+          <span>2024</span>
+        </div>
+        <div class="paper-body">LLM generates relations &rarr; fine-tuned expert LLM judges correctness &rarr; filters before graph write. LLM-as-judge alternative to human expert.</div>
+        <span class="gap-tag has">Quality Filtering</span>
+        <span class="gap-tag has">Auto-Judge</span>
+        <span class="gap-tag missing">No Human Expert</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 3: OUR MOAT -->
+  <section>
+    <div class="section-header">
+      <span class="section-number">03</span>
+      <span class="section-title">Our Competitive Moat</span>
+    </div>
+
+    <p style="font-size: 15px; color: var(--text-dim); margin-bottom: 32px; max-width: 700px;">
+      We combine 3 independent research streams that no existing system fully integrates.
+      Each paper above covers one piece. We cover all three &mdash; plus provenance and trust levels that don't exist in the literature.
+    </p>
+
+    <div class="moat-grid">
+      <div class="moat-card">
+        <div class="moat-label">Unique</div>
+        <div class="moat-title">Trust-Stratified Traversal</div>
+        <div class="moat-desc">PRODUCTION / ADVISORY / DISCOVERY modes filter graph by review_status. Production = only verified facts. Discovery = everything.</div>
+        <div class="moat-status unique">No prior work</div>
+      </div>
+      <div class="moat-card">
+        <div class="moat-label">Unique</div>
+        <div class="moat-title">Provenance Chain</div>
+        <div class="moat-desc">PDF_TDS &rarr; VERBATIM &rarr; LLM_INFERENCE &rarr; EXPERT_VERIFIED. Every fact traceable to source document with byte-level precision.</div>
+        <div class="moat-status unique">No prior work</div>
+      </div>
+      <div class="moat-card">
+        <div class="moat-label">Unique</div>
+        <div class="moat-title">Causal Chain Reasoning</div>
+        <div class="moat-desc">Stressor &rarr; Trait &rarr; Risk &rarr; Strategy chains. Not just entity lookup &mdash; physics-based causal reasoning through the graph.</div>
+        <div class="moat-status unique">No prior work</div>
+      </div>
+      <div class="moat-card">
+        <div class="moat-label">Differentiator</div>
+        <div class="moat-title">Self-Densifying Graph</div>
+        <div class="moat-desc">Each interaction makes the graph richer. LLM inferences &rarr; expert approval &rarr; new verified facts &rarr; better traversals next time.</div>
+        <div class="moat-status partial">CogMG closest (no HITL)</div>
+      </div>
+    </div>
+
+    <!-- COMPARISON TABLE -->
+    <div class="comparison-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th>CogMG</th>
+            <th>KARMA</th>
+            <th>GoG</th>
+            <th>KONDA</th>
+            <th>ClaimVer</th>
+            <th>SynapseOS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Gap Detection</td>
+            <td class="cell-yes">Yes</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-yes">Yes</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-yes">Yes</td>
+          </tr>
+          <tr>
+            <td>Triple Generation</td>
+            <td class="cell-yes">Auto</td>
+            <td class="cell-yes">Batch</td>
+            <td class="cell-yes">Auto</td>
+            <td class="cell-partial">Semi</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-yes">HITL</td>
+          </tr>
+          <tr>
+            <td>Human-in-the-Loop</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-yes">Yes</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-yes">Yes</td>
+          </tr>
+          <tr>
+            <td>Provenance Tracking</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-partial">Tagged</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-partial">Evidence</td>
+            <td class="cell-yes">Full chain</td>
+          </tr>
+          <tr>
+            <td>Trust Levels</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-yes">3 tiers</td>
+          </tr>
+          <tr>
+            <td>Causal Reasoning</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-yes">Full chains</td>
+          </tr>
+          <tr>
+            <td>Claim Classification</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-partial">Generated vs Retrieved</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-yes">Yes</td>
+            <td class="cell-yes">FACT vs INFERENCE</td>
+          </tr>
+          <tr>
+            <td>Persistence</td>
+            <td class="cell-partial">Temp</td>
+            <td class="cell-yes">Batch</td>
+            <td class="cell-no">Per-query</td>
+            <td class="cell-yes">Graph write</td>
+            <td class="cell-no">&mdash;</td>
+            <td class="cell-yes">Layer 4 + approval</td>
+          </tr>
+          <tr>
+            <td>Domain</td>
+            <td>Wikipedia</td>
+            <td>PubMed</td>
+            <td>Wikidata</td>
+            <td>Research</td>
+            <td>General</td>
+            <td><strong>Industrial TDS</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SECTION 4: SELF-DENSIFYING PIPELINE -->
+  <section>
+    <div class="section-header">
+      <span class="section-number">04</span>
+      <span class="section-title">Self-Densifying Pipeline</span>
+    </div>
+
+    <div class="pipeline"><span class="comment">// The virtuous cycle: each interaction makes the graph richer</span>
+
+<span class="node">User Query</span>
+  <span class="edge">&darr;</span>
+<span class="node">Graph-Constrained Reasoning</span> <span class="comment">// KG-Trie: LLM can ONLY follow graph paths</span>
+  <span class="edge">&darr;</span>
+  <span class="edge">├──</span> <span class="ok">Path found</span> <span class="edge">&rarr;</span> <span class="node">Faithful Answer</span> <span class="comment">// fast path, zero hallucination</span>
+  <span class="edge">&darr;</span>
+  <span class="edge">└──</span> <span class="warn">Path breaks</span> <span class="comment">// missing node or edge in graph</span>
+        <span class="edge">&darr;</span>
+      <span class="label">AUGMENTATION MODE</span>
+        <span class="edge">&darr;</span>
+      <span class="node">LLM generates candidate triple</span>
+      <span class="comment">// "BS_1042 -[:HAS_PROPERTY]-&gt; {ignition_temp: 420°C}"</span>
+      <span class="comment">// provenance: LLM_INFERENCE, confidence: INFERRED</span>
+        <span class="edge">&darr;</span>
+      <span class="node">Inference Extractor</span> <span class="comment">// ClaimVer pattern: classify each claim</span>
+        <span class="edge">&darr;</span>
+      <span class="node">Response with annotations</span>
+      <span class="ok">"Ignition temp BS 1042 = 420°C"</span> <span class="comment">// [GRAPH_FACT - from TDS]</span>
+      <span class="warn">"BS 1052 likely has lower thermal resistance"</span> <span class="comment">// [LLM_INFERENCE]</span>
+        <span class="edge">&darr;</span>
+      <span class="label">EXPERT REVIEW UI</span> <span class="comment">// KONDA pattern: approve/reject/edit</span>
+        <span class="edge">├──</span> <span class="ok">Approve</span> <span class="edge">&rarr;</span> Graph densifies <span class="comment">// review_status: APPROVED</span>
+        <span class="edge">├──</span> <span class="warn">Edit</span> <span class="edge">&rarr;</span> Corrected + approved
+        <span class="edge">└──</span> <span class="cell-no">Reject</span> <span class="edge">&rarr;</span> Removed
+        <span class="edge">&darr;</span>
+      <span class="node">Next traversal picks up new fact</span> <span class="comment">// no inference needed next time</span></div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Recommended Action Plan</h4>
+        <ul>
+          <li>Day 1: Run GraphRAG-SDK on 3 Wacker TDS, compare auto-ontology vs manual</li>
+          <li>Day 2: Study graphrag-contract-review 4-stage pattern, adapt for TDS</li>
+          <li>Day 3: Test microsoft/ograg2 &mdash; does ontology-grounded retrieval beat manual traversal?</li>
+          <li>Prototype: text2cypher-react-agent with FalkorDB for exploratory queries</li>
+          <li>Long-term: graph-constrained-reasoning for zero-hallucination production mode</li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Key References for Paper</h4>
+        <ul>
+          <li>CogMG (ACL 2024) &mdash; gap detection baseline</li>
+          <li>ClaimVer (EMNLP 2024) &mdash; inference extraction baseline</li>
+          <li>KG Validation + HITL (2025) &mdash; hybrid approach validation</li>
+          <li>KARMA (NeurIPS 2025) &mdash; multi-agent enrichment baseline</li>
+          <li>GCR (ICML 2025) &mdash; faithful reasoning baseline</li>
+        </ul>
+      </div>
+    </div>
+    <div class="timestamp">Generated 2026-04-03 &middot; SynapseOS Internal &middot; Based on research analysis for Wacker chemical product finder</div>
+  </footer>
+
+</div>
+</body>
+</html>

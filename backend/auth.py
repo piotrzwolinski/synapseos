@@ -3,6 +3,7 @@ Simple authentication module - no database required.
 Multi-user credentials with JWT token authentication and role support.
 """
 
+import json
 import os
 from datetime import datetime, timedelta
 from typing import Optional
@@ -12,11 +13,22 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from pydantic import BaseModel
 
-# User credentials and roles
-USERS = {
-    "mh": {"password": "MHFind@r2026", "role": "admin"},
-    "mk": {"password": "MHmk2026@", "role": "expert"},
-}
+# User credentials and roles — loaded from env var (Azure secret) or fallback for local dev
+def _load_users() -> dict:
+    """Load users from AUTH_USERS_JSON env var, fallback to defaults for local dev."""
+    env_json = os.getenv("AUTH_USERS_JSON")
+    if env_json:
+        try:
+            return json.loads(env_json)
+        except json.JSONDecodeError:
+            pass
+    # Local development fallback
+    return {
+        "mh": {"password": "MHFind@r2026", "role": "admin"},
+        "mk": {"password": "MHmk2026@", "role": "expert"},
+    }
+
+USERS = _load_users()
 
 # JWT Configuration
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "mh-aisolutionsfinder-secret-key-2026")

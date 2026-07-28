@@ -19,13 +19,14 @@ import {
   Download,
   MessageSquare,
   Scale,
+  Star,
   ThumbsUp,
   ThumbsDown,
   AlertTriangle,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
-import { apiUrl, authFetch, getSessionId, resetSessionId, getSessionGraphState, clearSessionGraph, type SessionGraphState, evaluateResponse, saveJudgeResults } from "@/lib/api";
+import { apiUrl, authFetch, getSessionId, resetSessionId, getSessionGraphState, clearSessionGraph, type SessionGraphState, evaluateResponse, saveJudgeResults, persistTurnReasoning, listSessionComments, addSessionComment, deleteSessionComment, getSessionRating, setSessionRating, type UserComment } from "@/lib/api";
 import { getUserRole } from "@/lib/auth";
 import SessionGraphViewer from "./session-graph-viewer";
 import { Widget, BotResponse } from "./chat-widgets";
@@ -525,6 +526,14 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const [technicalState, setTechnicalState] = useState<Record<string, any> | null>(null);
   const [sessionGraphState, setSessionGraphState] = useState<SessionGraphState | null>(null);
   const [showSessionGraph, setShowSessionGraph] = useState(false);
+  // Feedback module — per-session comments + rating
+  const [comments, setComments] = useState<UserComment[]>([]);
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [rating, setRating] = useState<number | null>(null);
+  const [ratingHover, setRatingHover] = useState<number | null>(null);
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -661,6 +670,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let data: DeepExplainableResponseData | null = null;
+      let completedTurnNumber: number | null = null;
       const dynamicSteps: ReasoningStep[] = [];
 
       if (reader) {
@@ -701,6 +711,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                 } else if (event.type === "complete") {
                   // Final response received
                   data = event.response;
+                  // Backend turn_number is the source of truth for persistence —
+                  // the frontend must not recount messages (clarifications etc).
+                  completedTurnNumber = typeof event.turn_number === "number"
+                    ? event.turn_number
+                    : null;
                   console.log("✅ Stream complete", event.timings);
 
                   // Extract and persist locked context for multi-turn persistence
@@ -766,6 +781,16 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           deepExplainableData: data,
         },
       ]);
+
+      // Feedback module: persist the full deepExplainableData so the admin
+      // can replay this turn identically in the Feedback tab. Fire-and-forget.
+      if (data && completedTurnNumber != null) {
+        void persistTurnReasoning(
+          getSessionId(),
+          completedTurnNumber,
+          data as unknown as Record<string, unknown>
+        );
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
       setMessages((prev) => [
@@ -790,6 +815,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       setLockedContext(null);
       setTechnicalState(null);
       setSessionGraphState(null);
+      setComments([]);
+      setRating(null);
       // Generate a fresh session ID so no stale Layer 4 state can leak
       resetSessionId();
       console.log("🔓 Session fully reset (state + ID)");
@@ -797,6 +824,70 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       console.error("Failed to clear chat:", error);
     }
   };
+
+  const refreshComments = async () => {
+    try {
+      const sid = getSessionId();
+      const [loaded, loadedRating] = await Promise.all([
+        listSessionComments(sid),
+        getSessionRating(sid),
+      ]);
+      setComments(loaded);
+      setRating(loadedRating);
+    } catch (err) {
+      console.warn("Failed to load comments:", err);
+    }
+  };
+
+  const submitRating = async (value: number | null) => {
+    if (ratingSubmitting) return;
+    const next = rating === value ? null : value;
+    const prev = rating;
+    setRating(next);
+    setRatingSubmitting(true);
+    try {
+      const saved = await setSessionRating(getSessionId(), next);
+      setRating(saved);
+    } catch (err) {
+      console.error("Failed to save rating:", err);
+      setRating(prev);
+    } finally {
+      setRatingSubmitting(false);
+    }
+  };
+
+  const submitComment = async () => {
+    const trimmed = commentDraft.trim();
+    if (!trimmed || commentSubmitting) return;
+    setCommentSubmitting(true);
+    try {
+      const created = await addSessionComment(getSessionId(), trimmed);
+      if (created) {
+        setComments((prev) => [...prev, created]);
+        setCommentDraft("");
+        setCommentModalOpen(false);
+      }
+    } catch (err) {
+      console.error("Failed to add comment:", err);
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
+
+  const removeComment = async (commentId: string) => {
+    const ok = await deleteSessionComment(commentId);
+    if (ok) {
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    }
+  };
+
+  // Load existing comments when there are any persisted messages (i.e. not a fresh session).
+  useEffect(() => {
+    if (messages.length === 0) return;
+    void refreshComments();
+    // Intentionally only react to a message count transitioning from zero to non-zero
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length > 0]);
 
   const copyMessage = async (content: string, index: number) => {
     await navigator.clipboard.writeText(content);
@@ -1042,11 +1133,18 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   };
 
   return (
-    <div className="flex gap-4">
+    <div
+      className="grid gap-4 items-stretch transition-all duration-300"
+      style={{
+        gridTemplateColumns: commentModalOpen
+          ? "minmax(0, 1fr) 480px"
+          : "minmax(0, 1fr)",
+      }}
+    >
       {/* Main Chat Panel */}
       <div className={cn(
         "bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden transition-all duration-300",
-        "w-full"
+        "min-w-0"
       )}>
       {/* Messages */}
       <ScrollArea className="h-[calc(100vh-280px)]" ref={scrollRef}>
@@ -1260,8 +1358,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                   )}
 
 
-                  {/* Judge Evaluation Button + Results */}
-                  {message.role === "assistant" && message.deepExplainableData && (
+                  {/* Judge Evaluation Button + Results (hidden when NEXT_PUBLIC_HIDE_JUDGE=1) */}
+                  {message.role === "assistant" && message.deepExplainableData && process.env.NEXT_PUBLIC_HIDE_JUDGE !== "1" && (
                     <div className="flex items-center gap-2">
                       {judgingIndex === index ? (
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800 text-[11px] text-violet-500 dark:text-violet-400">
@@ -1270,15 +1368,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
                         </div>
                       ) : judgeResults[index] && !judgeResults[index].error ? (
                         <JudgeResultsPanel results={judgeResults[index]} />
-                      ) : (
-                        <button
-                          onClick={() => handleRunJudge(index)}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:border-violet-200 dark:hover:border-violet-800 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
-                        >
-                          <Scale className="w-3 h-3" />
-                          Judge
-                        </button>
-                      )}
+                      ) : null}
                     </div>
                   )}
 
@@ -1419,6 +1509,28 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           />
           {messages.length > 0 && (
             <Button
+              onClick={() => setCommentModalOpen(true)}
+              variant="outline"
+              className="relative h-[42px] w-[42px] p-0 flex-shrink-0 rounded-xl border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600"
+              title={(() => {
+                const parts: string[] = [];
+                if (rating !== null) parts.push(`Rated ${rating}/5`);
+                if (comments.length > 0) parts.push(`${comments.length} comment${comments.length === 1 ? "" : "s"}`);
+                return parts.length > 0
+                  ? `${parts.join(" · ")} — click to edit`
+                  : "Rate or comment on this session";
+              })()}
+            >
+              <MessageSquare className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+              {comments.length > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full bg-green-700 text-white text-[10px] font-semibold leading-4 text-center">
+                  {comments.length}
+                </span>
+              )}
+            </Button>
+          )}
+          {messages.length > 0 && (
+            <Button
               onClick={exportConversation}
               variant="outline"
               className="h-[42px] w-[42px] p-0 flex-shrink-0 rounded-xl border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600"
@@ -1451,6 +1563,156 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
         projectName={inspectorProject}
       />
       </div>
+      {/* END chat panel wrapper */}
+
+      {/* Feedback module: per-session comments side panel (inline, pushes chat) */}
+      {commentModalOpen && (
+        <aside
+          className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/60 dark:border-slate-700/60 flex flex-col overflow-hidden min-w-0"
+          role="dialog"
+          aria-label="Session feedback"
+        >
+          <header className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+            <div>
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                Session feedback
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Your rating and comments are visible to admins in the Feedback tab.
+              </p>
+            </div>
+            <button
+              onClick={() => setCommentModalOpen(false)}
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl leading-none px-1"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </header>
+
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            <div className="rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Rate this session
+                </span>
+                {rating !== null && (
+                  <button
+                    onClick={() => void submitRating(null)}
+                    disabled={ratingSubmitting}
+                    className="text-[11px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 disabled:opacity-50"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div
+                className="flex items-center gap-1"
+                onMouseLeave={() => setRatingHover(null)}
+              >
+                {[1, 2, 3, 4, 5].map((n) => {
+                  const active = (ratingHover ?? rating ?? 0) >= n;
+                  return (
+                    <button
+                      key={n}
+                      onClick={() => void submitRating(n)}
+                      onMouseEnter={() => setRatingHover(n)}
+                      disabled={ratingSubmitting}
+                      aria-label={`${n} star${n === 1 ? "" : "s"}`}
+                      className="p-0.5 disabled:opacity-50"
+                    >
+                      <Star
+                        className={cn(
+                          "w-6 h-6 transition-colors",
+                          active
+                            ? "fill-amber-400 text-amber-400"
+                            : "text-slate-300 dark:text-slate-600"
+                        )}
+                      />
+                    </button>
+                  );
+                })}
+                <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">
+                  {rating !== null ? `${rating} / 5` : "Not rated"}
+                </span>
+              </div>
+            </div>
+
+            {comments.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Previous comments ({comments.length})
+                </div>
+                {comments.map((c) => (
+                  <div
+                    key={c.id}
+                    className="rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-2.5 text-sm"
+                  >
+                    <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400 mb-1">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">
+                        {c.author}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span>{new Date(c.created_at).toLocaleString()}</span>
+                        <button
+                          onClick={() => removeComment(c.id)}
+                          className="text-rose-500 hover:text-rose-700 text-[11px]"
+                          title="Delete comment"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
+                      {c.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <footer className="border-t border-slate-200 dark:border-slate-700 px-5 py-4 space-y-3 bg-white dark:bg-slate-900">
+            <textarea
+              value={commentDraft}
+              onChange={(e) => setCommentDraft(e.target.value)}
+              placeholder="Add a comment about this session…"
+              rows={6}
+              maxLength={4000}
+              className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg resize-y min-h-[140px] focus:outline-none focus:ring-2 focus:ring-green-600/20 focus:border-green-600 dark:focus:border-green-600 placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:text-slate-100"
+              disabled={commentSubmitting}
+            />
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] text-slate-400">
+                {commentDraft.length} / 4000
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setCommentModalOpen(false)}
+                  disabled={commentSubmitting}
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={submitComment}
+                  disabled={commentSubmitting || !commentDraft.trim()}
+                  className="bg-gradient-to-r from-green-700 to-green-800 hover:from-green-800 hover:to-green-900"
+                >
+                  {commentSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Saving…
+                    </>
+                  ) : (
+                    "Add comment"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </footer>
+        </aside>
+      )}
 
     </div>
   );

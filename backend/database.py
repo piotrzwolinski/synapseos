@@ -115,16 +115,23 @@ class GraphConnection:
     def warmup(self):
         """Pre-connect and warm up connection. Call on server start."""
         import time
-        t = time.time()
-        graph = self.connect()
-        try:
-            graph.query("RETURN 1")
-            elapsed = time.time() - t
-            print(f"✓ FalkorDB connection warmed up in {elapsed:.2f}s")
-            self.get_all_applications()
-            print("✓ Applications cache loaded")
-        except Exception as e:
-            print(f"⚠ FalkorDB warmup failed: {e}")
+        for attempt in range(5):
+            try:
+                t = time.time()
+                graph = self.connect()
+                graph.query("RETURN 1")
+                elapsed = time.time() - t
+                print(f"✓ FalkorDB connection warmed up in {elapsed:.2f}s")
+                self.get_all_applications()
+                print("✓ Applications cache loaded")
+                return
+            except Exception as e:
+                wait = 3 * (attempt + 1)
+                print(f"⚠ FalkorDB warmup attempt {attempt+1}/5 failed: {e} — retrying in {wait}s")
+                self._db = None
+                self.graph = None
+                time.sleep(wait)
+        print("⚠ FalkorDB warmup failed after 5 attempts (non-fatal, will retry on first request)")
 
     def reconnect(self):
         """Force reconnection by resetting graph reference."""
@@ -759,7 +766,11 @@ class GraphConnection:
                 LIMIT 15
             """, params={"top_k": top_k, "embedding": query_embedding, "min_score": min_score})
             return result_to_dicts(result)
-        return self._execute_with_retry(_query)
+        try:
+            return self._execute_with_retry(_query)
+        except Exception as e:
+            print(f"[HYBRID RETRIEVAL] Vector search failed (no Concept nodes or index?): {e}")
+            return []
 
     def check_safety_risks(self, query_embedding: list[float], top_k: int = 5, min_score: float = 0.7) -> list[dict]:
         """PRIORITY SAFETY CHECK: Find SafetyRisk nodes only when query matches hazard scenario.
@@ -811,7 +822,11 @@ class GraphConnection:
                 ORDER BY score DESC
             """, params={"top_k": top_k, "embedding": query_embedding, "min_score": min_score})
             return result_to_dicts(result)
-        return self._execute_with_retry(_query)
+        try:
+            return self._execute_with_retry(_query)
+        except Exception as e:
+            print(f"[SAFETY RISKS] Vector search failed (no Concept nodes or index?): {e}")
+            return []
 
     def get_project_story(self, project_name: str) -> dict:
         """Get the full story/decision chain for a project.
@@ -4048,6 +4063,11 @@ class GraphConnection:
             # Expert review
             "CREATE INDEX FOR (er:ExpertReview) ON (er.id)",
             "CREATE INDEX FOR (er:ExpertReview) ON (er.session_id)",
+            # Feedback module
+            "CREATE INDEX FOR (s:Session) ON (s.user_id)",
+            "CREATE INDEX FOR (uc:UserComment) ON (uc.id)",
+            "CREATE INDEX FOR (uc:UserComment) ON (uc.session_id)",
+            "CREATE INDEX FOR (uc:UserComment) ON (uc.created_at)",
         ]
         graph = self.connect()
         for stmt in schema_statements:

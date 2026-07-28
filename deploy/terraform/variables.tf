@@ -41,13 +41,13 @@ variable "storage_account_name" {
 variable "backend_image_tag" {
   description = "Backend image tag in ACR"
   type        = string
-  default     = "v1"
+  default     = "v2"
 }
 
 variable "frontend_image_tag" {
   description = "Frontend image tag in ACR"
   type        = string
-  default     = "v1"
+  default     = "v2"
 }
 
 # --- Secrets ---
@@ -102,4 +102,20 @@ variable "seed_graph" {
   description = "Set to true on FIRST deploy to seed FalkorDB from backup. Requires seed_from_backup.sh next to .tf files. Only runs once (on create)."
   type        = bool
   default     = false
+}
+
+# --- Access control ---
+
+variable "allowed_ip_ranges" {
+  description = "CIDR ranges allowed to access frontend & backend (e.g. M+H VPN, office). Empty = no restriction."
+  type        = list(string)
+  default     = []
+  # Example: ["203.0.113.0/24", "198.51.100.50/32"]
+}
+
+variable "auth_users" {
+  description = "Map of username -> {password, role} for app authentication"
+  type        = map(object({ password = string, role = string }))
+  sensitive   = true
+  default     = {}
 }

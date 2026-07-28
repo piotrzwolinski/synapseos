@@ -12,6 +12,7 @@ import { TestLab } from "@/components/test-lab";
 import { TestGenerator } from "@/components/test-generator";
 import { CapabilitiesShowcase } from "@/components/capabilities-showcase";
 import { ExpertReview } from "@/components/expert-review";
+import { FeedbackPanel } from "@/components/feedback-panel";
 import { GraphAudit } from "@/components/graph-audit";
 import { BatchResults } from "@/components/batch-results";
 import BulkOffer from "@/components/bulk-offer";
@@ -50,7 +51,7 @@ import { cn } from "@/lib/utils";
 import { AuthGuard } from "@/components/auth-guard";
 import { clearToken } from "@/lib/auth";
 
-type TabType = "chat" | "ingest" | "explore" | "knowledge" | "testlab" | "testgen" | "capabilities" | "expert-review" | "analytics" | "workflows" | "users" | "integrations" | "audit" | "batch-results" | "bulk-offer" | "use-cases" | "settings";
+type TabType = "chat" | "ingest" | "explore" | "knowledge" | "testlab" | "testgen" | "capabilities" | "expert-review" | "feedback" | "analytics" | "workflows" | "users" | "integrations" | "audit" | "batch-results" | "bulk-offer" | "use-cases" | "settings";
 type IngestSubTab = "threads" | "docs";
 
 interface NavItem {
@@ -465,6 +466,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "capabilities", label: "Capabilities", icon: Compass, section: "main", devOnly: true },
   { id: "use-cases", label: "Use Cases", icon: BookOpen, section: "main", devOnly: true },
   { id: "expert-review", label: "Expert Review", icon: ClipboardCheck, section: "main", devOnly: true },
+  { id: "feedback", label: "Feedback", icon: MessageSquare, section: "main" },
   { id: "analytics", label: "Analytics", icon: BarChart3, disabled: true, section: "enterprise" },
   { id: "workflows", label: "Workflows", icon: Workflow, disabled: true, section: "enterprise" },
   { id: "users", label: "User Management", icon: Users, disabled: true, section: "admin" },
@@ -739,6 +741,7 @@ function MainApp() {
               {activeTab === "testgen" && "Test Generator"}
               {activeTab === "capabilities" && "Expert Capabilities"}
               {activeTab === "expert-review" && "Expert Review"}
+              {activeTab === "feedback" && "Feedback"}
               {activeTab === "analytics" && "Analytics & Reports"}
               {activeTab === "workflows" && "Automation Workflows"}
               {activeTab === "users" && "User Management"}
@@ -758,6 +761,7 @@ function MainApp() {
               {activeTab === "testgen" && "Multi-LLM debate to generate new test cases from product catalogs"}
               {activeTab === "capabilities" && "Expert modules, sub-components, and example scenarios"}
               {activeTab === "expert-review" && "Browse conversations, review responses, and score judge evaluations"}
+              {activeTab === "feedback" && "Przeglądaj sesje użytkowników i czytaj zostawione komentarze"}
               {activeTab === "analytics" && "Track performance metrics and generate reports"}
               {activeTab === "workflows" && "Automate repetitive tasks and processes"}
               {activeTab === "users" && "Manage team members and permissions"}
@@ -850,6 +854,7 @@ function MainApp() {
             {activeTab === "testgen" && <TestGenerator />}
             {activeTab === "capabilities" && <CapabilitiesShowcase />}
             {activeTab === "expert-review" && <ExpertReview />}
+            {activeTab === "feedback" && <FeedbackPanel />}
             {activeTab === "analytics" && (
               <LockedModule
                 title="Analytics & Reports"

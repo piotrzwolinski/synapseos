@@ -124,7 +124,7 @@ resource "azurerm_container_app" "falkordb" {
 
       env {
         name  = "REDIS_ARGS"
-        value = "--requirepass ${var.falkordb_password} --save 60 1 --dir /data"
+        value = "--requirepass ${var.falkordb_password} --dir /data --save 10 1 --appendonly yes --appendfsync everysec --stop-writes-on-bgsave-error no"
       }
 
       volume_mounts {
@@ -237,6 +237,11 @@ resource "azurerm_container_app" "backend" {
     value = var.openai_api_key
   }
 
+  secret {
+    name  = "auth-users-json"
+    value = jsonencode(var.auth_users)
+  }
+
   template {
     min_replicas = 1
     max_replicas = 3
@@ -296,6 +301,16 @@ resource "azurerm_container_app" "backend" {
         name  = "AUTH_DISABLED"
         value = "false"
       }
+
+      env {
+        name        = "AUTH_USERS_JSON"
+        secret_name = "auth-users-json"
+      }
+
+      env {
+        name  = "ALLOWED_ORIGINS"
+        value = var.deploy_apps ? "https://${azurerm_container_app.frontend[0].ingress[0].fqdn}" : "*"
+      }
     }
   }
 
@@ -307,6 +322,24 @@ resource "azurerm_container_app" "backend" {
     traffic_weight {
       latest_revision = true
       percentage      = 100
+    }
+
+    dynamic "ip_security_restriction" {
+      for_each = length(var.allowed_ip_ranges) > 0 ? var.allowed_ip_ranges : []
+      content {
+        name             = "allow-${ip_security_restriction.key}"
+        action           = "Allow"
+        ip_address_range = ip_security_restriction.value
+      }
+    }
+
+    dynamic "ip_security_restriction" {
+      for_each = length(var.allowed_ip_ranges) > 0 ? ["deny-all"] : []
+      content {
+        name             = "deny-all"
+        action           = "Deny"
+        ip_address_range = "0.0.0.0/0"
+      }
     }
   }
 
@@ -354,6 +387,24 @@ resource "azurerm_container_app" "frontend" {
     traffic_weight {
       latest_revision = true
       percentage      = 100
+    }
+
+    dynamic "ip_security_restriction" {
+      for_each = length(var.allowed_ip_ranges) > 0 ? var.allowed_ip_ranges : []
+      content {
+        name             = "allow-${ip_security_restriction.key}"
+        action           = "Allow"
+        ip_address_range = ip_security_restriction.value
+      }
+    }
+
+    dynamic "ip_security_restriction" {
+      for_each = length(var.allowed_ip_ranges) > 0 ? ["deny-all"] : []
+      content {
+        name             = "deny-all"
+        action           = "Deny"
+        ip_address_range = "0.0.0.0/0"
+      }
     }
   }
 

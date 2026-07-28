@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1280px; height: 720px;
+    font-family: 'Inter', system-ui, sans-serif;
+    background: linear-gradient(145deg, #0a0e17 0%, #111827 50%, #0a0e17 100%);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(94,168,167,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(94,168,167,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .top {
+    padding: 50px 80px 0;
+    position: relative;
+    z-index: 1;
+  }
+  .tag {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #5EA8A7;
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 38px;
+    font-weight: 900;
+    color: #ffffff;
+    line-height: 1.15;
+  }
+  h1 .highlight { color: #5EA8A7; }
+  h1 .dim { color: #475569; }
+  .comparison {
+    display: flex;
+    gap: 32px;
+    padding: 36px 80px;
+    flex: 1;
+    position: relative;
+    z-index: 1;
+  }
+  .col {
+    flex: 1;
+    border-radius: 12px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+  }
+  .col.vector {
+    background: rgba(239,68,68,0.04);
+    border: 1px solid rgba(239,68,68,0.12);
+  }
+  .col.graph {
+    background: rgba(94,168,167,0.05);
+    border: 1px solid rgba(94,168,167,0.2);
+  }
+  .col-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .col-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+  .col.vector .col-icon { background: rgba(239,68,68,0.12); }
+  .col.graph .col-icon { background: rgba(94,168,167,0.15); }
+  .col h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #ffffff;
+  }
+  .col h3 {
+    font-size: 12px;
+    font-weight: 400;
+    color: #64748b;
+  }
+  .example {
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .example .q {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 10px;
+  }
+  .example .a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    line-height: 1.5;
+  }
+  .col.vector .example .a {
+    background: rgba(239,68,68,0.08);
+    color: #fca5a5;
+    border-left: 3px solid #ef4444;
+  }
+  .col.graph .example .a {
+    background: rgba(94,168,167,0.08);
+    color: #99f6e4;
+    border-left: 3px solid #5EA8A7;
+  }
+  .traits {
+    list-style: none;
+    padding: 0;
+    flex: 1;
+  }
+  .traits li {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-bottom: 10px;
+    padding-left: 20px;
+    position: relative;
+    line-height: 1.4;
+  }
+  .col.vector .traits li::before {
+    content: '\2717';
+    position: absolute;
+    left: 0;
+    color: #ef4444;
+    font-size: 12px;
+  }
+  .col.graph .traits li::before {
+    content: '\2713';
+    position: absolute;
+    left: 0;
+    color: #5EA8A7;
+    font-size: 12px;
+  }
+  .bottom-label {
+    text-align: center;
+    font-size: 13px;
+    color: #64748b;
+    font-style: italic;
+    padding-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="tag">Architecture Decision</div>
+    <h1>Why <span class="highlight">Graph Reasoning</span><span class="dim">, not Vector Search</span></h1>
+  </div>
+  <div class="comparison">
+    <div class="col vector">
+      <div class="col-header">
+        <div class="col-icon">~</div>
+        <div>
+          <h2>Vector / RAG</h2>
+          <h3>Copilot, ChatGPT, typical AI</h3>
+        </div>
+      </div>
+      <div class="example">
+        <div class="q">&gt; "GDC-FLEX 600mm with eccentric locking"</div>
+        <div class="a">"Here's a GDC-FLEX product that sounds<br/>relevant to your query..." <br/><em style="color:#ef4444;font-size:11px;">// no constraint check, no sizing</em></div>
+      </div>
+      <ul class="traits">
+        <li>Finds "similar sounding" text</li>
+        <li>Cannot do math (airflow, dimensions)</li>
+        <li>No relationship traversal</li>
+        <li>Hallucination on edge cases</li>
+        <li>No audit trail for recommendations</li>
+      </ul>
+    </div>
+    <div class="col graph">
+      <div class="col-header">
+        <div class="col-icon">&lt;/&gt;</div>
+        <div>
+          <h2>Knowledge Graph</h2>
+          <h3>Synapse Product Advisor</h3>
+        </div>
+      </div>
+      <div class="example">
+        <div class="q">&gt; "GDC-FLEX 600mm with eccentric locking"</div>
+        <div class="a">BLOCKED: Eccentric locking requires<br/>min. 800mm housing width.<br/>Alternative: Standard locking &rarr; GDC-FLEX-600-F<br/><em style="color:#5EA8A7;font-size:11px;">// constraint checked, alternative offered</em></div>
+      </div>
+      <ul class="traits">
+        <li>Traverses relationships and rules</li>
+        <li>Calculates constraints &amp; capacity</li>
+        <li>Deterministic: same input &rarr; same output</li>
+        <li>Every answer traceable to graph node</li>
+        <li>LLM narrates, never decides</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

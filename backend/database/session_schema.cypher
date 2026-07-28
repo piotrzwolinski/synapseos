@@ -19,8 +19,12 @@
 // Constraints
 CREATE CONSTRAINT IF NOT EXISTS FOR (s:Session) REQUIRE s.id IS UNIQUE;
 CREATE CONSTRAINT IF NOT EXISTS FOR (ap:ActiveProject) REQUIRE ap.id IS UNIQUE;
+CREATE CONSTRAINT IF NOT EXISTS FOR (uc:UserComment) REQUIRE uc.id IS UNIQUE;
 
 // Indexes for fast lookup
 CREATE INDEX session_last_active IF NOT EXISTS FOR (s:Session) ON (s.last_active);
+CREATE INDEX session_user_id IF NOT EXISTS FOR (s:Session) ON (s.user_id);
 CREATE INDEX tagunit_session IF NOT EXISTS FOR (t:TagUnit) ON (t.session_id);
 CREATE INDEX activeproject_session IF NOT EXISTS FOR (ap:ActiveProject) ON (ap.session_id);
+CREATE INDEX usercomment_session IF NOT EXISTS FOR (uc:UserComment) ON (uc.session_id);
+CREATE INDEX usercomment_created IF NOT EXISTS FOR (uc:UserComment) ON (uc.created_at);

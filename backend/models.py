@@ -543,3 +543,68 @@ class SessionGraphVisualization(BaseModel):
 
 # Backwards-compatible alias
 EntityCard = ProductCard
+
+
+# ========================================
+# Feedback Module
+# ========================================
+
+class UserComment(BaseModel):
+    """Per-session user comment (feedback module)."""
+    id: str = Field(..., description="Unique comment id")
+    session_id: str = Field(..., description="Session this comment belongs to")
+    author: str = Field(..., description="Username of the comment author")
+    text: str = Field(..., description="Comment body")
+    created_at: int = Field(..., description="Unix ms timestamp")
+
+
+class CommentCreateRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=4000)
+
+
+class TurnSnapshot(BaseModel):
+    """A single conversation turn for replay."""
+    turn_number: int
+    role: str
+    message: str
+    created_at: Optional[int] = None
+    reasoning_data: Optional[dict] = Field(None, description="Full deepExplainableData payload")
+
+
+class SessionSummary(BaseModel):
+    """One row in the feedback sessions list."""
+    session_id: str
+    user_id: Optional[str] = None
+    title: Optional[str] = None
+    created_at: Optional[int] = None
+    last_active: Optional[int] = None
+    turn_count: int = 0
+    comment_count: int = 0
+    rating: Optional[int] = None
+
+
+class SessionRating(BaseModel):
+    """Session rating value (1–5, or null to clear)."""
+    rating: Optional[int] = Field(None, ge=1, le=5)
+
+
+class SessionListResponse(BaseModel):
+    items: list[SessionSummary]
+    total: int
+
+
+class SessionReplay(BaseModel):
+    """Full session replay payload — turns + comments + graph state."""
+    session_id: str
+    user_id: Optional[str] = None
+    title: Optional[str] = None
+    rating: Optional[int] = None
+    project: Optional[ActiveProjectState] = None
+    turns: list[TurnSnapshot] = Field(default_factory=list)
+    comments: list[UserComment] = Field(default_factory=list)
+    session_graph_state: Optional[dict] = None
+
+
+class PersistReasoningRequest(BaseModel):
+    turn_number: int
+    reasoning_data: dict

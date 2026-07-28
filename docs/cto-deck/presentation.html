@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Advisor — Under the Hood</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #050810;
+    overflow: hidden;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  /* ── Deck container ── */
+  #deck {
+    position: relative;
+    width: 100vw; height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .slide {
+    display: none;
+    width: 1280px; height: 720px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(145deg, #0a0e17 0%, #111827 50%, #0a0e17 100%);
+    border-radius: 4px;
+    box-shadow: 0 0 80px rgba(0,0,0,0.6);
+    flex-shrink: 0;
+  }
+  .slide.active { display: flex; }
+
+  /* Grid overlay for all slides */
+  .slide::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(94,168,167,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(94,168,167,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .slide > * { position: relative; z-index: 1; }
+
+  /* ── Navigation ── */
+  .nav-arrow {
+    position: fixed;
+    top: 50%; transform: translateY(-50%);
+    width: 48px; height: 48px;
+    background: rgba(94,168,167,0.08);
+    border: 1px solid rgba(94,168,167,0.15);
+    border-radius: 50%;
+    color: #5EA8A7;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 100;
+    user-select: none;
+  }
+  .nav-arrow:hover { background: rgba(94,168,167,0.15); border-color: rgba(94,168,167,0.3); }
+  #prev { left: 24px; }
+  #next { right: 24px; }
+
+  .nav-bottom {
+    position: fixed;
+    bottom: 20px;
+    left: 50%; transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 100;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .dot.active { background: #5EA8A7; box-shadow: 0 0 8px rgba(94,168,167,0.4); }
+  .dot:hover { background: rgba(94,168,167,0.5); }
+
+  #counter {
+    position: fixed;
+    bottom: 20px; right: 32px;
+    font-size: 12px;
+    color: #475569;
+    font-family: 'JetBrains Mono', monospace;
+    z-index: 100;
+  }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 1 — Title
+     ══════════════════════════════════════════════ */
+  .s1 { flex-direction: row; }
+  .s1 .left { flex:1; display:flex; flex-direction:column; justify-content:center; padding:80px; }
+  .s1 .s1-brand { display:flex; flex-direction:column; gap:6px; margin-bottom:44px; }
+  .s1 .s1-brand-line1 { display:flex; align-items:center; gap:10px; }
+  .s1 .ming-logo { flex-shrink:0; opacity:0.85; }
+  .s1 .s1-brand-ming { font-size:22px; font-weight:400; color:rgba(255,255,255,0.75); letter-spacing:0.5px; }
+  .s1 .s1-brand-powered { font-size:9px; font-weight:400; color:#475569; text-transform:uppercase; letter-spacing:2px; }
+  .s1 .s1-brand-synapse { font-size:13px; font-weight:600; color:#5EA8A7; letter-spacing:0.5px; }
+  .s1 .accent-bar { width:64px; height:4px; background:linear-gradient(90deg,#5EA8A7,#3dd4d0); margin-bottom:32px; border-radius:2px; }
+  .s1 h1 { font-size:52px; font-weight:900; color:#fff; line-height:1.1; margin-bottom:20px; }
+  .s1 .s1-pillars { display:flex; gap:10px; margin-bottom:20px; }
+  .s1 .s1-pill { font-size:12px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:#5EA8A7; padding:5px 14px; border:1px solid rgba(94,168,167,0.3); border-radius:20px; background:rgba(94,168,167,0.06); }
+  .s1 h1 .hl { color:#5EA8A7; }
+  .s1 h2 { font-size:22px; font-weight:300; color:#94a3b8; margin-bottom:48px; line-height:1.4; }
+  .s1 .meta { font-size:13px; color:#475569; letter-spacing:1px; }
+  .s1 .meta span { color:#5EA8A7; }
+  .s1 .right { width:420px; display:flex; align-items:center; justify-content:center; }
+  .s1 .graph-viz { position:relative; width:300px; height:400px; }
+  .s1 .node { position:absolute; width:12px; height:12px; border-radius:50%; background:#5EA8A7; }
+  .s1 .node.dim { background:#1e3a3a; }
+  .s1 .node.bright { background:#3dd4d0; box-shadow:0 0 20px rgba(61,212,208,0.3); }
+  .s1 .node.accent { background:#f59e0b; box-shadow:0 0 15px rgba(245,158,11,0.2); }
+  .s1 .n1{top:40px;left:150px} .s1 .n2{top:100px;left:60px} .s1 .n3{top:90px;left:220px}
+  .s1 .n4{top:170px;left:130px} .s1 .n5{top:160px;left:250px} .s1 .n6{top:230px;left:50px}
+  .s1 .n7{top:240px;left:180px} .s1 .n8{top:300px;left:100px} .s1 .n9{top:310px;left:240px}
+  .s1 .n10{top:360px;left:160px}
+  .s1 .edges { position:absolute; inset:0; }
+  .s1 .edges line { stroke:rgba(94,168,167,0.2); stroke-width:1; }
+  .s1 .edges line.active { stroke:rgba(94,168,167,0.5); stroke-width:1.5; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 2 — Three Layers
+     ══════════════════════════════════════════════ */
+  .s2 { flex-direction:column; }
+  .s2 .top { padding:50px 80px 0; }
+  .s2 .tag { font-size:12px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#5EA8A7; margin-bottom:12px; }
+  .s2 h1 { font-size:40px; font-weight:900; color:#fff; line-height:1.1; }
+  .s2 h1 .hl { color:#5EA8A7; }
+  .s2 .layers { display:flex; gap:24px; padding:40px 80px; flex:1; align-items:stretch; }
+  .s2 .layer { flex:1; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:28px; display:flex; flex-direction:column; position:relative; }
+  .s2 .layer.target { border-color:#5EA8A7; background:rgba(94,168,167,0.05); box-shadow:0 0 30px rgba(94,168,167,0.08); }
+  .s2 .layer-tag { font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; margin-bottom:8px; }
+  .s2 .layer-tag.red { color:#ef4444; } .s2 .layer-tag.amber { color:#f59e0b; } .s2 .layer-tag.teal { color:#5EA8A7; }
+  .s2 .badge { position:absolute; top:16px; right:16px; font-size:10px; font-weight:600; letter-spacing:1px; padding:4px 10px; border-radius:4px; text-transform:uppercase; }
+  .s2 .badge.current { background:rgba(255,255,255,0.08); color:#94a3b8; }
+  .s2 .badge.build { background:rgba(94,168,167,0.15); color:#5EA8A7; border:1px solid rgba(94,168,167,0.3); }
+  .s2 .layer h2 { font-size:22px; font-weight:700; color:#fff; margin-bottom:20px; }
+  .s2 .layer ul { list-style:none; padding:0; }
+  .s2 .layer ul li { font-size:14px; color:#94a3b8; margin-bottom:12px; padding-left:24px; position:relative; line-height:1.4; }
+  .s2 .layer ul li::before { position:absolute; left:0; font-size:13px; }
+  .s2 .layer.l1 ul li::before { content:'\2717'; color:#ef4444; }
+  .s2 .layer.l2 ul li::before { content:'\26A0'; color:#f59e0b; font-size:12px; }
+  .s2 .layer.target ul li::before { content:'\2713'; color:#5EA8A7; }
+  .s2 .layer .footnote { margin-top:auto; padding-top:16px; font-size:12px; font-style:italic; color:#64748b; }
+  .s2 .bottom-bar { margin:0 80px 40px; padding:20px 32px; background:rgba(94,168,167,0.08); border:1px solid rgba(94,168,167,0.2); border-radius:10px; text-align:center; }
+  .s2 .bottom-bar p { font-size:16px; color:#cbd5e1; }
+  .s2 .bottom-bar strong { color:#5EA8A7; font-weight:700; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 3 — Iceberg
+     ══════════════════════════════════════════════ */
+  .s3 { flex-direction:row; }
+  .s3 .left { flex:1; padding:50px 60px; display:flex; flex-direction:column; }
+  .s3 .tag { font-size:12px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#5EA8A7; margin-bottom:12px; }
+  .s3 h1 { font-size:36px; font-weight:900; color:#fff; line-height:1.15; margin-bottom:40px; }
+  .s3 h1 .hl { color:#f59e0b; }
+  .s3 .happy-path { background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.2); border-radius:10px; padding:20px 24px; margin-bottom:16px; }
+  .s3 .happy-path .label { font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#22c55e; margin-bottom:8px; }
+  .s3 .happy-path .pct { font-size:28px; font-weight:900; color:#22c55e; display:inline; }
+  .s3 .happy-path .desc { font-size:14px; color:#94a3b8; display:inline; margin-left:12px; }
+  .s3 .hard-part { background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.15); border-radius:10px; padding:20px 24px; flex:1; }
+  .s3 .hard-part .label { font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#ef4444; margin-bottom:14px; }
+  .s3 .hard-part .pct { font-size:28px; font-weight:900; color:#ef4444; display:inline; }
+  .s3 .hard-part .desc { font-size:14px; color:#94a3b8; display:inline; margin-left:12px; }
+  .s3 .hard-items { list-style:none; padding:0; margin-top:16px; columns:2; column-gap:24px; }
+  .s3 .hard-items li { font-size:13px; color:#94a3b8; margin-bottom:10px; padding-left:20px; position:relative; break-inside:avoid; line-height:1.3; }
+  .s3 .hard-items li::before { content:''; position:absolute; left:0; top:5px; width:8px; height:8px; border-radius:2px; background:rgba(239,68,68,0.4); }
+  .s3 .right { width:440px; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .s3 .iceberg { width:380px; height:600px; position:relative; }
+  .s3 .iceberg-img { width:100%; height:100%; object-fit:contain; }
+  .s3 .tip-label { position:absolute; top:24%; left:50%; transform:translate(-50%,-50%); font-size:12px; font-weight:600; color:rgba(200,230,255,0.8); white-space:nowrap; letter-spacing:1px; }
+  .s3 .underwater-label { position:absolute; top:62%; left:50%; transform:translate(-50%,-50%); font-size:15px; font-weight:800; color:rgba(140,200,255,0.8); white-space:nowrap; }
+  .s3 .underwater-sub { position:absolute; top:67%; left:50%; transform:translate(-50%,-50%); font-size:11px; color:rgba(148,163,184,0.6); white-space:nowrap; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 4 — Graph vs Vector
+     ══════════════════════════════════════════════ */
+  .s4 { flex-direction:column; }
+  .s4 .top { padding:50px 80px 0; }
+  .s4 .tag { font-size:12px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#5EA8A7; margin-bottom:12px; }
+  .s4 h1 { font-size:38px; font-weight:900; color:#fff; line-height:1.15; }
+  .s4 h1 .hl { color:#5EA8A7; } .s4 h1 .dim { color:#475569; }
+  .s4 .comparison { display:flex; gap:32px; padding:36px 80px; flex:1; }
+  .s4 .col { flex:1; border-radius:12px; padding:28px; display:flex; flex-direction:column; }
+  .s4 .col.vector { background:rgba(239,68,68,0.04); border:1px solid rgba(239,68,68,0.12); }
+  .s4 .col.graph { background:rgba(94,168,167,0.05); border:1px solid rgba(94,168,167,0.2); }
+  .s4 .col-header { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+  .s4 .col-icon { width:40px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff; }
+  .s4 .col.vector .col-icon { background:rgba(239,68,68,0.12); }
+  .s4 .col.graph .col-icon { background:rgba(94,168,167,0.15); }
+  .s4 .col h2 { font-size:20px; font-weight:700; color:#fff; }
+  .s4 .col h3 { font-size:12px; font-weight:400; color:#64748b; }
+  .s4 .example { background:rgba(0,0,0,0.3); border-radius:8px; padding:16px; margin-bottom:16px; }
+  .s4 .example .q { font-family:'JetBrains Mono',monospace; font-size:12px; color:#94a3b8; margin-bottom:10px; }
+  .s4 .example .a { font-family:'JetBrains Mono',monospace; font-size:12px; padding:8px 12px; border-radius:6px; line-height:1.5; }
+  .s4 .col.vector .example .a { background:rgba(239,68,68,0.08); color:#fca5a5; border-left:3px solid #ef4444; }
+  .s4 .col.graph .example .a { background:rgba(94,168,167,0.08); color:#99f6e4; border-left:3px solid #5EA8A7; }
+  .s4 .traits { list-style:none; padding:0; flex:1; }
+  .s4 .traits li { font-size:13px; color:#94a3b8; margin-bottom:10px; padding-left:20px; position:relative; line-height:1.4; }
+  .s4 .col.vector .traits li::before { content:'\2717'; position:absolute; left:0; color:#ef4444; font-size:12px; }
+  .s4 .col.graph .traits li::before { content:'\2713'; position:absolute; left:0; color:#5EA8A7; font-size:12px; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 4b — Who Owns the Reasoning?
+     ══════════════════════════════════════════════ */
+  .s4b { flex-direction:column; }
+  .s4b .top { padding:40px 80px 0; }
+  .s4b .tag { font-size:12px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#5EA8A7; margin-bottom:12px; }
+  .s4b h1 { font-size:38px; font-weight:900; color:#fff; }
+  .s4b h1 .hl { color:#5EA8A7; }
+  .s4b .s4b-cols { display:flex; gap:28px; padding:28px 80px; flex:1; }
+  .s4b .s4b-col { flex:1; border-radius:12px; padding:28px; display:flex; flex-direction:column; }
+  .s4b .s4b-bad { background:rgba(239,68,68,0.03); border:1px solid rgba(239,68,68,0.12); }
+  .s4b .s4b-good { background:rgba(94,168,167,0.04); border:1px solid rgba(94,168,167,0.2); }
+  .s4b .s4b-header { display:flex; align-items:center; gap:12px; margin-bottom:6px; }
+  .s4b .s4b-icon { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; flex-shrink:0; }
+  .s4b .s4b-col h2 { font-size:20px; font-weight:700; color:#fff; }
+  .s4b .s4b-subtitle { font-size:12px; color:#64748b; margin-bottom:18px; font-style:italic; }
+  .s4b .s4b-col ul { list-style:none; padding:0; flex:1; }
+  .s4b .s4b-col ul li { font-size:13px; color:#94a3b8; margin-bottom:10px; padding-left:20px; position:relative; line-height:1.4; }
+  .s4b .s4b-bad ul li::before { content:'\2717'; position:absolute; left:0; color:#ef4444; font-size:12px; }
+  .s4b .s4b-good ul li::before { content:'\2713'; position:absolute; left:0; color:#5EA8A7; font-size:12px; }
+  .s4b .s4b-bottom { margin-top:auto; padding-top:14px; border-top:1px solid rgba(255,255,255,0.06); font-size:13px; font-weight:600; }
+  .s4b .s4b-bad .s4b-bottom { color:#ef4444; }
+  .s4b .s4b-good .s4b-bottom { color:#5EA8A7; }
+  .s4b .s4b-bar { margin:0; padding:20px 80px; background:linear-gradient(180deg, rgba(10,14,23,0) 0%, rgba(94,168,167,0.08) 40%, rgba(94,168,167,0.12) 100%); border-top:1px solid rgba(94,168,167,0.1); text-align:center; }
+  .s4b .s4b-bar p { font-size:15px; color:#cbd5e1; }
+  .s4b .s4b-bar strong { color:#5EA8A7; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 5 — Architecture
+     ══════════════════════════════════════════════ */
+  .s5 { flex-direction:column; }
+  .s5 .top { padding:40px 80px 0; }
+  .s5 .tag { font-size:12px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#5EA8A7; margin-bottom:12px; }
+  .s5 h1 { font-size:36px; font-weight:900; color:#fff; }
+  .s5 h1 .hl { color:#5EA8A7; }
+  .s5 .subtitle { font-size:15px; color:#64748b; margin-top:6px; }
+  .s5 .arch { display:flex; gap:16px; padding:30px 80px 20px; flex:1; align-items:stretch; }
+  .s5 .layer-card { flex:1; border-radius:10px; padding:20px; display:flex; flex-direction:column; }
+  .s5 .layer-card .num { font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; }
+  .s5 .layer-card h2 { font-size:17px; font-weight:700; color:#fff; margin-bottom:4px; }
+  .s5 .layer-card h3 { font-size:11px; font-weight:400; color:#64748b; margin-bottom:14px; font-style:italic; }
+  .s5 .layer-card ul { list-style:none; padding:0; }
+  .s5 .layer-card ul li { font-size:12px; color:#94a3b8; margin-bottom:7px; padding-left:16px; position:relative; line-height:1.3; }
+  .s5 .layer-card ul li::before { content:''; position:absolute; left:0; top:5px; width:6px; height:6px; border-radius:50%; }
+  .s5 .l1 { background:rgba(59,130,246,0.06); border:1px solid rgba(59,130,246,0.15); }
+  .s5 .l1 .num { color:#3b82f6; } .s5 .l1 ul li::before { background:#3b82f6; }
+  .s5 .l2 { background:rgba(168,85,247,0.06); border:1px solid rgba(168,85,247,0.15); }
+  .s5 .l2 .num { color:#a855f7; } .s5 .l2 ul li::before { background:#a855f7; }
+  .s5 .l3 { background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.15); }
+  .s5 .l3 .num { color:#f59e0b; } .s5 .l3 ul li::before { background:#f59e0b; }
+  .s5 .l4 { background:rgba(94,168,167,0.06); border:1px solid rgba(94,168,167,0.2); }
+  .s5 .l4 .num { color:#5EA8A7; } .s5 .l4 ul li::before { background:#5EA8A7; }
+  .s5 .insight { margin:12px 80px 30px; padding:16px 28px; background:rgba(94,168,167,0.06); border:1px solid rgba(94,168,167,0.15); border-radius:8px; display:flex; align-items:center; gap:16px; }
+  .s5 .insight .icon { font-size:24px; color:#5EA8A7; }
+  .s5 .insight p { font-size:14px; color:#cbd5e1; }
+  .s5 .insight strong { color:#5EA8A7; }
+  .s5 .insight code { font-family:'JetBrains Mono',monospace; font-size:12px; background:rgba(0,0,0,0.3); padding:2px 6px; border-radius:4px; color:#94a3b8; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 6 — Pipeline
+     ══════════════════════════════════════════════ */
+  .s6 { flex-direction:column; }
+  .s6 .top { padding:40px 80px 0; }
+  .s6 .tag { font-size:12px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#5EA8A7; margin-bottom:12px; }
+  .s6 h1 { font-size:36px; font-weight:900; color:#fff; }
+  .s6 h1 .hl { color:#5EA8A7; }
+  .s6 .subtitle { font-size:14px; color:#64748b; margin-top:6px; }
+  .s6 .pipeline { display:flex; flex-direction:column; gap:10px; padding:28px 80px 20px; flex:1; }
+  .s6 .stage { display:flex; align-items:center; gap:16px; }
+  .s6 .stage-num { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex-shrink:0; }
+  .s6 .stage-body { flex:1; display:flex; align-items:center; gap:16px; padding:12px 20px; border-radius:8px; }
+  .s6 .stage-name { font-size:15px; font-weight:700; color:#fff; min-width:160px; }
+  .s6 .stage-desc { font-size:12px; color:#94a3b8; flex:1; }
+  .s6 .stage-tech { font-family:'JetBrains Mono',monospace; font-size:10px; color:#64748b; background:rgba(0,0,0,0.3); padding:3px 8px; border-radius:4px; white-space:nowrap; }
+  .s6 .arrow-down { margin-left:14px; color:#334155; font-size:14px; }
+  .s6 .s-input .stage-num { background:rgba(59,130,246,0.15); color:#3b82f6; }
+  .s6 .s-input .stage-body { background:rgba(59,130,246,0.04); border:1px solid rgba(59,130,246,0.1); }
+  .s6 .s-scribe .stage-num { background:rgba(168,85,247,0.15); color:#a855f7; }
+  .s6 .s-scribe .stage-body { background:rgba(168,85,247,0.04); border:1px solid rgba(168,85,247,0.1); }
+  .s6 .s-engine .stage-num { background:rgba(245,158,11,0.15); color:#f59e0b; }
+  .s6 .s-engine .stage-body { background:rgba(245,158,11,0.04); border:1px solid rgba(245,158,11,0.1); }
+  .s6 .s-engine .stage-desc { font-size:11px; }
+  .s6 .s-guard .stage-num { background:rgba(239,68,68,0.15); color:#ef4444; }
+  .s6 .s-guard .stage-body { background:rgba(239,68,68,0.04); border:1px solid rgba(239,68,68,0.1); }
+  .s6 .s-llm .stage-num { background:rgba(94,168,167,0.15); color:#5EA8A7; }
+  .s6 .s-llm .stage-body { background:rgba(94,168,167,0.06); border:1px solid rgba(94,168,167,0.15); }
+  .s6 .callout { margin:0 80px 30px; padding:14px 24px; background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.15); border-radius:8px; }
+  .s6 .callout p { font-size:13px; color:#cbd5e1; }
+  .s6 .callout strong { color:#f59e0b; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 6b — Graph Traversal (animated)
+     ══════════════════════════════════════════════ */
+  .s6b { flex-direction:column; }
+  .s6b .top { padding:30px 80px 0; }
+  .s6b .tag { font-size:12px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#5EA8A7; margin-bottom:10px; }
+  .s6b h1 { font-size:34px; font-weight:900; color:#fff; }
+  .s6b h1 .hl { color:#5EA8A7; }
+
+  .s6b .trav-grid { flex:1; display:flex; flex-direction:column; padding:16px 80px 20px; gap:0; position:relative; }
+
+  /* Steps hidden by default */
+  .s6b .trav-step { opacity:0; transform:translateY(10px); transition:opacity 0.5s ease, transform 0.5s ease; pointer-events:none; }
+  .s6b .trav-step.visible { opacity:1; transform:translateY(0); pointer-events:auto; }
+
+  .s6b .trav-row { display:flex; align-items:center; gap:16px; }
+  .s6b .trav-label { width:64px; font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#475569; text-align:right; flex-shrink:0; }
+  .s6b .trav-cards { display:flex; gap:12px; flex:1; }
+  .s6b .trav-connector { color:#1e293b; font-size:12px; letter-spacing:6px; padding-left:80px; line-height:1; margin:4px 0; }
+
+  /* Card base */
+  .s6b .tc { display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:8px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); flex:1; min-width:0; }
+  .s6b .tc-icon { width:32px; height:32px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex-shrink:0; }
+  .s6b .tc-body { min-width:0; }
+  .s6b .tc-title { font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:#64748b; margin-bottom:2px; }
+  .s6b .tc-val { font-size:12px; color:#cbd5e1; font-weight:500; line-height:1.3; }
+
+  /* Card color variants */
+  .s6b .tc-query { border-color:rgba(94,168,167,0.2); background:rgba(94,168,167,0.04); }
+  .s6b .tc-blue { border-color:rgba(59,130,246,0.15); }
+  .s6b .tc-purple { border-color:rgba(168,85,247,0.15); }
+  .s6b .tc-amber { border-color:rgba(245,158,11,0.12); }
+  .s6b .tc-teal { border-color:rgba(94,168,167,0.15); }
+  .s6b .tc-teal.tc-glow { border-color:rgba(94,168,167,0.3); background:rgba(94,168,167,0.06); box-shadow:0 0 16px rgba(94,168,167,0.08); }
+  .s6b .tc-red { border-color:rgba(239,68,68,0.2); background:rgba(239,68,68,0.03); }
+  .s6b .tc-red .tc-val { color:#fca5a5; }
+  .s6b .tc-strike { text-decoration:line-through; text-decoration-color:rgba(239,68,68,0.5); }
+  .s6b .tc-dim { border-color:rgba(255,255,255,0.04); background:rgba(255,255,255,0.01); }
+  .s6b .tc-italic { font-style:italic; color:#94a3b8 !important; }
+
+  /* Verdict card */
+  .s6b .tc-verdict { border-color:rgba(94,168,167,0.35); background:rgba(94,168,167,0.06); box-shadow:0 0 24px rgba(94,168,167,0.1); flex:1; position:relative; }
+  .s6b .tc-verdict .tc-title { color:#5EA8A7; font-size:16px; font-weight:800; letter-spacing:0; text-transform:none; font-family:'JetBrains Mono',monospace; margin-bottom:4px; }
+  .s6b .tc-verdict .tc-val { font-size:12px; color:#94a3b8; }
+  .s6b .tc-verdict-icon { width:36px; height:36px; border-radius:50%; background:rgba(94,168,167,0.2) !important; color:#5EA8A7 !important; font-size:18px; }
+  .s6b .tc-badge-det { position:absolute; top:10px; right:14px; font-size:9px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:#5EA8A7; background:rgba(94,168,167,0.1); padding:3px 8px; border-radius:4px; }
+
+  .s6b .trav-hint { position:absolute; bottom:8px; right:0; font-size:11px; color:#334155; transition:opacity 0.3s; }
+  .s6b .trav-hint.hidden { opacity:0; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 7 — Safety
+     ══════════════════════════════════════════════ */
+  .s7 { flex-direction:column; }
+  .s7 .top { padding:50px 80px 0; }
+  .s7 .tag { font-size:12px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#ef4444; margin-bottom:12px; }
+  .s7 h1 { font-size:38px; font-weight:900; color:#fff; }
+  .s7 h1 .hl { color:#ef4444; }
+  .s7 .subtitle { font-size:15px; color:#64748b; margin-top:8px; }
+  .s7 .content { display:flex; gap:28px; padding:36px 80px; flex:1; }
+  .s7 .guards { flex:1; display:flex; flex-direction:column; gap:16px; }
+  .s7 .guard { border-radius:10px; padding:20px 24px; flex:1; display:flex; flex-direction:column; justify-content:center; }
+  .s7 .guard .name { font-size:14px; font-weight:700; color:#fff; margin-bottom:6px; display:flex; align-items:center; gap:10px; }
+  .s7 .guard .name .badge { font-size:10px; font-weight:600; letter-spacing:1px; padding:2px 8px; border-radius:4px; text-transform:uppercase; }
+  .s7 .guard .desc { font-size:12px; color:#94a3b8; line-height:1.4; }
+  .s7 .g1 { background:rgba(59,130,246,0.06); border:1px solid rgba(59,130,246,0.15); }
+  .s7 .g1 .badge { background:rgba(59,130,246,0.15); color:#3b82f6; }
+  .s7 .g2 { background:rgba(168,85,247,0.06); border:1px solid rgba(168,85,247,0.15); }
+  .s7 .g2 .badge { background:rgba(168,85,247,0.15); color:#a855f7; }
+  .s7 .g3 { background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.15); }
+  .s7 .g3 .badge { background:rgba(245,158,11,0.15); color:#f59e0b; }
+  .s7 .why { width:400px; display:flex; flex-direction:column; gap:20px; }
+  .s7 .why-card { border-radius:10px; padding:24px; flex:1; display:flex; flex-direction:column; justify-content:center; }
+  .s7 .bsl { background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.15); }
+  .s7 .bsl h2 { font-size:18px; font-weight:700; color:#ef4444; margin-bottom:10px; }
+  .s7 .bsl p { font-size:13px; color:#94a3b8; line-height:1.5; }
+  .s7 .bsl .stat { margin-top:12px; font-size:12px; color:#ef4444; font-weight:600; }
+  .s7 .audit { background:rgba(94,168,167,0.06); border:1px solid rgba(94,168,167,0.15); }
+  .s7 .audit h2 { font-size:18px; font-weight:700; color:#5EA8A7; margin-bottom:10px; }
+  .s7 .audit p { font-size:13px; color:#94a3b8; line-height:1.5; }
+  .s7 .audit ul { list-style:none; padding:0; margin-top:10px; }
+  .s7 .audit ul li { font-size:12px; color:#94a3b8; padding-left:18px; margin-bottom:6px; position:relative; }
+  .s7 .audit ul li::before { content:'\2713'; position:absolute; left:0; color:#5EA8A7; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 8 — POC Results
+     ══════════════════════════════════════════════ */
+  .s8 { flex-direction:column; }
+  .s8 .top { padding:50px 80px 0; }
+  .s8 .tag { font-size:12px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#22c55e; margin-bottom:12px; }
+  .s8 h1 { font-size:38px; font-weight:900; color:#fff; }
+  .s8 h1 .hl { color:#22c55e; }
+  .s8 .content { display:flex; gap:28px; padding:36px 80px; flex:1; }
+  .s8 .works { flex:1; }
+  .s8 .works h2 { font-size:16px; font-weight:700; color:#22c55e; margin-bottom:16px; letter-spacing:1px; }
+  .s8 .works ul { list-style:none; padding:0; }
+  .s8 .works ul li { font-size:14px; color:#cbd5e1; margin-bottom:14px; padding:12px 16px 12px 40px; background:rgba(34,197,94,0.04); border:1px solid rgba(34,197,94,0.1); border-radius:8px; position:relative; line-height:1.3; }
+  .s8 .works ul li::before { content:'\2713'; position:absolute; left:16px; color:#22c55e; font-weight:700; }
+  .s8 .works ul li .detail { display:block; font-size:11px; color:#64748b; margin-top:2px; }
+  .s8 .stats { width:380px; display:flex; flex-direction:column; gap:16px; }
+  .s8 .stat-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:20px 24px; text-align:center; }
+  .s8 .stat-card .number { font-size:36px; font-weight:900; color:#5EA8A7; }
+  .s8 .stat-card .label { font-size:12px; color:#64748b; margin-top:4px; }
+  /* Module grid */
+  .s8 .s8-modules { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:16px; align-content:center; padding:0 80px; }
+  .s8 .s8-core { max-width:1100px; margin:0 auto; }
+  .s8 .s8-mod-wide { grid-column:span 1; }
+  .s8 .s8-mod { display:flex; align-items:flex-start; gap:16px; padding:28px 28px; border-radius:12px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); }
+  .s8 .s8-mod-main { border-color:rgba(94,168,167,0.15); background:rgba(94,168,167,0.03); }
+  .s8 .s8-mod-icon { width:40px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+  .s8 .s8-mod-body h3 { font-size:15px; font-weight:700; color:#fff; margin-bottom:5px; }
+  .s8 .s8-mod-body p { font-size:12px; color:#94a3b8; line-height:1.5; }
+  /* ══════════════════════════════════════════════
+     SLIDE 8b — Living Data Asset
+     ══════════════════════════════════════════════ */
+  .s8b { flex-direction:column; }
+  .s8b .top { padding:40px 80px 0; }
+  .s8b .tag { font-size:12px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#5EA8A7; margin-bottom:12px; }
+  .s8b h1 { font-size:38px; font-weight:900; color:#fff; }
+  .s8b h1 .hl { color:#22c55e; }
+  .s8b .s8b-content { display:flex; gap:40px; padding:30px 80px; flex:1; }
+  .s8b .s8b-left { flex:1; }
+  .s8b .s8b-loop { display:flex; flex-direction:column; gap:0; }
+  .s8b .s8b-step { display:flex; align-items:flex-start; gap:16px; padding:16px 20px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:10px; }
+  .s8b .s8b-num { width:32px; height:32px; border-radius:50%; background:rgba(34,197,94,0.12); color:#22c55e; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; flex-shrink:0; }
+  .s8b .s8b-step-body h3 { font-size:15px; font-weight:700; color:#fff; margin-bottom:3px; }
+  .s8b .s8b-step-body p { font-size:12px; color:#94a3b8; line-height:1.4; }
+  .s8b .s8b-arrow { text-align:center; color:#1e293b; font-size:14px; padding:2px 0; margin-left:14px; }
+  .s8b .s8b-right { width:380px; display:flex; flex-direction:column; gap:16px; justify-content:center; }
+  .s8b .s8b-card { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:20px; }
+  .s8b .s8b-card h3 { font-size:14px; font-weight:700; color:#5EA8A7; margin-bottom:12px; }
+  .s8b .s8b-card ul { list-style:none; padding:0; }
+  .s8b .s8b-card ul li { font-size:12px; color:#94a3b8; margin-bottom:8px; padding-left:16px; position:relative; line-height:1.4; }
+  .s8b .s8b-card ul li::before { content:''; position:absolute; left:0; top:6px; width:6px; height:6px; border-radius:50%; background:#5EA8A7; }
+  .s8b .s8b-team { border-color:rgba(94,168,167,0.15); }
+  .s8b .s8b-team-title { font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#5EA8A7; margin-bottom:14px; }
+  .s8b .s8b-role { margin-bottom:12px; }
+  .s8b .s8b-role:last-child { margin-bottom:0; }
+  .s8b .s8b-rk { display:block; font-size:11px; color:#64748b; font-weight:600; margin-bottom:2px; }
+  .s8b .s8b-rv { display:block; font-size:12px; color:#cbd5e1; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 9 — Scaling
+     ══════════════════════════════════════════════ */
+  .s9 { flex-direction:column; }
+  .s9 .top { padding:50px 80px 0; }
+  .s9 .tag { font-size:12px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#5EA8A7; margin-bottom:12px; }
+  .s9 h1 { font-size:38px; font-weight:900; color:#fff; }
+  .s9 h1 .hl { color:#5EA8A7; }
+  .s9 .subtitle { font-size:15px; color:#64748b; margin-top:8px; }
+  .s9 .content { display:grid; grid-template-columns:1fr 1fr; gap:20px 28px; padding:28px 80px; flex:1; align-content:center; }
+  .s9 .phase { border-radius:10px; padding:22px 24px; display:flex; align-items:center; gap:18px; }
+  .s9 .phase .icon { width:40px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; color:#fff; }
+  .s9 .phase .text h3 { font-size:15px; font-weight:700; color:#fff; margin-bottom:3px; }
+  .s9 .phase .text p { font-size:12px; color:#94a3b8; line-height:1.4; }
+  .s9 .phase-now { background:rgba(94,168,167,0.06); border:1px solid rgba(94,168,167,0.2); }
+  .s9 .phase-now .icon { background:rgba(94,168,167,0.15); }
+  .s9 .badge-now { font-size:10px; font-weight:600; letter-spacing:1px; padding:3px 8px; border-radius:4px; background:rgba(94,168,167,0.15); color:#5EA8A7; text-transform:uppercase; margin-left:auto; flex-shrink:0; }
+  .s9 .phase-next { background:rgba(168,85,247,0.04); border:1px solid rgba(168,85,247,0.12); }
+  .s9 .phase-next .icon { background:rgba(168,85,247,0.12); }
+  .s9 .phase-future { background:rgba(245,158,11,0.04); border:1px solid rgba(245,158,11,0.1); }
+  .s9 .phase-future .icon { background:rgba(245,158,11,0.1); }
+  .s9 .phase-vision { background:rgba(59,130,246,0.04); border:1px solid rgba(59,130,246,0.1); }
+  .s9 .phase-vision .icon { background:rgba(59,130,246,0.1); }
+  .s9 .reason { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:22px 24px; }
+  .s9 .reason h3 { font-size:14px; font-weight:700; color:#5EA8A7; margin-bottom:6px; }
+  .s9 .reason p { font-size:12px; color:#94a3b8; line-height:1.5; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 10 — Next Steps
+     ══════════════════════════════════════════════ */
+  .s10 { flex-direction:column; }
+  .s10 .top { padding:50px 80px 0; }
+  .s10 .tag { font-size:12px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#5EA8A7; margin-bottom:12px; }
+  .s10 h1 { font-size:38px; font-weight:900; color:#fff; }
+  .s10 h1 .hl { color:#5EA8A7; }
+  .s10 .content { display:flex; gap:40px; padding:44px 80px; flex:1; }
+  .s10 .steps { flex:1; display:flex; flex-direction:column; gap:14px; }
+  .s10 .step { display:flex; align-items:flex-start; gap:20px; padding:18px 24px; border-radius:10px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); }
+  .s10 .step-num { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; flex-shrink:0; background:rgba(94,168,167,0.12); color:#5EA8A7; }
+  .s10 .step .text h3 { font-size:16px; font-weight:700; color:#fff; margin-bottom:4px; }
+  .s10 .step .text p { font-size:12px; color:#94a3b8; line-height:1.4; }
+  .s10 .step .owner { margin-left:auto; font-size:10px; font-weight:600; letter-spacing:1px; padding:4px 10px; border-radius:4px; text-transform:uppercase; flex-shrink:0; align-self:center; }
+  .s10 .owner.mh { background:rgba(59,130,246,0.12); color:#3b82f6; }
+  .s10 .owner.synapse { background:rgba(94,168,167,0.12); color:#5EA8A7; }
+  .s10 .owner.joint { background:rgba(168,85,247,0.12); color:#a855f7; }
+  .s10 .framing { width:340px; display:flex; flex-direction:column; justify-content:center; gap:24px; }
+  .s10 .frame-card { padding:24px; border-radius:10px; background:rgba(94,168,167,0.05); border:1px solid rgba(94,168,167,0.15); }
+  .s10 .frame-card h3 { font-size:15px; font-weight:700; color:#5EA8A7; margin-bottom:8px; }
+  .s10 .frame-card p { font-size:13px; color:#94a3b8; line-height:1.5; }
+  .s10 .frame-card strong { color:#cbd5e1; }
+  .s10 .cta { margin:0 80px 40px; padding:20px 32px; background:rgba(94,168,167,0.08); border:1px solid rgba(94,168,167,0.25); border-radius:10px; text-align:center; }
+  .s10 .cta p { font-size:18px; font-weight:700; color:#fff; }
+  .s10 .cta p .hl { color:#5EA8A7; }
+</style>
+</head>
+<body>
+
+<div id="deck">
+
+  <!-- ════ SLIDE 1 ════ -->
+  <div class="slide s1 active">
+    <div class="left">
+      <div class="s1-brand">
+        <div class="s1-brand-line1">
+          <svg class="ming-logo" width="42" height="42" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.7884 37.348L37.0647 24.1606C37.3855 23.8837 37.5695 23.4842 37.5695 23.0642V3.10892C37.5695 2.58651 36.9442 2.30752 36.545 2.65197L21.2687 15.8357C20.9479 16.1126 20.7638 16.5122 20.7638 16.9322V36.8912C20.7638 37.4136 21.3892 37.6924 21.7884 37.348ZM37.569 36.8798V27.468C37.569 26.9359 36.9713 26.6518 36.5901 27.0025L31.7794 31.43C31.3506 31.8243 31.3506 32.5247 31.7794 32.9191L36.5901 37.3453C36.9715 37.696 37.569 37.4119 37.569 36.8798ZM2.43005 36.5296V3.16732C2.43005 2.64596 3.05082 2.36769 3.4468 2.71128L18.5812 15.8451C18.8995 16.1215 19.0822 16.5203 19.0822 16.9395V36.5296C19.0822 37.0655 18.6432 37.5 18.1017 37.5H3.41056C2.8691 37.5 2.43005 37.0655 2.43005 36.5296Z" fill="white"/></svg>
+          <span class="s1-brand-ming">MING Labs</span>
+        </div>
+        <span class="s1-brand-powered">powered by</span>
+        <span class="s1-brand-synapse">Synapse OS</span>
+      </div>
+      <div class="accent-bar"></div>
+      <h1>Product Advisor<br/><span class="hl">Under the Hood</span></h1>
+      <div class="s1-pillars">
+        <span class="s1-pill">Deterministic</span>
+        <span class="s1-pill">Auditable</span>
+        <span class="s1-pill">Explainable</span>
+      </div>
+      <h2>Graph Reasoning Architecture<br/>& Enterprise Scaling Path</h2>
+      <div class="meta">MANN+HUMMEL &nbsp;&mdash;&nbsp; <span>March 2026</span></div>
+    </div>
+    <div class="right">
+      <div class="graph-viz">
+        <svg class="edges" width="300" height="400" viewBox="0 0 300 400">
+          <line x1="156" y1="46" x2="66" y2="106"/>
+          <line x1="156" y1="46" x2="226" y2="96" class="active"/>
+          <line x1="66" y1="106" x2="136" y2="176"/>
+          <line x1="226" y1="96" x2="256" y2="166" class="active"/>
+          <line x1="226" y1="96" x2="136" y2="176"/>
+          <line x1="136" y1="176" x2="186" y2="246" class="active"/>
+          <line x1="56" y1="236" x2="136" y2="176"/>
+          <line x1="56" y1="236" x2="106" y2="306"/>
+          <line x1="186" y1="246" x2="246" y2="316"/>
+          <line x1="186" y1="246" x2="106" y2="306" class="active"/>
+          <line x1="106" y1="306" x2="166" y2="366" class="active"/>
+          <line x1="246" y1="316" x2="166" y2="366"/>
+          <line x1="256" y1="166" x2="186" y2="246"/>
+        </svg>
+        <div class="node bright n1"></div>
+        <div class="node dim n2"></div>
+        <div class="node n3"></div>
+        <div class="node accent n4"></div>
+        <div class="node dim n5"></div>
+        <div class="node dim n6"></div>
+        <div class="node bright n7"></div>
+        <div class="node n8"></div>
+        <div class="node dim n9"></div>
+        <div class="node accent n10"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 3 (Iceberg) ════ -->
+  <div class="slide s3">
+    <div class="left">
+      <div class="tag">The Iceberg</div>
+      <h1>A Chat UI Is the <span class="hl">Easy 5%</span></h1>
+      <div class="happy-path">
+        <div class="label">The Happy Path</div>
+        <span class="pct">5%</span>
+        <span class="desc">"I need a filter for my kitchen" &rarr; shows a product. Done.</span>
+      </div>
+      <div class="hard-part">
+        <div class="label">The Other 95% &mdash; Production Engineering</div>
+        <span class="pct">95%</span>
+        <span class="desc">What happens when reality gets complicated:</span>
+        <ul class="hard-items">
+          <li>Material vs. environment constraints (salt, acid, humidity)</li>
+          <li>Multi-stage assembly logic (housing + protector + filter)</li>
+          <li>Geometric sizing with spatial feasibility checks</li>
+          <li>Airflow capacity per module with CapacityRule joins</li>
+          <li>Installation constraint validation (min. dimensions)</li>
+          <li>Cross-product alternative suggestions when blocked</li>
+          <li>BSL-4 safety: zero tolerance for "close enough"</li>
+          <li>Audit trail: why THIS product, not that one?</li>
+        </ul>
+      </div>
+    </div>
+    <div class="right">
+      <div class="iceberg">
+        <img class="iceberg-img" src="iceberg-clean.svg" alt="Iceberg"/>
+        <div class="tip-label">Chat Interface</div>
+        <div class="underwater-label">Engineering Intelligence</div>
+        <div class="underwater-sub">Rules &bull; Constraints &bull; Physics &bull; Audit</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 2 ════ -->
+  <div class="slide s2">
+    <div class="top">
+      <div class="tag">The Problem</div>
+      <h1>Every Enterprise Has a <span class="hl">Missing Layer</span></h1>
+    </div>
+    <div class="layers">
+      <div class="layer l1">
+        <div class="layer-tag red">Layer 1: The System</div>
+        <span class="badge current">Current</span>
+        <h2>SAP / PIM</h2>
+        <ul>
+          <li>Flat product data &mdash; no structure</li>
+          <li>No relationships between entities</li>
+          <li>No engineering rules encoded</li>
+          <li>Cannot answer "which product fits?"</li>
+        </ul>
+      </div>
+      <div class="layer l2">
+        <div class="layer-tag amber">Layer 2: The Tribal</div>
+        <span class="badge current">Current</span>
+        <h2>Expert Knowledge</h2>
+        <ul>
+          <li>Sizing rules in engineers' heads</li>
+          <li>Material constraints undocumented</li>
+          <li>Assembly logic passed verbally</li>
+          <li>Not queryable, not measurable</li>
+        </ul>
+        <div class="footnote">Your most valuable data asset &mdash; but it's not data yet.</div>
+      </div>
+      <div class="layer target">
+        <div class="layer-tag teal">Layer 3: The Engine</div>
+        <span class="badge build">We Build This</span>
+        <h2>Knowledge Graph</h2>
+        <ul>
+          <li>Structured, queryable domain model</li>
+          <li>Deterministic inference over relationships</li>
+          <li>Every decision traceable to a data node</li>
+          <li>Maintainable by your analytics team</li>
+        </ul>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <p>We turn tribal knowledge into <strong>structured, queryable data</strong> &mdash; a knowledge graph that grows with every expert interaction.</p>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 4 ════ -->
+  <div class="slide s4">
+    <div class="top">
+      <div class="tag">Architecture Decision</div>
+      <h1>Why <span class="hl">Graph Reasoning</span><span class="dim">, not Vector Search</span></h1>
+    </div>
+    <div class="comparison">
+      <div class="col vector">
+        <div class="col-header">
+          <div class="col-icon">~</div>
+          <div><h2>Vector / RAG</h2><h3>Copilot, ChatGPT, typical AI</h3></div>
+        </div>
+        <div class="example">
+          <div class="q">&gt; "GDC-FLEX 600mm with eccentric locking"</div>
+          <div class="a">"Here's a GDC-FLEX product that sounds<br/>relevant to your query..."<br/><em style="color:#ef4444;font-size:11px;">// no constraint check, no sizing</em></div>
+        </div>
+        <ul class="traits">
+          <li>Finds "similar sounding" text</li>
+          <li>Cannot do math (airflow, dimensions)</li>
+          <li>No relationship traversal</li>
+          <li>Hallucination on edge cases</li>
+          <li>No audit trail for recommendations</li>
+        </ul>
+      </div>
+      <div class="col graph">
+        <div class="col-header">
+          <div class="col-icon">&lt;/&gt;</div>
+          <div><h2>Knowledge Graph</h2><h3>Synapse Product Advisor</h3></div>
+        </div>
+        <div class="example">
+          <div class="q">&gt; "GDC-FLEX 600mm with eccentric locking"</div>
+          <div class="a">BLOCKED: Eccentric locking requires<br/>min. 800mm housing width.<br/>Alternative: Standard locking &rarr; GDC-FLEX-600-F<br/><em style="color:#5EA8A7;font-size:11px;">// constraint checked, alternative offered</em></div>
+        </div>
+        <ul class="traits">
+          <li>Traverses relationships and rules</li>
+          <li>Calculates constraints &amp; capacity</li>
+          <li>Deterministic: same input &rarr; same output</li>
+          <li>Every answer traceable to graph node</li>
+          <li>LLM narrates, never decides</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 5 ════ -->
+  <div class="slide s5">
+    <div class="top">
+      <div class="tag">Architecture</div>
+      <h1>The <span class="hl">4-Layer</span> Knowledge Graph</h1>
+      <div class="subtitle">All intelligence lives in the graph. The engine is domain-agnostic.</div>
+    </div>
+    <div class="arch">
+      <div class="layer-card l1">
+        <div class="num">Layer 1 &mdash; Inventory</div>
+        <h2>Products &amp; Traits</h2>
+        <h3>What we sell</h3>
+        <ul>
+          <li>9 Product Families (GDC, GDP, GDF...)</li>
+          <li>Materials (FZ, ZM, SS, ALU...)</li>
+          <li>Sizes, depths, options</li>
+          <li>Trait nodes (filtration class, capacity...)</li>
+        </ul>
+      </div>
+      <div class="layer-card l2">
+        <div class="num">Layer 2 &mdash; Physics</div>
+        <h2>Stressors &amp; Rules</h2>
+        <h3>How the world works</h3>
+        <ul>
+          <li>Stressors: Grease, Salt, Acid...</li>
+          <li>Causal rules: Grease &rarr; blocks Pores</li>
+          <li>Environment constraints</li>
+          <li>Material compatibility matrix</li>
+        </ul>
+      </div>
+      <div class="layer-card l3">
+        <div class="num">Layer 3 &mdash; Playbook</div>
+        <h2>Logic &amp; Strategy</h2>
+        <h3>How we decide</h3>
+        <ul>
+          <li>Logic gates &amp; decision trees</li>
+          <li>Parameter priority ordering</li>
+          <li>Clarification sequences</li>
+          <li>Assembly rules &amp; protectors</li>
+        </ul>
+      </div>
+      <div class="layer-card l4">
+        <div class="num">Layer 4 &mdash; Session</div>
+        <h2>Digital Twin</h2>
+        <h3>Current project state</h3>
+        <ul>
+          <li>Active product selection</li>
+          <li>Resolved parameters</li>
+          <li>Assembly groups &amp; stages</li>
+          <li>Conversation context</li>
+        </ul>
+      </div>
+    </div>
+    <div class="insight">
+      <div class="icon">&rarr;</div>
+      <p><strong>Key principle:</strong> To add a new product rule, you add a node to the graph &mdash; not a line of code. The engine has zero domain knowledge. It processes whatever the graph tells it.</p>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 6 ════ -->
+  <div class="slide s6">
+    <div class="top">
+      <div class="tag">How It Works</div>
+      <h1>One Request, <span class="hl">Five Stages</span></h1>
+      <div class="subtitle">From user question to verified recommendation &mdash; every step deterministic.</div>
+    </div>
+    <div class="pipeline">
+      <div class="stage s-input">
+        <div class="stage-num">1</div>
+        <div class="stage-body">
+          <div class="stage-name">User Query</div>
+          <div class="stage-desc">"I need grease filtration for a commercial kitchen, 1200mm wide"</div>
+          <div class="stage-tech">streaming</div>
+        </div>
+      </div>
+      <div class="arrow-down">&darr;</div>
+      <div class="stage s-scribe">
+        <div class="stage-num">2</div>
+        <div class="stage-body">
+          <div class="stage-name">Semantic Scribe</div>
+          <div class="stage-desc">LLM extracts intent, application, dimensions, environment &rarr; structured JSON</div>
+          <div class="stage-tech">LLM extraction</div>
+        </div>
+      </div>
+      <div class="arrow-down">&darr;</div>
+      <div class="stage s-engine">
+        <div class="stage-num">3</div>
+        <div class="stage-body">
+          <div class="stage-name">Trait Engine</div>
+          <div class="stage-desc">Stressors &rarr; Rules &rarr; Candidates &rarr; Traits &rarr; Vetoes &rarr; Constraints &rarr; Sizing &rarr; Capacity &rarr; Alternatives &rarr; Verdict</div>
+          <div class="stage-tech">graph traversal</div>
+        </div>
+      </div>
+      <div class="arrow-down">&darr;</div>
+      <div class="stage s-guard">
+        <div class="stage-num">4</div>
+        <div class="stage-body">
+          <div class="stage-name">Triple Guard</div>
+          <div class="stage-desc">Engine guard (parameters) + Python guard (keyword filter) + LLM guard (prompt injection: "DO NOT ask")</div>
+          <div class="stage-tech">3-layer safety</div>
+        </div>
+      </div>
+      <div class="arrow-down">&darr;</div>
+      <div class="stage s-llm">
+        <div class="stage-num">5</div>
+        <div class="stage-body">
+          <div class="stage-name">Natural Language</div>
+          <div class="stage-desc">Language model receives the VERDICT and converts it into a professional response. It narrates &mdash; it never decides.</div>
+          <div class="stage-tech">narration only</div>
+        </div>
+      </div>
+    </div>
+    <div class="callout">
+      <p><strong>Key insight:</strong> The language model is at the END of the pipeline, not the beginning. It cannot override the engine's verdict. Every recommendation is a deterministic graph traversal result &mdash; the LLM only explains it.</p>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 6b — Graph Traversal (animated) ════ -->
+  <div class="slide s6b" id="traversal-slide">
+    <div class="top">
+      <div class="tag">Live Example</div>
+      <h1>One Query, <span class="hl">One Graph Traversal</span></h1>
+    </div>
+    <div class="trav-grid">
+      <!-- Step 0: Query -->
+      <div class="trav-row trav-step" data-step="0">
+        <div class="trav-label">INPUT</div>
+        <div class="trav-cards">
+          <div class="tc tc-query">
+            <div class="tc-icon" style="background:rgba(94,168,167,0.15);color:#5EA8A7;">?</div>
+            <div class="tc-body">
+              <div class="tc-title">User Query</div>
+              <div class="tc-val">"We need air filtration for a paint booth near the coast, 800mm wide, eccentric locking"</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trav-connector trav-step" data-step="1">&darr;&darr;&darr;</div>
+      <!-- Step 1: Scribe -->
+      <div class="trav-row trav-step" data-step="1">
+        <div class="trav-label">SCRIBE</div>
+        <div class="trav-cards">
+          <div class="tc tc-blue">
+            <div class="tc-icon" style="background:rgba(59,130,246,0.15);color:#3b82f6;">A</div>
+            <div class="tc-body">
+              <div class="tc-title">Application</div>
+              <div class="tc-val">Paint Booth</div>
+            </div>
+          </div>
+          <div class="tc tc-purple">
+            <div class="tc-icon" style="background:rgba(168,85,247,0.15);color:#a855f7;">E</div>
+            <div class="tc-body">
+              <div class="tc-title">Environment</div>
+              <div class="tc-val">Coastal</div>
+            </div>
+          </div>
+          <div class="tc tc-amber">
+            <div class="tc-icon" style="background:rgba(245,158,11,0.15);color:#f59e0b;">D</div>
+            <div class="tc-body">
+              <div class="tc-title">Dimension</div>
+              <div class="tc-val">W: 800mm</div>
+            </div>
+          </div>
+          <div class="tc tc-teal">
+            <div class="tc-icon" style="background:rgba(94,168,167,0.15);color:#5EA8A7;">O</div>
+            <div class="tc-body">
+              <div class="tc-title">Option</div>
+              <div class="tc-val">Eccentric Locking</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trav-connector trav-step" data-step="2">&darr;&darr;&darr;</div>
+      <!-- Step 2: Engine — stressors + rules + vetoes -->
+      <div class="trav-row trav-step" data-step="2">
+        <div class="trav-label">ENGINE</div>
+        <div class="trav-cards">
+          <div class="tc tc-purple">
+            <div class="tc-icon" style="background:rgba(168,85,247,0.15);color:#a855f7;">S</div>
+            <div class="tc-body">
+              <div class="tc-title">2 Stressors detected</div>
+              <div class="tc-val">Salt (coastal) &rarr; corrodes FZ &nbsp;&bull;&nbsp; Paint particles &rarr; NEUTRALIZATION</div>
+            </div>
+          </div>
+          <div class="tc tc-red">
+            <div class="tc-icon" style="background:rgba(239,68,68,0.15);color:#ef4444;">&#10007;</div>
+            <div class="tc-body">
+              <div class="tc-title">Material Veto</div>
+              <div class="tc-val tc-strike">FZ (galvanized) &mdash; salt corrosion</div>
+            </div>
+          </div>
+          <div class="tc tc-teal tc-glow">
+            <div class="tc-icon" style="background:rgba(94,168,167,0.2);color:#5EA8A7;">&#10003;</div>
+            <div class="tc-body">
+              <div class="tc-title">Material PASS</div>
+              <div class="tc-val">SS (stainless) &mdash; auto-selected</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trav-connector trav-step" data-step="3">&darr;&darr;&darr;</div>
+      <!-- Step 3: Assembly + Constraints -->
+      <div class="trav-row trav-step" data-step="3">
+        <div class="trav-label">ASSEMBLY</div>
+        <div class="trav-cards">
+          <div class="tc tc-blue">
+            <div class="tc-icon" style="background:rgba(59,130,246,0.15);color:#3b82f6;">1</div>
+            <div class="tc-body">
+              <div class="tc-title">Stage 1 &mdash; Housing</div>
+              <div class="tc-val">GDC-FLEX-800-SS-EXL</div>
+            </div>
+          </div>
+          <div class="tc tc-purple">
+            <div class="tc-icon" style="background:rgba(168,85,247,0.15);color:#a855f7;">2</div>
+            <div class="tc-body">
+              <div class="tc-title">Stage 2 &mdash; Protector</div>
+              <div class="tc-val">Pre-filter G4 (paint particles)</div>
+            </div>
+          </div>
+          <div class="tc tc-amber">
+            <div class="tc-icon" style="background:rgba(245,158,11,0.15);color:#f59e0b;">3</div>
+            <div class="tc-body">
+              <div class="tc-title">Stage 3 &mdash; Main Filter</div>
+              <div class="tc-val">Fine filter F7 (NEUTRALIZATION)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trav-connector trav-step" data-step="4">&darr;&darr;&darr;</div>
+      <!-- Step 4: Constraints + Sizing -->
+      <div class="trav-row trav-step" data-step="4">
+        <div class="trav-label">CHECKS</div>
+        <div class="trav-cards">
+          <div class="tc tc-teal">
+            <div class="tc-icon" style="background:rgba(94,168,167,0.15);color:#5EA8A7;">&#10003;</div>
+            <div class="tc-body">
+              <div class="tc-title">Installation Constraint</div>
+              <div class="tc-val">Eccentric locking: min 600mm &rarr; 800mm OK</div>
+            </div>
+          </div>
+          <div class="tc tc-amber">
+            <div class="tc-icon" style="background:rgba(245,158,11,0.15);color:#f59e0b;">#</div>
+            <div class="tc-body">
+              <div class="tc-title">Sizing</div>
+              <div class="tc-val">1&times; 800mm module &bull; 3200 m&sup3;/h capacity</div>
+            </div>
+          </div>
+          <div class="tc tc-dim">
+            <div class="tc-icon" style="background:rgba(255,255,255,0.05);color:#64748b;">~</div>
+            <div class="tc-body">
+              <div class="tc-title">Alternative</div>
+              <div class="tc-val tc-italic">GDP-SS (no eccentric) if budget limited</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trav-connector trav-step" data-step="5">&darr;</div>
+      <!-- Step 5: Verdict -->
+      <div class="trav-row trav-step" data-step="5">
+        <div class="trav-label">VERDICT</div>
+        <div class="trav-cards">
+          <div class="tc tc-verdict">
+            <div class="tc-icon tc-verdict-icon">&#10003;</div>
+            <div class="tc-body">
+              <div class="tc-title">GDC-FLEX-800-SS-EXL</div>
+              <div class="tc-val">3-stage assembly &bull; SS (auto: coastal) &bull; Eccentric lock &bull; 3200 m&sup3;/h &bull; 18 nodes &bull; 4 rules &bull; 1 veto</div>
+            </div>
+            <div class="tc-badge-det">deterministic</div>
+          </div>
+        </div>
+      </div>
+      <!-- Progress hint -->
+      <div class="trav-hint" id="trav-hint">Press &rarr; or click to reveal next step</div>
+    </div>
+  </div>
+
+  <!-- ════ Who Owns the Reasoning? ════ -->
+  <div class="slide s4b">
+    <div class="top">
+      <div class="tag">The Core Question</div>
+      <h1>Who Owns the <span class="hl">Reasoning?</span></h1>
+    </div>
+    <div class="s4b-cols">
+      <div class="s4b-col s4b-bad">
+        <div class="s4b-header">
+          <div class="s4b-icon" style="background:rgba(239,68,68,0.12);color:#ef4444;">?</div>
+          <h2>LLM-Only Approach</h2>
+        </div>
+        <div class="s4b-subtitle">Reasoning lives in the model</div>
+        <ul>
+          <li>Rules are implicit &mdash; learned from training data</li>
+          <li>Cannot inspect why a decision was made</li>
+          <li>Model update = your outputs change overnight</li>
+          <li>No way to fix a single wrong rule</li>
+          <li>Vendor controls the logic, not you</li>
+          <li>Compliance: "the AI decided" is not an answer</li>
+        </ul>
+        <div class="s4b-bottom">You rent the reasoning. You don't control it.</div>
+      </div>
+      <div class="s4b-col s4b-good">
+        <div class="s4b-header">
+          <div class="s4b-icon" style="background:rgba(94,168,167,0.15);color:#5EA8A7;">&#9670;</div>
+          <h2>Knowledge Graph</h2>
+        </div>
+        <div class="s4b-subtitle">Reasoning lives in your data</div>
+        <ul>
+          <li>Every rule is an explicit, editable data node</li>
+          <li>Full traceability: this node triggered this decision</li>
+          <li>You change a rule, the output changes &mdash; predictably</li>
+          <li>One wrong constraint? Fix that one node</li>
+          <li>The graph is your IP, in your infrastructure</li>
+          <li>Compliance: every answer maps to a source</li>
+        </ul>
+        <div class="s4b-bottom">The reasoning logic is a data asset you control.</div>
+      </div>
+    </div>
+    <div class="s4b-bar">
+      <p>An LLM is a narrator. The Knowledge Graph is the <strong>source of truth</strong>. When both work together, you get intelligence you can trust, audit, and scale.</p>
+    </div>
+  </div>
+
+  <!-- ════ Safety ════ -->
+  <div class="slide s7">
+    <div class="top">
+      <div class="tag">Safety &amp; Compliance</div>
+      <h1>Zero Tolerance for <span class="hl">"Close Enough"</span></h1>
+      <div class="subtitle">Three independent layers prevent hallucination. Every recommendation is traceable.</div>
+    </div>
+    <div class="content">
+      <div class="guards">
+        <div class="guard g1">
+          <div class="name">Engine Guard <span class="badge">Layer 1</span></div>
+          <div class="desc">Checks all required parameters are resolved before generating a verdict. Missing airflow? Blocks recommendation, asks for clarification.</div>
+        </div>
+        <div class="guard g2">
+          <div class="name">Retriever Guard <span class="badge">Layer 2</span></div>
+          <div class="desc">Programmatic filter ensures resolved parameters are not re-asked. Prevents "Context Amnesia" across conversation turns.</div>
+        </div>
+        <div class="guard g3">
+          <div class="name">LLM Guard <span class="badge">Layer 3</span></div>
+          <div class="desc">Prompt injection marks known values as resolved. LLM receives explicit instruction: "KNOWN: width=1200mm. DO NOT ask again."</div>
+        </div>
+      </div>
+      <div class="why">
+        <div class="why-card bsl">
+          <h2>Why This Matters</h2>
+          <p>M+H filters protect BSL-4 containment laboratories. Ebola. Marburg. No cure. Wrong filter specification = aerosol transmission risk.</p>
+          <p style="margin-top:8px;">A "close enough" answer from a generic AI is not acceptable. The system must be <strong style="color:#ef4444;">deterministic and verifiable.</strong></p>
+          <div class="stat">EU AI Act: High-risk systems require full traceability.</div>
+        </div>
+        <div class="why-card audit">
+          <h2>Full Audit Trail</h2>
+          <p>Every recommendation links back to:</p>
+          <ul>
+            <li>Which graph nodes were traversed</li>
+            <li>Which rules triggered or vetoed</li>
+            <li>Which constraints were checked</li>
+            <li>Why alternatives were offered</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 8a — Platform Core ════ -->
+  <div class="slide s8">
+    <div class="top">
+      <div class="tag">The Platform</div>
+      <h1>Synapse OS <span class="hl">Core Modules</span></h1>
+    </div>
+    <div class="content">
+      <div class="s8-modules s8-core">
+        <div class="s8-mod s8-mod-main s8-mod-wide">
+          <div class="s8-mod-icon" style="background:rgba(59,130,246,0.12);color:#3b82f6;">&#9670;</div>
+          <div class="s8-mod-body">
+            <h3>Ontology Builder</h3>
+            <p>Automated extraction from product catalogs, spec sheets, and engineering documents. AI proposes relationships and rules &mdash; domain experts review and confirm. The ontology IS the intelligence.</p>
+          </div>
+        </div>
+        <div class="s8-mod s8-mod-main s8-mod-wide">
+          <div class="s8-mod-icon" style="background:rgba(94,168,167,0.12);color:#5EA8A7;">&#9881;</div>
+          <div class="s8-mod-body">
+            <h3>Reasoning Engine</h3>
+            <p>Domain-agnostic inference engine. Traverses the graph, applies rules, validates constraints, computes sizing, generates verdicts. Zero hardcoded domain logic.</p>
+          </div>
+        </div>
+        <div class="s8-mod">
+          <div class="s8-mod-icon" style="background:rgba(168,85,247,0.12);color:#a855f7;">&#9998;</div>
+          <div class="s8-mod-body">
+            <h3>Semantic Scribe</h3>
+            <p>Natural language understanding. Extracts intent, entities, dimensions, and context from free-text queries into structured parameters.</p>
+          </div>
+        </div>
+        <div class="s8-mod">
+          <div class="s8-mod-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b;">&#8634;</div>
+          <div class="s8-mod-body">
+            <h3>Session &amp; Digital Twin</h3>
+            <p>Persistent conversation state across turns. Every resolved parameter, every assembly group, every decision &mdash; stored and synced in real-time.</p>
+          </div>
+        </div>
+        <div class="s8-mod">
+          <div class="s8-mod-icon" style="background:rgba(239,68,68,0.12);color:#ef4444;">&#9888;</div>
+          <div class="s8-mod-body">
+            <h3>Safety &amp; Audit Layer</h3>
+            <p>Triple guard against hallucination. Full audit trail for every recommendation. EU AI Act traceability built in.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 8b — Living Data Asset ════ -->
+  <div class="slide s8b">
+    <div class="top">
+      <div class="tag">Continuous Improvement</div>
+      <h1>A <span class="hl">Living</span> Data Asset</h1>
+    </div>
+    <div class="s8b-content">
+      <div class="s8b-left">
+        <div class="s8b-loop">
+          <div class="s8b-step">
+            <div class="s8b-num">1</div>
+            <div class="s8b-step-body">
+              <h3>Users interact</h3>
+              <p>Sales reps ask questions. The system answers with graph-backed recommendations.</p>
+            </div>
+          </div>
+          <div class="s8b-arrow">&darr;</div>
+          <div class="s8b-step">
+            <div class="s8b-num">2</div>
+            <div class="s8b-step-body">
+              <h3>Edge cases surface</h3>
+              <p>New product combinations, missing constraints, unusual environments &mdash; the system flags what it doesn't know.</p>
+            </div>
+          </div>
+          <div class="s8b-arrow">&darr;</div>
+          <div class="s8b-step">
+            <div class="s8b-num">3</div>
+            <div class="s8b-step-body">
+              <h3>Experts review &amp; confirm</h3>
+              <p>Domain experts validate AI-proposed rules. Human-in-the-loop. No unverified logic enters the graph.</p>
+            </div>
+          </div>
+          <div class="s8b-arrow">&darr;</div>
+          <div class="s8b-step">
+            <div class="s8b-num">4</div>
+            <div class="s8b-step-body">
+              <h3>Graph gets richer</h3>
+              <p>New nodes, new rules, better coverage. Every cycle makes the system more complete.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="s8b-right">
+        <div class="s8b-card">
+          <h3>Analytics &amp; Insights</h3>
+          <ul>
+            <li>Which products are most queried?</li>
+            <li>Where do constraints block most often?</li>
+            <li>Where is the ontology incomplete?</li>
+            <li>Time-to-recommendation vs. manual process</li>
+          </ul>
+        </div>
+        <div class="s8b-card s8b-team">
+          <div class="s8b-team-title">Low barrier to operate</div>
+          <div class="s8b-role"><span class="s8b-rk">Ontology maintenance</span><span class="s8b-rv">Add products, rules, constraints &mdash; no code deploys needed.</span></div>
+          <div class="s8b-role"><span class="s8b-rk">Coverage analytics</span><span class="s8b-rv">Measure gaps, track usage patterns, prioritize ontology expansion.</span></div>
+          <div class="s8b-role"><span class="s8b-rk">Expert validation</span><span class="s8b-rv">Human-in-the-loop. AI proposes rules, experts confirm or reject.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 9 ════ -->
+  <div class="slide s9">
+    <div class="top">
+      <div class="tag">Scaling Vision</div>
+      <h1>From One Division to <span class="hl">Global Platform</span></h1>
+      <div class="subtitle">Same engine, new ontology. Adding a division = adding data, not development.</div>
+    </div>
+    <div class="content">
+      <div class="phase phase-now">
+        <div class="icon">&oplus;</div>
+        <div class="text"><h3>Air Filtration (OE Division)</h3><p>9 product families, full constraint engine, POC live.</p></div>
+        <span class="badge-now">Now</span>
+      </div>
+      <div class="reason"><h3>Domain-Agnostic Engine</h3><p>The reasoning engine has zero domain knowledge. It processes graph metadata. Adding a new division means building the ontology &mdash; no engineering sprints.</p></div>
+      <div class="phase phase-next">
+        <div class="icon">+</div>
+        <div class="text"><h3>Water Filtration</h3><p>New stressor nodes (sediment, chlorine, bacteria). Same engine processes new domain rules.</p></div>
+      </div>
+      <div class="reason"><h3>Ontology = Data Asset</h3><p>Each division's knowledge model is queryable and versionable. Analytics show coverage, gaps, and usage patterns.</p></div>
+      <div class="phase phase-future">
+        <div class="icon">+</div>
+        <div class="text"><h3>Industrial Filtration</h3><p>Oil, hydraulic, coolant filtration. Complex assembly logic already supported.</p></div>
+      </div>
+      <div class="reason"><h3>Cross-Division Queries</h3><p>Multiple ontologies on one platform enable cross-division intelligence. "Complete filtration solution" spans air + water + industrial.</p></div>
+      <div class="phase phase-vision">
+        <div class="icon">&infin;</div>
+        <div class="text"><h3>Cross-Division Intelligence</h3><p>Customer asks for complete filtration solution. Graph traverses across divisions, finds optimal package.</p></div>
+      </div>
+      <div class="reason"><h3>Measurable ROI</h3><p>Track: queries without escalation, edge cases caught, constraint violations prevented, time-to-recommendation vs. manual.</p></div>
+    </div>
+  </div>
+
+
+</div>
+
+<!-- Navigation -->
+<div class="nav-arrow" id="prev">&larr;</div>
+<div class="nav-arrow" id="next">&rarr;</div>
+<div class="nav-bottom" id="dots"></div>
+<div id="counter"></div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+
+  // ── Traversal slide step logic ──
+  const travSlide = document.getElementById('traversal-slide');
+  const travSteps = travSlide.querySelectorAll('.trav-step');
+  const travHint = document.getElementById('trav-hint');
+  const maxStep = 5;
+  let travCurrent = -1; // nothing revealed yet
+
+  function travReset() {
+    travCurrent = -1;
+    travSteps.forEach(s => s.classList.remove('visible'));
+    travHint.classList.remove('hidden');
+  }
+
+  function travAdvance() {
+    if (travCurrent >= maxStep) return false; // all revealed
+    travCurrent++;
+    travSteps.forEach(s => {
+      if (parseInt(s.dataset.step) <= travCurrent) s.classList.add('visible');
+    });
+    if (travCurrent >= maxStep) travHint.classList.add('hidden');
+    return true; // consumed the event
+  }
+
+  function isOnTravSlide() {
+    return slides[current] === travSlide;
+  }
+
+  // Build dots
+  const dotsEl = document.getElementById('dots');
+  for (let i = 0; i < total; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => go(i);
+    dotsEl.appendChild(d);
+  }
+
+  function go(n) {
+    const leaving = current;
+    slides[current].classList.remove('active');
+    dotsEl.children[current].classList.remove('active');
+    current = Math.max(0, Math.min(n, total - 1));
+    slides[current].classList.add('active');
+    dotsEl.children[current].classList.add('active');
+    document.getElementById('counter').textContent = (current + 1) + ' / ' + total;
+    // Reset traversal when entering/leaving
+    if (slides[current] === travSlide && slides[leaving] !== travSlide) travReset();
+  }
+
+  function next() {
+    // If on traversal slide and steps remain, advance step instead of slide
+    if (isOnTravSlide() && travCurrent < maxStep) {
+      travAdvance();
+    } else {
+      go(current + 1);
+    }
+  }
+
+  function prev() {
+    if (isOnTravSlide() && travCurrent > 0) {
+      // step back
+      travSteps.forEach(s => {
+        if (parseInt(s.dataset.step) >= travCurrent) s.classList.remove('visible');
+      });
+      travCurrent--;
+      travHint.classList.remove('hidden');
+    } else {
+      go(current - 1);
+    }
+  }
+
+  document.getElementById('prev').onclick = prev;
+  document.getElementById('next').onclick = next;
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+    if (e.key === 'ArrowLeft') { prev(); }
+    if (e.key === 'Home') go(0);
+    if (e.key === 'End') go(total - 1);
+  });
+
+  go(0);
+</script>
+</body>
+</html>

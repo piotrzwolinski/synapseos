@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Advisor — Status & Nächste Schritte</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --dark: #0f1419;
+  --dark2: #1a2332;
+  --dark3: #141d2b;
+  --teal: #5EA8A7;
+  --teal-dim: rgba(94,168,167,0.15);
+  --teal-glow: rgba(94,168,167,0.3);
+  --red: #E74C3C;
+  --red-dim: rgba(231,76,60,0.1);
+  --orange: #E67E22;
+  --orange-dim: rgba(230,126,34,0.1);
+  --blue: #2E86C1;
+  --blue-dim: rgba(46,134,193,0.15);
+  --green: #1ABC9C;
+  --green-dim: rgba(26,188,156,0.15);
+  --gold: #F39C12;
+  --gold-dim: rgba(243,156,18,0.15);
+  --purple: #9B59B6;
+  --purple-dim: rgba(155,89,182,0.15);
+  --white: #ffffff;
+  --gray: #8899a6;
+  --light: #f0f3f5;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', Arial, sans-serif;
+  background: var(--dark);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
+.slideshow { position: relative; width: 100vw; height: 100vh; }
+
+.slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateX(40px);
+}
+.slide.active {
+  opacity: 1; visibility: visible; transform: translateX(0);
+}
+.slide.exit {
+  opacity: 0; transform: translateX(-40px);
+}
+
+/* Navigation */
+.nav-dots {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 12px; z-index: 100;
+}
+.dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: rgba(255,255,255,0.2); border: none;
+  cursor: pointer; transition: all 0.3s ease; padding: 0;
+}
+.dot:hover { background: rgba(255,255,255,0.4); transform: scale(1.3); }
+.dot.active {
+  background: var(--teal);
+  box-shadow: 0 0 12px rgba(94,168,167,0.5);
+  transform: scale(1.2);
+}
+.slide-counter {
+  position: fixed; bottom: 34px; right: 48px;
+  color: var(--gray); font-size: 13px; font-weight: 500;
+  z-index: 100; letter-spacing: 1px;
+}
+.hint {
+  position: fixed; bottom: 34px; left: 48px;
+  color: rgba(255,255,255,0.15); font-size: 11px;
+  z-index: 100; letter-spacing: 0.5px;
+}
+.progress {
+  position: fixed; top: 0; left: 0; height: 3px;
+  background: var(--teal); z-index: 200; transition: width 0.4s ease;
+}
+
+/* ══════════════════════════════════════
+   SLIDE 1: TITLE
+   ══════════════════════════════════════ */
+.s1 { background: var(--dark); padding: 0 12vw; }
+.s1::before {
+  content: ''; position: absolute;
+  top: -200px; right: -200px;
+  width: 600px; height: 600px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(94,168,167,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+.s1 .accent { width: 56px; height: 4px; background: var(--teal); border-radius: 2px; margin-bottom: 32px; }
+.s1 h1 { color: var(--white); font-size: clamp(36px, 5vw, 56px); font-weight: 700; letter-spacing: -1px; margin-bottom: 8px; line-height: 1.1; }
+.s1 h2 { color: var(--gray); font-size: clamp(18px, 2.5vw, 26px); font-weight: 300; margin-bottom: 56px; }
+.s1 .meta { color: var(--teal); font-size: 14px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; }
+
+/* ══════════════════════════════════════
+   SLIDE 2 & 4: TWO-COLUMN
+   ══════════════════════════════════════ */
+.s-cols { background: var(--dark); padding: 0 8vw; }
+.s-cols .slide-title {
+  color: var(--white); font-size: clamp(24px, 3vw, 34px);
+  font-weight: 600; margin-bottom: 48px; letter-spacing: -0.5px;
+}
+.s-cols .slide-title span { color: var(--gray); font-weight: 300; }
+.columns { display: flex; gap: 48px; }
+.column {
+  flex: 1; padding: 32px; border-radius: 12px;
+  background: var(--dark2); border: 1px solid rgba(255,255,255,0.06);
+}
+.column-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 28px; padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.column-header .icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.icon.green { background: var(--teal-dim); color: var(--teal); }
+.icon.red { background: var(--red-dim); color: var(--red); }
+.icon.orange { background: var(--orange-dim); color: var(--orange); }
+.column-header h3 { font-size: 15px; font-weight: 600; color: var(--white); }
+.column ul { list-style: none; }
+.column li {
+  font-size: 15px; color: rgba(255,255,255,0.75); margin-bottom: 14px;
+  padding-left: 22px; position: relative; line-height: 1.5;
+}
+.column li::before { position: absolute; left: 0; font-weight: 700; font-size: 14px; }
+.check li::before { content: "\2713"; color: var(--teal); }
+.cross li::before { content: "\2717"; color: var(--red); }
+.dot-o li::before { content: "\2022"; color: var(--orange); font-size: 18px; top: -1px; }
+.dot-g li::before { content: "\2022"; color: var(--teal); font-size: 18px; top: -1px; }
+.footnote {
+  margin-top: 24px; padding: 14px 16px;
+  background: rgba(230,126,34,0.08); border-radius: 8px;
+  border-left: 3px solid var(--orange);
+  color: var(--gray); font-size: 13px; line-height: 1.6; font-style: italic;
+}
+
+/* ══════════════════════════════════════
+   SLIDE 3: GRAPH TRAVERSAL
+   ══════════════════════════════════════ */
+.s-graph { background: var(--dark); padding: 0; overflow: hidden; }
+.s-graph .slide-title {
+  position: absolute; top: 36px; left: 8vw;
+  color: var(--white); font-size: clamp(20px, 2.5vw, 30px);
+  font-weight: 600; letter-spacing: -0.5px; z-index: 10;
+}
+.s-graph .slide-title span { color: var(--gray); font-weight: 300; }
+
+.graph-canvas {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* User query bubble */
+.user-query {
+  position: absolute; top: 90px; left: 8vw;
+  background: var(--dark2); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px; padding: 12px 20px;
+  color: var(--gray); font-size: 13px; font-style: italic;
+  max-width: 360px; z-index: 10;
+}
+.user-query strong { color: var(--white); font-style: normal; }
+
+/* Graph layout */
+.graph-flow {
+  display: flex; flex-direction: column; gap: 0;
+  align-items: center; width: 90vw; max-width: 1100px;
+  margin-top: 30px;
+}
+
+.layer-row {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; position: relative;
+}
+
+.layer-label {
+  width: 110px; flex-shrink: 0; text-align: right; padding-right: 16px;
+}
+.layer-label .lnum {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; margin-bottom: 2px;
+}
+.layer-label .lname {
+  font-size: 13px; font-weight: 500; color: var(--white);
+}
+.layer-label.l1 .lnum { color: var(--blue); }
+.layer-label.l2 .lnum { color: var(--purple); }
+.layer-label.l3 .lnum { color: var(--gold); }
+.layer-label.l4 .lnum { color: var(--green); }
+
+.layer-content {
+  flex: 1; display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap; padding: 12px 0;
+}
+
+/* Graph nodes */
+.gnode {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 8px;
+  font-size: 12px; font-weight: 500;
+  border: 1px solid; transition: all 0.4s ease;
+  opacity: 0.3; transform: scale(0.95);
+}
+.gnode.lit {
+  opacity: 1; transform: scale(1);
+}
+.gnode.l1 { background: var(--blue-dim); border-color: rgba(46,134,193,0.3); color: #7ec8e3; }
+.gnode.l1.lit { border-color: var(--blue); box-shadow: 0 0 16px rgba(46,134,193,0.25); }
+.gnode.l2 { background: var(--purple-dim); border-color: rgba(155,89,182,0.3); color: #c39bd3; }
+.gnode.l2.lit { border-color: var(--purple); box-shadow: 0 0 16px rgba(155,89,182,0.25); }
+.gnode.l3 { background: var(--gold-dim); border-color: rgba(243,156,18,0.3); color: #f7c948; }
+.gnode.l3.lit { border-color: var(--gold); box-shadow: 0 0 16px rgba(243,156,18,0.25); }
+.gnode.l4 { background: var(--green-dim); border-color: rgba(26,188,156,0.3); color: #76d7c4; }
+.gnode.l4.lit { border-color: var(--green); box-shadow: 0 0 16px rgba(26,188,156,0.25); }
+.gnode .ntype { font-size: 9px; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px; }
+
+/* Edges */
+.edge-row {
+  display: flex; align-items: center; width: 100%;
+  padding-left: 126px;
+}
+.edge {
+  display: flex; align-items: center; gap: 6px;
+  color: rgba(255,255,255,0.2); font-size: 11px;
+  padding: 4px 0; transition: all 0.4s ease;
+}
+.edge.lit { color: rgba(255,255,255,0.6); }
+.edge .eline {
+  width: 30px; height: 1px;
+  background: rgba(255,255,255,0.15);
+  transition: background 0.4s ease;
+}
+.edge.lit .eline { background: rgba(255,255,255,0.4); }
+.edge .elabel {
+  font-size: 10px; font-weight: 500; letter-spacing: 0.5px;
+  font-family: 'Courier New', monospace;
+}
+
+/* Vertical connector */
+.vconn {
+  width: 1px; height: 8px; margin-left: 180px;
+  background: rgba(255,255,255,0.1);
+  transition: background 0.4s ease;
+}
+.vconn.lit { background: rgba(255,255,255,0.3); }
+
+/* Result box */
+.result-box {
+  position: absolute; bottom: 70px; right: 8vw;
+  background: var(--dark2); border: 1px solid rgba(94,168,167,0.3);
+  border-radius: 12px; padding: 16px 22px;
+  max-width: 340px; z-index: 10;
+  opacity: 0.3; transition: all 0.6s ease;
+}
+.result-box.lit {
+  opacity: 1; border-color: var(--teal);
+  box-shadow: 0 0 24px rgba(94,168,167,0.15);
+}
+.result-box .rtitle {
+  font-size: 11px; font-weight: 700; color: var(--teal);
+  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px;
+}
+.result-box .rtext {
+  font-size: 13px; color: rgba(255,255,255,0.8); line-height: 1.5;
+}
+.result-box .rtext em { color: var(--teal); font-style: normal; font-weight: 600; }
+
+/* Key insight */
+.key-insight {
+  position: absolute; bottom: 70px; left: 8vw;
+  display: flex; align-items: flex-start; gap: 12px;
+  max-width: 340px; z-index: 10;
+}
+.key-insight .ki-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--teal-dim); color: var(--teal);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; flex-shrink: 0; margin-top: 2px;
+}
+.key-insight .ki-text {
+  font-size: 12px; color: var(--gray); line-height: 1.6;
+}
+.key-insight .ki-text strong { color: rgba(255,255,255,0.8); }
+
+/* Play button */
+.play-btn {
+  position: absolute; top: 40px; right: 8vw;
+  background: var(--teal-dim); border: 1px solid rgba(94,168,167,0.3);
+  color: var(--teal); font-family: 'Inter', Arial, sans-serif;
+  font-size: 12px; font-weight: 600; padding: 8px 18px;
+  border-radius: 8px; cursor: pointer; z-index: 10;
+  transition: all 0.3s ease; letter-spacing: 0.5px;
+}
+.play-btn:hover {
+  background: rgba(94,168,167,0.25);
+  box-shadow: 0 0 16px rgba(94,168,167,0.2);
+}
+
+/* ══════════════════════════════════════
+   SLIDE 5: ENTERPRISE CHECKLIST
+   ══════════════════════════════════════ */
+.s-enterprise { background: var(--dark); padding: 0 6vw; }
+.s-enterprise .slide-title {
+  color: var(--white); font-size: clamp(22px, 2.8vw, 32px);
+  font-weight: 600; margin-bottom: 36px; letter-spacing: -0.5px;
+}
+.s-enterprise .slide-title span { color: var(--gray); font-weight: 300; }
+.checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.cl-card {
+  padding: 20px;
+  border-radius: 10px;
+  background: var(--dark2);
+  border: 1px solid rgba(255,255,255,0.06);
+  position: relative;
+  overflow: hidden;
+}
+.cl-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+.cl-card.sec::before { background: #E74C3C; }
+.cl-card.net::before { background: #2E86C1; }
+.cl-card.iam::before { background: #9B59B6; }
+.cl-card.ci::before { background: #1ABC9C; }
+.cl-card.obs::before { background: #F39C12; }
+.cl-card.comp::before { background: #E67E22; }
+.cl-card .cl-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; margin-bottom: 10px;
+}
+.cl-card.sec .cl-icon { background: var(--red-dim); color: var(--red); }
+.cl-card.net .cl-icon { background: var(--blue-dim); color: var(--blue); }
+.cl-card.iam .cl-icon { background: var(--purple-dim); color: var(--purple); }
+.cl-card.ci .cl-icon { background: var(--green-dim); color: var(--green); }
+.cl-card.obs .cl-icon { background: var(--gold-dim); color: var(--gold); }
+.cl-card.comp .cl-icon { background: var(--orange-dim); color: var(--orange); }
+.cl-card h3 {
+  font-size: 14px; font-weight: 600; color: var(--white);
+  margin-bottom: 10px;
+}
+.cl-card ul { list-style: none; }
+.cl-card li {
+  font-size: 12px; color: rgba(255,255,255,0.6);
+  margin-bottom: 6px; padding-left: 16px; position: relative;
+  line-height: 1.4;
+}
+.cl-card li::before {
+  content: ''; position: absolute; left: 0; top: 7px;
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+}
+.cl-card.sec li::before { background: rgba(231,76,60,0.5); }
+.cl-card.net li::before { background: rgba(46,134,193,0.5); }
+.cl-card.iam li::before { background: rgba(155,89,182,0.5); }
+.cl-card.ci li::before { background: rgba(26,188,156,0.5); }
+.cl-card.obs li::before { background: rgba(243,156,18,0.5); }
+.cl-card.comp li::before { background: rgba(230,126,34,0.5); }
+.enterprise-footer {
+  margin-top: 24px;
+  padding: 12px 18px;
+  background: var(--dark2);
+  border-radius: 8px;
+  border-left: 3px solid var(--teal);
+  color: var(--gray);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.enterprise-footer strong { color: rgba(255,255,255,0.8); }
+
+/* ══════════════════════════════════════
+   SLIDE 6: COLLABORATION MODEL
+   ══════════════════════════════════════ */
+.s-collab { background: var(--dark); padding: 0 6vw; }
+.s-collab .slide-title {
+  color: var(--white); font-size: clamp(22px, 2.8vw, 32px);
+  font-weight: 600; margin-bottom: 32px; letter-spacing: -0.5px;
+}
+.s-collab .slide-title span { color: var(--gray); font-weight: 300; }
+.collab-layout { display: flex; gap: 24px; }
+.collab-side {
+  flex: 1; display: flex; flex-direction: column; gap: 12px;
+}
+.collab-header {
+  padding: 14px 18px; border-radius: 10px 10px 0 0;
+  display: flex; align-items: center; gap: 10px;
+}
+.collab-header.us { background: var(--teal-dim); border-bottom: 2px solid var(--teal); }
+.collab-header.them { background: var(--blue-dim); border-bottom: 2px solid var(--blue); }
+.collab-header h3 { font-size: 15px; font-weight: 600; }
+.collab-header.us h3 { color: var(--teal); }
+.collab-header.them h3 { color: var(--blue); }
+.collab-header .ch-sub { font-size: 11px; color: var(--gray); margin-left: auto; }
+.collab-items { display: flex; flex-direction: column; gap: 8px; }
+.collab-item {
+  padding: 12px 16px; border-radius: 8px;
+  background: var(--dark2); border: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.collab-item .ci-num {
+  width: 22px; height: 22px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
+.collab-side.left .ci-num { background: var(--teal-dim); color: var(--teal); }
+.collab-side.right .ci-num { background: var(--blue-dim); color: var(--blue); }
+.collab-item .ci-text h4 {
+  font-size: 13px; font-weight: 600; color: var(--white); margin-bottom: 2px;
+}
+.collab-item .ci-text p {
+  font-size: 11px; color: var(--gray); line-height: 1.4;
+}
+.collab-center {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 12px; flex-shrink: 0; width: 100px;
+}
+.collab-center .cc-line {
+  width: 1px; flex: 1; background: rgba(255,255,255,0.08);
+}
+.collab-center .cc-badge {
+  padding: 8px 12px; border-radius: 8px;
+  background: var(--dark2); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--gray); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1px;
+  text-align: center; line-height: 1.4;
+}
+.collab-footer {
+  margin-top: 20px; display: flex; gap: 16px;
+}
+.collab-footer .cf-item {
+  flex: 1; padding: 10px 14px; border-radius: 8px;
+  background: var(--dark2); border: 1px solid rgba(255,255,255,0.06);
+  text-align: center;
+}
+.collab-footer .cf-item .cf-label {
+  font-size: 10px; color: var(--gray); text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 4px;
+}
+.collab-footer .cf-item .cf-value {
+  font-size: 13px; color: var(--white); font-weight: 600;
+}
+
+/* ══════════════════════════════════════
+   SLIDE 7: PHASES
+   ══════════════════════════════════════ */
+.s4 { background: var(--dark); padding: 0 8vw; }
+.s4 .slide-title {
+  color: var(--white); font-size: clamp(24px, 3vw, 34px);
+  font-weight: 600; margin-bottom: 48px; letter-spacing: -0.5px;
+}
+.s4 .slide-title span { color: var(--gray); font-weight: 300; }
+.phases { display: flex; gap: 24px; }
+.phase {
+  flex: 1; padding: 28px 24px; border-radius: 12px;
+  background: var(--dark2); border: 1px solid rgba(255,255,255,0.06);
+  position: relative; overflow: hidden;
+}
+.phase::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.phase.p1::before { background: var(--blue); }
+.phase.p2::before { background: var(--green); }
+.phase.p3::before { background: var(--gold); }
+.phase .phase-num { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+.phase.p1 .phase-num { color: var(--blue); }
+.phase.p2 .phase-num { color: var(--green); }
+.phase.p3 .phase-num { color: var(--gold); }
+.phase h2 { font-size: 19px; font-weight: 600; color: var(--white); margin-bottom: 20px; }
+.phase ul { list-style: none; }
+.phase li {
+  font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 12px;
+  padding-left: 18px; position: relative; line-height: 1.4;
+}
+.phase li::before { content: ''; position: absolute; left: 0; top: 8px; width: 6px; height: 6px; border-radius: 50%; }
+.phase.p1 li::before { background: var(--blue); }
+.phase.p2 li::before { background: var(--green); }
+.phase.p3 li::before { background: var(--gold); }
+.phases .arrow {
+  display: flex; align-items: center; color: rgba(255,255,255,0.15);
+  font-size: 24px; flex-shrink: 0; margin: 0 -8px;
+}
+
+/* ══════════════════════════════════════
+   SLIDE 6: DECISION
+   ══════════════════════════════════════ */
+.s5 { background: var(--dark); padding: 0 12vw; }
+.s5 .accent { width: 56px; height: 4px; background: var(--teal); border-radius: 2px; margin-bottom: 32px; }
+.s5 h1 { color: var(--white); font-size: clamp(24px, 3vw, 34px); font-weight: 600; margin-bottom: 48px; letter-spacing: -0.5px; }
+.decisions { display: flex; flex-direction: column; gap: 20px; }
+.decision {
+  display: flex; align-items: flex-start; gap: 20px;
+  padding: 20px 24px; background: var(--dark2); border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.06); border-left: 3px solid var(--teal);
+}
+.decision .num {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--teal-dim); color: var(--teal);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; flex-shrink: 0;
+}
+.decision .text h3 { color: var(--white); font-size: 16px; font-weight: 600; margin-bottom: 4px; line-height: 1.4; }
+.decision .text p { color: var(--gray); font-size: 13px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<div class="slideshow" id="slideshow">
+
+  <!-- ════ Slide 1: Title ════ -->
+  <div class="slide s1 active" data-slide="0">
+    <div class="accent"></div>
+    <h1>Product Advisor</h1>
+    <h2>Status &amp; N&auml;chste Schritte</h2>
+    <div class="meta">Retro &mdash; 06.03.2026</div>
+  </div>
+
+  <!-- ════ Slide 2: Applikation ════ -->
+  <div class="slide s-cols" data-slide="1">
+    <div class="slide-title">POC <span>&mdash; Applikation</span></div>
+    <div class="columns">
+      <div class="column">
+        <div class="column-header">
+          <div class="icon green">&#10003;</div>
+          <h3>Was funktioniert</h3>
+        </div>
+        <ul class="check">
+          <li>Graph-basierte Produktberatung</li>
+          <li>Trait-Engine mit automatischer Filterauswahl</li>
+          <li>LLM-gest&uuml;tzter Dialog (Gemini)</li>
+          <li>Mehrstufige Assemblies &amp; Sizing</li>
+          <li>Streaming-Antworten (SSE)</li>
+        </ul>
+      </div>
+      <div class="column">
+        <div class="column-header">
+          <div class="icon red">&#10007;</div>
+          <h3>POC-Limitierungen</h3>
+        </div>
+        <ul class="cross">
+          <li>Nicht alle Grenzf&auml;lle abgedeckt</li>
+          <li>Keine vollst&auml;ndige Fehlerbehandlung</li>
+          <li>Kein Monitoring / Logging</li>
+          <li>Keine Skalierung</li>
+          <li>Single-Tenant Architektur</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ Slide 3: GRAPH TRAVERSAL (hidden) ════ -->
+  <div class="slide s-graph" data-slide="-1" style="display:none">
+    <div class="slide-title">Graph Traversal <span>&mdash; Die Kraft des Graphen</span></div>
+
+    <button class="play-btn" id="playBtn" onclick="playTraversal()">&#9654; Traversal starten</button>
+
+    <div class="user-query">
+      <strong>&ldquo;I need filtration for a commercial kitchen&rdquo;</strong>
+    </div>
+
+    <div class="graph-flow">
+      <!-- Layer 1: Inventory -->
+      <div class="layer-row">
+        <div class="layer-label l1"><div class="lnum">Layer 1</div><div class="lname">Inventory</div></div>
+        <div class="layer-content">
+          <div class="gnode l1" data-step="1"><span class="ntype">App&nbsp;</span> Kitchen</div>
+          <div class="edge" data-step="1"><div class="eline"></div><span class="elabel">GENERATES</span><div class="eline"></div></div>
+          <div class="gnode l1" data-step="1"><span class="ntype">Substance&nbsp;</span> Grease</div>
+          <div class="gnode l1" data-step="1"><span class="ntype">Substance&nbsp;</span> Water</div>
+        </div>
+      </div>
+
+      <div class="vconn" data-step="2"></div>
+
+      <!-- Layer 2: Physics -->
+      <div class="layer-row">
+        <div class="layer-label l2"><div class="lnum">Layer 2</div><div class="lname">Physics</div></div>
+        <div class="layer-content">
+          <div class="gnode l2" data-step="2"><span class="ntype">Stressor&nbsp;</span> Grease Exposure</div>
+          <div class="edge" data-step="2"><div class="eline"></div><span class="elabel">DEMANDS_TRAIT</span><div class="eline"></div></div>
+          <div class="gnode l2" data-step="2"><span class="ntype">Trait&nbsp;</span> Mechanical Filtration</div>
+          <div class="gnode l2" data-step="2"><span class="ntype">Risk&nbsp;</span> Clogging &#8594; Hard Block</div>
+        </div>
+      </div>
+
+      <div class="vconn" data-step="3"></div>
+
+      <!-- Layer 3: Playbook -->
+      <div class="layer-row">
+        <div class="layer-label l3"><div class="lnum">Layer 3</div><div class="lname">Playbook</div></div>
+        <div class="layer-content">
+          <div class="gnode l3" data-step="3"><span class="ntype">Gate&nbsp;</span> Grease Load</div>
+          <div class="edge" data-step="3"><div class="eline"></div><span class="elabel">REQUIRES_DATA</span><div class="eline"></div></div>
+          <div class="gnode l3" data-step="3"><span class="ntype">Param&nbsp;</span> Airflow</div>
+          <div class="gnode l3" data-step="3"><span class="ntype">Param&nbsp;</span> Dimensions</div>
+          <div class="gnode l3" data-step="3"><span class="ntype">Param&nbsp;</span> Grease?</div>
+        </div>
+      </div>
+
+      <div class="vconn" data-step="4"></div>
+
+      <!-- Layer 4: State -->
+      <div class="layer-row">
+        <div class="layer-label l4"><div class="lnum">Layer 4</div><div class="lname">State</div></div>
+        <div class="layer-content">
+          <div class="gnode l4" data-step="4"><span class="ntype">Unit&nbsp;</span> GDP &middot; Protector</div>
+          <div class="edge" data-step="4"><div class="eline"></div><span class="elabel">ASSEMBLY</span><div class="eline"></div></div>
+          <div class="gnode l4" data-step="4"><span class="ntype">Unit&nbsp;</span> GDC &middot; Main Filter</div>
+          <div class="gnode l4" data-step="4"><span class="ntype">Session&nbsp;</span> Digital Twin</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="result-box" data-step="5">
+      <div class="rtitle">Engine Output</div>
+      <div class="rtext">
+        2-stufige Assembly: <em>GDP</em> (Fettschutz) + <em>GDC</em> (Aktivkohle).<br>
+        Kein Python-Code kennt das Wort &ldquo;Kitchen&rdquo; &mdash; alles aus dem Graphen.
+      </div>
+    </div>
+
+    <div class="key-insight">
+      <div class="ki-icon">&#9679;</div>
+      <div class="ki-text">
+        <strong>Zero Domain Code.</strong> Die Engine folgt Kanten: Substanzen fordern Traits, Traits filtern Produkte, Risiken steuern Strategien. Neuer Anwendungsfall = neue Graph-Daten, kein Python.
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ Slide 3: Infrastruktur ════ -->
+  <div class="slide s-cols" data-slide="2">
+    <div class="slide-title">Infrastruktur <span>&mdash; POC vs. Produktion</span></div>
+    <div class="columns">
+      <div class="column">
+        <div class="column-header">
+          <div class="icon orange">&#9888;</div>
+          <h3>Aktueller Stand (POC)</h3>
+        </div>
+        <ul class="dot-o">
+          <li>&Ouml;ffentlicher Ingress (kein VNet)</li>
+          <li>Secrets als Terraform-Variablen</li>
+          <li>Keine Netzwerkisolierung</li>
+          <li>Kein Key Vault</li>
+          <li>Kein Monitoring / Alerting</li>
+          <li>Keine CI/CD Pipeline</li>
+        </ul>
+      </div>
+      <div class="column">
+        <div class="column-header">
+          <div class="icon green">&#9654;</div>
+          <h3>Produktionsanforderungen</h3>
+        </div>
+        <ul class="dot-g">
+          <li>VNet + Private Endpoints</li>
+          <li>Azure Key Vault f&uuml;r Secrets</li>
+          <li>RBAC mit granularen Rollen</li>
+          <li>CI/CD Pipeline (Azure DevOps)</li>
+          <li>Monitoring &amp; Alerting (App Insights)</li>
+          <li>WAF / API Gateway</li>
+          <li>Security-Review &amp; Architektur-Abstimmung</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ Slide 4: Enterprise Checklist ════ -->
+  <div class="slide s-enterprise" data-slide="3">
+    <div class="slide-title">Production-Ready MVP <span>&mdash; Was dazugeh&ouml;rt</span></div>
+    <div class="checklist-grid">
+      <div class="cl-card sec">
+        <div class="cl-icon">&#9888;</div>
+        <h3>Security</h3>
+        <ul>
+          <li>Threat Modeling (STRIDE)</li>
+          <li>Penetration Testing</li>
+          <li>Dependency Scanning (CVE)</li>
+          <li>Secret Rotation Policy</li>
+          <li>Security Incident Response Plan</li>
+        </ul>
+      </div>
+      <div class="cl-card net">
+        <div class="cl-icon">&#9729;</div>
+        <h3>Netzwerk &amp; Isolation</h3>
+        <ul>
+          <li>VNet mit Subnet-Segmentierung</li>
+          <li>Private Endpoints (DB, Storage)</li>
+          <li>WAF / API Gateway</li>
+          <li>DDoS Protection</li>
+          <li>TLS Everywhere + Cert Management</li>
+        </ul>
+      </div>
+      <div class="cl-card iam">
+        <div class="cl-icon">&#9823;</div>
+        <h3>Identity &amp; Access</h3>
+        <ul>
+          <li>RBAC mit Least Privilege</li>
+          <li>Managed Identities (keine Keys)</li>
+          <li>Azure Key Vault f&uuml;r Secrets</li>
+          <li>Conditional Access Policies</li>
+          <li>Audit Logging (Entra ID)</li>
+        </ul>
+      </div>
+      <div class="cl-card ci">
+        <div class="cl-icon">&#8635;</div>
+        <h3>CI/CD &amp; Release</h3>
+        <ul>
+          <li>Azure DevOps Pipelines</li>
+          <li>Staging / Production Environments</li>
+          <li>Automated Testing (Unit, Integration)</li>
+          <li>Image Scanning vor Deploy</li>
+          <li>Rollback-Strategie</li>
+        </ul>
+      </div>
+      <div class="cl-card obs">
+        <div class="cl-icon">&#9673;</div>
+        <h3>Observability</h3>
+        <ul>
+          <li>Application Insights (APM)</li>
+          <li>Structured Logging</li>
+          <li>Alerting &amp; On-Call Rotation</li>
+          <li>Health Checks &amp; Liveness Probes</li>
+          <li>SLA / SLO Definition</li>
+        </ul>
+      </div>
+      <div class="cl-card comp">
+        <div class="cl-icon">&#9745;</div>
+        <h3>Compliance &amp; Governance</h3>
+        <ul>
+          <li>DSGVO / Data Residency (EU)</li>
+          <li>Azure Policy &amp; Guardrails</li>
+          <li>Backup &amp; Disaster Recovery</li>
+          <li>Dokumentation &amp; Runbooks</li>
+          <li>Verantwortlichkeiten (RACI)</li>
+        </ul>
+      </div>
+    </div>
+    <div class="enterprise-footer">
+      <strong>Keiner dieser Punkte war Teil des POC-Scopes.</strong> F&uuml;r einen produktiven Betrieb m&uuml;ssen diese Bereiche gemeinsam mit MH IT definiert und umgesetzt werden.
+    </div>
+  </div>
+
+  <!-- ════ Slide 5: Collaboration Model ════ -->
+  <div class="slide s-collab" data-slide="4">
+    <div class="slide-title">Zusammenarbeit <span>&mdash; Wer macht was</span></div>
+    <div class="collab-layout">
+      <div class="collab-side left">
+        <div class="collab-header us">
+          <h3>Entwicklungsteam</h3>
+          <span class="ch-sub">Wir</span>
+        </div>
+        <div class="collab-items">
+          <div class="collab-item">
+            <div class="ci-num">1</div>
+            <div class="ci-text">
+              <h4>Applikation &amp; Business-Logik</h4>
+              <p>Graph Engine, LLM-Integration, Frontend, API</p>
+            </div>
+          </div>
+          <div class="collab-item">
+            <div class="ci-num">2</div>
+            <div class="ci-text">
+              <h4>Infrastructure as Code</h4>
+              <p>Terraform, Container-Images, CI/CD Pipelines</p>
+            </div>
+          </div>
+          <div class="collab-item">
+            <div class="ci-num">3</div>
+            <div class="ci-text">
+              <h4>Testing &amp; Dokumentation</h4>
+              <p>Integration Tests, API Docs, Runbooks</p>
+            </div>
+          </div>
+          <div class="collab-item">
+            <div class="ci-num">4</div>
+            <div class="ci-text">
+              <h4>Security-Empfehlungen</h4>
+              <p>Best Practices vorschlagen, umsetzen nach Freigabe</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="collab-center">
+        <div class="cc-line"></div>
+        <div class="cc-badge">Architektur-<br>Workshop</div>
+        <div class="cc-line"></div>
+        <div class="cc-badge">Regelm&auml;&szlig;ige<br>Abstimmung</div>
+        <div class="cc-line"></div>
+      </div>
+      <div class="collab-side right">
+        <div class="collab-header them">
+          <h3>MH IT / Security</h3>
+          <span class="ch-sub">Kundenseite</span>
+        </div>
+        <div class="collab-items">
+          <div class="collab-item">
+            <div class="ci-num">1</div>
+            <div class="ci-text">
+              <h4>Vorgaben &amp; Anforderungen</h4>
+              <p>Security-Policies, Netzwerk-Standards, Compliance</p>
+            </div>
+          </div>
+          <div class="collab-item">
+            <div class="ci-num">2</div>
+            <div class="ci-text">
+              <h4>Infrastruktur-Bereitstellung</h4>
+              <p>VNet, Key Vault, RBAC-Rollen, Azure DevOps</p>
+            </div>
+          </div>
+          <div class="collab-item">
+            <div class="ci-num">3</div>
+            <div class="ci-text">
+              <h4>Review &amp; Freigabe</h4>
+              <p>Security-Review, Architektur-Abnahme, Go-Live</p>
+            </div>
+          </div>
+          <div class="collab-item">
+            <div class="ci-num">4</div>
+            <div class="ci-text">
+              <h4>Betrieb &amp; Monitoring</h4>
+              <p>Alerting, Incident Response, SLA-Verantwortung</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="collab-footer">
+      <div class="cf-item">
+        <div class="cf-label">Kommunikation</div>
+        <div class="cf-value">Fester Ansprechpartner je Seite</div>
+      </div>
+      <div class="cf-item">
+        <div class="cf-label">Kadenz</div>
+        <div class="cf-value">W&ouml;chentliches Sync-Meeting</div>
+      </div>
+      <div class="cf-item">
+        <div class="cf-label">Dokumentation</div>
+        <div class="cf-value">Shared Wiki / Confluence</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ Slide 6: MVP Roadmap ════ -->
+  <div class="slide s4" data-slide="5">
+    <div class="slide-title">Weg zum MVP <span>&mdash; Infrastruktur</span></div>
+    <div class="phases">
+      <div class="phase p1">
+        <div class="phase-num">Phase 1</div>
+        <h2>Grundlagen</h2>
+        <ul>
+          <li>Security-Review</li>
+          <li>Architektur-Workshop</li>
+          <li>Anforderungen definieren</li>
+          <li>VNet-Design &amp; Netzwerkkonzept</li>
+        </ul>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+      <div class="phase p2">
+        <div class="phase-num">Phase 2</div>
+        <h2>Absicherung</h2>
+        <ul>
+          <li>VNet + Private Endpoints</li>
+          <li>Key Vault Integration</li>
+          <li>RBAC-Konzept umsetzen</li>
+          <li>CI/CD Pipeline (Azure DevOps)</li>
+        </ul>
+      </div>
+      <div class="arrow">&rsaquo;</div>
+      <div class="phase p3">
+        <div class="phase-num">Phase 3</div>
+        <h2>Betriebsbereitschaft</h2>
+        <ul>
+          <li>Monitoring &amp; Alerting</li>
+          <li>WAF / API Gateway</li>
+          <li>Dokumentation &amp; Runbooks</li>
+          <li>&Uuml;bergabe an Betrieb</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ Slide 7: Decision ════ -->
+  <div class="slide s5" data-slide="6">
+    <div class="accent"></div>
+    <h1>Entscheidungsbedarf</h1>
+    <div class="decisions">
+      <div class="decision">
+        <div class="num">1</div>
+        <div class="text">
+          <h3>Soll der POC produktiv eingesetzt werden?</h3>
+          <p>Klare Entscheidung notwendig &mdash; aktueller Stand ist nicht produktionsreif</p>
+        </div>
+      </div>
+      <div class="decision">
+        <div class="num">2</div>
+        <div class="text">
+          <h3>MVP-Budget &amp; Timeline freigeben</h3>
+          <p>Security-Review &amp; Architektur-Workshop als erster Schritt</p>
+        </div>
+      </div>
+      <div class="decision">
+        <div class="num">3</div>
+        <div class="text">
+          <h3>Azure DevOps Zugang bereitstellen</h3>
+          <p>Repository-Migration &amp; CI/CD Setup</p>
+        </div>
+      </div>
+      <div class="decision">
+        <div class="num">4</div>
+        <div class="text">
+          <h3>Ansprechpartner benennen</h3>
+          <p>Security, Architektur, Betrieb &mdash; auf MH-Seite</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="nav-dots" id="navDots"></div>
+<div class="slide-counter" id="counter"></div>
+<div class="hint">&#8592; &#8594; / Space</div>
+
+<script>
+// ── Slideshow engine ──
+const slides = document.querySelectorAll('.slide:not([style*="display:none"])');
+const dotsContainer = document.getElementById('navDots');
+const counter = document.getElementById('counter');
+const progress = document.getElementById('progress');
+const total = slides.length;
+let current = 0;
+
+slides.forEach((_, i) => {
+  const d = document.createElement('button');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.addEventListener('click', () => goTo(i));
+  dotsContainer.appendChild(d);
+});
+
+function goTo(n) {
+  if (n === current || n < 0 || n >= total) return;
+  const prev = current;
+  slides[current].classList.remove('active');
+  slides[current].classList.add('exit');
+  current = n;
+  slides[current].style.transform = n > prev ? 'translateX(40px)' : 'translateX(-40px)';
+  requestAnimationFrame(() => {
+    slides[prev].classList.remove('active');
+    slides[prev].classList.add('exit');
+    slides[current].classList.add('active');
+  });
+  setTimeout(() => slides[prev].classList.remove('exit'), 600);
+  document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === current));
+  counter.textContent = (current + 1) + ' / ' + total;
+  progress.style.width = ((current + 1) / total * 100) + '%';
+
+  // Auto-play graph traversal when entering slide 3
+  if (current === 2) setTimeout(() => playTraversal(), 400);
+}
+
+function next() { goTo(current + 1); }
+function prev() { goTo(current - 1); }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+});
+let touchX = 0;
+document.addEventListener('touchstart', e => touchX = e.touches[0].clientX);
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchX;
+  if (Math.abs(dx) > 50) dx < 0 ? next() : prev();
+});
+document.addEventListener('click', e => {
+  if (e.target.closest('.nav-dots') || e.target.closest('.play-btn')) return;
+  if (e.clientX > window.innerWidth * 0.75) next();
+  else if (e.clientX < window.innerWidth * 0.25) prev();
+});
+counter.textContent = '1 / ' + total;
+progress.style.width = (1 / total * 100) + '%';
+
+// ── Graph traversal animation ──
+let traversalPlaying = false;
+
+function playTraversal() {
+  if (traversalPlaying) return;
+  traversalPlaying = true;
+
+  // Reset all
+  document.querySelectorAll('[data-step]').forEach(el => el.classList.remove('lit'));
+  const btn = document.getElementById('playBtn');
+  btn.style.opacity = '0.4';
+  btn.style.pointerEvents = 'none';
+
+  const steps = [1, 2, 3, 4, 5];
+  steps.forEach((step, i) => {
+    setTimeout(() => {
+      document.querySelectorAll(`[data-step="${step}"]`).forEach(el => el.classList.add('lit'));
+    }, (i + 1) * 700);
+  });
+
+  setTimeout(() => {
+    traversalPlaying = false;
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = 'auto';
+    btn.innerHTML = '&#8635; Nochmal';
+  }, steps.length * 700 + 400);
+}
+</script>
+
+</body>
+</html>

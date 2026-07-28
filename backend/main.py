@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -13,7 +13,7 @@ from database import db
 from ingestor import ingest_case, ingest_email_thread_image, ingest_email_thread_text
 from ingestor_docs import analyze_document_schema, ingest_document
 from retriever import consult_brain, query_explainable, query_deep_explainable, query_deep_explainable_streaming
-from models import IngestRequest, ConsultRequest, ConsultResponse, ProductListResponse, ExplainableResponse, DeepExplainableResponse, GraphNeighborhoodResponse, SessionGraphState, SessionGraphVisualization
+from models import IngestRequest, ConsultRequest, ConsultResponse, ProductListResponse, ExplainableResponse, DeepExplainableResponse, GraphNeighborhoodResponse, SessionGraphState, SessionGraphVisualization, UserComment, CommentCreateRequest, SessionSummary, SessionListResponse, SessionReplay, SessionRating, PersistReasoningRequest
 from config_loader import (
     get_ui_config,
     get_config,
@@ -27,11 +27,12 @@ from auth import LoginRequest, TokenResponse, login, get_current_user, get_curre
 
 app = FastAPI(title="Graph Chatbot API")  # v3.8
 
-# CORS middleware
+# CORS middleware — restrict origins in production via ALLOWED_ORIGINS env var
+_allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=_allowed_origins,
+    allow_credentials=True if _allowed_origins != ["*"] else False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -44,20 +45,33 @@ if STATIC_DIR.exists():
 
 @app.on_event("startup")
 async def startup_event():
-    """Warm up connections and caches on server start."""
-    print("🚀 Starting server warmup...")
-    db.warmup()
-    # Initialize Layer 4 session schema
-    try:
-        db.init_session_schema()
-    except Exception as e:
-        print(f"⚠ Session schema init failed (non-fatal): {e}")
-    # Populate dimension/material caches from graph
-    try:
-        from logic.dimension_tables import populate_from_graph
-        populate_from_graph(db.graph)
-    except Exception as e:
-        print(f"⚠ Graph cache population failed (non-fatal, using YAML fallback): {e}")
+    """Start server immediately, warm up DB in background thread."""
+    import threading
+
+    def _background_warmup():
+        import time
+        time.sleep(5)
+        try:
+            db.warmup()
+        except Exception as e:
+            print(f"⚠ FalkorDB warmup failed (non-fatal): {e}")
+        try:
+            db.init_session_schema()
+        except Exception as e:
+            print(f"⚠ Session schema init failed (non-fatal): {e}")
+        try:
+            db.create_vector_index()
+            print("✅ Vector index verified/created")
+        except Exception as e:
+            print(f"⚠ Vector index creation failed (non-fatal): {e}")
+        try:
+            from logic.dimension_tables import populate_from_graph
+            populate_from_graph(db.graph)
+        except Exception as e:
+            print(f"⚠ Graph cache population failed (non-fatal): {e}")
+
+    threading.Thread(target=_background_warmup, daemon=True).start()
+    print("🚀 Server started (DB warmup running in background)")
     print("✅ Server ready!")
 
 
@@ -619,7 +633,7 @@ async def consult_deep_explainable_stream(request: ConsultRequest, _user: str = 
     print(f"{'='*60}\n")
     def generate():
         try:
-            for event in query_deep_explainable_streaming(request.query, session_id=request.session_id):
+            for event in query_deep_explainable_streaming(request.query, session_id=request.session_id, user_id=_user):
                 yield f"data: {json.dumps(event)}\n\n"
         except Exception as e:
             import traceback
@@ -1590,6 +1604,154 @@ async def get_expert_reviews_summary(
 ):
     """Get aggregate expert review statistics and recent reviews."""
     return db.get_expert_reviews_summary()
+
+
+# =============================================================================
+# Feedback Module Endpoints
+# =============================================================================
+# End-users leave per-session comments; admins can review any session with a
+# full widget-level replay reconstructed from persisted reasoning payloads.
+
+def _require_session_access(session_id: str, user: dict) -> None:
+    """Authorize a user to read/write a session. Admins pass through; owners match by user_id.
+
+    A session with no user_id (legacy/pre-auth) is only visible to admins.
+    """
+    sgm = db.get_session_graph_manager()
+    exists, owner = sgm.get_session_owner(session_id)
+    if not exists:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if user.get("role") == "admin":
+        return
+    if owner != user["username"]:
+        raise HTTPException(status_code=403, detail="Not your session")
+
+
+@app.get("/feedback/sessions", response_model=SessionListResponse)
+async def list_feedback_sessions(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    user: Optional[str] = Query(None, description="Admin-only filter: 'all' or specific username"),
+    current: dict = Depends(get_current_user_info),
+):
+    """List sessions for the feedback panel.
+
+    Admins see all sessions by default; they may filter with ?user=<username>.
+    Non-admins always see only their own sessions.
+    """
+    sgm = db.get_session_graph_manager()
+
+    if current.get("role") == "admin":
+        target_user = None if user in (None, "all", "") else user
+    else:
+        target_user = current["username"]
+
+    result = sgm.list_sessions(user_id=target_user, limit=limit, offset=offset)
+    return SessionListResponse(
+        items=[SessionSummary(**item) for item in result["items"]],
+        total=result["total"],
+    )
+
+
+@app.get("/feedback/sessions/{session_id}", response_model=SessionReplay)
+async def get_feedback_session(
+    session_id: str,
+    current: dict = Depends(get_current_user_info),
+):
+    """Return full session replay: turns with reasoning payload + comments + graph state."""
+    _require_session_access(session_id, current)
+    sgm = db.get_session_graph_manager()
+    replay = sgm.get_session_replay(session_id)
+    if replay is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return SessionReplay(**replay)
+
+
+@app.get("/feedback/sessions/{session_id}/comments", response_model=list[UserComment])
+async def list_session_comments(
+    session_id: str,
+    current: dict = Depends(get_current_user_info),
+):
+    _require_session_access(session_id, current)
+    sgm = db.get_session_graph_manager()
+    return [UserComment(**c) for c in sgm.list_comments(session_id)]
+
+
+@app.post("/feedback/sessions/{session_id}/comments", response_model=UserComment)
+async def create_session_comment(
+    session_id: str,
+    request: CommentCreateRequest,
+    current: dict = Depends(get_current_user_info),
+):
+    _require_session_access(session_id, current)
+    sgm = db.get_session_graph_manager()
+    comment = sgm.add_comment(session_id, author=current["username"], text=request.text)
+    return UserComment(**comment)
+
+
+@app.delete("/feedback/comments/{comment_id}")
+async def delete_session_comment(
+    comment_id: str,
+    current: dict = Depends(get_current_user_info),
+):
+    sgm = db.get_session_graph_manager()
+    ok = sgm.delete_comment(
+        comment_id,
+        requester=current["username"],
+        is_admin=(current.get("role") == "admin"),
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Comment not found or not authorized")
+    return {"ok": True}
+
+
+@app.get("/feedback/sessions/{session_id}/rating", response_model=SessionRating)
+async def get_session_rating(
+    session_id: str,
+    current: dict = Depends(get_current_user_info),
+):
+    _require_session_access(session_id, current)
+    sgm = db.get_session_graph_manager()
+    return SessionRating(rating=sgm.get_session_rating(session_id))
+
+
+@app.put("/feedback/sessions/{session_id}/rating", response_model=SessionRating)
+async def put_session_rating(
+    session_id: str,
+    request: SessionRating,
+    current: dict = Depends(get_current_user_info),
+):
+    _require_session_access(session_id, current)
+    sgm = db.get_session_graph_manager()
+    try:
+        saved = sgm.set_session_rating(session_id, request.rating)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return SessionRating(rating=saved)
+
+
+@app.post("/feedback/sessions/{session_id}/turns/{turn_number}/reasoning")
+async def persist_turn_reasoning(
+    session_id: str,
+    turn_number: int,
+    request: PersistReasoningRequest,
+    current: dict = Depends(get_current_user_info),
+):
+    """Persist the frontend's fully-assembled deepExplainableData for a turn.
+
+    Fire-and-forget from the browser after the SSE `complete` event. Owner-only:
+    admins cannot persist reasoning into other users' sessions.
+    """
+    sgm = db.get_session_graph_manager()
+    exists, owner = sgm.get_session_owner(session_id)
+    if not exists:
+        raise HTTPException(status_code=404, detail="Session not found")
+    # Legacy sessions (owner=None) are writable only by admins; typical owner check otherwise.
+    if current.get("role") != "admin" and owner != current["username"]:
+        raise HTTPException(status_code=403, detail="Not your session")
+
+    stored = sgm.store_turn_reasoning(session_id, turn_number, request.reasoning_data)
+    return {"ok": stored}
 
 
 # =============================================================================

@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Graph Reasoning vs RAG</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #0a0a0f;
+    color: #f0f0f5;
+  }
+
+  .slide {
+    width: 1280px;
+    height: 720px;
+    margin: 40px auto;
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+  }
+
+  /* --- SLIDE 1 --- */
+  .slide-1 {
+    background: linear-gradient(135deg, #0d0d1a 0%, #1a1a2e 50%, #16162a 100%);
+  }
+
+  .slide-1 .accent-bar {
+    position: absolute;
+    top: 0; left: 0;
+    width: 6px; height: 100%;
+    background: linear-gradient(180deg, #7c3aed, #a855f7, #7c3aed);
+  }
+
+  .slide-1 .top-line {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 3px;
+    background: linear-gradient(90deg, #7c3aed 0%, transparent 60%);
+  }
+
+  .slide-1 .content {
+    padding: 60px 80px 60px 80px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .slide-1 .tag {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #a855f7;
+    margin-bottom: 16px;
+  }
+
+  .slide-1 h1 {
+    font-size: 44px;
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 48px;
+    color: #ffffff;
+  }
+
+  .slide-1 h1 span {
+    color: #ef4444;
+    text-decoration: line-through;
+    text-decoration-thickness: 3px;
+  }
+
+  .problems {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    flex: 1;
+  }
+
+  .problem {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .problem .icon {
+    flex-shrink: 0;
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #ef4444;
+    margin-top: 2px;
+  }
+
+  .problem .text {
+    flex: 1;
+  }
+
+  .problem .text strong {
+    font-size: 17px;
+    font-weight: 700;
+    color: #f0f0f5;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .problem .text p {
+    font-size: 15px;
+    font-weight: 300;
+    color: #9ca3af;
+    line-height: 1.4;
+  }
+
+  .slide-1 .decoration {
+    position: absolute;
+    right: -60px; bottom: -60px;
+    width: 280px; height: 280px;
+    border-radius: 50%;
+    border: 1px solid rgba(124, 58, 237, 0.1);
+  }
+
+  .slide-1 .decoration::after {
+    content: '';
+    position: absolute;
+    top: 30px; left: 30px; right: 30px; bottom: 30px;
+    border-radius: 50%;
+    border: 1px solid rgba(124, 58, 237, 0.07);
+  }
+
+  /* --- SLIDE 2 --- */
+  .slide-2 {
+    background: linear-gradient(135deg, #0d0d1a 0%, #1a1a2e 50%, #16162a 100%);
+  }
+
+  .slide-2 .accent-bar {
+    position: absolute;
+    top: 0; left: 0;
+    width: 6px; height: 100%;
+    background: linear-gradient(180deg, #22c55e, #7c3aed, #22c55e);
+  }
+
+  .slide-2 .top-line {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 3px;
+    background: linear-gradient(90deg, #22c55e 0%, #7c3aed 40%, transparent 70%);
+  }
+
+  .slide-2 .content {
+    padding: 60px 80px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .slide-2 .tag {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #22c55e;
+    margin-bottom: 16px;
+  }
+
+  .slide-2 h1 {
+    font-size: 44px;
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 44px;
+    color: #ffffff;
+  }
+
+  .slide-2 h1 em {
+    font-style: normal;
+    color: #a855f7;
+  }
+
+  .benefits {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px 40px;
+    flex: 1;
+  }
+
+  .benefit {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .benefit .icon {
+    flex-shrink: 0;
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: rgba(124, 58, 237, 0.15);
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    margin-top: 2px;
+  }
+
+  .benefit .text strong {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f0f0f5;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .benefit .text p {
+    font-size: 14px;
+    font-weight: 300;
+    color: #9ca3af;
+    line-height: 1.4;
+  }
+
+  .slide-2 .layers-strip {
+    margin-top: auto;
+    display: flex;
+    gap: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    height: 44px;
+  }
+
+  .layers-strip .layer {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    position: relative;
+  }
+
+  .layers-strip .layer:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 20%; height: 60%;
+    width: 1px;
+    background: rgba(255,255,255,0.15);
+  }
+
+  .layers-strip .l1 { background: rgba(124, 58, 237, 0.25); color: #c4b5fd; }
+  .layers-strip .l2 { background: rgba(124, 58, 237, 0.18); color: #c4b5fd; }
+  .layers-strip .l3 { background: rgba(124, 58, 237, 0.12); color: #c4b5fd; }
+  .layers-strip .l4 { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+
+  .arrow-between {
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,0.2); font-size: 18px; padding: 0 2px;
+  }
+
+  /* --- SLIDE 3 --- */
+  .slide-3 {
+    background: linear-gradient(135deg, #0d0d1a 0%, #1a1a2e 50%, #16162a 100%);
+  }
+
+  .slide-3 .accent-bar {
+    position: absolute;
+    top: 0; left: 0;
+    width: 6px; height: 100%;
+    background: linear-gradient(180deg, #f59e0b, #ef4444, #f59e0b);
+  }
+
+  .slide-3 .top-line {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 3px;
+    background: linear-gradient(90deg, #f59e0b 0%, #ef4444 40%, transparent 70%);
+  }
+
+  .slide-3 .content {
+    padding: 50px 80px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .slide-3 .tag {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #f59e0b;
+    margin-bottom: 12px;
+  }
+
+  .slide-3 h1 {
+    font-size: 40px;
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 36px;
+    color: #ffffff;
+  }
+
+  .slide-3 h1 em {
+    font-style: normal;
+    color: #f59e0b;
+  }
+
+  .two-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    flex: 1;
+  }
+
+  .col {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .col-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid;
+  }
+
+  .col-header .col-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .col-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .col-header .col-sub {
+    font-size: 12px;
+    font-weight: 400;
+    color: #9ca3af;
+    margin-top: 2px;
+  }
+
+  .col-tech .col-header { border-color: rgba(124, 58, 237, 0.4); }
+  .col-tech .col-icon { background: rgba(124, 58, 237, 0.2); border: 1px solid rgba(124, 58, 237, 0.3); }
+  .col-tech .col-header h2 { color: #c4b5fd; }
+
+  .col-valid .col-header { border-color: rgba(34, 197, 94, 0.4); }
+  .col-valid .col-icon { background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.3); }
+  .col-valid .col-header h2 { color: #86efac; }
+
+  .roadmap-items {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .roadmap-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .roadmap-item .bullet {
+    flex-shrink: 0;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-top: 7px;
+  }
+
+  .col-tech .bullet { background: #a855f7; }
+  .col-valid .bullet { background: #22c55e; }
+
+  .roadmap-item .ri-text strong {
+    font-size: 15px;
+    font-weight: 600;
+    color: #f0f0f5;
+    display: block;
+    margin-bottom: 1px;
+  }
+
+  .roadmap-item .ri-text p {
+    font-size: 13px;
+    font-weight: 300;
+    color: #9ca3af;
+    line-height: 1.35;
+  }
+
+  .slide-3 .bottom-bar {
+    margin-top: auto;
+    padding: 14px 20px;
+    border-radius: 8px;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .bottom-bar .warn-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .bottom-bar p {
+    font-size: 14px;
+    font-weight: 500;
+    color: #fbbf24;
+  }
+
+  .bottom-bar p span {
+    font-weight: 300;
+    color: #9ca3af;
+  }
+
+  /* --- SLIDE 4: TRAVERSAL --- */
+  .slide-4 {
+    background: linear-gradient(135deg, #0d0d1a 0%, #1a1a2e 50%, #16162a 100%);
+  }
+  .slide-4 .accent-bar {
+    position: absolute; top: 0; left: 0;
+    width: 6px; height: 100%;
+    background: linear-gradient(180deg, #06b6d4, #7c3aed, #06b6d4);
+  }
+  .slide-4 .top-line {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 3px;
+    background: linear-gradient(90deg, #06b6d4 0%, #7c3aed 50%, transparent 80%);
+  }
+  .slide-4 .content {
+    padding: 40px 60px 36px;
+    height: 100%; display: flex; flex-direction: column;
+  }
+  .slide-4 .tag {
+    font-size: 13px; font-weight: 600; letter-spacing: 3px;
+    text-transform: uppercase; color: #06b6d4; margin-bottom: 8px;
+  }
+  .slide-4 h1 {
+    font-size: 34px; font-weight: 900; color: #fff; margin-bottom: 6px; line-height: 1.15;
+  }
+  .slide-4 h1 em { font-style: normal; color: #a855f7; }
+  .slide-4 .query-box {
+    background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.25);
+    border-radius: 8px; padding: 10px 18px; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .query-box .q-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: #06b6d4; flex-shrink: 0;
+  }
+  .query-box .q-text {
+    font-size: 15px; font-weight: 400; color: #e2e8f0; font-style: italic;
+  }
+
+  .traversal {
+    display: flex; flex-direction: column; gap: 6px; flex: 1;
+  }
+  .trav-step {
+    display: flex; align-items: center; gap: 14px;
+    position: relative; z-index: 1;
+  }
+  .trav-step .step-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+    border: 2px solid;
+  }
+  .trav-step .step-icon {
+    font-size: 20px; line-height: 1; flex-shrink: 0; width: 24px; text-align: center;
+    display: none;
+  }
+  .trav-step .step-label {
+    font-size: 12px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; flex-shrink: 0; width: 120px;
+  }
+  .trav-step .step-node {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px; padding: 7px 16px; flex: 1;
+    display: flex; align-items: center; gap: 24px;
+  }
+  .trav-step .step-node .node-type {
+    font-size: 10px; font-weight: 600; letter-spacing: 1px;
+    text-transform: uppercase; flex-shrink: 0; width: 150px;
+  }
+  .trav-step .step-node .node-name {
+    font-size: 14px; font-weight: 600; color: #f0f0f5;
+    flex-shrink: 0; width: 200px;
+  }
+  .trav-step .step-node .node-detail {
+    font-size: 12px; font-weight: 300; color: #9ca3af; line-height: 1.35;
+  }
+  .trav-arrow { display: none; }
+
+  /* step colors */
+  .step-scribe .step-num { border-color: #06b6d4; color: #06b6d4; }
+  .step-scribe .step-label { color: #06b6d4; }
+  .step-scribe .node-type { color: #06b6d4; }
+
+  .step-stressor .step-num { border-color: #f59e0b; color: #f59e0b; }
+  .step-stressor .step-label { color: #f59e0b; }
+  .step-stressor .node-type { color: #f59e0b; }
+
+  .step-rule .step-num { border-color: #ef4444; color: #ef4444; }
+  .step-rule .step-label { color: #ef4444; }
+  .step-rule .node-type { color: #ef4444; }
+
+  .step-match .step-num { border-color: #a855f7; color: #a855f7; }
+  .step-match .step-label { color: #a855f7; }
+  .step-match .node-type { color: #a855f7; }
+
+  .step-constraint .step-num { border-color: #ec4899; color: #ec4899; }
+  .step-constraint .step-label { color: #ec4899; }
+  .step-constraint .node-type { color: #ec4899; }
+
+  .step-verdict .step-num { border-color: #22c55e; color: #22c55e; }
+  .step-verdict .step-label { color: #22c55e; }
+  .step-verdict .node-type { color: #22c55e; }
+
+  .slide-4 .answer-box {
+    margin-top: auto;
+    background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.25);
+    border-radius: 8px; padding: 10px 18px;
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .answer-box .a-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: #22c55e; flex-shrink: 0; margin-top: 2px;
+  }
+  .answer-box .a-text {
+    font-size: 14px; font-weight: 400; color: #d1d5db; line-height: 1.45;
+  }
+  .answer-box .a-text strong { color: #f0f0f5; font-weight: 600; }
+
+  @media print {
+    .slide { page-break-after: always; margin: 0; border-radius: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SLIDE 1 -->
+<div class="slide slide-3">
+  <div class="accent-bar"></div>
+  <div class="top-line"></div>
+  <div class="content">
+    <div class="tag">Production Roadmap</div>
+    <h1>PoC &ne; <em>Production-Ready</em></h1>
+    <div class="two-cols">
+      <div class="col col-tech">
+        <div class="col-header">
+          <div class="col-icon">&#x2699;</div>
+          <div>
+            <h2>Technical / Enterprise</h2>
+            <div class="col-sub">Infrastructure, security, scalability</div>
+          </div>
+        </div>
+        <div class="roadmap-items">
+          <div class="roadmap-item">
+            <div class="bullet"></div>
+            <div class="ri-text">
+              <strong>Azure enterprise deployment</strong>
+              <p>Managed infra, VNET, Private Endpoints, Key Vault</p>
+            </div>
+          </div>
+          <div class="roadmap-item">
+            <div class="bullet"></div>
+            <div class="ri-text">
+              <strong>Authentication &amp; RBAC</strong>
+              <p>SSO / Azure AD, role-based access, audit trail</p>
+            </div>
+          </div>
+          <div class="roadmap-item">
+            <div class="bullet"></div>
+            <div class="ri-text">
+              <strong>Monitoring &amp; observability</strong>
+              <p>Application Insights, alerts, latency metrics, SLA tracking</p>
+            </div>
+          </div>
+          <div class="roadmap-item">
+            <div class="bullet"></div>
+            <div class="ri-text">
+              <strong>CI/CD &amp; IaC</strong>
+              <p>Pipeline: tests &rarr; staging &rarr; production. Terraform, zero-downtime deploys</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col col-valid">
+        <div class="col-header">
+          <div class="col-icon">&#x1F50D;</div>
+          <div>
+            <h2>Domain / Validation</h2>
+            <div class="col-sub">Domain coverage, testing, edge cases</div>
+          </div>
+        </div>
+        <div class="roadmap-items">
+          <div class="roadmap-item">
+            <div class="bullet"></div>
+            <div class="ri-text">
+              <strong>Domain expert validation</strong>
+              <p>Review of every causal chain with M+H engineers</p>
+            </div>
+          </div>
+          <div class="roadmap-item">
+            <div class="bullet"></div>
+            <div class="ri-text">
+              <strong>Regression test suite</strong>
+              <p>Automated tests across 50+ scenarios with expected verdicts</p>
+            </div>
+          </div>
+          <div class="roadmap-item">
+            <div class="bullet"></div>
+            <div class="ri-text">
+              <strong>Edge cases &amp; adversarial testing</strong>
+              <p>Contradictory parameters, missing data, unusual combinations</p>
+            </div>
+          </div>
+          <div class="roadmap-item">
+            <div class="bullet"></div>
+            <div class="ri-text">
+              <strong>Feedback loop &amp; graph versioning</strong>
+              <p>Expert correction mechanism, versioned graph changes</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <div class="warn-icon">&#x26A0;</div>
+      <p>The PoC validates the approach. Production requires both dimensions simultaneously. <span>Shortcuts in one = tech debt in the other.</span></p>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 4: GRAPH TRAVERSAL EXAMPLE -->
+<div class="slide slide-4">
+  <div class="accent-bar"></div>
+  <div class="top-line"></div>
+  <div class="content">
+    <div class="tag">Live Example</div>
+    <h1>Graph Traversal: <em>question &rarr; answer</em></h1>
+    <div class="query-box">
+      <div class="q-label">User</div>
+      <div class="q-text">"I need air filtration for a commercial kitchen"</div>
+    </div>
+    <div class="traversal">
+      <div class="trav-step step-scribe">
+        <div class="step-num">1</div>
+        <div class="step-icon">&#x1F50E;</div>
+        <div class="step-label">Scribe</div>
+        <div class="step-node">
+          <div class="node-type">Intent Extraction</div>
+          <div class="node-name">LLM parses query</div>
+          <div class="node-detail">app: "kitchen" &middot; action: "select"</div>
+        </div>
+      </div>
+
+      <div class="trav-step step-stressor">
+        <div class="step-num">2</div>
+        <div class="step-icon">&#x26A1;</div>
+        <div class="step-label">Stressors</div>
+        <div class="step-node">
+          <div class="node-type">Layer 2 &mdash; Physics</div>
+          <div class="node-name">Kitchen &rarr; EXPOSES_TO</div>
+          <div class="node-detail">Grease Accumulation &middot; Odor Gases &middot; Particulates</div>
+        </div>
+      </div>
+
+      <div class="trav-step step-rule">
+        <div class="step-num">3</div>
+        <div class="step-icon">&#x1F517;</div>
+        <div class="step-label">Causal Rules</div>
+        <div class="step-node">
+          <div class="node-type">Layer 2 &mdash; Causality</div>
+          <div class="node-name">DEMANDS_TRAIT</div>
+          <div class="node-detail">Grease &rarr; Pre-Filter &middot; Odor &rarr; Activated Carbon</div>
+        </div>
+      </div>
+
+      <div class="trav-step step-match">
+        <div class="step-num">4</div>
+        <div class="step-icon">&#x2705;</div>
+        <div class="step-label">Trait Match</div>
+        <div class="step-node">
+          <div class="node-type">Layer 1 &mdash; Inventory</div>
+          <div class="node-name">GDC Carbon Filter</div>
+          <div class="node-detail">Has: Carbon + PreFilter &middot; Coverage: 100% &middot; GDB: VETOED (0%)</div>
+        </div>
+      </div>
+
+      <div class="trav-step step-constraint">
+        <div class="step-num">5</div>
+        <div class="step-icon">&#x1F4D0;</div>
+        <div class="step-label">Constraints</div>
+        <div class="step-node">
+          <div class="node-type">Layer 3 &mdash; Playbook</div>
+          <div class="node-name">Gates &amp; Params</div>
+          <div class="node-detail">Need: airflow m&sup3;/h &middot; Need: material code &middot; Corrosion class: C4+</div>
+        </div>
+      </div>
+
+      <div class="trav-step step-verdict">
+        <div class="step-num">6</div>
+        <div class="step-icon">&#x1F4AC;</div>
+        <div class="step-label">Verdict</div>
+        <div class="step-node">
+          <div class="node-type">LLM Narrates</div>
+          <div class="node-name">Prompt Injection</div>
+          <div class="node-detail">Product: GDC &middot; Why: physics chain &middot; Ask: airflow, material</div>
+        </div>
+      </div>
+    </div>
+    <div class="answer-box">
+      <div class="a-label">Output</div>
+      <div class="a-text">
+        "For a commercial kitchen I recommend the <strong>GDC carbon filter unit</strong>.
+        Grease vapors require activated carbon to absorb VOCs — a standard particulate filter (GDB) would fail.
+        <strong>What airflow do you need (m&sup3;/h)?</strong> And do you prefer galvanized or stainless steel?"
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -630,6 +630,8 @@ def _merge_scribe_into_state(
 
     # 4. Parameters (constraints, generic params — always set, Scribe is primary)
     for key, val in intent.parameters.items():
+        if val is None or str(val).lower() in ("none", "null", ""):
+            continue
         state.resolved_params[key] = str(val)
         print(f"🧠 [SCRIBE] Param: {key} = {val}")
 
@@ -669,6 +671,8 @@ def _merge_scribe_into_state(
 
         # Generic fallback → resolved_params
         if not _routed:
+            if value is None or str(value).lower() in ("none", "null", ""):
+                continue
             state.resolved_params[pk] = str(value)
             print(f"🧠 [SCRIBE] Clarification → resolved_params[{pk}] = {value}")
             state.pending_clarification = _consume_pending_parts(
@@ -3339,7 +3343,7 @@ def query_deep_explainable(user_query: str, model: str = None) -> "DeepExplainab
     )
 
 
-def query_deep_explainable_streaming(user_query: str, session_id: str = None, model: str = None):
+def query_deep_explainable_streaming(user_query: str, session_id: str = None, model: str = None, user_id: str = "default"):
     """Streaming version of deep explainable query with real-time inference chain.
 
     Yields SSE events showing the actual reasoning process:
@@ -3370,7 +3374,7 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
     if session_id:
         try:
             session_graph_mgr = db.get_session_graph_manager()
-            session_graph_mgr.ensure_session(session_id)
+            session_graph_mgr.ensure_session(session_id, user_id=user_id)
         except Exception as e:
             logger.warning(f"Session graph init failed (non-fatal): {e}")
     timings = {}
@@ -5162,8 +5166,8 @@ The user has chosen to remove the accessory option to fit within their space con
                     fallback_specs["Housing Length"] = f"{tag.housing_length} mm"
                 if tag.weight_kg:
                     fallback_specs["Weight"] = f"~{tag.weight_kg} kg"
-                if tag.material:
-                    fallback_specs["Material"] = tag.material
+                if tag.material_override or technical_state.locked_material:
+                    fallback_specs["Material"] = tag.material_override or technical_state.locked_material
                 entity_card_data = {
                     "title": tag.product_code,
                     "specs": fallback_specs,
@@ -5392,6 +5396,7 @@ The user has chosen to remove the accessory option to fit within their space con
             logger.warning(f"Failed to store assistant turn (non-fatal): {e}")
 
     yield {"type": "complete", "response": transformed_response, "timings": timings,
+           "turn_number": technical_state.turn_count,
            "locked_context": session_locked,
            "technical_state": technical_state_dict,
            "graph_report": {

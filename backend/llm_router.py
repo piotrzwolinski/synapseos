@@ -23,7 +23,7 @@ AVAILABLE_MODELS = [
     {"id": "gpt-5.2", "label": "GPT-5.2", "provider": "openai"},
 ]
 
-DEFAULT_MODEL = "gpt-5.2"
+DEFAULT_MODEL = "gemini-2.5-flash"
 
 
 @dataclass

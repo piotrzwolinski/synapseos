@@ -370,3 +370,152 @@ export async function listGraphAuditReports(): Promise<GraphAuditReportMeta[]> {
   if (!res.ok) return [];
   return res.json();
 }
+
+// =============================================================================
+// FEEDBACK MODULE API HELPERS
+// =============================================================================
+
+export interface UserComment {
+  id: string;
+  session_id: string;
+  author: string;
+  text: string;
+  created_at: number;
+}
+
+export interface TurnSnapshot {
+  turn_number: number;
+  role: "user" | "assistant";
+  message: string;
+  created_at?: number | null;
+  // Full deepExplainableData payload (opaque here — typed inside chat components).
+  reasoning_data?: Record<string, unknown> | null;
+}
+
+export interface FeedbackSessionSummary {
+  session_id: string;
+  user_id?: string | null;
+  title?: string | null;
+  created_at?: number | null;
+  last_active?: number | null;
+  turn_count: number;
+  comment_count: number;
+  rating?: number | null;
+}
+
+export interface FeedbackSessionListResponse {
+  items: FeedbackSessionSummary[];
+  total: number;
+}
+
+export interface FeedbackSessionReplay {
+  session_id: string;
+  user_id?: string | null;
+  title?: string | null;
+  rating?: number | null;
+  project?: {
+    name?: string | null;
+    customer?: string | null;
+    locked_material?: string | null;
+    detected_family?: string | null;
+  } | null;
+  turns: TurnSnapshot[];
+  comments: UserComment[];
+  session_graph_state?: SessionGraphState | null;
+}
+
+export async function listFeedbackSessions(params: {
+  limit?: number;
+  offset?: number;
+  user?: string;
+} = {}): Promise<FeedbackSessionListResponse> {
+  const qs = new URLSearchParams();
+  if (params.limit !== undefined) qs.set("limit", String(params.limit));
+  if (params.offset !== undefined) qs.set("offset", String(params.offset));
+  if (params.user) qs.set("user", params.user);
+  const suffix = qs.toString() ? `?${qs}` : "";
+  const res = await apiFetch(`/feedback/sessions${suffix}`);
+  if (!res.ok) return { items: [], total: 0 };
+  return res.json();
+}
+
+export async function getFeedbackSessionReplay(
+  sessionId: string
+): Promise<FeedbackSessionReplay | null> {
+  const res = await apiFetch(`/feedback/sessions/${sessionId}`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function listSessionComments(
+  sessionId: string
+): Promise<UserComment[]> {
+  const res = await apiFetch(`/feedback/sessions/${sessionId}/comments`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function addSessionComment(
+  sessionId: string,
+  text: string
+): Promise<UserComment | null> {
+  const res = await apiFetch(`/feedback/sessions/${sessionId}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function deleteSessionComment(commentId: string): Promise<boolean> {
+  const res = await apiFetch(`/feedback/comments/${commentId}`, {
+    method: "DELETE",
+  });
+  return res.ok;
+}
+
+export async function getSessionRating(
+  sessionId: string
+): Promise<number | null> {
+  const res = await apiFetch(`/feedback/sessions/${sessionId}/rating`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data?.rating ?? null;
+}
+
+export async function setSessionRating(
+  sessionId: string,
+  rating: number | null
+): Promise<number | null> {
+  const res = await apiFetch(`/feedback/sessions/${sessionId}/rating`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rating }),
+  });
+  if (!res.ok) throw new Error(`Failed to save rating (${res.status})`);
+  const data = await res.json();
+  return data?.rating ?? null;
+}
+
+export async function persistTurnReasoning(
+  sessionId: string,
+  turnNumber: number,
+  reasoningData: Record<string, unknown>
+): Promise<void> {
+  try {
+    await apiFetch(
+      `/feedback/sessions/${sessionId}/turns/${turnNumber}/reasoning`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          turn_number: turnNumber,
+          reasoning_data: reasoningData,
+        }),
+      }
+    );
+  } catch {
+    // Fire-and-forget: replay is a nice-to-have, don't break live chat.
+  }
+}

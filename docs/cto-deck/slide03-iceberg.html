@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1280px; height: 720px;
+    font-family: 'Inter', system-ui, sans-serif;
+    background: linear-gradient(145deg, #0a0e17 0%, #111827 50%, #0a0e17 100%);
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(94,168,167,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(94,168,167,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .left {
+    flex: 1;
+    padding: 50px 60px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 1;
+  }
+  .tag {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #5EA8A7;
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 36px;
+    font-weight: 900;
+    color: #ffffff;
+    line-height: 1.15;
+    margin-bottom: 40px;
+  }
+  h1 .highlight { color: #f59e0b; }
+  .happy-path {
+    background: rgba(34,197,94,0.08);
+    border: 1px solid rgba(34,197,94,0.2);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  .happy-path .label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #22c55e;
+    margin-bottom: 8px;
+  }
+  .happy-path .pct {
+    font-size: 28px;
+    font-weight: 900;
+    color: #22c55e;
+    display: inline;
+  }
+  .happy-path .desc {
+    font-size: 14px;
+    color: #94a3b8;
+    display: inline;
+    margin-left: 12px;
+  }
+  .hard-part {
+    background: rgba(239,68,68,0.06);
+    border: 1px solid rgba(239,68,68,0.15);
+    border-radius: 10px;
+    padding: 20px 24px;
+    flex: 1;
+  }
+  .hard-part .label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #ef4444;
+    margin-bottom: 14px;
+  }
+  .hard-part .pct {
+    font-size: 28px;
+    font-weight: 900;
+    color: #ef4444;
+    display: inline;
+  }
+  .hard-part .desc {
+    font-size: 14px;
+    color: #94a3b8;
+    display: inline;
+    margin-left: 12px;
+  }
+  .hard-items {
+    list-style: none;
+    padding: 0;
+    margin-top: 16px;
+    columns: 2;
+    column-gap: 24px;
+  }
+  .hard-items li {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-bottom: 10px;
+    padding-left: 20px;
+    position: relative;
+    break-inside: avoid;
+    line-height: 1.3;
+  }
+  .hard-items li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 5px;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: rgba(239,68,68,0.4);
+  }
+  /* Right side: visual iceberg */
+  .right {
+    width: 440px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    position: relative;
+    z-index: 1;
+  }
+  .iceberg {
+    width: 320px;
+    height: 560px;
+    position: relative;
+  }
+  .waterline {
+    position: absolute;
+    top: 140px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(94,168,167,0.4), transparent);
+  }
+  .waterline-label {
+    position: absolute;
+    top: 126px;
+    right: 0;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #5EA8A7;
+  }
+  .tip {
+    position: absolute;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 50px solid transparent;
+    border-right: 50px solid transparent;
+    border-bottom: 110px solid rgba(34,197,94,0.15);
+  }
+  .tip-label {
+    position: absolute;
+    top: 85px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    font-weight: 600;
+    color: #22c55e;
+    white-space: nowrap;
+  }
+  .underwater {
+    position: absolute;
+    top: 142px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 140px solid transparent;
+    border-right: 140px solid transparent;
+    border-top: 380px solid rgba(239,68,68,0.08);
+  }
+  .underwater-label {
+    position: absolute;
+    top: 300px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    font-weight: 600;
+    color: #ef4444;
+    white-space: nowrap;
+  }
+  .underwater-sub {
+    position: absolute;
+    top: 322px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: #64748b;
+    white-space: nowrap;
+  }
+  .chat-mock {
+    position: absolute;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #94a3b8;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+  <div class="left">
+    <div class="tag">The Iceberg</div>
+    <h1>A Chat UI Is the <span class="highlight">Easy 5%</span></h1>
+    <div class="happy-path">
+      <div class="label">The Happy Path</div>
+      <span class="pct">5%</span>
+      <span class="desc">"I need a filter for my kitchen" &rarr; shows a product. Done.</span>
+    </div>
+    <div class="hard-part">
+      <div class="label">The Other 95% &mdash; Production Engineering</div>
+      <span class="pct">95%</span>
+      <span class="desc">What happens when reality gets complicated:</span>
+      <ul class="hard-items">
+        <li>Material vs. environment constraints (salt, acid, humidity)</li>
+        <li>Multi-stage assembly logic (housing + protector + filter)</li>
+        <li>Geometric sizing with spatial feasibility checks</li>
+        <li>Airflow capacity per module with CapacityRule joins</li>
+        <li>Installation constraint validation (min. dimensions)</li>
+        <li>Cross-product alternative suggestions when blocked</li>
+        <li>BSL-4 safety: zero tolerance for "close enough"</li>
+        <li>Audit trail: why THIS product, not that one?</li>
+      </ul>
+    </div>
+  </div>
+  <div class="right">
+    <div class="iceberg">
+      <div class="chat-mock">&gt; "Show me a GDC filter"</div>
+      <div class="tip"></div>
+      <div class="tip-label">Chat Interface</div>
+      <div class="waterline"></div>
+      <div class="waterline-label">SURFACE</div>
+      <div class="underwater"></div>
+      <div class="underwater-label">Engineering Intelligence</div>
+      <div class="underwater-sub">Rules &bull; Constraints &bull; Physics &bull; Audit</div>
+    </div>
+  </div>
+</body>
+</html>
