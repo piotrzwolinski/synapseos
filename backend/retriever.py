@@ -1400,7 +1400,7 @@ def get_graph_reasoning_report(query: str, product_family: str = None, context: 
     from logic.universal_engine import TraitBasedEngine
     from logic.verdict_adapter import VerdictToReportAdapter
     engine = _get_trait_engine()
-    verdict = engine.process_query(query, product_hint=product_family, context=context)
+    verdict = engine.process_query(query, product_hint=product_family, context=context, accessories=accessories)
     return VerdictToReportAdapter().adapt(verdict)
 
 
@@ -3794,8 +3794,11 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
 
         multi_entity_context += "**CRITICAL:** Use the EXACT weight values listed above. Do NOT invent weights.\n"
 
-    # Accessories: Scribe is primary (already merged above), regex fallback
-    if scribe_intent and scribe_intent.accessories:
+    # Accessories: Scribe is primary (already merged above), regex fallback.
+    # An empty scribe_intent.accessories list is a valid LLM answer ("no
+    # accessories mentioned"), NOT a signal that Scribe failed — only fall
+    # back to regex when Scribe genuinely didn't produce a result at all.
+    if scribe_intent is not None:
         for acc in scribe_intent.accessories:
             if acc not in technical_state.accessories:
                 technical_state.accessories.append(acc)
@@ -4745,7 +4748,11 @@ The user has chosen to remove the accessory option to fit within their space con
         if _llm_result.error:
             raise Exception(_llm_result.error)
         raw_text = _llm_result.text
-        print(f"📝 [SYNTHESIS] Model={model}, {len(raw_text)} chars, keys={list(json.loads(raw_text).keys()) if raw_text.strip().startswith('{') else 'NOT_JSON'}")
+        try:
+            _log_keys = list(json.loads(raw_text).keys()) if raw_text.strip().startswith('{') else 'NOT_JSON'
+        except json.JSONDecodeError:
+            _log_keys = 'TRUNCATED_JSON'
+        print(f"📝 [SYNTHESIS] Model={model}, {len(raw_text)} chars, keys={_log_keys}")
 
         # Detect silent truncation
         if _llm_result.output_tokens >= 4000:

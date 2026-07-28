@@ -10,12 +10,19 @@ Architecture:
     - Primary extractor: Scribe runs FIRST, regex fills gaps only
     - Clarification-aware: Knows what parameter the system asked for
     - Fail-safe: If Scribe fails, regex results stand unchanged
-    - Fast: LLM via llm_router, 768 tokens, temperature 0.0
+    - Fast: LLM via llm_router, 1536 tokens, temperature 0.0
 
 v4.0 changes:
     - Expanded extraction: action_intent, project_name, accessories, housing_length, entity_codes
     - All fields previously regex-only are now LLM-extracted
     - max_output_tokens: 512 → 768
+
+v4.2 changes:
+    - max_output_tokens: 768 → 1536 (gemini-2.5-flash was intermittently
+      exhausting the 768 budget on hidden reasoning tokens before emitting
+      any visible JSON, causing deterministic ~40-char truncated responses)
+    - Retry once on empty/truncated/unparseable Scribe output before
+      falling back to regex
 """
 
 import json
@@ -66,6 +73,31 @@ def _build_env_app_mapping(db) -> tuple[str, str]:
     return "\n".join(env_lines), "\n".join(app_lines)
 
 
+def _build_family_catalog_text(db) -> str:
+    """Build the list of valid ProductFamily codes from the graph.
+
+    Grounds the LLM against real catalog codes so it can correct an obvious
+    typo/transposition in a user-typed product code (e.g. "GBD" → "GDB")
+    instead of parroting the raw text through — which otherwise silently
+    breaks every downstream graph lookup keyed on that code.
+    """
+    try:
+        families = db.get_all_product_families_with_traits()
+    except Exception as e:
+        logger.warning(f"Failed to load product families from graph: {e}")
+        return ""
+
+    lines = []
+    for fam in families:
+        fam_id = fam.get("product_id", "")
+        if not fam_id:
+            continue
+        code = fam_id.replace("FAM_", "")
+        name = fam.get("product_name") or code
+        lines.append(f'     {code} ({name})')
+    return "\n".join(lines)
+
+
 def _build_product_inference_text() -> str:
     """Build product inference hints from config, with hardcoded fallback."""
     try:
@@ -101,13 +133,15 @@ def get_scribe_system_prompt(db=None) -> str:
 
     if db is not None:
         env_mapping, app_mapping = _build_env_app_mapping(db)
+        family_catalog = _build_family_catalog_text(db)
         prompt = _SCRIBE_SYSTEM_PROMPT_TEMPLATE.format(
             env_mapping=env_mapping,
             app_mapping=app_mapping,
             product_inference=product_inference,
+            family_catalog=family_catalog,
         )
         _cached_scribe_prompt = prompt
-        logger.info(f"Scribe prompt built from graph ({len(env_mapping)} env chars, {len(app_mapping)} app chars)")
+        logger.info(f"Scribe prompt built from graph ({len(env_mapping)} env chars, {len(app_mapping)} app chars, {len(family_catalog)} family chars)")
         return prompt
 
     # Fallback: use template with placeholder text
@@ -115,6 +149,7 @@ def get_scribe_system_prompt(db=None) -> str:
         env_mapping='     "indoor" → {"installation_environment": "ENV_INDOOR"}, "outdoor" → {"installation_environment": "ENV_OUTDOOR"}',
         app_mapping='     (no application data available)',
         product_inference=product_inference,
+        family_catalog='     (no product family data available)',
     )
 
 
@@ -208,6 +243,9 @@ RULES:
     REPLACEMENT SEMANTICS: When the user says "instead of X, we want Y" or "replace X with Y" or "rather than X, give me Y", this means REPLACE. Do NOT create entities for X — only create entities for Y. The "instead of" clause is context/reference, NOT a request. Example: "Instead of one 600x600 housing, we want four 300x300 housings" → create 4 entities of 300x300 only. Do NOT create a 600x600 entity.
 13. PRODUCT FAMILY: When the user names a specific product code, extract the product_family INCLUDING any named variant suffix, replacing dashes with underscores. Named variants like FLEX, NANO are part of the family identity and MUST be preserved.
     CRITICAL: Material codes are NOT variant suffixes and MUST NOT be included in product_family. They are separate material selections. If the code ends with a material code, split it: family goes in product_family, material goes in material field.
+    VALID PRODUCT FAMILIES (the ONLY real codes — match the user's stated code against this list):
+{family_catalog}
+    If the user's code is a near-miss of one of these (typo, transposed letters, e.g. "GBD" vs "GDB"), extract the CORRECTED valid code from the list above, not the raw misspelled text. Only extract text verbatim when it does not resemble any code in the list closely enough to be confident.
     PRODUCT INFERENCE: When NO product code is named but the user describes features, infer product_family:
 {product_inference}
     Only infer when the description clearly maps to one family. If ambiguous, omit.
@@ -349,45 +387,52 @@ def extract_semantic_intent(
     )
 
     _scribe_model = model or _MODEL
-    try:
-        print(f"🔍 [SCRIBE] Calling LLM model={_scribe_model}")
-        result = llm_call(
-            model=_scribe_model,
-            user_prompt=user_prompt,
-            system_prompt=get_scribe_system_prompt(db=db),
-            json_mode=True,
-            temperature=0.0,
-            max_output_tokens=768,
-        )
-
-        if result.error:
-            print(f"❌ [SCRIBE] LLM error (model={_scribe_model}): {result.error}")
-            logger.warning(f"Scribe LLM call error: {result.error}")
-            return None
-
-        raw_text = result.text
-        print(f"✅ [SCRIBE] Got {len(raw_text)} chars from {_scribe_model} in {result.duration_s}s")
-        if not raw_text:
-            logger.warning("Scribe returned empty response")
-            return None
-
-        data = json.loads(raw_text)
-        return _parse_scribe_response(data)
-
-    except json.JSONDecodeError as e:
-        logger.warning(f"Scribe JSON parse failed: {e}")
-        # Attempt basic repair for truncated JSON
+    _max_attempts = 2
+    for attempt in range(1, _max_attempts + 1):
         try:
-            data = _repair_scribe_json(raw_text)
-            if data:
-                return _parse_scribe_response(data)
-        except Exception:
-            pass
-        return None
+            print(f"🔍 [SCRIBE] Calling LLM model={_scribe_model} (attempt {attempt}/{_max_attempts})")
+            result = llm_call(
+                model=_scribe_model,
+                user_prompt=user_prompt,
+                system_prompt=get_scribe_system_prompt(db=db),
+                json_mode=True,
+                temperature=0.0,
+                max_output_tokens=1536,
+            )
 
-    except Exception as e:
-        logger.warning(f"Scribe LLM call failed: {e}")
-        return None
+            if result.error:
+                print(f"❌ [SCRIBE] LLM error (model={_scribe_model}): {result.error}")
+                logger.warning(f"Scribe LLM call error: {result.error}")
+                continue
+
+            raw_text = result.text
+            print(f"✅ [SCRIBE] Got {len(raw_text)} chars from {_scribe_model} in {result.duration_s}s")
+            if not raw_text:
+                logger.warning("Scribe returned empty response")
+                continue
+
+            data = json.loads(raw_text)
+            return _parse_scribe_response(data)
+
+        except json.JSONDecodeError as e:
+            logger.warning(f"Scribe JSON parse failed (attempt {attempt}/{_max_attempts}): {e}")
+            # Attempt basic repair for truncated JSON before giving up on this attempt
+            try:
+                data = _repair_scribe_json(raw_text)
+                if data:
+                    return _parse_scribe_response(data)
+            except Exception:
+                pass
+            # Malformed/truncated output is transient (API-level) — retry rather
+            # than immediately falling back to the less-capable regex extractor.
+            continue
+
+        except Exception as e:
+            logger.warning(f"Scribe LLM call failed (attempt {attempt}/{_max_attempts}): {e}")
+            continue
+
+    logger.warning(f"Scribe extraction failed after {_max_attempts} attempts — falling back to regex")
+    return None
 
 
 def _parse_scribe_response(data: dict) -> SemanticIntent:

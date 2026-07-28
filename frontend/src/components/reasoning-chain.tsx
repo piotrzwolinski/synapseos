@@ -857,7 +857,7 @@ export function ClarificationCard({ clarification, onOptionSelect }: Clarificati
       {/* Horizontal Action Chips */}
       <div className="flex flex-wrap gap-2">
         {clarification.options && clarification.options.map((option, idx) => {
-          const pillLabel = option.display_label || option.description || option.value;
+          const pillLabel = option.display_label || option.value;
           const secondaryText = option.description && option.description !== pillLabel ? option.description : null;
           return (
             <button

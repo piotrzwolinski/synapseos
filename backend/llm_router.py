@@ -19,11 +19,15 @@ logger = logging.getLogger(__name__)
 # Available models for the UI switcher
 AVAILABLE_MODELS = [
     {"id": "gemini-2.0-flash", "label": "Gemini 2.0 Flash", "provider": "gemini"},
+    {"id": "gemini-3.6-flash", "label": "Gemini 3.6 Flash", "provider": "gemini"},
     {"id": "gemini-3-pro-preview", "label": "Gemini 3 Pro", "provider": "gemini"},
     {"id": "gpt-5.2", "label": "GPT-5.2", "provider": "openai"},
 ]
 
-DEFAULT_MODEL = "gemini-2.5-flash"
+# v4.2: bumped from gemini-2.5-flash — that model intermittently returned
+# truncated/malformed JSON under json_mode (documented upstream issue), which
+# surfaced as deterministic ~40-char truncated Scribe extractions.
+DEFAULT_MODEL = "gemini-3.6-flash"
 
 
 @dataclass

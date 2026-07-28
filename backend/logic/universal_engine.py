@@ -2401,18 +2401,25 @@ class TraitBasedEngine:
         self,
         item_id: str,
         query: str,
+        known_accessories: Optional[list] = None,
     ) -> list[AccessoryValidation]:
         """Validate accessory compatibility with a product family.
 
-        Detects accessory mentions in the query and checks graph for
-        HAS_COMPATIBLE_ACCESSORY relationships. If no explicit relationship
-        exists, the combination is BLOCKED (strict allow-list).
+        Uses accessory codes already extracted by the Scribe LLM
+        (`known_accessories`) when available — this is the primary path.
+        Falls back to scanning the raw query text only when Scribe provided
+        nothing (e.g. Scribe call failed upstream), consistent with the
+        project-wide "LLM primary, regex fallback" rule.
 
-        All compatibility data comes from graph — no hardcoded product logic.
+        Checks graph for HAS_COMPATIBLE_ACCESSORY relationships. If no
+        explicit relationship exists, the combination is BLOCKED (strict
+        allow-list). All compatibility data comes from graph — no hardcoded
+        product logic.
 
         Args:
             item_id: ProductFamily ID or short code
-            query: User's query text (to detect accessory mentions)
+            query: User's query text (used only for the regex fallback)
+            known_accessories: Accessory codes already extracted by Scribe LLM
 
         Returns:
             List of AccessoryValidation results for each detected accessory
@@ -2422,39 +2429,10 @@ class TraitBasedEngine:
 
         pf_code = item_id.replace("FAM_", "") if item_id.startswith("FAM_") else item_id
 
-        # Detect accessory codes mentioned in query
-        # Get all known accessory codes from graph
-        try:
-            all_accessories = self.db.get_all_accessory_codes()
-        except Exception as e:
-            logger.debug(f"[TraitEngine] Failed to query accessory codes: {e}")
-            return []
-
-        if not all_accessories:
-            return []
-
-        query_upper = query.upper()
-        detected_accessories = []
-        seen_codes = set()
-        for acc in all_accessories:
-            acc_code = acc.get("code", "")
-            acc_name = acc.get("name", "")
-            matched = False
-            # Match accessory code in query (word boundary aware)
-            if acc_code and acc_code not in seen_codes and (
-                f" {acc_code} " in f" {query_upper} "
-                or f" {acc_code}," in f" {query_upper},"
-                or query_upper.endswith(f" {acc_code}")
-            ):
-                matched = True
-            elif acc_name and acc_name.lower() in query.lower():
-                matched = True
-
-            if matched:
-                code = acc_code or acc_name
-                if code not in seen_codes:
-                    seen_codes.add(code)
-                    detected_accessories.append(code)
+        if known_accessories:
+            detected_accessories = list(dict.fromkeys(known_accessories))
+        else:
+            detected_accessories = self._detect_accessories_via_regex_fallback(query)
 
         if not detected_accessories:
             return []
@@ -2497,6 +2475,47 @@ class TraitBasedEngine:
             f"{len(validations)} checked, {len(blocked)} BLOCKED"
         )
         return validations
+
+    def _detect_accessories_via_regex_fallback(self, query: str) -> list:
+        """Regex fallback accessory detection — used ONLY when Scribe LLM
+        provided no `known_accessories` (e.g. Scribe call failed upstream).
+
+        Word-boundary matching to avoid false positives on short accessory
+        names (e.g. 'L' matching inside "help" or "airflow" with a naive
+        substring check).
+        """
+        try:
+            all_accessories = self.db.get_all_accessory_codes()
+        except Exception as e:
+            logger.debug(f"[TraitEngine] Failed to query accessory codes: {e}")
+            return []
+
+        if not all_accessories:
+            return []
+
+        query_upper = query.upper()
+        detected_accessories = []
+        seen_codes = set()
+        for acc in all_accessories:
+            acc_code = acc.get("code", "")
+            acc_name = acc.get("name", "")
+            matched = False
+            # Match accessory code/name in query — true word-boundary regex.
+            # A naive substring check (e.g. acc_name.lower() in query.lower())
+            # false-positives on short names like 'L', which occur inside
+            # ordinary words such as "help" or "airflow".
+            if acc_code and re.search(r'\b' + re.escape(acc_code) + r'\b', query_upper):
+                matched = True
+            elif acc_name and re.search(r'\b' + re.escape(acc_name.upper()) + r'\b', query_upper):
+                matched = True
+
+            if matched:
+                code = acc_code or acc_name
+                if code not in seen_codes:
+                    seen_codes.add(code)
+                    detected_accessories.append(code)
+
+        return detected_accessories
 
     # =========================================================================
     # STEP 5e: BUILD ASSEMBLY (Multi-Stage Sequence)
@@ -3089,6 +3108,7 @@ class TraitBasedEngine:
         query: str,
         product_hint: Optional[str] = None,
         context: Optional[dict] = None,
+        accessories: Optional[list] = None,
     ) -> EngineVerdict:
         """Main entry point for the trait-based reasoning engine.
 
@@ -3096,6 +3116,7 @@ class TraitBasedEngine:
             query: User's natural language query
             product_hint: Optional pre-detected product family code
             context: Dict of already-known parameter values
+            accessories: Accessory codes already extracted by the Scribe LLM
 
         Returns:
             EngineVerdict with complete reasoning results
@@ -3468,7 +3489,7 @@ class TraitBasedEngine:
         # Step 5i: Validate accessories mentioned in query (v2.1)
         accessory_validations = []
         if pf_id_for_constraints:
-            accessory_validations = self.validate_accessories(pf_id_for_constraints, query)
+            accessory_validations = self.validate_accessories(pf_id_for_constraints, query, known_accessories=accessories)
 
         # Step 6: Get clarifications for recommended product
         non_vetoed = [m for m in matches if not m.vetoed]

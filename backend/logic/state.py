@@ -1677,7 +1677,7 @@ def extract_accessories_from_query(query: str) -> list[str]:
 
     # Round duct connections: Ø500, Ø500mm, 500mm round duct, round ducts (500mm diameter)
     duct_patterns = [
-        r'[ØO\u2300]\s*(\d{2,4})\s*(?:mm)?',                                          # Ø500mm
+        r'\b[ØO\u2300](\d{2,4})\s*(?:mm)?\b',                                        # Ø500mm / O500mm (no space, word boundary — avoids matching e.g. 'to 292mm')
         r'(\d{2,4})\s*mm\s+round\s+(?:ducts?|connections?|pipes?)',                    # 500mm round duct(s)
         r'round\s+(?:ducts?|connections?|pipes?)\s*\(?(\d{2,4})\s*(?:mm)?\s*(?:diameter)?\)?', # round ducts (500mm diameter)
         r'circular\s+(?:ducts?|connections?|pipes?)\s*\(?(\d{2,4})',                    # circular duct(s) (500
