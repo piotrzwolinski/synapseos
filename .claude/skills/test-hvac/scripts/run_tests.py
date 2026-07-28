@@ -743,14 +743,12 @@ TEST_CASES = {
 
     "prompt_positive_no_advisory": TestCase(
         name="prompt_positive_no_advisory",
-        description="[Prompt] Standard GDB indoor → System Analysis present, Engineering Notes optional/absent",
+        description="[Prompt] Standard GDB indoor, single-topic → System Analysis header optional (v4.2: relaxed to avoid header formalism on simple answers), graph facts still present",
         category="prompt",
         tests_graph_node="Positive control: straightforward case needs no advisory",
         pdf_reference="GDB 600x600 FZ indoor = standard config",
         query="I need a GDB 600x600 filter housing in Galvanized (FZ) for indoor ventilation. Airflow 3400 m³/h.",
         assertions=[
-            Assertion("has_system_analysis", "response.has_system_analysis_section", "true",
-                      category="output"),
             Assertion("has_graph_facts", "response.graph_fact_count", "greater_than", "0",
                       category="output"),
             Assertion("proceeds", "response.clarification_needed|response.product_cards", "any_exists",

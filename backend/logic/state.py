@@ -1415,13 +1415,13 @@ class TechnicalState:
                         tag.product_code = f"{parts[0]}-{expected_mat}"
                         tag.material_override = None  # Clear any override
                         warnings.append(
-                            f"Tag {tag_id}: Rewrote '{old_code}' → '{tag.product_code}' "
+                            f"Rewrote '{old_code}' → '{tag.product_code}' "
                             f"(enforced locked material {expected_mat})"
                         )
                         print(f"🔧 [MATERIAL-ENFORCE] {tag_id}: {old_code} → {tag.product_code}")
                     else:
                         warnings.append(
-                            f"Tag {tag_id}: Product code '{tag.product_code}' "
+                            f"Product code '{tag.product_code}' "
                             f"does not end with locked material '{expected_suffix}' (could not auto-fix)"
                         )
 

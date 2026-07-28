@@ -4816,10 +4816,19 @@ The user has chosen to remove the accessory option to fit within their space con
         material_warnings = technical_state.verify_material_codes()
         if material_warnings:
             print(f"⚠️ [VALIDATION] Material code warnings: {material_warnings}")
-            # Add to policy warnings
-            existing_warnings = llm_response.get("policy_warnings", [])
-            existing_warnings.extend(material_warnings)
-            llm_response["policy_warnings"] = existing_warnings
+            # Only surface warnings the LLM's own prose hasn't already covered
+            # (checked by the rewritten/flagged product code appearing in the text).
+            _existing_text = " ".join(
+                s.get("text", "").lower() for s in llm_response.get("content_segments", [])
+            )
+            new_material_warnings = [
+                w for w in material_warnings
+                if not any(code.lower() in _existing_text for code in re.findall(r"'([^']+)'", w))
+            ]
+            if new_material_warnings:
+                existing_warnings = llm_response.get("policy_warnings", [])
+                existing_warnings.extend(new_material_warnings)
+                llm_response["policy_warnings"] = existing_warnings
 
     # v4.2: Enforce available materials when no material is locked (outside locked_material gate)
     if not clarification_needed:
@@ -4829,9 +4838,16 @@ The user has chosen to remove the accessory option to fit within their space con
 
     # Inject material availability warning into response
     if material_availability_warning and _unavailable_material_code:
+        # Check the LLM's own prose FIRST — badge and prose share the same guard
+        # so the badge never restates a fact the LLM already covered.
+        segments = llm_response.get("content_segments", [])
+        has_material_warning = any(
+            "not available" in s.get("text", "").lower() and _unavailable_material_code.lower() in s.get("text", "").lower()
+            for s in segments
+        )
         existing_warnings = llm_response.get("policy_warnings", [])
-        # Only add if no similar warning about this material already exists
-        _has_similar = any(
+        # Only add if no similar warning about this material already exists (as a badge or in prose)
+        _has_similar = has_material_warning or any(
             _unavailable_material_code in str(w) and ("not available" in str(w).lower() or "NOT AVAILABLE" in str(w))
             for w in existing_warnings
         )
@@ -4839,11 +4855,6 @@ The user has chosen to remove the accessory option to fit within their space con
             existing_warnings.append(material_availability_warning)
         llm_response["policy_warnings"] = existing_warnings
         # Also prepend warning to the response content if LLM missed it
-        segments = llm_response.get("content_segments", [])
-        has_material_warning = any(
-            "not available" in s.get("text", "").lower() and _unavailable_material_code.lower() in s.get("text", "").lower()
-            for s in segments
-        ) if _unavailable_material_code else False
         if not has_material_warning and _unavailable_material_code:
             warning_text = (
                 f"**Important:** {_unavailable_material_code} (stainless steel) is **not available** "
@@ -4876,16 +4887,23 @@ The user has chosen to remove the accessory option to fit within their space con
                 f"{cap.get('input_requirement', '')} exceeds the recommended flow of "
                 f"{cap['output_rating']:.0f} for a single module. Modules needed: {cap.get('modules_needed')}.{alt_text}"
             )
-            existing_warnings = llm_response.get("policy_warnings", [])
-            if not any("CAPACITY" in str(w) for w in existing_warnings):
-                existing_warnings.append(cap_warning)
-                llm_response["policy_warnings"] = existing_warnings
-            # Also inject into content if LLM missed it
+            # Check the LLM's own prose FIRST — badge and prose share the same guard
+            # so the badge never restates a fact the LLM already covered. Match on
+            # the actual figures (not just "exceed"/"capacity" keywords) since the
+            # LLM may paraphrase ("cannot handle" instead of "exceeds") while still
+            # citing the same numbers.
             segments = llm_response.get("content_segments", [])
+            _cap_in = f"{cap['input_value']:.0f}"
+            _cap_out = f"{cap['output_rating']:.0f}"
             has_capacity_mention = any(
-                "capacity" in s.get("text", "").lower() and "exceed" in s.get("text", "").lower()
+                (_cap_in in s.get("text", "") and _cap_out in s.get("text", ""))
+                or ("capacity" in s.get("text", "").lower() and "exceed" in s.get("text", "").lower())
                 for s in segments
             )
+            existing_warnings = llm_response.get("policy_warnings", [])
+            if not has_capacity_mention and not any("CAPACITY" in str(w) for w in existing_warnings):
+                existing_warnings.append(cap_warning)
+                llm_response["policy_warnings"] = existing_warnings
             # v3.8: Only inject capacity segment on the first turn — suppress on follow-ups
             # to avoid verbatim repetition of the same warning
             if not has_capacity_mention and technical_state.turn_count <= 1:
@@ -4929,16 +4947,22 @@ The user has chosen to remove the accessory option to fit within their space con
                 f"({util_pct:.0f}% utilization). This extreme oversizing can cause "
                 f"uneven air distribution and reduced efficiency.{alt_text}"
             )
-            existing_warnings = llm_response.get("policy_warnings", [])
-            if not any("OVERSIZ" in str(w).upper() for w in existing_warnings):
-                existing_warnings.append(ow_warning)
-                llm_response["policy_warnings"] = existing_warnings
-            # Also inject into content segments
+            # Check the LLM's own prose FIRST — badge and prose share the same guard
+            # so the badge never restates a fact the LLM already covered. Match on
+            # the actual figures too, in case the LLM paraphrases without literally
+            # saying "oversize"/"oversized".
             segments = llm_response.get("content_segments", [])
+            _ow_cap = f"{mod_cap:.0f}"
+            _ow_req = f"{req_air:.0f}"
             has_oversize_mention = any(
                 "oversize" in s.get("text", "").lower() or "oversized" in s.get("text", "").lower()
+                or (_ow_cap in s.get("text", "") and _ow_req in s.get("text", ""))
                 for s in segments
             )
+            existing_warnings = llm_response.get("policy_warnings", [])
+            if not has_oversize_mention and not any("OVERSIZ" in str(w).upper() for w in existing_warnings):
+                existing_warnings.append(ow_warning)
+                llm_response["policy_warnings"] = existing_warnings
             if not has_oversize_mention:
                 segments.append({
                     "text": (
@@ -4982,23 +5006,23 @@ The user has chosen to remove the accessory option to fit within their space con
                     f"⚠️ {rule.explanation} "
                     f"(Stressor: {rule.stressor_name}, affects: {rule.trait_name})"
                 )
+                # Check the LLM's own prose FIRST — badge and prose share the same
+                # guard so the badge never restates a fact the LLM already covered.
+                segments = llm_response.get("content_segments", [])
+                has_mention = any(
+                    rule.stressor_name.lower() in s.get("text", "").lower()
+                    for s in segments
+                )
                 existing_warnings = llm_response.get("policy_warnings", [])
-                # Avoid duplicate injection
-                if not any(rule.stressor_name.lower() in str(w).lower() for w in existing_warnings):
+                already_badged = any(rule.stressor_name.lower() in str(w).lower() for w in existing_warnings)
+                if not has_mention and not already_badged:
                     existing_warnings.append(warning_text)
                     llm_response["policy_warnings"] = existing_warnings
-                    # Also inject into content segments
-                    segments = llm_response.get("content_segments", [])
-                    has_mention = any(
-                        rule.stressor_name.lower() in s.get("text", "").lower()
-                        for s in segments
-                    )
-                    if not has_mention:
-                        segments.append({
-                            "text": rule.explanation,
-                            "type": "GENERAL",
-                        })
-                        llm_response["content_segments"] = segments
+                    segments.append({
+                        "text": rule.explanation,
+                        "type": "GENERAL",
+                    })
+                    llm_response["content_segments"] = segments
                     print(f"📢 [VALIDATION] Injected WARNING neutralization: {rule.stressor_name} → {rule.trait_name}")
 
     # v3.12: Inject suitability warnings into content_segments on FINAL_ANSWER
