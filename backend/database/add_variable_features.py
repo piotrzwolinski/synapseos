@@ -53,13 +53,13 @@ def add_variable_features(graph):
         MERGE (opt_short:FeatureOption {id: 'OPT_GDB_LEN_550'})
         SET opt_short.name = '550mm (Short)',
             opt_short.value = '550',
-            opt_short.description = 'Short housing for bag filters up to 450mm depth',
+            opt_short.description = 'Standard length — accommodates filters up to 450 mm deep. Suited to compact installations.',
             opt_short.filter_depth_max = 450
 
         MERGE (opt_long:FeatureOption {id: 'OPT_GDB_LEN_750'})
         SET opt_long.name = '750mm (Long)',
             opt_long.value = '750',
-            opt_long.description = 'Long housing for bag filters up to 650mm depth',
+            opt_long.description = 'Extended length — accommodates deeper filters up to 650 mm, for longer service life between changes.',
             opt_long.filter_depth_max = 650,
             opt_long.is_default = true
 
@@ -97,12 +97,12 @@ def add_variable_features(graph):
         MERGE (opt_short:FeatureOption {id: 'OPT_GDMI_LEN_600'})
         SET opt_short.name = '600mm (Short)',
             opt_short.value = '600',
-            opt_short.description = 'Short insulated housing for filters up to 450mm'
+            opt_short.description = 'Standard insulated length — accommodates filters up to 450 mm deep.'
 
         MERGE (opt_long:FeatureOption {id: 'OPT_GDMI_LEN_850'})
         SET opt_long.name = '850mm (Long)',
             opt_long.value = '850',
-            opt_long.description = 'Long insulated housing for filters up to 650mm',
+            opt_long.description = 'Extended insulated length — accommodates deeper filters up to 650 mm.',
             opt_long.is_default = true
 
         MERGE (feat_len)-[:HAS_OPTION]->(opt_short)
@@ -137,12 +137,12 @@ def add_variable_features(graph):
         MERGE (opt_short:FeatureOption {id: 'OPT_GDC_LEN_750'})
         SET opt_short.name = '750mm',
             opt_short.value = '750',
-            opt_short.description = 'Standard carbon housing for 300mm cylinders'
+            opt_short.description = 'Standard carbon housing — accommodates 300 mm carbon cylinders.'
 
         MERGE (opt_long:FeatureOption {id: 'OPT_GDC_LEN_900'})
         SET opt_long.name = '900mm',
             opt_long.value = '900',
-            opt_long.description = 'Extended carbon housing for 450mm cylinders + polishing filter'
+            opt_long.description = 'Extended carbon housing — accommodates 450 mm cylinders for a longer service life.'
 
         MERGE (feat_len)-[:HAS_OPTION]->(opt_short)
         MERGE (feat_len)-[:HAS_OPTION]->(opt_long)
