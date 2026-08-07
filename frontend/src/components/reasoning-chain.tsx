@@ -502,10 +502,12 @@ export function ExplainableChatBubble({
 }: ExplainableChatBubbleProps) {
   if (!segments || segments.length === 0) return null;
 
-  // Always use ReactMarkdown for deep-explainable responses — content is always markdown
+  // Always use ReactMarkdown for deep-explainable responses — content is always markdown.
+  // Join segments with a blank line so each renders as its own paragraph, and give
+  // paragraphs clear vertical separation + comfortable line height for readability.
   const fullText = segments.map(s => s.text).join('\n\n');
   return (
-    <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
+    <div className="prose prose-sm prose-slate dark:prose-invert max-w-none leading-relaxed [&>p]:my-3 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&_strong]:font-semibold [&_strong]:text-slate-900 dark:[&_strong]:text-slate-100">
       <ReactMarkdown>{fullText}</ReactMarkdown>
     </div>
   );
