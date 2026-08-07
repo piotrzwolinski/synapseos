@@ -4519,8 +4519,23 @@ The user has chosen to remove the accessory option to fit within their space con
     timings["config_search"] = time.time() - t1
     variant_count = len(config_results["variants"])
 
+    # Status display only: on a continuation turn the query is often just a
+    # clarification answer (e.g. "750mm") with no product code, so the search
+    # above finds nothing even though the product family is already resolved in
+    # state. Report the resolved family's variant count so the widget doesn't
+    # show a misleading "0 products found". Does NOT touch config_results, so
+    # variance/clarification logic below is unaffected.
+    _status_count = variant_count
+    if _status_count == 0:
+        _resolved_fam = detected_product_family or technical_state.detected_family
+        if _resolved_fam:
+            try:
+                _status_count = len(db.search_product_variants(_resolved_fam)) or 1
+            except Exception:
+                _status_count = 1
+
     yield {"type": "inference", "step": "products", "status": "done",
-           "detail": f"📦 {variant_count} products found"}
+           "detail": f"📦 {_status_count} products found"}
 
     # STEP 4: CLARIFICATION CHECK (only if needed)
     # CRITICAL: Check technical state first - if all data is known, skip clarification
