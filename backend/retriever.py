@@ -3557,8 +3557,27 @@ def query_deep_explainable_streaming(user_query: str, session_id: str = None, mo
                   f"{n_actions} actions, {n_hints} context hints, "
                   f"{n_clar} clarification answers")
 
+        # Report the CUMULATIVE count of resolved parameters (from state), not the
+        # number of derivations in this single turn — otherwise a continuation turn
+        # (e.g. answering "750mm") shows a misleading "Resolved 0 derived values".
+        _resolved_keys = set()
+        for _k, _v in (technical_state.resolved_params or {}).items():
+            if _v is not None and str(_v).strip().lower() not in ("", "none"):
+                _resolved_keys.add(_k.lower())
+        for _tag in technical_state.tags.values():
+            if getattr(_tag, "airflow_m3h", None):
+                _resolved_keys.add("airflow")
+            if getattr(_tag, "housing_width", None) and getattr(_tag, "housing_height", None):
+                _resolved_keys.add("dimensions")
+            if getattr(_tag, "housing_length", None):
+                _resolved_keys.add("housing_length")
+            if getattr(_tag, "product_family", None):
+                _resolved_keys.add("product_family")
+        if getattr(technical_state, "locked_material", None):
+            _resolved_keys.add("material")
+        _n_resolved = len(_resolved_keys)
         yield {"type": "inference", "step": "scribe", "status": "done",
-               "detail": f"Resolved {len(scribe_intent.actions) if scribe_intent else 0} derived values"}
+               "detail": f"Resolved {_n_resolved} parameter{'s' if _n_resolved != 1 else ''}"}
 
     except Exception as e:
         logger.warning(f"Scribe extraction failed (regex safety net): {e}")
