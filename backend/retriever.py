@@ -5131,13 +5131,19 @@ The user has chosen to remove the accessory option to fit within their space con
     # Convert clarification_data to clarification format
     clarification = None
     if clarification_needed and clar_data:
-        # Enrich airflow clarification with graph-derived options if empty
+        # Airflow options are graph-authoritative: the graph holds deterministic
+        # per-family reference airflow (ProductVariant), so it MUST win over any
+        # options the synthesis LLM authored. The old `and not clar_data.get(...)`
+        # guard ceded authority to LLM free text, which fabricated non-deterministic
+        # airflow tiers (e.g. 1500/2500) because the reasoning injection gives the
+        # model only the question text, not the numbers. Override whenever the graph
+        # returns options; keep LLM options only as a fallback when it returns none.
         missing_attr_lower = (clar_data.get("missing_attribute") or "").lower()
-        if ('airflow' in missing_attr_lower or 'przepływ' in missing_attr_lower) and not clar_data.get("options"):
+        if 'airflow' in missing_attr_lower or 'przepływ' in missing_attr_lower:
             airflow_opts = _generate_airflow_options_from_graph(technical_state, db)
             if airflow_opts:
                 clar_data["options"] = airflow_opts
-                print(f"🎯 [ENRICHMENT] Added {len(airflow_opts)} airflow options from DimensionModule graph data")
+                print(f"🎯 [ENRICHMENT] Overrode with {len(airflow_opts)} airflow options from ProductVariant graph data")
 
         # Deduplicate options by value (case-insensitive)
         raw_options = clar_data.get("options", [])
