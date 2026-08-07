@@ -606,22 +606,40 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     // Store the original query for potential clarification follow-up
     const lastQueryForClarification = userMessage;
 
+    // FRESH-CONVERSATION GUARD: the first message of a conversation must start
+    // from a clean slate. session_id lives in sessionStorage and survives
+    // component remounts / navigation (e.g. picking a welcome chip without
+    // clicking "New Session"), so a stale session_id would make the backend
+    // treat this as a continuation turn and bleed prior Layer-4 state
+    // (old airflow, resolved length, locked material) into the new query.
+    // Mint a fresh session id and drop any stale locked/technical state so we
+    // do NOT append a stale [LOCKED]/[STATE] hint below. Multi-turn answers
+    // (clarification replies) have messages.length > 0 and are unaffected.
+    const isFreshConversation = messages.length === 0;
+    if (isFreshConversation) {
+      resetSessionId();
+      setLockedContext(null);
+      setTechnicalState(null);
+    }
+    const activeLockedContext = isFreshConversation ? null : lockedContext;
+    const activeTechnicalState = isFreshConversation ? null : technicalState;
+
     // Build query with locked context for multi-turn persistence
     let queryWithContext = userMessage;
-    if (lockedContext) {
+    if (activeLockedContext) {
       const contextParts: string[] = [];
-      if (lockedContext.material) {
-        contextParts.push(`material=${lockedContext.material}`);
+      if (activeLockedContext.material) {
+        contextParts.push(`material=${activeLockedContext.material}`);
       }
-      if (lockedContext.project) {
-        contextParts.push(`project=${lockedContext.project}`);
+      if (activeLockedContext.project) {
+        contextParts.push(`project=${activeLockedContext.project}`);
       }
-      if (lockedContext.filter_depths && lockedContext.filter_depths.length > 0) {
-        contextParts.push(`filter_depths=${lockedContext.filter_depths.join(',')}`);
+      if (activeLockedContext.filter_depths && activeLockedContext.filter_depths.length > 0) {
+        contextParts.push(`filter_depths=${activeLockedContext.filter_depths.join(',')}`);
       }
       // BUGFIX: Include dimension_mappings in locked context
-      if (lockedContext.dimension_mappings && lockedContext.dimension_mappings.length > 0) {
-        const dimStr = lockedContext.dimension_mappings
+      if (activeLockedContext.dimension_mappings && activeLockedContext.dimension_mappings.length > 0) {
+        const dimStr = activeLockedContext.dimension_mappings
           .map(d => `${d.width}x${d.height}${d.depth ? 'x' + d.depth : ''}`)
           .join(',');
         contextParts.push(`dimensions=${dimStr}`);
@@ -631,8 +649,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
       }
     }
     // BUGFIX: Send full technical state for complete cumulative tracking
-    if (technicalState && Object.keys(technicalState).length > 0) {
-      queryWithContext = `${queryWithContext} [STATE: ${JSON.stringify(technicalState)}]`;
+    if (activeTechnicalState && Object.keys(activeTechnicalState).length > 0) {
+      queryWithContext = `${queryWithContext} [STATE: ${JSON.stringify(activeTechnicalState)}]`;
     }
 
     if (!override) {
