@@ -4895,8 +4895,11 @@ The user has chosen to remove the accessory option to fit within their space con
             segments = llm_response.get("content_segments", [])
             _cap_in = f"{cap['input_value']:.0f}"
             _cap_out = f"{cap['output_rating']:.0f}"
+            # Normalize thousands separators/spaces so "2,800 m³/h" matches "2800"
+            def _norm_num(s: str) -> str:
+                return s.replace(",", "").replace(" ", "").replace(" ", "")
             has_capacity_mention = any(
-                (_cap_in in s.get("text", "") and _cap_out in s.get("text", ""))
+                (_cap_in in _norm_num(s.get("text", "")) and _cap_out in _norm_num(s.get("text", "")))
                 or ("capacity" in s.get("text", "").lower() and "exceed" in s.get("text", "").lower())
                 for s in segments
             )
@@ -4916,10 +4919,9 @@ The user has chosen to remove the accessory option to fit within their space con
                     )
                 segments.append({
                     "text": (
-                        f"Additionally, the requested {cap['input_value']:.0f} "
-                        f"{cap.get('input_requirement', '')} exceeds the recommended flow of "
-                        f"{cap['output_rating']:.0f} for a single {cap.get('module_descriptor', '')} "
-                        f"module. {cap.get('modules_needed')} parallel units are required.{alt_segment}"
+                        f"The requested airflow of {cap['input_value']:.0f} m³/h exceeds the "
+                        f"{cap['output_rating']:.0f} m³/h rating of a single {cap.get('module_descriptor', '')} "
+                        f"module, so {cap.get('modules_needed')} parallel units are required.{alt_segment}"
                     ),
                     "type": "GENERAL",
                 })
