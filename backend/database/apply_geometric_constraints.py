@@ -16,59 +16,36 @@ from db_result_helpers import result_to_dicts, result_single
 
 
 def apply_polis_constraint():
-    """Add geometric constraint for Polis after-filter option."""
+    """Add geometric constraint for the Polis after-filter rail.
+
+    MODELING RULE: Polis is an ACCESSORY (ACC_POLIS), NOT a housing-length
+    option. The geometric constraint (min 900mm) lives on the Accessory node
+    and is read via the HAS_COMPATIBLE_ACCESSORY path in
+    database.get_option_geometric_constraints. Polis must NEVER be linked to a
+    housing_length VariableFeature via HAS_OPTION — that pollutes the
+    length-selection clarification with a non-length item (see
+    database/fix_polis_length_feature.py for the repair migration).
+    """
     graph = db.connect()
 
-    # Step 1: Create/update Polis option with geometric constraint
+    # Step 1: Put the geometric constraint on the Polis ACCESSORY node.
     result = graph.query("""
-        MERGE (o:FeatureOption {id: "OPT_POLIS"})
-        SET o.name = "Polis",
-            o.value = "polis",
-            o.display_label = "Polis (After-filter Rail)",
-            o.description = "Secondary polishing filter stage for enhanced air quality",
-            o.min_required_housing_length = 900,
-            o.physics_logic = "The after-filter rail (Polis) requires extra internal depth to accommodate the secondary filter stage. This additional space is only available in the 900/950mm housing variants.",
-            o.use_case = "High air quality requirements, cleanroom adjacent spaces",
-            o.benefit = "Additional filtration stage for polishing air after primary carbon treatment"
-        RETURN o.id AS id, o.min_required_housing_length AS min_length
+        MERGE (a:Accessory {id: "ACC_POLIS"})
+        SET a.name = "Polis",
+            a.value = "polis",
+            a.min_required_housing_length = 900,
+            a.min_housing_length = 900,
+            a.physics_logic = "The after-filter rail (Polis) requires extra internal depth to accommodate the secondary filter stage. This additional space is only available in the 900/950mm housing variants."
+        RETURN a.id AS id, a.min_required_housing_length AS min_length
     """)
     row = result_single(result)
     if row:
-        print(f"[OK] Created/updated Polis option: {row['id']} with min_length={row['min_length']}mm")
+        print(f"[OK] Set geometric constraint on accessory {row['id']}: min_length={row['min_length']}mm")
 
-    # Step 2: Link to GDC housing length feature
-    result = graph.query("""
-        MATCH (pf:ProductFamily)
-        WHERE pf.id = "FAM_GDC" OR pf.name = "GDC"
-        MATCH (pf)-[:HAS_VARIABLE_FEATURE]->(f:VariableFeature)
-        WHERE f.parameter_name CONTAINS "length" OR f.feature_name CONTAINS "Length"
-        MATCH (o:FeatureOption {id: "OPT_POLIS"})
-        MERGE (f)-[:HAS_OPTION]->(o)
-        RETURN pf.name AS family, f.feature_name AS feature
-    """)
-    for row in result_to_dicts(result):
-        print(f"[OK] Linked Polis to {row['family']} -> {row['feature']}")
-
-    # Step 3: Set incompatibility with 750mm
-    result = graph.query("""
-        MATCH (o:FeatureOption {id: "OPT_POLIS"})
-        MATCH (v:FeatureOption)
-        WHERE (v.value = "750" OR v.value = "550" OR v.value = "600")
-          AND (v.id CONTAINS "LENGTH" OR v.id CONTAINS "length")
-        MERGE (o)-[r:INCOMPATIBLE_WITH_VARIANT]->(v)
-        SET r.reason = "Insufficient internal depth for after-filter rail"
-        RETURN o.name AS opt, v.value AS variant
-    """)
-    incompatible = result_to_dicts(result)
-    if incompatible:
-        for row in incompatible:
-            print(f"[OK] Set incompatibility: {row['opt']} <-> {row['variant']}mm variant")
-    else:
-        print("[INFO] No existing length variants found to mark as incompatible")
-
-    print("\n[DONE] Geometric constraint for Polis option applied successfully!")
-    print("       The Physical Constraint Validator will now block configurations")
-    print("       where Polis is requested with space limits under 900mm.")
+    print("\n[DONE] Geometric constraint for Polis applied to ACC_POLIS.")
+    print("       The Physical Constraint Validator reads it via the accessory")
+    print("       path and blocks Polis on compatible families (GDB/GDMI) below 900mm.")
+    print("       Polis is NOT added as a housing-length option (that was the bug).")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 # Diagnosis: Non-deterministic clarification option count
 
 **Date:** 2026-08-07
-**Status:** Diagnosed, NOT yet fixed. This doc is the return point before implementing the fix.
+**Status:** ✅ FIXED (2026-08-07). Root cause below was refined during implementation — see "ACTUAL ROOT CAUSE & FIX" at the bottom. The original hypothesis (LLM free-text contamination) was a *symptom amplifier*, not the root cause.
 
 ## Symptom
 
@@ -55,3 +55,38 @@ Run `/test-hvac` (8-test regression runner) — the fix touches the clarificatio
 - `backend/database.py`
 - `backend/database/add_variable_features.py`
 - `backend/database/add_accessory_compatibility.py`
+
+---
+
+## ACTUAL ROOT CAUSE & FIX (2026-08-07)
+
+Empirical + graph inspection revealed the true cause is a **graph data-model defect**, not LLM contamination (the LLM free-text path only amplified the visible symptom):
+
+### The defect
+- A **malformed `VariableFeature` node** (internal id 791; `parameter_name = NULL`, `feature_name = NULL`) was shared by `FAM_GDC` **and** `FAM_GDC_FLEX` and linked `[OPT_GDC_LEN_750, OPT_GDC_LEN_900, OPT_POLIS]` via `HAS_OPTION`.
+- Because its `parameter_name` is NULL, `check_variable_features` computes an empty `param_key` that never matches a resolved param → it **always** surfaced as an unresolved clarification, dragging `OPT_POLIS` (an after-filter rail) into the housing-length options.
+- `FAM_GDC_FLEX` had **no proper `housing_length` feature of its own** — it depended entirely on this malformed node (`FAM_GDC` also had the correct `VF_GDC_LENGTH`, so 791 was a duplicate for it).
+- **`ACC_POLIS` is `INCOMPATIBLE_WITH` FAM_GDC / FAM_GDC_FLEX** (only `HAS_COMPATIBLE_ACCESSORY` with GDB/GDMI). So Polis was being offered exactly for the families it is incompatible with, while GDB/GDMI (where it is valid) never had it selectable.
+- The `HAS_OPTION → OPT_POLIS` edge was **load-bearing**: `database.get_option_geometric_constraints` traversed `(:VariableFeature)-[:HAS_OPTION]->(:FeatureOption)` to find Polis's `min_required_housing_length=900`. So it could not simply be deleted.
+
+The 2-vs-3 non-determinism = unstable `collect()` ordering + LLM free-text option authoring occasionally dropping the trailing (Polis) item. Removing Polis at the source makes the count deterministic.
+
+### The fix (accessory model)
+Migration: `backend/database/fix_polis_length_feature.py`
+1. Added a proper `housing_length` VariableFeature `VF_GDC_FLEX_LENGTH` for `FAM_GDC_FLEX` (options 750/900).
+2. Copied the geometric constraint (`min_required_housing_length=900` + physics text) onto `ACC_POLIS`.
+3. Deleted the malformed node 791 (identified structurally as the NULL-param VariableFeature linking `OPT_POLIS`, not by unstable id).
+
+Code: `backend/database.py` `get_option_geometric_constraints` — added a `UNION` branch that reads space-consuming **accessories** via `HAS_COMPATIBLE_ACCESSORY` (matched by selected options, `min_required_housing_length IS NOT NULL`). Polis's 900mm constraint now actually fires for GDB/GDMI (where it is compatible); GDC/GDC_FLEX correctly return nothing here (handled by the accessory-incompatibility validator).
+
+Seed scripts made consistent so re-seeding never reintroduces the bug:
+- `backend/database/apply_geometric_constraints.py` — now sets the constraint on `ACC_POLIS`; removed the harmful `HAS_OPTION` link + the incompatibility-with-750 step.
+- `backend/database/update_polis_constraint.cypher` — same; constraint on `ACC_POLIS`, no length-feature link.
+
+### Verification
+- Same query run **5×** through the Graph Reasoning stream endpoint → **always exactly 2 options (750mm, 900mm), no Polis** (was 3/5 with Polis before the fix).
+- `get_option_geometric_constraints('GDMI', ['polis'])` → constraint returned (min 900); `('GDC', ['polis'])` → `[]` (deferred to compatibility validator).
+- Full regression: run `/test-hvac` (8 tests) — user-invoked.
+
+### Sibling issue (out of scope, left untouched)
+A second malformed NULL-identity VariableFeature (id 790) exists for `FAM_GDMI` linking GDMI length options (no Polis). Same defect class; does not cause the Polis bug. Should be cleaned up separately (verify GDMI has a proper `housing_length` feature first).

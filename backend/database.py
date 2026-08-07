@@ -3057,8 +3057,17 @@ class GraphConnection:
 
         def _query():
             graph = self.connect()
-            # Query options that have geometric constraints
-            # Matches by option ID, name, or value (case-insensitive)
+            # Query options/accessories that have geometric constraints.
+            # Matches by ID, name, or value (case-insensitive).
+            #
+            # Two sources:
+            #   1. FeatureOption nodes reachable via a VariableFeature.
+            #   2. Accessory nodes reachable via HAS_COMPATIBLE_ACCESSORY. Space-
+            #      consuming accessories (e.g. the Polis after-filter rail) live on
+            #      the Accessory node, NOT as a housing-length option — an accessory
+            #      must never pollute the length-selection clarification. Only
+            #      COMPATIBLE accessories are checked here; INCOMPATIBLE_WITH pairs
+            #      are already blocked by the accessory-compatibility validator.
             result = graph.query("""
                 MATCH (pf:ProductFamily)-[:HAS_VARIABLE_FEATURE]->(f:VariableFeature)
                       -[:HAS_OPTION]->(o:FeatureOption)
@@ -3069,13 +3078,27 @@ class GraphConnection:
                       OR toLower(o.value) IN $options_lower
                   )
                   AND o.min_required_housing_length IS NOT NULL
-
                 RETURN DISTINCT o.id AS option_id,
                        COALESCE(o.name, o.value) AS option_name,
                        o.min_required_housing_length AS min_required_housing_length,
                        o.physics_logic AS physics_logic,
                        f.feature_name AS feature_name,
                        f.parameter_name AS parameter_name
+                UNION
+                MATCH (pf:ProductFamily)-[:HAS_COMPATIBLE_ACCESSORY]->(a:Accessory)
+                WHERE (pf.id = 'FAM_' + $family OR pf.name CONTAINS $family)
+                  AND (
+                      toLower(a.id) IN $options_lower
+                      OR toLower(a.name) IN $options_lower
+                      OR toLower(COALESCE(a.value, '')) IN $options_lower
+                  )
+                  AND a.min_required_housing_length IS NOT NULL
+                RETURN DISTINCT a.id AS option_id,
+                       COALESCE(a.name, a.value) AS option_name,
+                       a.min_required_housing_length AS min_required_housing_length,
+                       a.physics_logic AS physics_logic,
+                       'Accessory' AS feature_name,
+                       'accessory' AS parameter_name
             """, params={"family": product_family, "options_lower": [opt.lower() for opt in selected_options]}
             )
             return result_to_dicts(result)
