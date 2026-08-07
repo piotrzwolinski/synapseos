@@ -127,6 +127,7 @@ class MissingParameter:
     question: str
     why_needed: str
     options: list[dict] = field(default_factory=list)  # discrete choices if applicable
+    inquiry_priority: int = 100  # graph-supplied; lower = ask first (deterministic order)
 
 
 @dataclass
@@ -560,16 +561,28 @@ class EngineVerdict:
         # MISSING PARAMETERS (variance check — v2.1)
         # Suppressed when product is blocked — asking for config params is counterproductive
         if self.missing_parameters and not is_blocked:
+            # Present in inquiry-priority order (lowest first) for deterministic
+            # clarification. The LLM must ask about the FIRST one this turn.
+            ordered_missing = sorted(
+                self.missing_parameters,
+                key=lambda mp: (getattr(mp, "inquiry_priority", 100), mp.parameter_name),
+            )
             parts.append("## MISSING CONFIGURATION PARAMETERS")
-            parts.append("The following parameters MUST be resolved before final configuration:")
-            for mp in self.missing_parameters:
-                parts.append(f"- **{mp.feature_name}** (key: {mp.parameter_name})")
-                parts.append(f"  Question: {mp.question}")
+            parts.append("The following parameters are unresolved, listed in INQUIRY-PRIORITY ORDER (most important first):")
+            for i, mp in enumerate(ordered_missing):
+                marker = "  ⟵ ASK ABOUT THIS ONE FIRST" if i == 0 else ""
+                parts.append(f"{i + 1}. **{mp.feature_name}** (key: {mp.parameter_name}){marker}")
+                parts.append(f"   Question: {mp.question}")
                 if mp.options:
                     opt_names = [o.get("name", o.get("value", "")) for o in mp.options[:5]]
-                    parts.append(f"  Options: {', '.join(opt_names)}")
+                    parts.append(f"   Options: {', '.join(opt_names)}")
             parts.append("")
-            parts.append("You MUST ask for ALL missing parameters listed above.")
+            parts.append(
+                "⚠️ CLARIFY ONLY PARAMETER #1 (the first/highest-priority one) IN THIS TURN. "
+                "Set clarification_data.missing_attribute to its key. Do NOT pick a different "
+                "parameter and do NOT choose arbitrarily — always ask #1 first. The rest will be "
+                "asked on later turns once #1 is resolved."
+            )
             parts.append("DO NOT assume or guess values — the user MUST provide them.")
             parts.append("")
 
@@ -2368,6 +2381,7 @@ class TraitBasedEngine:
         # Source 1: VariableFeature nodes from graph
         try:
             variable_features = self.db.get_variable_features(pf_code)
+            seen_params = set()
             for feat in variable_features:
                 param_name = feat.get("parameter_name", "")
                 feature_name = feat.get("feature_name", "")
@@ -2376,6 +2390,12 @@ class TraitBasedEngine:
                 if param_key in resolved_keys or param_name.lower() in resolved_keys:
                     continue
 
+                # Dedupe: get_variable_features can return the same feature via
+                # multiple family-match conditions (id / name / applies_to).
+                if param_key in seen_params:
+                    continue
+                seen_params.add(param_key)
+
                 missing.append(MissingParameter(
                     feature_id=feat.get("feature_id", ""),
                     feature_name=feature_name,
@@ -2383,9 +2403,16 @@ class TraitBasedEngine:
                     question=feat.get("question", f"Please provide {feature_name}"),
                     why_needed=feat.get("why_needed", ""),
                     options=feat.get("options", []),
+                    inquiry_priority=feat.get("inquiry_priority") or 100,
                 ))
         except Exception as e:
             logger.warning(f"[TraitEngine] Failed to query variable features for {pf_code}: {e}")
+
+        # Deterministic clarification order: lowest inquiry_priority first, so
+        # identical queries always clarify the same parameter first (no run-to-run
+        # airflow/length swapping). The graph query already ORDERs by this;
+        # re-sort here as defense-in-depth in case sources are ever merged.
+        missing.sort(key=lambda mp: (mp.inquiry_priority, mp.parameter_name))
 
         logger.info(
             f"[TraitEngine] Variance check for {pf_code}: "

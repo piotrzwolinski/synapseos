@@ -97,6 +97,7 @@ class VariableFeature:
     options: list[dict]  # [{value, name, description, is_default}]
     is_resolved: bool = False
     selected_value: Optional[str] = None
+    inquiry_priority: int = 100  # lower = ask first (deterministic clarification order)
 
 
 @dataclass
@@ -277,11 +278,22 @@ class GraphReasoningReport:
 
         # Variable features (Variance Check Loop)
         if self.variable_features:
+            # Deterministic order: lowest inquiry_priority first.
+            ordered_features = sorted(
+                self.variable_features,
+                key=lambda f: (getattr(f, 'inquiry_priority', 100), f.parameter_name),
+            )
             parts.append("## ⚠️ UNRESOLVED VARIABLE FEATURES (MUST ASK BEFORE FINAL ANSWER)")
             parts.append("The following configurable features have NOT been specified by the user.")
-            parts.append("You MUST ask about these features before giving a final recommendation!")
+            parts.append("They are listed in INQUIRY-PRIORITY ORDER (most important first).")
+            parts.append(
+                "⚠️ CLARIFY ONLY THE **FIRST** FEATURE BELOW IN THIS TURN. "
+                "Set clarification_data.missing_attribute to that first parameter. "
+                "Do NOT pick a different one or choose arbitrarily — always start with the first. "
+                "The remaining features will be asked on later turns once this one is resolved."
+            )
             parts.append("")
-            for feat in self.variable_features:
+            for feat in ordered_features:
                 parts.append(f"### {feat.feature_name}")
                 parts.append(f"- **Parameter:** `{feat.parameter_name}`")
                 parts.append(f"- **Question:** {feat.question}")
@@ -1236,10 +1248,16 @@ class GraphReasoningEngine:
                     question=feat.get('question', f'Please select {feature_name}'),
                     why_needed=feat.get('why_needed', ''),
                     options=feat.get('options', []),
-                    is_resolved=False
+                    is_resolved=False,
+                    inquiry_priority=feat.get('inquiry_priority') or 100,
                 ))
             else:
                 print(f"   ✅ {feature_name} (param_key={param_key}): RESOLVED")
+
+        # Deterministic clarification order: lowest inquiry_priority first.
+        # When several features are unresolved, the LLM must ask about the
+        # first one; a stable order prevents run-to-run parameter swapping.
+        unresolved_features.sort(key=lambda f: (f.inquiry_priority, f.parameter_name))
 
         print(f"   Result: {len(unresolved_features)} unresolved features")
         return unresolved_features

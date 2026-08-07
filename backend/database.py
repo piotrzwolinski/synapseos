@@ -2866,8 +2866,9 @@ class GraphConnection:
                        COALESCE(f.parameter_name, d.parameter_name) AS parameter_name,
                        [opt IN options WHERE opt.id IS NOT NULL] AS options,
                        COALESCE(f.auto_resolve, false) AS auto_resolve,
-                       f.default_value AS default_value
-                ORDER BY f.feature_name
+                       f.default_value AS default_value,
+                       COALESCE(f.inquiry_priority, 100) AS inquiry_priority
+                ORDER BY COALESCE(f.inquiry_priority, 100), f.feature_name
             """, params={"family": product_family})
             return result_to_dicts(result)
 
