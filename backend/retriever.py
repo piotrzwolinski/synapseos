@@ -4830,6 +4830,21 @@ The user has chosen to remove the accessory option to fit within their space con
     timings["llm"] = time.time() - t1
     timings["total"] = time.time() - total_start
 
+    # Corrosion-class hygiene (deterministic): 'C2' is never a valid class in this
+    # catalogue — galvanized FZ = C3, stainless RF/SF = C5/C5.1. The LLM has a
+    # persistent prior that a "standard housing frame" carries a C2 rating, which no
+    # graph/config data supports and prompt guards do not reliably suppress (it recurs
+    # in blocked/pivot verdicts). Correct any stray corrosion-context 'C2' to 'C3' so
+    # a response never states a fabricated, self-contradictory class.
+    _corr_ctx = ("corros", "class", "rating", "galvan")
+    for _seg in llm_response.get("content_segments", []):
+        _txt = _seg.get("text", "")
+        if "C2" in _txt and any(_w in _txt.lower() for _w in _corr_ctx):
+            _fixed = re.sub(r'\bC2\b', 'C3', _txt)
+            if _fixed != _txt:
+                _seg["text"] = _fixed
+                print("🧹 [CORROSION] Corrected stray 'C2' → 'C3' in response segment")
+
     yield {"type": "inference", "step": "thinking", "status": "done",
            "detail": "👔 Done"}
 
@@ -5203,6 +5218,20 @@ The user has chosen to remove the accessory option to fit within their space con
             if airflow_opts:
                 clar_data["options"] = airflow_opts
                 print(f"🎯 [ENRICHMENT] Overrode with {len(airflow_opts)} airflow options from ProductVariant graph data")
+            else:
+                # Graph-derived airflow tiers require the housing dimensions. With no
+                # dimensions resolved the LLM cannot know real airflow values, so any
+                # options it authored are fabricated (e.g. hallucinated 10200/25500).
+                # Clear them so the user enters airflow via free input instead of
+                # picking an invented tier (the clarification card always offers an
+                # "Other…" text field, so this is not a dead end).
+                _has_dims = any(
+                    getattr(t, "housing_width", None) and getattr(t, "housing_height", None)
+                    for t in technical_state.tags.values()
+                )
+                if not _has_dims and clar_data.get("options"):
+                    print(f"🎯 [ENRICHMENT] Cleared {len(clar_data['options'])} fabricated airflow options (no dimensions → no graph tiers)")
+                    clar_data["options"] = []
 
         # Deduplicate options by value (case-insensitive)
         raw_options = clar_data.get("options", [])
