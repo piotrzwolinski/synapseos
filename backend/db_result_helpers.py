@@ -27,10 +27,24 @@ def _unwrap_value(val):
         return None
     # FalkorDB Node: has .labels + .properties
     if hasattr(val, 'properties') and hasattr(val, 'labels'):
-        return {"_id": val.id, "_labels": val.labels, **val.properties}
+        return {"_id": val.id, "_labels": val.labels,
+                **{k: _unwrap_value(v) for k, v in val.properties.items()}}
     # FalkorDB Edge: has .relation + .properties
     if hasattr(val, 'properties') and hasattr(val, 'relation'):
-        return {"_id": val.id, "_type": val.relation, **val.properties}
+        return {"_id": val.id, "_type": val.relation,
+                **{k: _unwrap_value(v) for k, v in val.properties.items()}}
+    # FalkorDB returns map values as collections.OrderedDict (see falkordb
+    # query_result.__parse_map). Some falkordb/redis client versions strictly
+    # reject an OrderedDict when it is later passed back as a Cypher param
+    # ("Expected dict, got collections.OrderedDict"), which silently breaks
+    # Layer-4 session persistence on those versions. Normalize every map to a
+    # plain dict (recursively) at this single read chokepoint so no OrderedDict
+    # ever escapes into downstream state or write params. Plain dict is a
+    # drop-in replacement everywhere downstream.
+    if isinstance(val, dict):
+        return {k: _unwrap_value(v) for k, v in val.items()}
+    if isinstance(val, (list, tuple)):
+        return [_unwrap_value(v) for v in val]
     return val
 
 
