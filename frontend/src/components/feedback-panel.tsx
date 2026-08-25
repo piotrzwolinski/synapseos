@@ -129,7 +129,7 @@ export function FeedbackPanel() {
   };
 
   return (
-    <div className="flex h-full min-h-[600px] bg-white dark:bg-slate-900">
+    <div className="flex h-full min-h-[600px] w-full min-w-0 overflow-hidden bg-white dark:bg-slate-900">
       {/* LEFT — session list */}
       <aside className="w-80 border-r border-slate-200 dark:border-slate-700 flex flex-col">
         <header className="p-3 border-b border-slate-200 dark:border-slate-700 space-y-2">

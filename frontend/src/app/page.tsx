@@ -728,7 +728,7 @@ function MainApp() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 min-h-screen flex flex-col">
+      <main className="flex-1 min-w-0 min-h-screen flex flex-col">
         {/* Header */}
         <header className="h-16 border-b border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-900/50 backdrop-blur-xl sticky top-0 z-10 flex items-center justify-between px-6">
           <div>
@@ -791,10 +791,10 @@ function MainApp() {
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 p-6">
+        <div className="flex-1 min-w-0 p-6">
           <div className={cn(
-            "h-full",
-            activeTab === "chat" ? "w-full" : "max-w-5xl mx-auto"
+            "h-full min-w-0",
+            activeTab === "chat" || activeTab === "feedback" ? "w-full" : "max-w-5xl mx-auto"
           )}>
             {activeTab === "chat" && (
               <Chat
