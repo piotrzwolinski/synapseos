@@ -865,7 +865,7 @@ export function ClarificationCard({ clarification, onOptionSelect }: Clarificati
             <button
               key={idx}
               onClick={() => onOptionSelect?.(option.value, option.description)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-full hover:bg-green-50 hover:border-green-400 hover:text-green-800 active:bg-green-100 transition-all shadow-sm"
+              className="max-w-full text-left whitespace-normal break-words px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-full hover:bg-green-50 hover:border-green-400 hover:text-green-800 active:bg-green-100 transition-all shadow-sm"
               title={option.description}
             >
               {pillLabel}

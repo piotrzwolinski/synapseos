@@ -257,8 +257,8 @@ export function FeedbackPanel() {
               </div>
             </header>
 
-            <ScrollArea className="flex-1">
-              <div className="p-5 space-y-5">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+              <div className="p-5 space-y-5 min-w-0">
                 {replayLoading && (
                   <div className="flex items-center gap-2 text-sm text-slate-500">
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -345,7 +345,7 @@ export function FeedbackPanel() {
                   </div>
                 </section>
               </div>
-            </ScrollArea>
+            </div>
           </>
         )}
       </main>
