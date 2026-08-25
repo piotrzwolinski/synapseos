@@ -47,9 +47,9 @@ function TurnView({ turn }: { turn: TurnSnapshot }) {
 
   if (isUser) {
     return (
-      <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-gradient-to-br from-green-700 to-green-800 text-white">
-          <p className="text-sm whitespace-pre-wrap">{turn.message}</p>
+      <div className="flex justify-end min-w-0">
+        <div className="max-w-[85%] min-w-0 rounded-2xl px-4 py-3 bg-gradient-to-br from-green-700 to-green-800 text-white">
+          <p className="text-sm whitespace-pre-wrap break-words">{turn.message}</p>
           {turn.created_at && (
             <p className="text-[10px] mt-1 text-green-100/80">
               {new Date(turn.created_at).toLocaleString()}
@@ -63,11 +63,11 @@ function TurnView({ turn }: { turn: TurnSnapshot }) {
   // Assistant turn without persisted reasoning — legacy fallback.
   if (!turn.reasoning_data) {
     return (
-      <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
+      <div className="max-w-[85%] min-w-0 rounded-2xl px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
         <div className="text-[11px] uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-1">
           Legacy turn — nie w pełni odtwarzalny
         </div>
-        <div className="prose-chat">
+        <div className="prose-chat break-words [&_pre]:whitespace-pre-wrap [&_pre]:break-words">
           <ReactMarkdown>{turn.message || ""}</ReactMarkdown>
         </div>
       </div>
@@ -78,8 +78,8 @@ function TurnView({ turn }: { turn: TurnSnapshot }) {
   const data = turn.reasoning_data as unknown as DeepExplainableResponseData;
 
   return (
-    <div className="max-w-[85%]">
-      <div className="space-y-3">
+    <div className="max-w-[85%] min-w-0">
+      <div className="space-y-3 min-w-0">
         {/* 0. STATUS BADGES */}
         {data.status_badges && data.status_badges.length > 0 && (
           <StatusBadges badges={data.status_badges} />
@@ -108,7 +108,8 @@ function TurnView({ turn }: { turn: TurnSnapshot }) {
         {/* 3. TEXT CONTENT */}
         <div
           className={cn(
-            "relative rounded-xl px-4 py-3 bg-slate-50/80 dark:bg-slate-800/80"
+            "relative rounded-xl px-4 py-3 bg-slate-50/80 dark:bg-slate-800/80",
+            "min-w-0 overflow-x-auto break-words [&_pre]:whitespace-pre-wrap [&_pre]:break-words [&_code]:break-words"
           )}
         >
           {(data.content_segments?.length ?? 0) > 0 ? (
