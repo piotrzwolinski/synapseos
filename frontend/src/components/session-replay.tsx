@@ -28,7 +28,7 @@ export function SessionReplay({ replay }: SessionReplayProps) {
   if (!replay.turns || replay.turns.length === 0) {
     return (
       <div className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
-        Ta sesja nie ma jeszcze żadnych wiadomości.
+        This session has no messages yet.
       </div>
     );
   }
@@ -65,7 +65,7 @@ function TurnView({ turn }: { turn: TurnSnapshot }) {
     return (
       <div className="max-w-[85%] min-w-0 rounded-2xl px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
         <div className="text-[11px] uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-1">
-          Legacy turn — nie w pełni odtwarzalny
+          Legacy turn — not fully reproducible
         </div>
         <div className="prose-chat break-words [&_pre]:whitespace-pre-wrap [&_pre]:break-words">
           <ReactMarkdown>{turn.message || ""}</ReactMarkdown>

@@ -761,7 +761,7 @@ function MainApp() {
               {activeTab === "testgen" && "Multi-LLM debate to generate new test cases from product catalogs"}
               {activeTab === "capabilities" && "Expert modules, sub-components, and example scenarios"}
               {activeTab === "expert-review" && "Browse conversations, review responses, and score judge evaluations"}
-              {activeTab === "feedback" && "Przeglądaj sesje użytkowników i czytaj zostawione komentarze"}
+              {activeTab === "feedback" && "Browse user sessions and read the comments they left"}
               {activeTab === "analytics" && "Track performance metrics and generate reports"}
               {activeTab === "workflows" && "Automate repetitive tasks and processes"}
               {activeTab === "users" && "Manage team members and permissions"}
