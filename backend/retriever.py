@@ -5260,6 +5260,35 @@ The user has chosen to remove the accessory option to fit within their space con
                 if not _has_dims and clar_data.get("options"):
                     print(f"🎯 [ENRICHMENT] Cleared {len(clar_data['options'])} fabricated airflow options (no dimensions → no graph tiers)")
                     clar_data["options"] = []
+        else:
+            # General rule: any graph VariableFeature that backs the clarified
+            # parameter and carries FIXED options is authoritative over LLM free
+            # text (deterministic). This is what makes e.g. GDP filter-depth show
+            # the catalog 25/50/100 instead of LLM-invented 48/292/450. Read the
+            # options straight from the graph (get_variable_features) — the report's
+            # variable_features list can be empty on the LLM-driven clarification path.
+            try:
+                _fam = getattr(technical_state, "detected_family", None)
+                if _fam:
+                    _norm = lambda s: (s or "").lower().replace("_", "").replace(" ", "")
+                    _miss = _norm(clar_data.get("missing_attribute") or clar_data.get("missing_info") or "")
+                    for _feat in db.get_variable_features(_fam):
+                        _opts = _feat.get("options") or []
+                        if not _opts:
+                            continue
+                        _fp = _norm(_feat.get("parameter_name", ""))
+                        if _fp and _miss and (_fp in _miss or _miss in _fp):
+                            _graph_opts = [{
+                                "value": str(_o.get("value")),
+                                "display_label": _o.get("display_label") or _o.get("name") or str(_o.get("value")),
+                                "description": _o.get("description", ""),
+                            } for _o in _opts if _o.get("value") is not None]
+                            if _graph_opts:
+                                clar_data["options"] = _graph_opts
+                                print(f"🎯 [ENRICHMENT] Overrode with {len(_graph_opts)} graph options for {_feat.get('parameter_name')}")
+                                break
+            except Exception as _e:
+                logger.warning(f"Graph option override failed (non-fatal): {_e}")
 
         # Deduplicate options by value (case-insensitive)
         raw_options = clar_data.get("options", [])
