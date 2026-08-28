@@ -4880,6 +4880,41 @@ class GraphConnection:
         })
         return result_to_dicts(result)
 
+    def get_family_size_alternatives(
+        self,
+        family: str,
+        required_airflow: float,
+        exclude_width: int,
+        exclude_height: int,
+        limit: int = 2,
+    ) -> list[dict]:
+        """Sibling size variants of the SAME family that also satisfy the airflow.
+
+        Happy-path sales alternatives (v4.2): given a valid winning spec, return
+        other ProductVariant sizes of the same family whose single-module rated
+        airflow covers the requirement, excluding the chosen size. Ordered by
+        rated airflow ascending (closest-fitting sizes first). Domain-agnostic —
+        just reads ProductVariant capacity/dimensions from the graph.
+        """
+        fam = (family or "").strip()
+        fam_id = fam if fam.startswith("FAM_") else f"FAM_{fam}"
+        graph = self.connect()
+        result = graph.query("""
+            MATCH (pv:ProductVariant)
+            WHERE (pv.product_family = $fam OR pv.product_family = $fam_id)
+              AND pv.reference_airflow_m3h >= $req
+              AND NOT (pv.width_mm = $ew AND pv.height_mm = $eh)
+            RETURN pv.width_mm AS width, pv.height_mm AS height,
+                   pv.housing_length_mm AS length, pv.weight_kg AS weight,
+                   pv.reference_airflow_m3h AS airflow, pv.name AS name
+            ORDER BY pv.reference_airflow_m3h ASC
+            LIMIT $limit
+        """, {
+            "fam": fam, "fam_id": fam_id, "req": required_airflow,
+            "ew": exclude_width, "eh": exclude_height, "limit": limit,
+        })
+        return result_to_dicts(result)
+
     def get_dependency_rules_for_stressors(self, stressor_ids: list[str]) -> list[dict]:
         """Get DependencyRule nodes triggered by given stressors.
 

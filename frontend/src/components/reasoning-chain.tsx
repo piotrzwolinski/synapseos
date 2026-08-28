@@ -49,6 +49,7 @@ export interface ProductCard {
   warning?: string;
   confidence: string;
   actions: string[];
+  card_role?: string;
 }
 
 export interface ClarificationOption {
@@ -631,7 +632,12 @@ export function ProductCardComponent({ card, onAction, riskSeverity }: ProductCa
               <p className="text-xs text-red-100 mt-0.5">Not recommended for this application</p>
             )}
           </div>
-          {!isCritical && card.confidence === "high" && (
+          {!isCritical && card.card_role === "alternative" && (
+            <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[11px] font-medium rounded border border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600">
+              Alternative
+            </span>
+          )}
+          {!isCritical && card.card_role !== "alternative" && card.confidence === "high" && (
             <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[11px] font-medium rounded border border-emerald-100">
               Verified
             </span>

@@ -5401,6 +5401,68 @@ The user has chosen to remove the accessory option to fit within their space con
 
         product_card_dict = product_cards_list[0] if product_cards_list else None
 
+        # v4.2: Surface sibling-size ALTERNATIVES as extra product cards on the
+        # happy path. Experts asked for several options, not a single answer.
+        # Deterministic — built from graph ProductVariant data + the code builder,
+        # never from the LLM. Skipped for assemblies (cards = stages, not options).
+        try:
+            if (product_cards_list and not is_assembly and len(product_cards_list) == 1):
+                _primary_tag = next(
+                    (t for t in technical_state.tags.values() if t.product_code), None
+                )
+                _req_af = None
+                if _primary_tag:
+                    _req_af = _primary_tag.airflow_m3h or technical_state.resolved_params.get("airflow_m3h")
+                _fam = (
+                    (_primary_tag.product_family or technical_state.detected_family)
+                    if _primary_tag else technical_state.detected_family
+                )
+                if (_primary_tag and _fam and _req_af
+                        and _primary_tag.housing_width and _primary_tag.housing_height):
+                    _alts = db.get_family_size_alternatives(
+                        _fam, int(_req_af),
+                        int(_primary_tag.housing_width), int(_primary_tag.housing_height),
+                        limit=2,
+                    )
+                    _fam_id = _fam if str(_fam).startswith("FAM_") else f"FAM_{_fam}"
+                    _code_fmt = db.get_product_family_code_format(_fam_id)
+                    import copy as _copy
+                    for _a in _alts:
+                        # Keep the user's chosen housing_length/depth; only the
+                        # footprint (size) changes. Weight is length-dependent and
+                        # not reliably known for the alt length → omit it.
+                        _alt_tag = _copy.copy(_primary_tag)
+                        _alt_tag.housing_width = int(_a["width"])
+                        _alt_tag.housing_height = int(_a["height"])
+                        _alt_tag.product_code = None
+                        _alt_code = technical_state.build_product_code(_alt_tag, code_format=_code_fmt)
+                        _specs = {
+                            "Product Code": _alt_code,
+                            "Housing Size": f"{int(_a['width'])}x{int(_a['height'])}mm",
+                        }
+                        if _primary_tag.housing_length:
+                            _specs["Housing Length"] = f"{int(_primary_tag.housing_length)}mm"
+                        _mat = _primary_tag.material_override or technical_state.locked_material
+                        if _mat:
+                            _specs["Material"] = _mat
+                        _conn = technical_state.resolved_params.get("connection_type")
+                        if _conn:
+                            _specs["Connection"] = _conn
+                        if _a.get("airflow"):
+                            _specs["Rated Airflow"] = f"{int(_a['airflow'])} m³/h"
+                        product_cards_list.append({
+                            "title": _alt_code,
+                            "specs": _specs,
+                            "warning": None,
+                            "confidence": "medium",
+                            "card_role": "alternative",
+                            "actions": ["Add to Quote"],
+                        })
+                    if _alts:
+                        print(f"🔀 [ALTERNATIVES] Added {len(_alts)} sibling-size alternative cards for {_fam}")
+        except Exception as _alt_e:
+            logger.warning(f"Alternative cards generation failed (non-fatal): {_alt_e}")
+
     # Installation block overrides clarifications in final response (defense-in-depth)
     if graph_reasoning_report.suitability and not graph_reasoning_report.suitability.is_suitable:
         clarification_needed = False
