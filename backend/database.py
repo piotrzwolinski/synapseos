@@ -4899,6 +4899,11 @@ class GraphConnection:
         fam = (family or "").strip()
         fam_id = fam if fam.startswith("FAM_") else f"FAM_{fam}"
         graph = self.connect()
+        # Exclude only the EXACT chosen footprint. The transpose (e.g. 900x600 for
+        # a 600x900 pick) is a WANTED alternative — same capacity, rotated for a
+        # different space constraint (width vs height), so it stays in. Order by
+        # airflow ascending so the closest-fitting sizes (incl. the transpose,
+        # which shares the primary's airflow) come first.
         result = graph.query("""
             MATCH (pv:ProductVariant)
             WHERE (pv.product_family = $fam OR pv.product_family = $fam_id)
@@ -4907,7 +4912,7 @@ class GraphConnection:
             RETURN pv.width_mm AS width, pv.height_mm AS height,
                    pv.housing_length_mm AS length, pv.weight_kg AS weight,
                    pv.reference_airflow_m3h AS airflow, pv.name AS name
-            ORDER BY pv.reference_airflow_m3h ASC
+            ORDER BY pv.reference_airflow_m3h ASC, pv.width_mm ASC
             LIMIT $limit
         """, {
             "fam": fam, "fam_id": fam_id, "req": required_airflow,
