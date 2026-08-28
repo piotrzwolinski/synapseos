@@ -1261,8 +1261,18 @@ class TechnicalState:
         length_offset = int(self.resolved_params.get("connection_length_offset", 0))
         effective_length = length + length_offset if length else 0
 
-        # Frame depth for products that use frame depth in code format
-        frame_depth = self.resolved_params.get("frame_depth") or default_frame_depth or ""
+        # Frame depth for products that use frame depth in code format.
+        # For panel families (only GDP today) the code's frame-depth token IS the
+        # chosen filter element depth, so prefer the resolved filter_depth over the
+        # family default — otherwise a user who picks 100 mm gets the default 50 in
+        # the code. Falls back to the family default only when no depth is resolved.
+        frame_depth = (
+            self.resolved_params.get("frame_depth")
+            or self.resolved_params.get("filter_depth")
+            or getattr(tag, "filter_depth", None)
+            or default_frame_depth
+            or ""
+        )
 
         # Side parameter for FLEX products (R = Right, L = Left)
         side = self.resolved_params.get("side", "R")
