@@ -2864,19 +2864,33 @@ def query_deep_explainable(user_query: str, model: str = None) -> "DeepExplainab
             _pf_id = f"FAM_{detected_product_family}" if not detected_product_family.startswith("FAM_") else detected_product_family
             from db_result_helpers import result_single
             _pf_rec = result_single(db.connect().query(
-                "MATCH (pf:ProductFamily {id: $pf_id}) RETURN pf.corrosion_class AS cc, pf.indoor_only AS io",
+                "MATCH (pf:ProductFamily {id: $pf_id}) "
+                "RETURN pf.corrosion_class AS cc, pf.indoor_only AS io, "
+                "pf.construction_type AS ct, pf.desc AS desc",
                 params={"pf_id": _pf_id}
             ))
             if _pf_rec:
                 _cc = _pf_rec.get("cc")
                 _io = _pf_rec.get("io")
-                if _cc:
-                    active_policies_prompt += (
-                        f"\n\n## HOUSING SPECIFICATION\n"
-                        f"- Housing corrosion class: **{_cc}** (the housing itself, regardless of material)\n"
-                        f"- Indoor only: {'Yes' if _io else 'No'}\n"
-                        f"- You MUST state the housing corrosion class ({_cc}) when discussing environmental suitability.\n"
+                _ct = _pf_rec.get("ct")
+                _desc = _pf_rec.get("desc")
+                if _cc or _ct or _desc:
+                    _spec = ["\n\n## HOUSING SPECIFICATION (authoritative — from catalog graph)"]
+                    if _cc:
+                        _spec.append(f"- Housing corrosion class: **{_cc}** (the housing itself, regardless of material)")
+                        _spec.append(f"- Indoor only: {'Yes' if _io else 'No'}")
+                    if _ct:
+                        _spec.append(f"- Housing construction type: **{_ct}**")
+                    if _desc:
+                        _spec.append(f"- Catalog description: {_desc}")
+                    _spec.append(
+                        "- Describe the housing construction and insulation ONLY from the data above. "
+                        "Do NOT claim it is insulated/uninsulated or single-skin/double-wall unless the "
+                        "construction type or catalog description above says so."
                     )
+                    if _cc:
+                        _spec.append(f"- You MUST state the housing corrosion class ({_cc}) when discussing environmental suitability.")
+                    active_policies_prompt += "\n".join(_spec) + "\n"
         except Exception as e:
             logger.warning(f"Failed to fetch housing corrosion class: {e}")
 
@@ -4676,21 +4690,35 @@ The user has chosen to remove the accessory option to fit within their space con
             _pf_id = f"FAM_{technical_state.detected_family}" if not technical_state.detected_family.startswith("FAM_") else technical_state.detected_family
             from db_result_helpers import result_single
             _pf_rec = result_single(db.connect().query(
-                "MATCH (pf:ProductFamily {id: $pf_id}) RETURN pf.corrosion_class AS cc, pf.indoor_only AS io",
+                "MATCH (pf:ProductFamily {id: $pf_id}) "
+                "RETURN pf.corrosion_class AS cc, pf.indoor_only AS io, "
+                "pf.construction_type AS ct, pf.desc AS desc",
                 params={"pf_id": _pf_id}
             ))
             if _pf_rec:
                 _cc = _pf_rec.get("cc")
                 _io = _pf_rec.get("io")
-                if _cc:
-                    graph_reasoning_context += (
-                        f"\n\n## HOUSING SPECIFICATION\n"
-                        f"- Housing corrosion class: **{_cc}** (the housing itself, regardless of material)\n"
-                        f"- Indoor only: {'Yes' if _io else 'No'}\n"
-                        f"- You MUST state the housing corrosion class ({_cc}) when discussing environmental suitability.\n"
+                _ct = _pf_rec.get("ct")
+                _desc = _pf_rec.get("desc")
+                if _cc or _ct or _desc:
+                    _spec = ["\n\n## HOUSING SPECIFICATION (authoritative — from catalog graph)"]
+                    if _cc:
+                        _spec.append(f"- Housing corrosion class: **{_cc}** (the housing itself, regardless of material)")
+                        _spec.append(f"- Indoor only: {'Yes' if _io else 'No'}")
+                    if _ct:
+                        _spec.append(f"- Housing construction type: **{_ct}**")
+                    if _desc:
+                        _spec.append(f"- Catalog description: {_desc}")
+                    _spec.append(
+                        "- Describe the housing construction and insulation ONLY from the data above. "
+                        "Do NOT claim it is insulated/uninsulated or single-skin/double-wall unless the "
+                        "construction type or catalog description above says so."
                     )
+                    if _cc:
+                        _spec.append(f"- You MUST state the housing corrosion class ({_cc}) when discussing environmental suitability.")
+                    graph_reasoning_context += "\n".join(_spec) + "\n"
         except Exception as e:
-            logger.warning(f"Failed to fetch housing corrosion class: {e}")
+            logger.warning(f"Failed to fetch housing specification: {e}")
 
     # Combine all constraint contexts (resolution > geometric > graph policies)
     constraint_contexts = []
