@@ -78,8 +78,9 @@ def main():
     # 4. Housing length feature: fixed 250, auto-resolve (never asked)
     q("""
         MATCH (f:VariableFeature {id:'FEAT_HOUSING_LENGTH_GDP'})
-        SET f.property_key='housing_length', f.name='Housing Length',
-            f.auto_resolve=true, f.default_value=250, f.is_variable=false
+        SET f.parameter_name='housing_length', f.property_key='housing_length',
+            f.name='Housing Length', f.auto_resolve=true, f.default_value=250,
+            f.is_variable=false
     """)
 
     # Verify
