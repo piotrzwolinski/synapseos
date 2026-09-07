@@ -441,13 +441,17 @@ housing_length_derivation:
       length: 750
     - max_depth: 99999
       length: 900
+  # GDB has ONLY two catalog lengths: 550mm (short bag/compact) and 750mm (long).
+  # The old config had a spurious 900mm (exists in no source) + a too-low 292
+  # breakpoint, so a 400mm filter oversized to 750 and a 500mm one produced a
+  # fake 900 + block. Catalog: 550mm fits up to 450mm, 750mm up to 650mm.
+  # (450 is the catalog value; Magnus's Excel says 500 — pending his confirmation,
+  # 450 is the safe/conservative choice: a borderline filter goes to the longer housing.)
   GDB:
-    - max_depth: 292
-      length: 550
     - max_depth: 450
-      length: 750
+      length: 550
     - max_depth: 99999
-      length: 900
+      length: 750
   # GDP panel filters have a FIXED 250mm housing length (catalog: Planfilterskåp,
   # "Standard 250 mm längd", frame depths 25/50/100mm). Length does not vary with
   # filter depth. Without this block GDP fell back to the first rule set (GDMI).
