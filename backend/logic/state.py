@@ -1240,19 +1240,23 @@ class TechnicalState:
         # Unpack dict format (from updated get_product_family_code_format)
         fmt_str = None
         default_frame_depth = None
+        family_default_mat = None
         if isinstance(code_format, dict):
             fmt_str = code_format.get("fmt")
             default_frame_depth = code_format.get("default_frame_depth")
+            family_default_mat = code_format.get("default_material")
         elif isinstance(code_format, str):
             fmt_str = code_format
 
         family = (tag.product_family or self.detected_family or "").replace("_", "-")
-        default_mat = ""
-        try:
-            from config_loader import get_config
-            default_mat = get_config().default_material or ""
-        except Exception:
-            pass
+        # Family default (graph) wins over the tenant-wide default (config).
+        default_mat = family_default_mat or ""
+        if not default_mat:
+            try:
+                from config_loader import get_config
+                default_mat = get_config().default_material or ""
+            except Exception:
+                pass
         material = tag.material_override or (self.locked_material if self.locked_material else default_mat)
         connection = self.resolved_params.get("connection_type", "PG")
 

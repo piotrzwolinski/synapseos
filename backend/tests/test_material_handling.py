@@ -82,7 +82,7 @@ class TestCorrosionMap:
         state = TechnicalState()
         state.lock_material("FZ")
         ctx = state.to_prompt_context()
-        assert "FZ=C3, AZ=C4, ZM=C5, RF=C5, SF=C5.1" in ctx
+        assert "FZ=C3, AZ=C4, ZM=C5, RF=C5, SF=C5-I" in ctx
 
 
 class TestVerifyMaterialCodes:

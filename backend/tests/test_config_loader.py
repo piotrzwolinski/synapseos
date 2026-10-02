@@ -65,16 +65,16 @@ class TestDimensionMaterialTables:
     def test_corrosion_class_map_loaded(self, config):
         assert config.corrosion_class_map["FZ"] == "C3"
         assert config.corrosion_class_map["RF"] == "C5"
-        assert config.corrosion_class_map["SF"] == "C5.1"
+        assert config.corrosion_class_map["SF"] == "C5-I"
 
     def test_housing_length_derivation_loaded(self, config):
         rules = config.housing_length_derivation
         assert "GDB" in rules
         assert "GDMI" in rules
         assert "GDC" in rules
-        # GDB has 3 breakpoints
-        assert len(rules["GDB"]) == 3
-        assert rules["GDB"][0]["max_depth"] == 292
+        # GDB has 2 catalog lengths: 550 (filter <= 450mm) and 750
+        assert len(rules["GDB"]) == 2
+        assert rules["GDB"][0]["max_depth"] == 450
         assert rules["GDB"][0]["length"] == 550
 
     def test_orientation_threshold_loaded(self, config):

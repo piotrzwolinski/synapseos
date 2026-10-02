@@ -840,7 +840,7 @@ class VerdictToReportAdapter:
         # to available materials for the specific product family.
         corrosion_trait_classes = {
             "TRAIT_CORROSION_RESISTANCE_C5": "C5",
-            "TRAIT_CORROSION_RESISTANCE_C5M": "C5.1",
+            "TRAIT_CORROSION_RESISTANCE_C5M": "C5-I",
             "TRAIT_CORROSION_RESISTANCE_C3": "C3",
         }
         for rule in verdict.active_causal_rules:

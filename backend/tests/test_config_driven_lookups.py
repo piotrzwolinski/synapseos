@@ -70,7 +70,7 @@ class TestCorrosionMapFromConfig:
 
     def test_sf_is_c5_1(self):
         from logic.dimension_tables import get_corrosion_map
-        assert get_corrosion_map()["SF"] == "C5.1"
+        assert get_corrosion_map()["SF"] == "C5-I"
 
     def test_az_is_c4(self):
         from logic.dimension_tables import get_corrosion_map
@@ -107,11 +107,11 @@ class TestHousingDerivationFromConfig:
 
     def test_gdb_depth_450_gives_750(self):
         from logic.dimension_tables import derive_housing_length
-        assert derive_housing_length(450, "GDB") == 750
+        assert derive_housing_length(450, "GDB") == 550
 
     def test_gdb_depth_600_gives_900(self):
         from logic.dimension_tables import derive_housing_length
-        assert derive_housing_length(600, "GDB") == 900
+        assert derive_housing_length(600, "GDB") == 750
 
     def test_gdmi_depth_450_gives_600(self):
         from logic.dimension_tables import derive_housing_length
@@ -128,6 +128,16 @@ class TestHousingDerivationFromConfig:
     def test_gdc_depth_500_gives_900(self):
         from logic.dimension_tables import derive_housing_length
         assert derive_housing_length(500, "GDC") == 900
+
+    def test_gdmi_flex_own_lengths(self):
+        from logic.dimension_tables import derive_housing_length
+        assert derive_housing_length(450, "GDMI_FLEX") == 850
+        assert derive_housing_length(600, "GDMI-FLEX") == 1100
+
+    def test_gdc_flex_uses_gdc_lengths(self):
+        from logic.dimension_tables import derive_housing_length
+        assert derive_housing_length(450, "GDC_FLEX") == 750
+        assert derive_housing_length(600, "GDC_FLEX") == 900
 
 
 # ===================================================================

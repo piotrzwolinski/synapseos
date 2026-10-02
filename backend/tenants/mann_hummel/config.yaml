@@ -187,7 +187,7 @@ material_environment_rules:
 
     - code: "SF"
       full_name: "Stainless Steel (1.4404/316L)"
-      corrosion_class: "C5.1"
+      corrosion_class: "C5-I"
       description: "Extreme: marine, high chloride, aggressive chemicals"
       suitable_for: ["marine", "coastal", "offshore", "chemical plant", "chlorine exposure"]
 
@@ -213,7 +213,7 @@ material_environment_rules:
 
     - name: "marine"
       aliases: ["coastal", "offshore", "ship", "port", "morski"]
-      min_corrosion_class: "C5.1"
+      min_corrosion_class: "C5-I"
       required_materials: ["SF"]
       concern: "salt spray, extreme corrosion conditions"
 
@@ -428,7 +428,7 @@ corrosion_class_map:
   AZ: "C4"
   ZM: "C5"
   RF: "C5"
-  SF: "C5.1"
+  SF: "C5-I"
 
 housing_length_derivation:
   GDMI:
@@ -445,8 +445,7 @@ housing_length_derivation:
   # The old config had a spurious 900mm (exists in no source) + a too-low 292
   # breakpoint, so a 400mm filter oversized to 750 and a 500mm one produced a
   # fake 900 + block. Catalog: 550mm fits up to 450mm, 750mm up to 650mm.
-  # (450 is the catalog value; Magnus's Excel says 500 — pending his confirmation,
-  # 450 is the safe/conservative choice: a borderline filter goes to the longer housing.)
+  # 450 confirmed by M+H (Alexander Söderblom, 2026-10, Selection Companion V3 §6.3).
   GDB:
     - max_depth: 450
       length: 550
@@ -458,6 +457,14 @@ housing_length_derivation:
   GDP:
     - max_depth: 99999
       length: 250
+  # GDMI FLEX is a cartridge housing with its OWN lengths (Companion V3 §4.1/§6.3):
+  # 850mm for a 450mm cylinder, 1100mm for a 600mm cylinder + post carbon filter.
+  # Without this block the _FLEX-suffix fallback applied GDMI's 600/850 rules.
+  GDMI_FLEX:
+    - max_depth: 450
+      length: 850
+    - max_depth: 99999
+      length: 1100
 
 orientation_threshold: 600
 

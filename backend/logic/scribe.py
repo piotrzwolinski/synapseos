@@ -166,7 +166,7 @@ class ScribeEntity:
     airflow_m3h: Optional[int] = None
     product_family: Optional[str] = None
     material: Optional[str] = None
-    required_corrosion_class: Optional[str] = None  # "C3", "C4", "C5", "C5.1" — when user specifies class, not material
+    required_corrosion_class: Optional[str] = None  # "C3", "C4", "C5", "C5-I" — when user specifies class, not material
     connection_type: Optional[str] = None   # "PG" or "F" (flange)
     housing_length: Optional[int] = None    # explicit housing length (550/600/750/800/900mm)
 
@@ -236,7 +236,7 @@ RULES:
     - If the pending parameter is "housing_length", extract length as integer
 11. MATERIAL vs CORROSION CLASS — these are DIFFERENT things. Your job is to extract WHAT the user said, not to resolve it:
     - If user names a SPECIFIC MATERIAL CODE or material name → set "material" to the code. Map common names to codes using domain knowledge from context.
-    - If user specifies a CORROSION CLASS (C3, C4, C5, C5.1, "corrosion resistance C5", "class C5") WITHOUT naming a material → set "required_corrosion_class": "C5" (NOT material). Multiple materials can satisfy the same class — that is resolved downstream, NOT by you.
+    - If user specifies a CORROSION CLASS (C3, C4, C5, C5-I, "corrosion resistance C5", "class C5") WITHOUT naming a material → set "required_corrosion_class": "C5" (NOT material). Multiple materials can satisfy the same class — that is resolved downstream, NOT by you.
     - NEVER infer a material from a corrosion class. "C5 corrosion resistance" → required_corrosion_class="C5", material=null.
     Extract connection_type when mentioned: "PG" / "slip-in" / "PG profile" → "PG", "flange" / "fläns" / "flange connection" → "F". Only extract if user explicitly mentions connection type.
 12. REFERENCE DATA vs USER REQUIREMENTS: Only create entities for items the user is REQUESTING to configure or design. If the user mentions a product's rated capacity as background info (e.g., "the standard model handles 3,400 m³/h"), do NOT create a separate entity for it. The user's REQUESTED values are preceded by "we need", "target", "our requirement", etc. Reference data is preceded by "handles", "rated", "capacity of", "up to", etc.
@@ -443,7 +443,9 @@ def _parse_scribe_response(data: dict) -> SemanticIntent:
             continue
         # Validate corrosion class if present
         _corr_class = ent.get("required_corrosion_class")
-        if _corr_class and _corr_class not in ("C3", "C4", "C5", "C5.1"):
+        if _corr_class in ("C5.1", "C5-1", "C5I"):  # brochure prints C5-I as "C5.1"
+            _corr_class = "C5-I"
+        if _corr_class and _corr_class not in ("C3", "C4", "C5", "C5-I"):
             _corr_class = None
 
         entities.append(ScribeEntity(

@@ -9,14 +9,12 @@ class TestDefaultDerivationRules:
 
     @pytest.mark.parametrize("depth,expected_length", [
         (100, 550),
-        (150, 550),
-        (292, 550),  # Upper bound of short range
-        (293, 750),  # Just above → medium range
-        (400, 750),
-        (450, 750),  # Upper bound of medium range
-        (451, 900),  # Just above → long range
-        (500, 900),
-        (600, 900),
+        (292, 550),
+        (400, 550),
+        (450, 550),  # Upper bound of short housing (catalog + M+H confirmation)
+        (451, 750),  # Just above → long housing
+        (500, 750),
+        (650, 750),
     ])
     def test_depth_to_length(self, depth, expected_length):
         tag = TagSpecification(tag_id="t1", filter_depth=depth)
@@ -44,10 +42,10 @@ class TestDerivationEdgeCases:
         assert state.tags["item_1"].housing_length == 550
 
         state.merge_tag("item_2", filter_width=600, filter_height=600, filter_depth=450)
-        assert state.tags["item_2"].housing_length == 750
+        assert state.tags["item_2"].housing_length == 550
 
         state.merge_tag("item_3", filter_width=600, filter_height=600, filter_depth=600)
-        assert state.tags["item_3"].housing_length == 900
+        assert state.tags["item_3"].housing_length == 750
 
 
 class TestSessionGraphFamilySpecificDerivation:
@@ -69,19 +67,19 @@ class TestSessionGraphFamilySpecificDerivation:
         from backend.logic.session_graph import _derive_housing_length
         assert _derive_housing_length(200, "GDB") == 550
         assert _derive_housing_length(292, "GDB") == 550
-        assert _derive_housing_length(293, "GDB") == 750
-        assert _derive_housing_length(450, "GDB") == 750
-        assert _derive_housing_length(451, "GDB") == 900
+        assert _derive_housing_length(450, "GDB") == 550
+        assert _derive_housing_length(451, "GDB") == 750
+        assert _derive_housing_length(650, "GDB") == 750
 
     def test_state_vs_session_graph_consistency(self):
         """Both state.py and session_graph.py now use the same unified function."""
         from backend.logic.session_graph import _derive_housing_length
 
-        # Both should return 900 for depth=500 GDB (unified function has >450→900)
-        tag = TagSpecification(tag_id="t1", filter_depth=500)
+        # Both should return 750 for depth=500 GDB (catalog: 550 up to 450mm, else 750)
+        tag = TagSpecification(tag_id="t1", filter_depth=500, product_family="GDB")
         tag.compute_housing_length_from_depth()
         state_result = tag.housing_length
 
         session_result = _derive_housing_length(500, "GDB")
 
-        assert state_result == session_result == 900
+        assert state_result == session_result == 750

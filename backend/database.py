@@ -2934,11 +2934,11 @@ class GraphConnection:
         """Get materials available for a product family that meet a minimum corrosion class.
 
         Uses the Material node's corrosion_class property.
-        Corrosion hierarchy: C3 < C4 < C5 < C5.1
+        Corrosion hierarchy: C3 < C4 < C5 < C5-I (legacy spelling "C5.1" accepted)
         Returns list of dicts with 'id', 'name', 'code', 'corrosion_class'.
         """
         # Map corrosion classes to numeric for >= comparison
-        class_rank = {"C3": 3, "C4": 4, "C5": 5, "C5.1": 5.1}
+        class_rank = {"C3": 3, "C4": 4, "C5": 5, "C5-I": 5.1, "C5.1": 5.1}
         min_rank = class_rank.get(min_corrosion_class, 5)
 
         def _query():
@@ -3193,15 +3193,17 @@ class GraphConnection:
     def get_product_family_code_format(self, family_id: str):
         """Get the code_format template and metadata for a product family.
 
-        Returns dict with 'fmt' and 'default_frame_depth' (for GDP-style codes
-        where the length field represents frame depth, not housing length).
+        Returns dict with 'fmt', 'default_frame_depth' (for GDP-style codes
+        where the length field represents frame depth, not housing length) and
+        'default_material' (the family's own default sheet material).
         """
         def _query():
             graph = self.connect()
             result = graph.query("""
                 MATCH (pf:ProductFamily {id: $fid})
                 RETURN pf.code_format AS fmt,
-                       pf.default_frame_depth AS default_frame_depth
+                       pf.default_frame_depth AS default_frame_depth,
+                       pf.default_material AS default_material
             """, params={"fid": family_id})
             record = result_single(result)
             if not record:
@@ -3209,6 +3211,7 @@ class GraphConnection:
             return {
                 "fmt": record["fmt"],
                 "default_frame_depth": record["default_frame_depth"],
+                "default_material": record["default_material"],
             }
 
         try:
@@ -4048,7 +4051,7 @@ class GraphConnection:
                 "materials": "Respect environment_restrictions. Hospital = RF/SF only.",
                 "sizing": "Use sizing_reference_m3h for airflow-to-size mapping.",
                 "corrosion": (
-                    "Valid corrosion classes: C1, C2, C3, C4, C5, C5.1 ONLY. "
+                    "Valid corrosion classes: C1, C2, C3, C4, C5, C5-I ONLY. "
                     "There is NO class called C5-M. "
                     "housing_corrosion_class is the corrosion rating of the HOUSING itself. "
                     "Material corrosion_class is the rating of each material option. "

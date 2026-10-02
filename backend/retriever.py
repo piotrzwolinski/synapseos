@@ -4859,7 +4859,7 @@ The user has chosen to remove the accessory option to fit within their space con
     timings["total"] = time.time() - total_start
 
     # Corrosion-class hygiene (deterministic): 'C2' is never a valid class in this
-    # catalogue — galvanized FZ = C3, stainless RF/SF = C5/C5.1. The LLM has a
+    # catalogue — galvanized FZ = C3, stainless RF/SF = C5/C5-I. The LLM has a
     # persistent prior that a "standard housing frame" carries a C2 rating, which no
     # graph/config data supports and prompt guards do not reliably suppress (it recurs
     # in blocked/pivot verdicts). Correct any stray corrosion-context 'C2' to 'C3' so
