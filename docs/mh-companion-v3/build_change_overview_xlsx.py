@@ -4,7 +4,11 @@ from openpyxl.comments import Comment
 from openpyxl.worksheet.datavalidation import DataValidation
 
 import os
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "MH_Product_Advisor_Companion_V3_Change_Overview.xlsx")
+import sys
+# --internal: keep effort estimates (PD). Default = client version without any estimates.
+INTERNAL = "--internal" in sys.argv
+_HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.join(_HERE, "MH_Product_Advisor_Companion_V3_Change_Overview" + ("_INTERNAL" if INTERNAL else "") + ".xlsx")
 F = "Arial"
 HDR_FILL = PatternFill("solid", start_color="1F3864")
 HDR_FONT = Font(name=F, bold=True, color="FFFFFF", size=10)
@@ -47,7 +51,7 @@ ambig = [
     ("A-04", "Max filter depth, short housing", "Brochure: 450 mm. Input Excel (2026-09-01): 500 mm.", "Brochure Sortiment vs input Excel", "Resolved", 0, 0, "M+H: 450. Implemented under F-03."),
     ("A-05", "SF corrosion class", "Brochure prints \"C5.1\"; Companion reads it as C5-I (typeface misprint).", "Brochure Material page vs Companion §2.1", "Resolved", 0.5, 0.5, "Implemented as C5-I; \"C5.1\" from users still recognised."),
     ("A-06", "Flange length offset", "Companion §3.2: +20 mm per end (+40 mm). Companion §9 and size tables: +50 mm.", "Companion §3.2 vs §9 / brochure tables", "Open", 0.5, 0.5, "Open – see Q-02"),
-    ("A-07", "Corrosion class model", "Brochure and Companion §2.3 give a class per finished housing (C2/C4). Companion §10: \"complete housing is not rated\". Companion §1.7 forbids upgrading the class by substituting material, which the engine does today (e.g. coastal → RF).", "Companion §1.7, §2.3, §10 vs brochure", "Open", 2, 4, "Open – see Q-01. If the answer requires changing the current material-upgrade behaviour, this becomes a change request (est. 2–4 PD)."),
+    ("A-07", "Corrosion class model", "Brochure and Companion §2.3 give a class per finished housing (C2/C4). Companion §10: \"complete housing is not rated\". Companion §1.7 forbids upgrading the class by substituting material, which the engine does today (e.g. coastal → RF).", "Companion §1.7, §2.3, §10 vs brochure", "Open", 2, 4, "Open – see Q-01. If the answer requires changing the current material-upgrade behaviour, this becomes a change request" + (" (est. 2–4 PD)." if INTERNAL else ".")),
     ("A-08", "GDP default frame depth", "\"Standarddjup på ram\" suggests 25 mm, but the ordering example uses 50 mm. Current default: 50 mm.", "Brochure GDP page", "Open", 0.25, 0.25, "Open – see Q-05"),
     ("A-09", "GDMI FLEX weights", "Both weight columns in the size table are headed 1100/1150. First column interpreted as 850/900.", "Brochure GDMI FLEX size table", "Open", 0.25, 0.25, "Open – see Q-06"),
     ("A-10", "Companion section 11 missing", "\"Manual review\" section is referenced (incl. the FZ in the GDMI FLEX example) but not included in V3.", "Companion V3", "Open", 0, 0, "Open – see Q-03"),
@@ -119,7 +123,7 @@ s = wb.active
 s.title = "Summary"
 f_last = table(wb.create_sheet("1 Fixes (in scope)"), fixes, "1 · Fixes – brochure is explicit, system deviated", effort=False)
 a_last = table(wb.create_sheet("2 Ambiguities"), ambig, "2 · Ambiguities & inconsistencies in source documents", effort=False)
-c_last = table(wb.create_sheet("3 CRQ"), crq, "3 · Change requests – new knowledge from Selection Companion V3")
+c_last = table(wb.create_sheet("3 CRQ"), crq, "3 · Change requests – new knowledge from Selection Companion V3", effort=INTERNAL)
 
 q = wb.create_sheet("Open Questions")
 q["A1"] = "Open questions to MANN+HUMMEL"
@@ -142,7 +146,10 @@ s["A1"].font = Font(name=F, size=14, bold=True)
 s["A2"] = "Basis: Filterskåp brochure (version 01-09-2025) = original scope; Filter Housing Selection Companion V3 = new input."
 s["A2"].font = Font(name=F, size=10, italic=True)
 hdr = ["Category", "Items", "Done / resolved", "Open / planned", "Effort min (PD)", "Effort max (PD)", "Scope"]
-for c, (h, w) in enumerate(zip(hdr, [34, 8, 14, 14, 14, 14, 50]), 1):
+widths_s = [34, 8, 14, 14, 14, 14, 50]
+if not INTERNAL:
+    hdr, widths_s = hdr[:4] + hdr[6:], widths_s[:4] + widths_s[6:]
+for c, (h, w) in enumerate(zip(hdr, widths_s), 1):
     cell = s.cell(row=4, column=c, value=h)
     cell.font, cell.fill, cell.border = HDR_FONT, HDR_FILL, BORDER
     cell.alignment = Alignment(wrap_text=True, vertical="center")
@@ -157,17 +164,19 @@ for r, (name, sh, last, treat, charge) in enumerate(cats, 5):
     s.cell(row=r, column=2, value=f"=COUNTA({sh}!A4:A{last})")
     s.cell(row=r, column=3, value=f'=COUNTIF({sh}!E4:E{last},"Done")+COUNTIF({sh}!E4:E{last},"Resolved")')
     s.cell(row=r, column=4, value=f"=B{r}-C{r}")
-    if charge:
-        s.cell(row=r, column=5, value=f"={sh}!F{last + 1}")
-        s.cell(row=r, column=6, value=f"={sh}!G{last + 1}")
-    else:
-        s.cell(row=r, column=5, value="–")
-        s.cell(row=r, column=6, value="–")
-    s.cell(row=r, column=7, value=treat)
-    for c in range(1, 8):
+    if INTERNAL:
+        if charge:
+            s.cell(row=r, column=5, value=f"={sh}!F{last + 1}")
+            s.cell(row=r, column=6, value=f"={sh}!G{last + 1}")
+        else:
+            s.cell(row=r, column=5, value="–")
+            s.cell(row=r, column=6, value="–")
+    scope_col = 7 if INTERNAL else 5
+    s.cell(row=r, column=scope_col, value=treat)
+    for c in range(1, scope_col + 1):
         cell = s.cell(row=r, column=c)
-        cell.font, cell.border, cell.alignment = (Font(name=F, size=10, color="008000") if c in (5, 6) else BODY), BORDER, WRAP
-        if c in (5, 6):
+        cell.font, cell.border, cell.alignment = (Font(name=F, size=10, color="008000") if INTERNAL and c in (5, 6) else BODY), BORDER, WRAP
+        if INTERNAL and c in (5, 6):
             cell.number_format = "0.00"
         if c in (8, 9):
             cell.number_format = "#,##0"
@@ -178,11 +187,10 @@ s["A11"] = "Legend"
 s["A11"].font = BOLD
 legend = [
     ("Yellow cell", "Input – M+H answers (Open Questions sheet)"),
-    ("Green text", "Linked from the category sheets"),
+] + ([("Green text", "Linked from the category sheets")] if INTERNAL else []) + [
     ("Status green", "Done / resolved"),
     ("Status amber", "Open – waiting for M+H input"),
-    ("PD", "Person-day (change requests only); includes graph data, code, unit + end-to-end regression tests, Azure deployment"),
-]
+] + ([("PD", "Person-day (change requests only); includes graph data, code, unit + end-to-end regression tests, Azure deployment")] if INTERNAL else [])
 for i, (k, v) in enumerate(legend, 12):
     s.cell(row=i, column=1, value=k).font = BODY
     s.cell(row=i, column=2, value=v).font = BODY
