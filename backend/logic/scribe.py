@@ -168,6 +168,7 @@ class ScribeEntity:
     material: Optional[str] = None
     required_corrosion_class: Optional[str] = None  # "C3", "C4", "C5", "C5-I" — when user specifies class, not material
     connection_type: Optional[str] = None   # "PG" or "F" (flange)
+    door_hinge: Optional[str] = None        # "L" (left) or "R" (right, default) — door hand
     housing_length: Optional[int] = None    # explicit housing length (550/600/750/800/900mm)
 
 
@@ -239,6 +240,7 @@ RULES:
     - If user specifies a CORROSION CLASS (C3, C4, C5, C5-I, "corrosion resistance C5", "class C5") WITHOUT naming a material → set "required_corrosion_class": "C5" (NOT material). Multiple materials can satisfy the same class — that is resolved downstream, NOT by you.
     - NEVER infer a material from a corrosion class. "C5 corrosion resistance" → required_corrosion_class="C5", material=null.
     Extract connection_type when mentioned: "PG" / "slip-in" / "PG profile" → "PG", "flange" / "fläns" / "flange connection" → "F". Only extract if user explicitly mentions connection type.
+    Extract door_hinge when the door hand is mentioned: "left hinge" / "left-hinged" / "vänsterhängd" → "L"; "right hinge" / "right-hinged" / "högerhängd" → "R". Right is the default — only set door_hinge if the user states it.
 12. REFERENCE DATA vs USER REQUIREMENTS: Only create entities for items the user is REQUESTING to configure or design. If the user mentions a product's rated capacity as background info (e.g., "the standard model handles 3,400 m³/h"), do NOT create a separate entity for it. The user's REQUESTED values are preceded by "we need", "target", "our requirement", etc. Reference data is preceded by "handles", "rated", "capacity of", "up to", etc.
     REPLACEMENT SEMANTICS: When the user says "instead of X, we want Y" or "replace X with Y" or "rather than X, give me Y", this means REPLACE. Do NOT create entities for X — only create entities for Y. The "instead of" clause is context/reference, NOT a request. Example: "Instead of one 600x600 housing, we want four 300x300 housings" → create 4 entities of 300x300 only. Do NOT create a 600x600 entity.
 13. PRODUCT FAMILY: When the user names a specific product code, extract the product_family INCLUDING any named variant suffix, replacing dashes with underscores. Named variants like FLEX, NANO are part of the family identity and MUST be preserved.
@@ -260,7 +262,6 @@ RULES:
 16. PROJECT NAME: If the user mentions a project name (e.g., "for Project Nouryon", "Stockholm Mall project", "dla projektu Kraków"), extract it as "project_name" in the top-level JSON. Only extract proper nouns / named projects.
 17. ACCESSORIES: Detect requests for accessories or add-ons:
     - Quick-release handles: "EXL" / "eccentric lock" / "quick release" → "EXL"
-    - Left hinge: "left hinge" / "L hinge" → "L"
     - Round duct connections: "O500mm" / "500mm round duct" / "circular duct 500" → "Round duct OXXXMM" (with diameter)
     - Transition piece: "transition piece" / "reducer" / "adapter" → "Transition"
     Output as "accessories" array in top-level JSON. Only include if user explicitly requests them.
@@ -295,6 +296,7 @@ OUTPUT JSON SCHEMA:
       "material": "MATERIAL_CODE",
       "required_corrosion_class": "C5",
       "connection_type": "PG",
+      "door_hinge": "L",
       "housing_length": 550
     }}
   ],
@@ -457,6 +459,7 @@ def _parse_scribe_response(data: dict) -> SemanticIntent:
             material=ent.get("material"),
             required_corrosion_class=_corr_class,
             connection_type=ent.get("connection_type"),
+            door_hinge=_hinge if (_hinge := (ent.get("door_hinge") or "").upper()) in ("L", "R") else None,
             housing_length=_safe_int(ent.get("housing_length")),
         ))
 

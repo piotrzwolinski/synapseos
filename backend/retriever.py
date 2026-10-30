@@ -489,6 +489,13 @@ def _route_entity_legacy(entity, tag_ref, tag, state):
         state.resolved_params["connection_type"] = entity.connection_type
         print(f"🧠 [SCRIBE] Connection type: {entity.connection_type}")
 
+    # Door hand (F-05) — Scribe is primary (legacy fallback path; the active
+    # config-driven path routes door_hinge→side via scribe_entity_routing).
+    # Fills the {side} token in the product code; defaults to 'R' when unset.
+    if entity.door_hinge:
+        state.resolved_params["side"] = entity.door_hinge
+        print(f"🧠 [SCRIBE] Door hinge: {entity.door_hinge}")
+
     # Housing length — Scribe is primary (v4.0), overrides auto-derived
     if entity.housing_length:
         state.merge_tag(tag_ref, housing_length=entity.housing_length)
@@ -2866,7 +2873,8 @@ def query_deep_explainable(user_query: str, model: str = None) -> "DeepExplainab
             _pf_rec = result_single(db.connect().query(
                 "MATCH (pf:ProductFamily {id: $pf_id}) "
                 "RETURN pf.corrosion_class AS cc, pf.indoor_only AS io, "
-                "pf.construction_type AS ct, pf.desc AS desc",
+                "pf.construction_type AS ct, pf.desc AS desc, pf.insulation_note AS ins, "
+                "pf.filter_class_note AS fcn",
                 params={"pf_id": _pf_id}
             ))
             if _pf_rec:
@@ -2874,25 +2882,56 @@ def query_deep_explainable(user_query: str, model: str = None) -> "DeepExplainab
                 _io = _pf_rec.get("io")
                 _ct = _pf_rec.get("ct")
                 _desc = _pf_rec.get("desc")
-                if _cc or _ct or _desc:
+                _ins = _pf_rec.get("ins")
+                _fcn = _pf_rec.get("fcn")
+                if _cc or _ct or _desc or _ins or _fcn:
                     _spec = ["\n\n## HOUSING SPECIFICATION (authoritative — from catalog graph)"]
                     if _cc:
                         _spec.append(f"- Housing corrosion class: **{_cc}** (the housing itself, regardless of material)")
-                        _spec.append(f"- Indoor only: {'Yes' if _io else 'No'}")
+                        if _io:
+                            _spec.append(
+                                "- Indoor only: Yes — rated for indoor use. If the environment is "
+                                "outdoor/rooftop, do NOT refuse the housing: an extra-roof option for "
+                                "outdoor installation is available via a sales specialist — recommend "
+                                "contacting a specialist rather than blocking."
+                            )
+                        else:
+                            _spec.append("- Indoor only: No")
                     if _ct:
                         _spec.append(f"- Housing construction type: **{_ct}**")
                     if _desc:
                         _spec.append(f"- Catalog description: {_desc}")
+                    if _ins:
+                        _spec.append(f"- Insulation: {_ins}")
+                    if _fcn:
+                        _spec.append(f"- Filter class ceiling: {_fcn}")
                     _spec.append(
                         "- Describe the housing construction and insulation ONLY from the data above. "
                         "Do NOT claim it is insulated/uninsulated or single-skin/double-wall unless the "
-                        "construction type or catalog description above says so."
+                        "construction type, catalog description or insulation line above says so."
                     )
                     if _cc:
                         _spec.append(f"- You MUST state the housing corrosion class ({_cc}) when discussing environmental suitability.")
                     active_policies_prompt += "\n".join(_spec) + "\n"
         except Exception as e:
             logger.warning(f"Failed to fetch housing corrosion class: {e}")
+
+    # F-09: EXL vs Filter Profil clamping-accessory guidance by filter class
+    # (graph-authoritative — recommended_for lives on the accessory families).
+    try:
+        from db_result_helpers import result_to_dicts
+        _acc_rows = result_to_dicts(db.connect().query(
+            "MATCH (pf:ProductFamily) WHERE pf.id IN ['FAM_EXL', 'FAM_FILTER_PROFIL'] "
+            "AND pf.recommended_for IS NOT NULL RETURN pf.id AS id, pf.recommended_for AS rec"
+        ))
+        if _acc_rows:
+            _acc_lines = ["\n\n## ACCESSORY SELECTION (clamping/sealing, by filter class)"]
+            for _r in _acc_rows:
+                _label = "EXL (eccentric-lock clamping)" if _r["id"] == "FAM_EXL" else "Filter Profil (filter rail)"
+                _acc_lines.append(f"- {_label}: recommended for {_r['rec']}.")
+            active_policies_prompt += "\n".join(_acc_lines) + "\n"
+    except Exception as e:
+        logger.warning(f"Failed to fetch accessory selection guidance: {e}")
 
     system_prompt = DEEP_EXPLAINABLE_SYSTEM_PROMPT_GENERIC.format(active_policies=active_policies_prompt)
     synthesis_prompt = DEEP_EXPLAINABLE_SYNTHESIS_PROMPT.format(
@@ -4692,7 +4731,8 @@ The user has chosen to remove the accessory option to fit within their space con
             _pf_rec = result_single(db.connect().query(
                 "MATCH (pf:ProductFamily {id: $pf_id}) "
                 "RETURN pf.corrosion_class AS cc, pf.indoor_only AS io, "
-                "pf.construction_type AS ct, pf.desc AS desc",
+                "pf.construction_type AS ct, pf.desc AS desc, pf.insulation_note AS ins, "
+                "pf.filter_class_note AS fcn",
                 params={"pf_id": _pf_id}
             ))
             if _pf_rec:
@@ -4700,19 +4740,33 @@ The user has chosen to remove the accessory option to fit within their space con
                 _io = _pf_rec.get("io")
                 _ct = _pf_rec.get("ct")
                 _desc = _pf_rec.get("desc")
-                if _cc or _ct or _desc:
+                _ins = _pf_rec.get("ins")
+                _fcn = _pf_rec.get("fcn")
+                if _cc or _ct or _desc or _ins or _fcn:
                     _spec = ["\n\n## HOUSING SPECIFICATION (authoritative — from catalog graph)"]
                     if _cc:
                         _spec.append(f"- Housing corrosion class: **{_cc}** (the housing itself, regardless of material)")
-                        _spec.append(f"- Indoor only: {'Yes' if _io else 'No'}")
+                        if _io:
+                            _spec.append(
+                                "- Indoor only: Yes — rated for indoor use. If the environment is "
+                                "outdoor/rooftop, do NOT refuse the housing: an extra-roof option for "
+                                "outdoor installation is available via a sales specialist — recommend "
+                                "contacting a specialist rather than blocking."
+                            )
+                        else:
+                            _spec.append("- Indoor only: No")
                     if _ct:
                         _spec.append(f"- Housing construction type: **{_ct}**")
                     if _desc:
                         _spec.append(f"- Catalog description: {_desc}")
+                    if _ins:
+                        _spec.append(f"- Insulation: {_ins}")
+                    if _fcn:
+                        _spec.append(f"- Filter class ceiling: {_fcn}")
                     _spec.append(
                         "- Describe the housing construction and insulation ONLY from the data above. "
                         "Do NOT claim it is insulated/uninsulated or single-skin/double-wall unless the "
-                        "construction type or catalog description above says so."
+                        "construction type, catalog description or insulation line above says so."
                     )
                     if _cc:
                         _spec.append(f"- You MUST state the housing corrosion class ({_cc}) when discussing environmental suitability.")
