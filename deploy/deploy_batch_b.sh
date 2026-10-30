@@ -40,11 +40,11 @@ say "2/5  Point the backend container app at $VERSION"
 az containerapp update -n "$BACKEND_APP" -g "$RG" \
   --image "${ACR_SERVER}/product-advisor-backend:$VERSION" -o none || die "containerapp update backend"
 
-say "3/5  Download both graph migrations from git (raw + PAT)"
+say "3/5  Download both graph migrations from git (GitHub API — robust for slashed branch)"
 for f in fix_companion_v3.sh fix_companion_v3b.sh; do
-  curl -fsSL -H "Authorization: token ${PAT}" \
-    "https://raw.githubusercontent.com/${REPO}/${BRANCH}/deploy/${f}" -o "/tmp/${f}" \
-    || die "download ${f} (is the branch pushed? is the PAT valid?)"
+  curl -fsSL -H "Authorization: token ${PAT}" -H "Accept: application/vnd.github.raw" \
+    "https://api.github.com/repos/${REPO}/contents/deploy/${f}?ref=${BRANCH}" -o "/tmp/${f}" \
+    || die "download ${f} (is the branch pushed? does the PAT have Contents:Read on the repo?)"
   echo "  got /tmp/${f} ($(wc -c </tmp/${f}) bytes)"
 done
 
